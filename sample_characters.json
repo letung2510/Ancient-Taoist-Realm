@@ -1,0 +1,424 @@
+[
+  {
+    "id": "char_1788511414118_9242",
+    "name": "Vô Danh #0001",
+    "origin": {
+      "regionId": "trung_vuc",
+      "locationId": "son_mon",
+      "race": "Nhân Tộc",
+      "background": "Tông Môn",
+      "personality": [
+        "Lãnh đạm",
+        "Cơ trí"
+      ],
+      "hiddenGoal": "Tìm cơ duyên",
+      "spiritualRoots": [
+        "Thủy",
+        "Mộc",
+        "Thổ",
+        "Hỏa"
+      ]
+    },
+    "realm": {
+      "id": "di_menh",
+      "level": 1,
+      "title": "Di Mệnh Cảnh",
+      "exp": 0
+    },
+    "path": {
+      "primary": null,
+      "secondary": null,
+      "pathScore": 0,
+      "professionStage": null
+    },
+    "stats": {
+      "phy": 17,
+      "mag": 20,
+      "aptitude": 65,
+      "comprehension": 42,
+      "vitality": 176,
+      "staminaCurrent": 100,
+      "staminaMax": 134,
+      "san": 100,
+      "sanMax": 100,
+      "corruption": 0,
+      "lifespan": 78
+    },
+    "fate": {
+      "equippedIds": [
+        178,
+        230,
+        55,
+        594,
+        233
+      ],
+      "vaultIds": [],
+      "vaultCapacity": 10,
+      "total": 7,
+      "normal": 8,
+      "ratioR": 0.875,
+      "debt": 0,
+      "surplus": 0,
+      "pacts": []
+    },
+    "anchors": [],
+    "techniqueIds": [
+      "kiem_khi_so_cap",
+      "tam_phap_dan_dien"
+    ],
+    "hiddenFates": [],
+    "hiddenProfessionCandidate": null,
+    "hiddenProfession": null,
+    "faction": {
+      "id": null,
+      "titles": [],
+      "heavenMerit": 0,
+      "balanceTokens": 0,
+      "eldritchAttentionChosen": false,
+      "finalConflictPreparation": false,
+      "taintedGodDefeated": false
+    },
+    "state": "NORMAL_GROWTH",
+    "pathDebt": [],
+    "eventHistory": [],
+    "createdAt": "2026-09-04T08:43:34.118Z"
+  },
+  {
+    "id": "char_1788511414119_7565",
+    "name": "Vô Danh #0002",
+    "origin": {
+      "regionId": "trung_vuc",
+      "locationId": "son_mon",
+      "race": "Nhân Tộc",
+      "background": "Tán Tu",
+      "personality": [
+        "Lãnh đạm",
+        "Cơ trí"
+      ],
+      "hiddenGoal": "Trốn tránh quá khứ",
+      "spiritualRoots": [
+        "Mộc",
+        "Hỏa",
+        "Thủy",
+        "Kim",
+        "Thổ"
+      ]
+    },
+    "realm": {
+      "id": "di_menh",
+      "level": 1,
+      "title": "Di Mệnh Cảnh",
+      "exp": 0
+    },
+    "path": {
+      "primary": null,
+      "secondary": null,
+      "pathScore": 0,
+      "professionStage": null
+    },
+    "stats": {
+      "phy": 18,
+      "mag": 16,
+      "aptitude": 60,
+      "comprehension": 67,
+      "vitality": 184,
+      "staminaCurrent": 100,
+      "staminaMax": 136,
+      "san": 100,
+      "sanMax": 100,
+      "corruption": 0,
+      "lifespan": 79
+    },
+    "fate": {
+      "equippedIds": [
+        497,
+        345,
+        165,
+        13,
+        674
+      ],
+      "vaultIds": [],
+      "vaultCapacity": 10,
+      "total": 6,
+      "normal": 8,
+      "ratioR": 0.75,
+      "debt": 0,
+      "surplus": 0,
+      "pacts": []
+    },
+    "anchors": [],
+    "techniqueIds": [
+      "kiem_khi_so_cap",
+      "tam_phap_dan_dien"
+    ],
+    "hiddenFates": [],
+    "hiddenProfessionCandidate": null,
+    "hiddenProfession": null,
+    "faction": {
+      "id": null,
+      "titles": [],
+      "heavenMerit": 0,
+      "balanceTokens": 0,
+      "eldritchAttentionChosen": false,
+      "finalConflictPreparation": false,
+      "taintedGodDefeated": false
+    },
+    "state": "NORMAL_GROWTH",
+    "pathDebt": [],
+    "eventHistory": [],
+    "createdAt": "2026-09-04T08:43:34.119Z"
+  },
+  {
+    "id": "char_1788511414120_1602",
+    "name": "Vô Danh #0003",
+    "origin": {
+      "regionId": "trung_vuc",
+      "locationId": "son_mon",
+      "race": "Cổ Tộc",
+      "background": "Tông Môn",
+      "personality": [
+        "Ẩn nhẫn",
+        "Tàn nhẫn"
+      ],
+      "hiddenGoal": "Bảo vệ môn phái",
+      "spiritualRoots": [
+        "Thủy",
+        "Kim",
+        "Mộc",
+        "Hỏa"
+      ]
+    },
+    "realm": {
+      "id": "di_menh",
+      "level": 1,
+      "title": "Di Mệnh Cảnh",
+      "exp": 0
+    },
+    "path": {
+      "primary": null,
+      "secondary": null,
+      "pathScore": 0,
+      "professionStage": null
+    },
+    "stats": {
+      "phy": 15,
+      "mag": 18,
+      "aptitude": 59,
+      "comprehension": 36,
+      "vitality": 160,
+      "staminaCurrent": 100,
+      "staminaMax": 130,
+      "san": 100,
+      "sanMax": 100,
+      "corruption": 0,
+      "lifespan": 72
+    },
+    "fate": {
+      "equippedIds": [
+        142,
+        513,
+        391,
+        259,
+        838
+      ],
+      "vaultIds": [],
+      "vaultCapacity": 10,
+      "total": 12,
+      "normal": 14,
+      "ratioR": 0.857,
+      "debt": 0,
+      "surplus": 0,
+      "pacts": []
+    },
+    "anchors": [],
+    "techniqueIds": [
+      "kiem_khi_so_cap",
+      "tam_phap_dan_dien"
+    ],
+    "hiddenFates": [],
+    "hiddenProfessionCandidate": null,
+    "hiddenProfession": null,
+    "faction": {
+      "id": null,
+      "titles": [],
+      "heavenMerit": 0,
+      "balanceTokens": 0,
+      "eldritchAttentionChosen": false,
+      "finalConflictPreparation": false,
+      "taintedGodDefeated": false
+    },
+    "state": "NORMAL_GROWTH",
+    "pathDebt": [],
+    "eventHistory": [],
+    "createdAt": "2026-09-04T08:43:34.120Z"
+  },
+  {
+    "id": "char_1788511414121_1357",
+    "name": "Vô Danh #0004",
+    "origin": {
+      "regionId": "trung_vuc",
+      "locationId": "son_mon",
+      "race": "Nhân Tộc",
+      "background": "Thế Gia",
+      "personality": [
+        "Tàn nhẫn",
+        "Trung thành"
+      ],
+      "hiddenGoal": "Trốn tránh quá khứ",
+      "spiritualRoots": [
+        "Thủy",
+        "Mộc",
+        "Kim",
+        "Hỏa"
+      ]
+    },
+    "realm": {
+      "id": "di_menh",
+      "level": 1,
+      "title": "Di Mệnh Cảnh",
+      "exp": 0
+    },
+    "path": {
+      "primary": null,
+      "secondary": null,
+      "pathScore": 0,
+      "professionStage": null
+    },
+    "stats": {
+      "phy": 19,
+      "mag": 14,
+      "aptitude": 39,
+      "comprehension": 52,
+      "vitality": 192,
+      "staminaCurrent": 100,
+      "staminaMax": 138,
+      "san": 100,
+      "sanMax": 100,
+      "corruption": 0,
+      "lifespan": 60
+    },
+    "fate": {
+      "equippedIds": [
+        802,
+        137,
+        98,
+        298,
+        129
+      ],
+      "vaultIds": [],
+      "vaultCapacity": 10,
+      "total": 9,
+      "normal": 9,
+      "ratioR": 1,
+      "debt": 0,
+      "surplus": 0,
+      "pacts": []
+    },
+    "anchors": [],
+    "techniqueIds": [
+      "kiem_khi_so_cap",
+      "tam_phap_dan_dien"
+    ],
+    "hiddenFates": [],
+    "hiddenProfessionCandidate": null,
+    "hiddenProfession": null,
+    "faction": {
+      "id": null,
+      "titles": [],
+      "heavenMerit": 0,
+      "balanceTokens": 0,
+      "eldritchAttentionChosen": false,
+      "finalConflictPreparation": false,
+      "taintedGodDefeated": false
+    },
+    "state": "NORMAL_GROWTH",
+    "pathDebt": [],
+    "eventHistory": [],
+    "createdAt": "2026-09-04T08:43:34.121Z"
+  },
+  {
+    "id": "char_1788511414121_5550",
+    "name": "Vô Danh #0005",
+    "origin": {
+      "regionId": "trung_vuc",
+      "locationId": "son_mon",
+      "race": "Yêu Tộc",
+      "background": "Thế Gia",
+      "personality": [
+        "Ẩn nhẫn",
+        "Cơ trí"
+      ],
+      "hiddenGoal": "Tìm cơ duyên",
+      "spiritualRoots": [
+        "Thủy",
+        "Thổ",
+        "Mộc",
+        "Kim",
+        "Hỏa"
+      ]
+    },
+    "realm": {
+      "id": "di_menh",
+      "level": 1,
+      "title": "Di Mệnh Cảnh",
+      "exp": 0
+    },
+    "path": {
+      "primary": null,
+      "secondary": null,
+      "pathScore": 0,
+      "professionStage": null
+    },
+    "stats": {
+      "phy": 17,
+      "mag": 20,
+      "aptitude": 42,
+      "comprehension": 60,
+      "vitality": 176,
+      "staminaCurrent": 100,
+      "staminaMax": 134,
+      "san": 100,
+      "sanMax": 100,
+      "corruption": 0,
+      "lifespan": 75
+    },
+    "fate": {
+      "equippedIds": [
+        473,
+        15,
+        862,
+        52,
+        48
+      ],
+      "vaultIds": [],
+      "vaultCapacity": 10,
+      "total": 7,
+      "normal": 9,
+      "ratioR": 0.778,
+      "debt": 0,
+      "surplus": 0,
+      "pacts": []
+    },
+    "anchors": [],
+    "techniqueIds": [
+      "kiem_khi_so_cap",
+      "tam_phap_dan_dien"
+    ],
+    "hiddenFates": [],
+    "hiddenProfessionCandidate": null,
+    "hiddenProfession": null,
+    "faction": {
+      "id": null,
+      "titles": [],
+      "heavenMerit": 0,
+      "balanceTokens": 0,
+      "eldritchAttentionChosen": false,
+      "finalConflictPreparation": false,
+      "taintedGodDefeated": false
+    },
+    "state": "NORMAL_GROWTH",
+    "pathDebt": [],
+    "eventHistory": [],
+    "createdAt": "2026-09-04T08:43:34.121Z"
+  }
+]

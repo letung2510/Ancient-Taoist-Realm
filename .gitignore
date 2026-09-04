@@ -1,0 +1,16 @@
+# Local/editor files
+node_modules/
+*.log
+.env
+.env.*
+.vscode/
+.idea/
+.commandcode/
+
+# OS metadata
+Thumbs.db
+desktop.ini
+
+# Local saves/cache
+*.save
+co_di_dien_save_*

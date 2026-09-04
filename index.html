@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cổ Dị Diện — Tiên Hiệp Text RPG</title>
+  <link rel="stylesheet" href="styles.css?v=20260904-equipment" />
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div class="brand">Cổ Dị Diện <span class="brand-sub">Tiên Hiệp · Eldritch Text RPG</span></div>
+      <div id="save-indicator" class="save-indicator">—</div>
+    </header>
+
+    <!-- ============ HOME ============ -->
+    <section id="screen-home" class="screen active">
+      <div class="home-hero">
+        <div class="sigil">玄</div>
+        <h1>Cổ Dị Diện</h1>
+        <p class="tagline">Linh khí biến dạng, Cổ Thần tỉnh giấc. Một câu chuyện tiên hiệp do chính ngươi viết nên.</p>
+        <div class="home-actions">
+          <button id="btn-new" class="btn btn-primary">Bắt đầu chương mới</button>
+          <button id="btn-continue" class="btn btn-ghost" disabled>Tiếp tục hành trình</button>
+        </div>
+        <p class="home-hint">Gõ lệnh tự do kiểu MUD: <code>nhìn</code>, <code>tu luyện</code>, <code>dùng Tụ Khí Đan</code>, <code>đi bắc</code>, <code>nói chuyện Lạc Trần Tử</code>…</p>
+      </div>
+    </section>
+
+    <!-- ============ CHARACTER CREATION ============ -->
+    <section id="screen-create" class="screen">
+      <div class="create-wrap">
+        <h2>Gieo Mệnh · Tạo Nhân Vật</h2>
+        <p class="muted">Mệnh số của ngươi đã được định, nhưng con đường vẫn nằm trong tay ngươi.</p>
+
+        <label class="field">
+          <span>Pháp danh</span>
+          <input id="char-name" type="text" maxlength="24" placeholder="Ví dụ: Trần Vân" autocomplete="off" />
+        </label>
+
+        <div class="field">
+          <span>1. Chọn nơi bắt đầu <b class="required-mark">(bắt buộc)</b></span>
+          <div id="start-region-list" class="start-region-list"></div>
+        </div>
+
+        <div class="field">
+          <span>2. Gieo ngẫu nhiên và vào game</span>
+          <p class="muted" style="margin:0">Chọn vùng để hệ thống tự roll một lần toàn bộ căn cốt, chủng tộc và thân thế, sau đó lập tức mở bảng Trạng thái.</p>
+        </div>
+
+        <div class="create-actions">
+          <button id="btn-create-back" class="btn btn-ghost">Quay lại</button>
+        </div>
+        <p id="create-error" class="error-text"></p>
+      </div>
+    </section>
+
+    <!-- ============ GAME ============ -->
+    <section id="screen-game" class="screen">
+      <div class="game-layout">
+        <main class="story-panel">
+          <div id="story-location" class="story-location">—</div>
+          <div id="story-log" class="story-log"></div>
+          <div id="choice-list" class="choice-list"></div>
+        </main>
+
+        <aside class="side-panel">
+          <div class="tabs">
+            <button class="tab active" data-tab="status">Trạng thái</button>
+            <button class="tab" data-tab="inventory">Hành trang</button>
+            <button class="tab" data-tab="quests">Nhiệm vụ</button>
+            <button class="tab" data-tab="relations">Nhân duyên</button>
+            <button class="tab" data-tab="guilds">Tổ chức</button>
+            <button class="tab" data-tab="map">Bản đồ</button>
+            <button class="tab" data-tab="memory">Ký ức</button>
+          </div>
+          <div id="tab-content" class="tab-content"></div>
+        </aside>
+      </div>
+
+      <div class="action-bar">
+        <div id="action-list" class="action-list" aria-label="Hành động khả dụng"></div>
+        <form id="free-form" class="free-form" autocomplete="off">
+          <span class="prompt">&gt;</span>
+          <input id="free-input" type="text" placeholder="Bạn làm gì? (gõ `giúp` để xem lệnh)" maxlength="200" />
+          <button type="submit" class="btn btn-primary">Hành động</button>
+        </form>
+        <div class="quick-hints">
+          <button class="chip" data-cmd="nhìn">nhìn</button>
+          <button class="chip" data-cmd="trạng thái">trạng thái</button>
+          <button class="chip" data-cmd="tu luyện">tu luyện</button>
+          <button class="chip" data-cmd="hành trang">hành trang</button>
+          <button class="chip" data-cmd="bản đồ">bản đồ</button>
+          <button class="chip" data-cmd="tổ chức">tổ chức</button>
+          <button class="chip" data-cmd="giúp">giúp</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="gemini-code-1788430656294.js?v=20260904-canonical2"></script>
+  <script src="data/world_data.js?v=20260904-canonical2"></script>
+  <script src="data/fate_data.js?v=20260904-canonical2"></script>
+  <script src="data/fate_relationships.js?v=20260904-canonical2"></script>
+  <script src="data/cong_phap.js?v=20260904-canonical2"></script>
+  <script src="data/npc_monsters.js?v=20260904-canonical2"></script>
+  <script src="data/path_fate_relations.js?v=20260904-canonical2"></script>
+  <script src="data/data.js?v=20260904-canonical2"></script>
+  <script src="js/engine.js?v=20260904-canonical2"></script>
+  <script src="js/ui.js?v=20260904-canonical2"></script>
+  <script src="js/main.js?v=20260904-canonical2"></script>
+</body>
+</html>
