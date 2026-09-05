@@ -1132,6 +1132,7 @@ window.GameEngine = (function () {
     // starting item
     const arch = D().ARCHETYPES.find((a) => a.id === character.archetypeId);
     if (arch && arch.startItem) addItem(state, arch.startItem, 1);
+    ensureStarterKit(state);
 
     // register quests available
     Object.keys(D().QUESTS).forEach((qid) => {
@@ -1199,10 +1200,18 @@ window.GameEngine = (function () {
     const counts = {}; ids.forEach((id) => { counts[id] = (counts[id] || 0) + 1; });
     for (const [id, qty] of Object.entries(counts)) if (!D().ITEMS[id] || Number(state.inventory[id] || 0) < qty || equippedItemIds(state.player.equipment).includes(id)) return { success: false, reason: "Vật phẩm dung luyện không hợp lệ hoặc đang trang bị." };
     ids.forEach((id) => removeItem(state, id, 1));
-    const pool = D().FATE_PATTERNS.filter((f) => f.grade === "phan" || f.grade === "linh");
-    const fate = pool[rnd(0, pool.length - 1)];
-    const result = receiveFate(state, fate.id);
-    if (!result.added) { ids.forEach((id) => addItem(state, id, 1)); return { success: false, reason: result.reason }; }
+    const gradeByCount = ids.length >= 7 ? ["phan", "linh", "hoang"] : ids.length >= 5 ? ["phan", "linh"] : ["phan"];
+    const equipmentPool = Object.values(D().ITEMS).filter((item) => equipmentCategory(item) && !equippedItemIds(state.player.equipment).includes(item.id));
+    if (equipmentPool.length && Math.random() < Math.min(0.4, 0.12 + ids.length * 0.03)) {
+      const item = equipmentPool[rnd(0, equipmentPool.length - 1)];
+      addItem(state, item.id, 1);
+      pushHistory(state, { type: "sys", text: "§ Hư Thiên Đỉnh dung luyện " + ids.length + " vật phẩm, kết tinh thành pháp bảo " + item.name + "." });
+      return { success: true, result: { kind: "item", item } };
+    }
+    const pool = D().FATE_PATTERNS.filter((f) => gradeByCount.includes(f.grade));
+    const fate = pool[rnd(0, Math.max(0, pool.length - 1))];
+    const result = fate && receiveFate(state, fate.id);
+    if (!fate || !result?.added) { ids.forEach((id) => addItem(state, id, 1)); return { success: false, reason: result?.reason || "Lò luyện chưa tìm thấy cách cục tương hợp." }; }
     pushHistory(state, { type: "sys", text: "§ Hư Thiên Đỉnh dung luyện " + ids.length + " vật phẩm, kết thành " + fate.name + "." });
     return { success: true, result: { kind: "fate", fate } };
   }
@@ -1212,6 +1221,15 @@ window.GameEngine = (function () {
     if (!D().ITEMS[itemId]) return false;
     state.inventory[itemId] = (state.inventory[itemId] || 0) + qty;
     return true;
+  }
+
+  // Bảo đảm mọi mệnh nhân đều có kiếm khởi đầu; save cũ được migrate một lần.
+  function ensureStarterKit(state) {
+    state.flags = state.flags || {};
+    if (state.flags.starterKitGranted) return;
+    if (!state.inventory || typeof state.inventory !== "object") state.inventory = {};
+    if (!state.inventory.hac_thiet_kiem && D().ITEMS.hac_thiet_kiem) addItem(state, "hac_thiet_kiem", 1);
+    state.flags.starterKitGranted = true;
   }
   function removeItem(state, itemId, qty = 1) {
     if (!state.inventory[itemId]) return false;
@@ -3193,6 +3211,7 @@ window.GameEngine = (function () {
     });
     state.generatedItems = state.generatedItems || {};
     Object.assign(D().ITEMS, state.generatedItems);
+    ensureStarterKit(state);
     state.player.equipment = normalizeEquipment(state.player.equipment);
     state.player.race = state.player.race || "Nhân Tộc";
     state.player.aptitude = clamp(state.player.aptitude || 50, 1, 100);
