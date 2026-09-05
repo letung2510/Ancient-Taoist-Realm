@@ -56,7 +56,7 @@ html, body {
 
 .screen { display: none; flex: 1; overflow: hidden; }
 .screen.active { display: flex; }
-#screen-game { min-height: 0; height: 100dvh; flex-direction: column; }
+#screen-game { min-height: 0; height: 100dvh; }
 
 /* ---------- Home ---------- */
 .home-hero {
@@ -151,13 +151,11 @@ html, body {
 .story-panel {
   display: flex;
   flex-direction: column;
-  height: auto;
-  min-height: 230px;
+  height: clamp(180px, 30vh, 330px);
   padding: 12px 0;
   overflow: hidden;
-  border-right: 1px solid var(--line);
-  padding-right: 18px;
-  margin: 0;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 10px;
 }
 .story-location {
   color: var(--gold);
@@ -215,11 +213,10 @@ html, body {
   min-height: 0;
   height: 100%;
 }
-.tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
 .tab {
-  flex: 1 1 120px;
-  min-width: 108px;
-  padding: 11px 8px;
+  flex: 1;
+  padding: 11px 6px;
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
@@ -230,7 +227,7 @@ html, body {
 }
 .tab:hover { color: var(--ink); }
 .tab.active { color: var(--jade); border-bottom-color: var(--jade); }
-.tab-content { flex: 1 1 auto; min-width: 0; min-height: 0; overflow-y: auto; padding: 20px clamp(18px, 4vw, 56px); font-size: 14px; }
+.tab-content { flex: 1; overflow-y: auto; padding: 20px clamp(18px, 4vw, 56px); font-size: 14px; }
 
 .kv { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed var(--line); }
 .kv b { color: var(--gold); font-family: var(--mono); }
@@ -417,16 +414,7 @@ html, body {
   padding: 12px 22px;
   background: rgba(11, 15, 20, 0.9);
   flex: 0 0 auto;
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-  grid-template-rows: auto auto auto;
-  column-gap: 18px;
-  align-items: start;
 }
-.action-bar .story-panel { grid-column: 1; grid-row: 1 / span 3; }
-.action-bar .action-list { grid-column: 2; grid-row: 1; }
-.action-bar .free-form { grid-column: 2; grid-row: 2; }
-.action-bar .quick-hints { grid-column: 2; grid-row: 3; }
 .free-form { display: flex; gap: 10px; align-items: center; }
 .free-form .prompt { font-size: 18px; }
 .free-form input {
@@ -441,7 +429,6 @@ html, body {
 }
 .free-form input:focus { outline: none; border-color: var(--jade); box-shadow: 0 0 0 3px var(--jade-glow); }
 .quick-hints { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-.quick-hints { overflow-x: auto; overflow-y: hidden; flex-wrap: nowrap; white-space: nowrap; max-height: 34px; padding-bottom: 2px; }
 .chip {
   font-family: var(--mono);
   font-size: 12px;
@@ -615,12 +602,7 @@ html, body {
 .auto-result { color: var(--gold); font-size: 12px; }
 
 @media (max-width: 760px) {
-  .action-bar { display: flex; flex-direction: column; gap: 8px; }
-  .action-bar .story-panel,
-  .action-bar .action-list,
-  .action-bar .free-form,
-  .action-bar .quick-hints { width: 100%; }
-  .story-panel { min-height: 190px; border-right: 0; border-bottom: 1px solid var(--line); padding-right: 0; }
+  .story-panel { height: 220px; }
   .tab-content { padding: 13px; }
   .detail-columns { grid-template-columns: 1fr; }
   .relation-edge { grid-template-columns: 1fr; }
