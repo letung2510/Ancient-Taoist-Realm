@@ -215,6 +215,8 @@
       if (market && state) { const result = E.buyFateAtMarket(state, market.dataset.marketFate); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
       const qintian = event.target.closest("[data-qintian-fate]");
       if (qintian && state) { const result = E.sacrificeLifespanForFate(state, qintian.dataset.qintianFate); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
+      const qintianMethod = event.target.closest("[data-qintian-method]");
+      if (qintianMethod && state) { const result = E.sacrificeLifespanForFate(state, qintianMethod.dataset.qintianMethod); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
       const offer = event.target.closest("[data-market-offer]");
       if (offer && state) { const result = E.buyMarketOffer(state, offer.dataset.marketOffer); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
       const refine = event.target.closest("[data-cauldron-refine]");

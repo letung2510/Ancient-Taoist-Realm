@@ -45,6 +45,8 @@
 - Hành Trang mở bằng modal; vật phẩm đã trang bị ẩn mặc định, bộ chọn Trang Bị chỉ hiện item cùng loại/slot.
 - Phường Thị rotation theo `state.market.generatedAt`, mỗi 60 giây đổi Mệnh Số, Đan dược và Trang bị; mua bằng Linh thạch.
 - Khâm Thiên Giám có hai gacha độc lập: Hiến Tế Cố Định mất 10 năm và Hiến Thọ Tỷ Lệ mất 1/10 Thọ Nguyên tối đa; cả hai neo theo phẩm trật chiếm đa số, chỉ có xác suất thấp rơi cao hơn đúng một bậc, không mua trực tiếp Mệnh Số.
+- Nguồn Mệnh Số mở rộng: mốc khám phá bản đồ mỗi 5 node thưởng Công Đức, manh mối bản đồ có xác suất thấp rơi Mệnh Số vào Mệnh Kho; phần thưởng được ghi vào Story Panel.
+- Công Đức là tài nguyên danh dự: nhận từ quest, hành thiện, khai mở địa mạch và giải mã điềm mệnh; dùng cho gia nhập/thoát ly tông môn, nghi thức và các lựa chọn rủi ro.
 - Hư Thiên Đỉnh nhận 3–9 vật phẩm hợp lệ, transaction rollback khi thất bại, kết quả đi qua `receiveFate` nếu là Mệnh Số.
 
 ## Thọ Nguyên, Luân Hồi và Chuyển Sinh

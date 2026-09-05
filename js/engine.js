@@ -1389,6 +1389,25 @@ window.GameEngine = (function () {
     if (replaceIndex >= 0 && incomingScore > lowest) { const replaced = state.fateInventory[replaceIndex]; state.fateInventory[replaceIndex] = fate.id; markForbiddenKnowledge(state, fate); return { added: true, replaced }; }
     return { added: false, reason: "Mệnh Kho đã đầy; Mệnh Số mới không tương hợp hơn các Mệnh đang giữ." };
   }
+  function grantMerit(state, amount, source = "hành thiện") {
+    const gain = Math.max(0, Math.floor(Number(amount) || 0));
+    if (!gain) return 0;
+    state.player.merit = Math.max(0, Number(state.player.merit || 0) + gain);
+    pushHistory(state, { type: "sys", text: "✧ Công Đức +" + gain + " · " + source + "." });
+    return gain;
+  }
+  function explorationMilestone(state) {
+    const count = Array.isArray(state.visitedLocations) ? state.visitedLocations.length : 0;
+    state.flags = state.flags || {};
+    const awarded = Number(state.flags.explorationMeritMilestone || 0);
+    const milestone = Math.floor(count / 5);
+    if (milestone > awarded) {
+      state.flags.explorationMeritMilestone = milestone;
+      grantMerit(state, milestone * 2, "khai mở " + count + " địa mạch");
+      return milestone * 2;
+    }
+    return 0;
+  }
   function sacrificeFate(state, fateId) {
     state.fateInventory = Array.isArray(state.fateInventory) ? state.fateInventory : [];
     const index = state.fateInventory.findIndex((id) => String(id) === String(fateId));
@@ -2344,6 +2363,7 @@ window.GameEngine = (function () {
     state.locationId = target;
     if (!Array.isArray(state.visitedLocations)) state.visitedLocations = [];
     if (!state.visitedLocations.includes(target)) state.visitedLocations.push(target);
+    explorationMilestone(state);
     const newLoc = D().LOCATIONS[target];
     pushHistory(state, { type: "sys", text: weaveAtmosphere(state, "→ Ngươi tiến đến " + newLoc.name + ".", "move:" + target) });
     // corruption SAN check on entry
@@ -2526,6 +2546,15 @@ window.GameEngine = (function () {
       drainSan(state, sanLoss, "dư âm dị biến trên tuyến đường");
       pushHistory(state, { type: "narr", text: "Một dấu chân không thuộc về bất cứ sinh linh nào in ngược trên mặt đất. Ngươi buộc phải đổi hướng." });
       return "omen";
+    }
+    if (Math.random() < 0.12) {
+      const dominant = dominantFateGrade(state); const pool = D().FATE_PATTERNS.filter((f) => (dominant.rankTable[f.grade] || 1) <= dominant.rank + 1 && !(state.player.fates || []).includes(f.id) && !(state.fateInventory || []).includes(f.id));
+      const fate = pool.length ? pool[rnd(0, pool.length - 1)] : null;
+      if (fate && receiveFate(state, fate.id).added) {
+        grantMerit(state, 1, "giải mã điềm mệnh trên bản đồ");
+        pushHistory(state, { type: "sys", text: "◇ Manh mối hé lộ một Mệnh Số: " + fate.name + " đã rơi vào Mệnh Kho." });
+        return "fate_clue";
+      }
     }
     pushHistory(state, { type: "sys", text: "◇ Biến cố bản đồ: một luồng khí lạ đánh dấu node này; lần khám phá tiếp theo sẽ có dấu vết sâu hơn." });
     return "map_clue";
