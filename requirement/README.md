@@ -1,3 +1,5 @@
-# Tài liệu không được runtime nạp
+# Requirement index
 
-Các file trong thư mục này là hợp đồng module hoặc tài liệu bối cảnh, không được HTML/engine nạp trực tiếp. Khi có khác biệt, `HE_THONG_NEN_TANG_NHAN_VAT_TU_VI_CONG_PHAP.md` ở thư mục gốc luôn thắng; không tạo thêm luật cảnh giới, Mệnh hoặc Công pháp riêng tại đây.
+`MASTER_GAME_REQUIREMENTS.md` là tài liệu canonical cho toàn bộ luật gameplay, UI và engine mới nhất.
+
+Các tài liệu nền tảng còn lại là module tham chiếu độc lập: hệ thống hành động, nhân vật, Công Pháp, NPC/quái vật, quan hệ, bản đồ và Fatelife. Không tạo thêm luật gameplay ngoài master/canonical root.

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cổ Dị Diện · Vạn Giới Lộ</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar"><div><span class="eyebrow">ELDRITCH XIANXIA</span><h1>Cổ Dị Diện</h1></div><div class="top-actions"><span id="save-state">Chưa lưu</span><button id="save" class="button ghost">Lưu</button><a class="button ghost" href="../">Text RPG</a></div></header>
+  <main class="app-shell">
+    <section class="hero"><div><span class="eyebrow">Vạn Giới Lộ</span><h2>Đừng để thế giới nhận ra ngươi đang nhìn nó.</h2><p>Frontend trực quan song song với bản Text RPG: khám phá, tu luyện, đối đầu và giữ lấy Thanh Tỉnh.</p></div><div class="sigil">☽</div></section>
+    <section class="game-grid">
+      <aside class="card character-card"><div class="avatar">☯</div><h3 id="name">Vô Danh</h3><p id="realm">Di Mệnh Cảnh</p><div class="meter"><span id="hp-bar"></span></div><small>Khí huyết <b id="hp">100/100</b></small><div class="meter san"><span id="san-bar"></span></div><small>Thanh Tỉnh <b id="san">100/100</b></small><div class="stat-grid"><div><small>Tu vi</small><b id="exp">0</b></div><div><small>Khí vận</small><b id="fortune">Phàm Nhân Khí Vận</b></div><div><small>Thể phách</small><b id="phy">12</b></div><div><small>Linh lực</small><b id="mag">12</b></div></div><button id="reset" class="button danger full">Luân hồi bản thử nghiệm</button></aside>
+      <section class="card play-card"><div class="tabs"><button class="tab active" data-tab="story">Diễn biến</button><button class="tab" data-tab="map">Bản đồ</button><button class="tab" data-tab="fate">Mệnh số</button><button class="tab" data-tab="technique">Công pháp</button></div><div id="panel" class="panel"></div><div id="actions" class="actions"></div></section>
+    </section>
+  </main>
+  <template id="story-template"><div class="story-view"><div id="story-log" class="story-log"></div><div class="command-line"><span>›</span><input id="command" placeholder="Thử: tu luyện, đi đông, quan sát..."><button id="command-submit" class="button">Gửi</button></div></div></template>
+  <script src="app.js"></script>
+</body>
+</html>

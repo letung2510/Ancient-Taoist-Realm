@@ -66,6 +66,16 @@ window.GameData = (function () {
     requiresActiveAnchor: Boolean(realm.requires_active_anchor ?? realm.requiresActiveAnchor),
     requiresBodyAndMind: Boolean(realm.requires_body_and_mind ?? realm.requiresBodyAndMind),
     requiresFinalVictory: Boolean(realm.requires_final_victory ?? realm.requiresFinalVictory),
+    requiresPathRitual: realm.requires_path_ritual ?? realm.requiresPathRitual ?? null,
+    requiresCoreTechniqueFusion: Boolean(realm.requires_core_technique_fusion ?? realm.requiresCoreTechniqueFusion),
+    requiresGreatRitual: Boolean(realm.requires_great_ritual ?? realm.requiresGreatRitual),
+    requiresUniquePower: Boolean(realm.requires_unique_power ?? realm.requiresUniquePower),
+    requiresFactionQuest: Boolean(realm.requires_faction_quest ?? realm.requiresFactionQuest),
+    requiresNoOverdueDebt: Boolean(realm.requires_no_overdue_debt ?? realm.requiresNoOverdueDebt),
+    requiresTrueNameTrial: Boolean(realm.requires_true_name_trial ?? realm.requiresTrueNameTrial),
+    requiresFinalPreparation: Boolean(realm.requires_final_preparation ?? realm.requiresFinalPreparation),
+    requiresHighAnchor: Boolean(realm.requires_high_anchor ?? realm.requiresHighAnchor),
+    maxCorruption: realm.max_corruption ?? realm.maxCorruption ?? null,
     activeSlots: realm.active_slots ?? realm.activeSlots,
     lifespanBase: realm.lifespan_base ?? realm.lifespanBase ?? 75,
     lifespanBonus: realm.lifespan_bonus ?? realm.lifespanBonus,
@@ -75,7 +85,7 @@ window.GameData = (function () {
     phyMult: realm.stat_multiplier ?? realm.phyMult,
     magMult: realm.stat_multiplier ?? realm.magMult,
     maxQa: realm.max_qi ?? realm.maxQa,
-    desc: realm.description || realm.desc
+    desc: realm.description || realm.desc || (realm.name + " — cảnh giới cấp " + (realm.level ?? "?") + " trong hệ thống tu hành 14 cấp.")
   }));
 
   /* ---------- Môn phái / Căn cơ ---------- */
@@ -84,13 +94,13 @@ window.GameData = (function () {
       id: "kiem_tong", name: "Kiếm Tông", desc: "Lấy kiếm nhập đạo, thể phách cường hãn.",
       portrait: "assets/characters/char_03.jpg",
       bonus: { phy: 3, mag: 1 }, startItem: "hac_thiet_kiem",
-      hint: "Thiên về PHY (thể phách)"
+      hint: "Thiên về Thể phách"
     },
     {
       id: "huyen_co", name: "Huyền Cơ Cung", desc: "Thôi diễn thiên cơ, linh lực thâm hậu.",
       portrait: "assets/characters/char_04.jpg",
       bonus: { phy: 1, mag: 3 }, startItem: "truyen_thua_ngoc_phu",
-      hint: "Thiên về MAG (linh lực)"
+      hint: "Thiên về Linh lực"
     },
     {
       id: "van_duoc", name: "Vạn Dược Cốc", desc: "Tinh thông dược lý, chữa lành thân tâm.",
@@ -131,19 +141,22 @@ window.GameData = (function () {
   /* ---------- Vật phẩm ---------- */
   const ITEMS = {
     thong_mach_dan: { id: "thong_mach_dan", name: "Thông Mạch Đan", kind: "consumable", exp: 15, realmCatalyst: true,
-      desc: "Khai thông kinh mạch; Phàm Nhân dùng sẽ trực tiếp bước vào Luyện Khí." },
+      desc: "Khai thông kinh mạch; Di Mệnh Cảnh dùng sẽ hỗ trợ bước vào Khai Lộ Cảnh." },
     tu_khi_dan: { id: "tu_khi_dan", name: "Tụ Khí Đan", kind: "consumable", exp: 40, realmCatalyst: true,
-      desc: "Tụ linh nhập thể; Phàm Nhân dùng sẽ trực tiếp bước vào Luyện Khí." },
+      desc: "Tụ linh nhập thể; Di Mệnh Cảnh dùng sẽ hỗ trợ bước vào Khai Lộ Cảnh." },
     hoan_huyet_dan: { id: "hoan_huyet_dan", name: "Hoán Huyết Đan", kind: "consumable", exp: 25, realmCatalyst: true,
-      desc: "Tẩy luyện khí huyết; Phàm Nhân dùng sẽ trực tiếp bước vào Luyện Khí." },
+      desc: "Tẩy luyện khí huyết; Di Mệnh Cảnh dùng sẽ hỗ trợ bước vào Khai Lộ Cảnh." },
     dai_hoan_dan: { id: "dai_hoan_dan", name: "Đại Hoàn Đan", kind: "consumable", exp: 180,
       desc: "Đan dược thượng phẩm, tu vi tăng vọt." },
     hoi_than_dan: { id: "hoi_than_dan", name: "Hồi Thần Đan", kind: "consumable", san: 30,
-      desc: "Ổn định tâm thần, hồi phục Tỉnh Táo." },
+      desc: "Ổn định tâm thần, hồi phục Thanh Tỉnh." },
     boi_nguyen_dan: { id: "boi_nguyen_dan", name: "Bồi Nguyên Đan", kind: "consumable", heal: 0.4,
       desc: "Hồi phục khí huyết và linh lực." },
     pha_cam_phu: { id: "pha_cam_phu", name: "Phá Cấm Phù", kind: "consumable", sanShield: true,
-      desc: "Miễn một lần SAN drain khi dùng trước." },
+      desc: "Miễn một lần hao Thanh Tỉnh do tà niệm khi dùng trước." },
+    dien_tho_dan_ha: { id: "dien_tho_dan_ha", name: "Diên Thọ Đan · Hạ Phẩm", kind: "consumable", lifespanBonus: 50, grade: "Hạ Phẩm", desc: "Kéo dài Thọ Nguyên, hiệu quả giảm nếu dùng liên tiếp trong cùng cảnh giới." },
+    dien_tho_dan_trung: { id: "dien_tho_dan_trung", name: "Diên Thọ Đan · Trung Phẩm", kind: "consumable", lifespanBonus: 150, grade: "Trung Phẩm", desc: "Bổ sung Thọ Nguyên đáng kể, thường tìm thấy từ tinh anh hoặc Tông Môn." },
+    dien_tho_dan_thuong: { id: "dien_tho_dan_thuong", name: "Diên Thọ Đan · Thượng Phẩm", kind: "consumable", lifespanBonus: 500, grade: "Thượng Phẩm", desc: "Cực hiếm, đổi bằng cái giá lớn hoặc thành tựu ẩn." },
     linh_thach: { id: "linh_thach", name: "Linh Thạch Hạ Phẩm", kind: "currency", exp: 10,
       desc: "Đá linh chứa linh khí loãng." },
     co_tich_tan_trang: { id: "co_tich_tan_trang", name: "Cổ Tịch Tàn Trang", kind: "key",
@@ -335,7 +348,7 @@ window.GameData = (function () {
     chon_dao_lo: {
       id: "chon_dao_lo", title: "Lựa Chọn Đạo Lộ",
       kind: "realm",
-      desc: "Sau khi bước vào Luyện Khí, chọn gia nhập một môn phái trong vùng hoặc từ chối để theo con đường Tán Tu/Thế Gia.",
+      desc: "Sau khi bước vào Khai Lộ Cảnh, chọn gia nhập một môn phái trong vùng hoặc từ chối để theo con đường Tán Tu/Thế Gia.",
       objectives: [
         { id: "quyet_dinh", label: "Chọn Môn Phái, Tán Tu hoặc Thế Gia", check: (st) => Boolean(st.flags.guildDecision) }
       ],
@@ -412,7 +425,7 @@ window.GameData = (function () {
     "  đột phá — cố gắng phá cảnh giới",
     "  tìm kiếm — tìm vật phẩm tại nơi hiện tại",
     "  dùng <vật phẩm> — sử dụng vật phẩm",
-    "  gia nhập <môn phái> — chọn tông môn sau khi đạt Luyện Khí",
+    "  gia nhập <môn phái> — chọn tông môn sau khi đạt Khai Lộ Cảnh",
     "  từ chối tán tu / chọn thế gia — từ chối nhập môn và chọn đạo lộ",
     "  nói chuyện <tên> — trò chuyện với nhân vật",
     "  tấn công — giao chiến với kẻ thù quanh đây",

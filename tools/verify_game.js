@@ -203,6 +203,11 @@ function verifyBrowserEngine(sandbox) {
   }
 
   D.WORLD_MAP.regions.forEach((region) => {
+    const eligibility = E.startRegionEligibility(region.id, 1);
+    if (!eligibility.eligible) {
+      assert.throws(() => E.rollCharacterCreation(region.id), /chỉ tu sĩ|chỉ tồn tại/);
+      return;
+    }
     for (let index = 0; index < 40; index++) {
       const rolled = E.rollCharacterCreation(region.id);
       assert.strictEqual(rolled.startRegionId, region.id);
@@ -238,7 +243,7 @@ function verifyBrowserEngine(sandbox) {
   assert(state.visitedLocations.includes("van_phong"));
   assert(E.describeMap(state).includes("Vạn Giới Lộ"));
 
-  const localGuild = D.GUILDS.find((guild) => guild.region_id === "trung_vuc");
+  const localGuild = D.GUILDS.find((guild) => guild.region_id === "trung_vuc" && guild.pyramid_tier === 5);
   assert.strictEqual(E.joinGuild(state, localGuild.id), false);
   E.gainExp(state, 100);
   assert.strictEqual(state.player.realmId, "di_menh");
@@ -249,6 +254,7 @@ function verifyBrowserEngine(sandbox) {
   assert.strictEqual(state.pendingGuildChoice, true);
   assert.strictEqual(state.quests.chon_dao_lo.status, "active");
   assert(E.joinGuild(state, localGuild.id));
+  assert(state.player.techniques.tong_mon_noi_tuc);
   assert.strictEqual(state.pendingGuildChoice, false);
   assert.strictEqual(state.quests.chon_dao_lo.status, "completed");
   const benefits = E.getGuildBenefits(state);
@@ -258,6 +264,30 @@ function verifyBrowserEngine(sandbox) {
   E.cultivate(state);
   assert(state.guildMembership.contribution > contributionBefore);
   assert(E.leaveGuild(state));
+  assert(state.guildPursuit);
+  assert(E.guildTierInfo(localGuild).name.includes("Môn Phái Nhỏ"));
+  assert(E.guildExitCost(localGuild).merit > 0);
+  const pursuitState = E.deserialize(E.serialize(state));
+  pursuitState.player.realmId = "dung_thai";
+  E.updateDerived(pursuitState);
+  assert.strictEqual(pursuitState.guildPursuit, null);
+
+  const mentalState = E.createState({ character: E.createCharacter({ name: "Tâm Cảnh", archetypeId: "kiem_tong", fates: E.drawInitialFates(), corruptionRating: 40 }) });
+  mentalState.player.san = 40;
+  E.updateDerived(mentalState);
+  assert.strictEqual(E.sanStatus(mentalState.player).name, "Tà Niệm Quấn Thân");
+  const restoredSan = E.restoreSan(mentalState, 10);
+  assert(restoredSan > 0 && restoredSan < 10);
+  const autoState = E.createState({ character: E.createCharacter({ name: "Tự Tu", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  const combatMasteryBefore = autoState.player.techniques.kiem_khi_so_cap.masteryExp;
+  const mindMasteryBefore = autoState.player.techniques.tam_phap_dan_dien.masteryExp;
+  assert(E.autoCultivate(autoState, 5).completed > 0);
+  assert(autoState.autoCultivation);
+  assert(autoState.player.techniques.kiem_khi_so_cap.masteryExp > combatMasteryBefore);
+  assert(autoState.player.techniques.tam_phap_dan_dien.masteryExp > mindMasteryBefore);
+  assert(autoState.player.techniques.tam_phap_dan_dien.masteryExp > autoState.player.techniques.kiem_khi_so_cap.masteryExp);
+  assert.strictEqual(E.fortuneStatus(50.699999999999996).name, "Tiểu Thiên Kiêu");
+  assert(E.realmLore(autoState, 1).text.includes("Cái giá"));
 
   ["thong_mach_dan", "tu_khi_dan", "hoan_huyet_dan"].forEach((itemId) => {
     const pillCharacter = E.createCharacter({ name: itemId, archetypeId: "kiem_tong", fates: E.drawInitialFates() });
@@ -346,13 +376,18 @@ function verifyMapUI(sandbox) {
   assert(elements["tab-content"].innerHTML.includes("data-map-dir"));
   sandbox.activeTestTab = "status";
   sandbox.window.GameUI.renderPanel(E.createState({ character }));
-  ["Mệnh Trạng Thái", "Pháp khí", "Hộ thân Pháp khí", "Tùy thân Pháp khí", "Bản mệnh Linh bảo", "Pháp khí Sinh hoạt"]
+  ["Khí Huyết", "Thanh Tỉnh", "Tà Nhiễm", "Căn cốt", "Ngộ tính", "Mệnh Trạng Thái", "Trang Bị / Pháp Bảo", "Loại Trang Bị", "Số Lượng", "Vật Phẩm Đã Trang Bị", "Pháp khí", "Hộ thân · Giáp", "Hộ thân · Ngoa", "Hộ thân · Quần", "Hộ thân · Mũ", "Tùy thân Pháp khí", "Bản mệnh Linh bảo", "Pháp khí Sinh hoạt", "<i>?</i>"]
     .forEach((label) => assert(elements["tab-content"].innerHTML.includes(label), `missing status label: ${label}`));
+  const detailState = E.createState({ character });
+  const fateHtml = sandbox.window.GameUI.renderFateDetail(detailState);
+  assert(fateHtml.includes("Mệnh Hòa Tỷ") && fateHtml.includes("Hiệu Mệnh") && !fateHtml.includes(">R "));
+  const realmHtml = sandbox.window.GameUI.renderRealmDetail(detailState);
+  assert(realmHtml.includes("???") && !realmHtml.includes("data-auto-cultivate"));
   sandbox.activeTestTab = "guilds";
   const guildChoiceState = E.createState({ character });
   E.enterLuyenKhi(guildChoiceState, "kiểm thử UI");
   sandbox.window.GameUI.renderPanel(guildChoiceState);
-  assert(elements["tab-content"].innerHTML.includes("data-guild-join"));
+  assert(elements["tab-content"].innerHTML.includes("data-guild-join") || elements["tab-content"].innerHTML.includes("Chưa đủ tư cách"));
   assert(elements["tab-content"].innerHTML.includes("data-guild-refuse"));
 }
 
@@ -410,7 +445,7 @@ function verifyCreationUI(sandbox) {
   vm.runInContext(read("js/main.js"), sandbox, { filename: "js/main.js" });
 
   elements["btn-new"].listeners.click();
-  assert.strictEqual(elements["start-region-list"].children.length, sandbox.window.GameData.WORLD_MAP.regions.length);
+  assert.strictEqual(elements["start-region-list"].children.length, sandbox.window.GameEngine.availableStartRegions(1).length);
   elements["start-region-list"].children[0].listeners.click();
   const saved = JSON.parse(storage.co_di_dien_save_v12).state;
   assert(saved.startRegionId);

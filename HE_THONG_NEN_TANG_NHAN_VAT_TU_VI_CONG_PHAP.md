@@ -86,6 +86,8 @@ Không roll cảnh giới cho Player mới. Phân bố cảnh giới hình tháp
 | Song/Tam Linh Căn hiếm | 4% |
 | Dị Linh Căn: Băng, Lôi, Phong, Âm, Dương, Không Gian | 1% |
 
+> Chi tiết thuật toán roll, nhãn, cách cục, Harmony Score và hệ số EXP/Purity nằm tại `LinhCan_System.txt` và được engine implement tại `js/engine.js` (`rollSpiritualRootBranch`, `spiritualRootProfile`).
+
 **Mệnh Số cơ bản:**
 
 | Phẩm | Tỷ lệ mỗi lượt roll | Ghi chú |
@@ -189,6 +191,7 @@ Ngộ Tính tăng tốc lĩnh ngộ, mở thuộc tính ẩn của Công Pháp s
 
 - SAN giảm khi gặp Dị Quỷ, đọc cấm thư, thất bại nghi thức hoặc dùng kỹ thuật có SAN cost; SAN có thể hồi phục.
 - SAN về 0 kích hoạt mất trí: khóa điều khiển chủ động và chuyển sang hành vi cưỡng chế theo encounter.
+- Runtime hiện tại áp dụng hình phạt Mất Trí thống nhất: mất 10% Tu vi hiện tại (làm tròn lên), Corruption `+10` tối đa 100, ghi nguồn và chuyển tới kết cục Tha Hóa. UI phải hiện rõ các khoản phạt.
 - Corruption tăng do Cấm Thuật, Linh Khí Biến Dạng, khế ước Tà Thần và một số Nghịch Hành; chỉ giảm bằng cơ chế thanh tẩy được khai báo rõ.
 - Mọi phép cộng/trừ phải clamp SAN và Corruption vào miền hợp lệ.
 
@@ -240,6 +243,8 @@ Thang phẩm thống nhất gồm: **Phàm → Linh → Hoàng → Huyền → �
 
 ### 5.4. Mệnh đang gắn và Mệnh Kho
 
+UI Mệnh phải tách Mệnh đang gắn và Mệnh Kho, hiển thị modifier, độ tương hợp Con Đường cùng Tương Sinh/Tương Khắc/Combo. Mệnh không có EXP riêng; tiến triển đến từ thu nhận/đổi Mệnh và quan hệ.
+
 - Chỉ Mệnh đang gắn mới tham gia `Total_Fate_Score`, `Normal_Fate_Score`, `match_score` và hiệu ứng nhân vật.
 - Mệnh trong kho là vật phẩm lưu trữ, không tự động kích hoạt.
 - Dung lượng kho:
@@ -280,6 +285,8 @@ Nếu không có Mệnh phù hợp, transaction hủy và không tiêu hao gì.
 - Mọi nhân vật bắt đầu ở cấp 1, **Di Mệnh Cảnh**.
 - Khi lên cấp 2, người chơi chọn Con Đường hợp lệ; danh xưng từ cấp 2 trở đi lấy theo Con Đường.
 - Tên cảnh giới cổ điển chỉ có thể tồn tại dưới dạng tag tương thích dữ liệu, không dùng trong UI chính.
+- UI dùng Di Mệnh ở cấp 1, Khai Lộ khi đang chờ chọn đường và danh xưng riêng của Con Đường sau khi đã chọn; checklist thăng cấp vẫn sinh từ cùng field điều kiện mà engine đột phá kiểm tra.
+- UI chỉ tiết lộ cảnh hiện tại và một cảnh kế tiếp; tầng xa hơn hiện `???`. Mỗi mô tả cảnh giới phải nêu bản chất biến đổi, ích lợi và cái giá tà dị thay vì câu “cấp N trong hệ 14 cấp”.
 - Hệ thống có đúng 14 cấp phẳng; không có tiểu cảnh bên trong từng cấp.
 - EXP chỉ mở quyền thực hiện nghi thức; đạt EXP không đồng nghĩa đột phá tự động.
 - Bảng dưới là chuẩn cho Con Đường thường. **Ngoại Đạo Giả** vẫn phải vượt đủ 14 cấp và toàn bộ điều kiện nền, nhưng áp dụng bộ luật khắc nghiệt riêng ở mục 6.3.
@@ -571,6 +578,8 @@ Các nghề này vẫn chịu mốc 5/8/11/13, trận doanh và điều kiện c
 ---
 
 ## 11. Hệ thống Công Pháp
+
+UI Công Pháp phải hiện tầng, EXP hiện tại, mốc kế tiếp, cách tăng cấp và nhóm màu theo chức năng. Tu luyện tăng mastery cho mọi Công Pháp đã học nhưng Chiêu Thức/Cấm Thuật nhận ít hơn; trong giao chiến chỉ Công Pháp chiến đấu thực sự được thi triển mới nhận mastery.
 
 ### 11.1. Phân loại theo chức năng
 

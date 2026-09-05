@@ -18,6 +18,7 @@ const REGION_RACE_WEIGHTS = {
   u_minh_gioi: [["Ma Tộc", 50], ["Cổ Tộc", 20], ["Yêu Tộc", 15], ["Linh Tộc", 10], ["Nhân Tộc", 5]]
 };
 const START_LOCATIONS = { trung_vuc: "son_mon", dong_hoang: "hac_lam", tay_mac: "tay_mac_khoi_diem", nam_chuong: "linh_dien", bac_nguyen: "bac_nguyen_khoi_diem", vo_tan_hai: "vo_tan_hai_khoi_diem", thien_khong_vuc: "thien_khong_khoi_diem", u_minh_gioi: "u_minh_khoi_diem" };
+const HIGH_REALM_ORIGINS = new Set(["thien_khong_vuc", "u_minh_gioi"]);
 const TRAITS = ["Chính trực", "Tàn nhẫn", "Tham lam", "Trung thành", "Cơ trí", "Lỗ mãng", "Lãnh đạm", "Nhiệt huyết", "Xảo quyệt", "Ẩn nhẫn"];
 const BACKGROUNDS = ["Tông Môn", "Thế Gia", "Tán Tu", "Hắc Đạo", "Vô Danh"];
 const GOALS = ["Báo thù", "Tìm cơ duyên", "Bảo vệ môn phái", "Thống nhất vùng", "Trốn tránh quá khứ", "Trường sinh"];
@@ -40,13 +41,22 @@ function gaussianAttribute() {
   const u1 = Math.max(Number.EPSILON, Math.random()); const u2 = Math.random();
   return clamp(Math.round(50 + Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * 15), 1, 100);
 }
-function rollSpiritualRoots() {
+function rollSpiritualRootBranch() {
   const roll = Math.random() * 100;
-  if (roll < 50) return sampleDistinct(COMMON_ROOTS, rand(4, 5));
-  if (roll < 85) return sampleDistinct(COMMON_ROOTS, rand(2, 3));
-  if (roll < 95) return sampleDistinct(COMMON_ROOTS, 1);
-  if (roll < 99) return sampleDistinct(COMMON_ROOTS.concat(EXOTIC_ROOTS), rand(2, 3));
-  return sampleDistinct(EXOTIC_ROOTS, 1);
+  if (roll < 50) return { branch: "tap", elements: sampleDistinct(COMMON_ROOTS, rand(4, 5)) };
+  if (roll < 85) return { branch: "song_tam", elements: sampleDistinct(COMMON_ROOTS, rand(2, 3)) };
+  if (roll < 95) return { branch: "don", elements: sampleDistinct(COMMON_ROOTS, 1) };
+  if (roll < 99) {
+    const sets = [
+      ["Kim", "Thủy"], ["Thủy", "Mộc"], ["Mộc", "Hỏa"], ["Hỏa", "Thổ"], ["Thổ", "Kim"],
+      ["Thủy", "Mộc", "Hỏa"]
+    ];
+    return { branch: "hiem", elements: sets[rand(0, sets.length - 1)].slice() };
+  }
+  return { branch: "di", elements: sampleDistinct(EXOTIC_ROOTS, 1) };
+}
+function rollSpiritualRoots() {
+  return rollSpiritualRootBranch().elements;
 }
 
 function rollFates() {
@@ -70,6 +80,7 @@ function rollFates() {
 function generateCharacter(input = {}) {
   const regionId = input.startRegionId || "trung_vuc";
   if (!REGION_RACE_WEIGHTS[regionId]) throw new RangeError("Nơi bắt đầu không hợp lệ.");
+  if (HIGH_REALM_ORIGINS.has(regionId)) throw new RangeError("Nhân vật Di Mệnh Cảnh không thể chọn vùng cao giai làm nơi xuất thân.");
   const fates = rollFates();
   const hiddenFates = Math.random() < pathFateRelations.hidden_fates.luan_hoi_tien.roll_probability_percent / 100 ? ["luan_hoi_tien"] : [];
   const total = fates.reduce((sum, fate) => sum + Number(fate.score || 0), 0);
@@ -77,10 +88,11 @@ function generateCharacter(input = {}) {
   const phy = input.basePhy ?? rand(10, 20); const mag = input.baseMag ?? rand(10, 20);
   const aptitude = input.aptitude ?? gaussianAttribute(); const comprehension = input.comprehension ?? gaussianAttribute();
   const equippedIds = fates.map((fate) => fate.id);
+  const rootRoll = input.spiritualRoots ? { elements: input.spiritualRoots.slice(), branch: null } : rollSpiritualRootBranch();
   return {
     id: input.id || `char_${Date.now()}_${rand(1000, 9999)}`,
     name: input.name || "Vô Danh",
-    origin: { regionId, locationId: START_LOCATIONS[regionId], race: input.race || weightedValue(REGION_RACE_WEIGHTS[regionId]), background: input.background || BACKGROUNDS[rand(0, BACKGROUNDS.length - 1)], personality: input.personalityTraits || sampleDistinct(TRAITS, 2), hiddenGoal: input.hiddenGoal || GOALS[rand(0, GOALS.length - 1)], spiritualRoots: input.spiritualRoots || rollSpiritualRoots() },
+    origin: { regionId, locationId: START_LOCATIONS[regionId], race: input.race || weightedValue(REGION_RACE_WEIGHTS[regionId]), background: input.background || BACKGROUNDS[rand(0, BACKGROUNDS.length - 1)], personality: input.personalityTraits || sampleDistinct(TRAITS, 2), hiddenGoal: input.hiddenGoal || GOALS[rand(0, GOALS.length - 1)], spiritualRoots: rootRoll.elements, spiritualRootBranch: rootRoll.branch },
     realm: { id: "di_menh", level: 1, title: "Di Mệnh Cảnh", exp: 0 },
     path: { primary: null, secondary: null, pathScore: 0, professionStage: null },
     stats: { phy, mag, aptitude, comprehension, vitality: phy * 8 + 40, staminaCurrent: 100, staminaMax: 100 + phy * 2, san: 100, sanMax: 100, corruption: 0, lifespan: rand(60, 80) },
@@ -92,4 +104,4 @@ function generateCharacter(input = {}) {
   };
 }
 
-module.exports = { generateCharacter, rollFates };
+module.exports = { generateCharacter, rollFates, rollSpiritualRootBranch, rollSpiritualRoots };

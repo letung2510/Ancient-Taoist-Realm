@@ -1,0 +1,264 @@
+Yêu cầu chỉnh sửa lại toàn bộ LOGIC TÍNH LINH CĂN (Spiritual Root) của nhân vật trong game tu
+tiên/tiên hiệp. Đây KHÔNG phải yêu cầu UI, mà là sửa thuật toán tính toán phía sau.
+
+============================================================
+1. VẤN ĐỀ HIỆN TẠI (BUG CẦN SỬA)
+============================================================
+Hệ thống đang roll và gắn nhãn kiểu "(Song/Tam Linh Căn)" LẶP LẠI trên TỪNG DÒNG thuộc tính
+riêng lẻ (Linh căn 1, Linh căn 2, Linh căn 3 mỗi dòng đều ghi nhãn). Điều này sai — nhãn
+Song/Tam/Đơn Linh Căn phải tính 1 LẦN DUY NHẤT cho CẢ BỘ thuộc tính linh căn của nhân vật, không
+phải gắn lặp lại trên từng nguyên tố.
+
+============================================================
+2. THUẬT TOÁN ĐÚNG (4 BƯỚC TUẦN TỰ, KHÔNG ĐƯỢC ĐẢO THỨ TỰ)
+============================================================
+
+--- BƯỚC 1: Roll SỐ LƯỢNG thuộc tính trước (roll 1 lần duy nhất) ---
+Dùng bảng trọng số sau để roll ra SỐ LƯỢNG nguyên tố linh căn (count), roll xong bước này mới
+sang bước 2:
+
+| Tỷ lệ (%) | Số lượng (count) | Tên gọi bộ                     | Nguồn nguyên tố             |
+|-----------|-------------------|----------------------------------|------------------------------|
+| 50        | 4-5               | Phế Linh Căn / Tạp Linh Căn      | Ngũ Hành: Kim,Mộc,Thủy,Hỏa,Thổ |
+| 35        | 2-3               | Song Linh Căn / Tam Linh Căn     | Ngũ Hành                    |
+| 10        | 1                 | Đơn Linh Căn (Thuần Khiết)       | Ngũ Hành                    |
+| 4         | 2-3               | Song/Tam Linh Căn Hiếm           | Ngũ Hành (tổ hợp đặc biệt, xem mục 4) |
+| 1         | 1                 | Dị Linh Căn (Cực Hiếm)           | Dị Hệ: Băng,Lôi,Phong,Âm,Dương,Không Gian |
+
+Quy tắc: count càng THẤP thì linh căn càng THUẦN KHIẾT và tu luyện càng NHANH (ngược trực giác —
+không phải càng nhiều nguyên tố càng mạnh).
+
+--- BƯỚC 2: Roll CỤ THỂ từng nguyên tố, không trùng nhau ---
+Dựa trên count đã roll ở bước 1, roll ngẫu nhiên đúng "count" nguyên tố KHÔNG TRÙNG LẶP từ pool
+tương ứng (Ngũ Hành 5 loại, hoặc Dị Hệ 6 loại nếu rơi vào nhánh 1%).
+
+--- BƯỚC 3: Gắn NHÃN 1 LẦN DUY NHẤT cho cả bộ (đây là chỗ code hiện tại đang làm sai) ---
+Map count sang nhãn hiển thị DUY NHẤT ở cấp độ "bộ linh căn", KHÔNG lặp lại trên từng dòng:
+
+count == 1 (roll từ nhánh Ngũ Hành 10%)  → "Đơn Linh Căn"
+count == 1 (roll từ nhánh Dị Hệ 1%)      → "Dị Linh Căn"
+count == 2 (nhánh 35%)                    → "Song Linh Căn"
+count == 2 (nhánh 4% đặc biệt)            → "Song Linh Căn Hiếm"
+count == 3 (nhánh 35%)                    → "Tam Linh Căn"
+count == 3 (nhánh 4% đặc biệt)            → "Tam Linh Căn Hiếm"
+count == 4                                 → "Tứ Linh Căn (Phế)"
+count == 5                                 → "Ngũ Hành Câu Toàn (Phế Linh Căn)"
+
+UI đúng: hiển thị nhãn NÀY 1 lần ở tiêu đề nhóm (vd "Tam Linh Căn"), bên dưới liệt kê từng nguyên
+tố (Kim/Thủy/Hỏa...) KHÔNG kèm nhãn lặp lại nữa.
+
+--- BƯỚC 4: Tính Purity Score & EXP Multiplier NỀN theo nhãn ---
+| Nhãn                          | Purity Score (nền) | EXP Multiplier (nền) |
+|-------------------------------|---------------------|------------------------|
+| Dị Linh Căn                   | 130                 | x2.0                   |
+| Đơn Linh Căn                  | 100                 | x1.5                   |
+| Song Linh Căn Hiếm            | 85                  | x1.35                  |
+| Song Linh Căn                 | 70                  | x1.2                   |
+| Tam Linh Căn Hiếm             | 60                  | x1.1                   |
+| Tam Linh Căn                  | 50                  | x1.0 (baseline)        |
+| Tứ Linh Căn (Phế)             | 30                  | x0.8                   |
+| Ngũ Hành Câu Toàn (Phế)       | 10                  | x0.5                   |
+
+============================================================
+3. MỞ RỘNG BẮT BUỘC: TƯƠNG SINH / TƯƠNG KHẮC GIỮA CÁC NGUYÊN TỐ ĐÃ ROLL
+============================================================
+Sau khi có bộ nguyên tố cụ thể (vd Kim+Thủy+Hỏa), phải tính thêm HỆ SỐ HÀI HÒA (Harmony Score)
+dựa trên quan hệ Ngũ Hành THẬT giữa CHÍNH các nguyên tố trong bộ đó với nhau (không phải so với
+địch, mà là nội tại giữa các linh căn của cùng 1 người).
+
+--- 3.1. Vòng Ngũ Hành chuẩn (dùng để tra quan hệ từng cặp) ---
+Tương Sinh (chiều thuận): Kim → Thủy → Mộc → Hỏa → Thổ → Kim (lặp lại)
+Tương Khắc: Kim khắc Mộc, Mộc khắc Thổ, Thổ khắc Thủy, Thủy khắc Hỏa, Hỏa khắc Kim
+
+--- 3.2. Với MỌI cặp nguyên tố (A,B) trong bộ linh căn, tra quan hệ và cộng điểm ---
+| Quan hệ giữa cặp (A,B)        | Định nghĩa                                   | Điểm cộng vào Harmony Score |
+|-------------------------------|-----------------------------------------------|-------------------------------|
+| Tương Sinh thuận (A sinh B)   | A đứng trước B trong vòng sinh                | +2                            |
+| Tương Sinh nghịch (B sinh A)  | B đứng trước A trong vòng sinh (được sinh)    | +1                            |
+| Tương Khắc thuận (A khắc B)   | A khắc B theo vòng khắc                        | -2                            |
+| Tương Khắc nghịch (B khắc A)  | Bị B khắc                                       | -1                            |
+| Dị Hệ với bất kỳ hệ nào       | Dị Hệ không tham gia Ngũ Hành                  | 0 (trung tính, không cộng/trừ) |
+
+Duyệt TẤT CẢ các cặp không trùng nhau trong bộ (nếu bộ có N nguyên tố thì có N*(N-1)/2 cặp),
+cộng dồn toàn bộ điểm lại thành `Harmony_Score` tổng.
+
+Ví dụ cụ thể — bộ Kim/Thủy/Hỏa (Tam Linh Căn):
+  - Cặp (Kim, Thủy): Kim sinh Thủy → +2
+  - Cặp (Thủy, Hỏa): Thủy khắc Hỏa → -2
+  - Cặp (Kim, Hỏa): Hỏa khắc Kim → -1 (từ góc nhìn Kim, đây là "bị khắc")
+  => Harmony_Score = 2 - 2 - 1 = -1  (bộ này hơi xung khắc nội tại, không hài hòa)
+
+--- 3.3. Áp Harmony Score vào công thức cuối ---
+Final_Purity = Purity_Score_nền × (1 + Harmony_Score × 0.05)
+Final_EXP_Multiplier = EXP_Multiplier_nền × (1 + Harmony_Score × 0.03)
+(Clamp Final_Purity về khoảng [10, 200] và Final_EXP_Multiplier về khoảng [0.3, 3.0] để tránh
+âm hoặc quá đà.)
+
+--- 3.4. Đặt tên CÁCH CỤC đặc biệt dựa trên Harmony_Score (hiển thị thêm, mang tính flavor) ---
+| Điều kiện Harmony_Score                                   | Tên Cách Cục hiển thị thêm       |
+|-------------------------------------------------------------|------------------------------------|
+| Tất cả các cặp đều Tương Sinh thuận (Harmony_Score max dương)| "Ngũ Hành Tương Sinh Cách" (Cát)   |
+| Harmony_Score > 0 nhưng không phải tất cả thuận               | "Hài Hòa Cách" (Cát nhẹ)           |
+| Harmony_Score == 0                                            | (không có cách cục đặc biệt)       |
+| Harmony_Score < 0                                              | "Ngũ Hành Tương Khắc Cách" (Hung) |
+| Có từ 2 quan hệ Khắc thuận trở lên                             | "Nội Loạn Chi Căn" (Hung nặng)    |
+
+============================================================
+4. QUY TẮC RIÊNG CHO NHÁNH "SONG/TAM LINH CĂN HIẾM" (4%)
+============================================================
+Nhánh 4% này CHỈ được roll ra các tổ hợp nguyên tố có Harmony_Score DƯƠNG NGAY TỪ ĐẦU (tức là bộ
+nguyên tố đã được chọn lọc sao cho toàn Tương Sinh thuận với nhau, ví dụ Kim+Thủy hoặc
+Thủy+Mộc+Hỏa) — đây chính là lý do nó "hiếm" hơn dù cùng số lượng 2-3 nguyên tố. Khi code, cần
+tạo riêng 1 danh sách tổ hợp hợp lệ cho nhánh này (chỉ gồm các bộ mà mọi cặp đều +1/+2, không có
+cặp nào âm) rồi mới roll ngẫu nhiên 1 tổ hợp trong danh sách đó.
+
+============================================================
+5. YÊU CẦU OUTPUT / CẤU TRÚC DỮ LIỆU MONG MUỐN
+============================================================
+Trả về cho mỗi nhân vật 1 object linh căn có dạng:
+
+{
+  "label": "Tam Linh Căn",                    // nhãn gắn 1 lần duy nhất, theo bước 3
+  "elements": ["Kim", "Thủy", "Hỏa"],          // danh sách nguyên tố cụ thể, theo bước 2
+  "count": 3,
+  "harmonyScore": -1,
+  "cachCuc": "Ngũ Hành Tương Khắc Cách",       // theo mục 3.4, null nếu Harmony_Score == 0
+  "purityScoreBase": 50,
+  "purityScoreFinal": 47.5,
+  "expMultiplierBase": 1.0,
+  "expMultiplierFinal": 0.97
+}
+
+Yêu cầu UI đi kèm: hiển thị "label" 1 lần duy nhất ở đầu khối Linh Căn, liệt kê từng "elements"
+thành các dòng con KHÔNG kèm nhãn lặp lại, và hiển thị thêm "cachCuc" (nếu có) như 1 dòng ghi chú
+phụ bên dưới (ví dụ màu đỏ nếu Hung, màu vàng/xanh nếu Cát).
+
+============================================================
+6. ĐẶT TÊN CÁCH CỤC CỤ THỂ THEO TỪNG TỔ HỢP NGUYÊN TỐ (không dùng tên chung chung nữa)
+============================================================
+Thay vì chỉ gắn nhãn chung "Ngũ Hành Tương Sinh Cách" / "Ngũ Hành Tương Khắc Cách" cho MỌI bộ tốt/
+xấu, hãy tra tên CỤ THỂ theo đúng tổ hợp nguyên tố đã roll, dùng 2 bảng tra cứu tĩnh sau (không
+random tên, tra bảng cố định để đảm bảo nhất quán mỗi lần hiển thị):
+
+--- 6.1. Bảng tên cho ĐƠN LINH CĂN (1 nguyên tố Ngũ Hành) ---
+| Nguyên tố | Tên Cách Cục         |
+|-----------|------------------------|
+| Kim       | Thuần Kim Chi Thể      |
+| Mộc       | Thuần Mộc Chi Thể      |
+| Thủy      | Thuần Thủy Chi Thể     |
+| Hỏa       | Thuần Hỏa Chi Thể      |
+| Thổ       | Thuần Thổ Chi Thể      |
+
+--- 6.2. Bảng tên cho SONG LINH CĂN (2 nguyên tố) — tra theo CẶP KHÔNG PHÂN THỨ TỰ ---
+Cặp thuộc nhóm Tương Sinh (5 cặp, hài hòa — Cát):
+| Cặp           | Tên Cách Cục            |
+|---------------|---------------------------|
+| Kim + Thủy    | Kim Thủy Tương Hàm         |
+| Thủy + Mộc    | Thủy Mộc Sinh Cơ           |
+| Mộc + Hỏa     | Mộc Hỏa Viêm Sinh          |
+| Hỏa + Thổ     | Hỏa Thổ Tương Bồi          |
+| Thổ + Kim     | Thổ Kim Tương Dưỡng        |
+
+Cặp thuộc nhóm Tương Khắc (5 cặp, xung khắc — Hung, TRỪ 1 ngoại lệ đặc biệt bên dưới):
+| Cặp           | Tên Cách Cục            | Ghi chú                                   |
+|---------------|---------------------------|---------------------------------------------|
+| Kim + Mộc     | Kim Mộc Tương Tàn         | Hung thường                                  |
+| Mộc + Thổ     | Mộc Thổ Tương Tranh       | Hung thường                                  |
+| Thổ + Thủy    | Thổ Thủy Tương Úng        | Hung thường                                  |
+| Thủy + Hỏa    | Thủy Hỏa Bất Dung         | Hung thường                                  |
+| Hỏa + Kim     | **Hỏa Luyện Chân Kim**    | NGOẠI LỆ: đây là cách cục "khắc nhưng thành" — dùng khi cần narrative tích cực (Hỏa tôi luyện Kim thành thép), coi là Cát Trung Bình thay vì Hung, xem mục 6.4 |
+
+--- 6.3. Tổ hợp 3-5 nguyên tố (Tam/Tứ/Ngũ Linh Căn) — DÙNG CÔNG THỨC SINH TÊN TỰ ĐỘNG ---
+Vì số tổ hợp 3 nguyên tố (10 tổ hợp) và 4 nguyên tố (5 tổ hợp) khá nhiều, KHÔNG cần liệt kê hết
+bằng tay — sinh tên tự động theo công thức:
+
+```
+generateCachCucName(elements[], harmonyScore):
+  if elements.length == 5:
+      return "Ngũ Hành Câu Toàn"          // luôn cố định, đã có sẵn
+
+  if elements.length == 4:
+      missingElement = nguyên tố Ngũ Hành KHÔNG có trong elements[]
+      return "Tứ Hành Khuyết " + missingElement   // vd thiếu Thổ -> "Tứ Hành Khuyết Thổ"
+
+  if elements.length == 3:
+      // đếm số cặp sinh thuận/nghịch (dương) và số cặp khắc (âm) trong 3 cặp của bộ 3
+      sinhCount = số cặp có quan hệ sinh (bất kể chiều)
+      khacCount = số cặp có quan hệ khắc (bất kể chiều)
+      if sinhCount == 3:        return "Tam Hành Liên Hoàn Sinh"      // cả 3 cặp đều sinh nhau (cực hiếm, chỉ có trong nhánh Hiếm 4%)
+      if khacCount == 3:        return "Tam Hành Loạn Khắc"           // cả 3 cặp đều khắc (rất xấu)
+      if sinhCount == 2:        return "Tam Hành Nhị Sinh Nhất Khắc"
+      if khacCount == 2:        return "Tam Hành Nhị Khắc Nhất Sinh"
+      return "Tam Hành Quân Bình"   // 1 sinh 1 khắc còn lại trung tính (không xảy ra thuần Ngũ Hành nhưng giữ fallback)
+
+  if elements.length == 1 && là Dị Hệ:
+      return "Dị Linh Căn — " + tên nguyên tố (vd "Dị Linh Căn — Lôi")
+```
+
+--- 6.4. Field MỚI cần thêm vào object linh căn (tách riêng khỏi field cũ) ---
+Đừng gộp chung 1 field — tách thành 2 field độc lập để dễ code logic UI/màu sắc sau này:
+
+```
+"cachCucName": "Kim Thủy Tương Hàm",     // TÊN CỤ THỂ tra theo mục 6.1-6.3, dùng để HIỂN THỊ
+"cachCucAlignment": "cat" | "hung" | "trung",  // HẠNG dùng để xử lý LOGIC (màu sắc, buff/debuff),
+                                                 // suy ra từ harmonyScore: >0 => "cat", <0 => "hung",
+                                                 // ==0 => "trung". Riêng case "Hỏa Luyện Chân Kim"
+                                                 // (mục 6.2) ép cứng alignment = "cat" dù harmonyScore âm.
+```
+(Bỏ field "cachCuc" cũ ở mục 3.4 — thay bằng 2 field trên.)
+
+============================================================
+7. KẾT HỢP CĂN CỐT (APTITUDE) VÀO CÔNG THỨC EXP LINH CĂN
+============================================================
+Căn Cốt không chỉ nhân đơn thuần vào EXP, mà còn có tác dụng "DUNG HÒA" phần xung khắc nội tại
+của bộ linh căn — căn cơ càng cao thì càng ít bị ảnh hưởng xấu bởi Tương Khắc (người thiên phú
+cao tự điều hòa được nội tại xung đột), NHƯNG không làm tăng thêm phần Tương Sinh (đã tốt sẵn thì
+không cần dung hòa gì thêm).
+
+--- 7.1. Công thức Effective Harmony Score (làm dịu phần âm dựa theo Aptitude) ---
+```
+if harmonyScore >= 0:
+    effectiveHarmonyScore = harmonyScore        // giữ nguyên, không đổi
+else:
+    // Aptitude=50 (trung bình) -> không đổi gì; Aptitude=100 -> giảm 50% mức độ xung khắc;
+    // Aptitude=1 -> mức độ xung khắc bị KHUẾCH ĐẠI thêm (người kém căn cơ chịu ảnh hưởng nặng hơn)
+    dampingFactor = 1 - ((Aptitude - 50) / 100)      // Aptitude=100 -> 0.5 | Aptitude=1 -> ~1.49
+    effectiveHarmonyScore = harmonyScore × dampingFactor
+    clamp dampingFactor về khoảng [0.3, 1.8] để tránh triệt tiêu hoàn toàn hoặc khuếch đại quá đà
+```
+
+--- 7.2. Công thức cuối cùng (thay thế công thức ở mục 3.3, dùng effectiveHarmonyScore thay vì harmonyScore thô) ---
+```
+Final_Purity = Purity_Score_nền × (1 + effectiveHarmonyScore × 0.05)
+Final_EXP_Multiplier_LinhCan = EXP_Multiplier_nền × (1 + effectiveHarmonyScore × 0.03)
+
+// Nhân tiếp với hệ số Aptitude riêng (độc lập, áp dụng luôn cả khi harmonyScore >= 0):
+Final_EXP_Multiplier_Total = Final_EXP_Multiplier_LinhCan × (Aptitude / 50)
+
+Base_EXP_Gain = Base_EXP × Final_EXP_Multiplier_Total
+```
+
+--- 7.3. Cập nhật lại object output ở mục 5, thêm các field mới ---
+```
+{
+  "label": "Tam Linh Căn",
+  "elements": ["Kim", "Thủy", "Hỏa"],
+  "count": 3,
+  "harmonyScore": -1,
+  "aptitude": 62,                              // lấy từ chỉ số Căn Cốt hiện có của nhân vật
+  "dampingFactor": 0.88,                         // tính theo công thức 7.1
+  "effectiveHarmonyScore": -0.88,
+  "cachCucName": "Tam Hành Nhị Khắc Nhất Sinh",  // tra theo mục 6.3 (2 khắc: Thủy-Hỏa, Hỏa-Kim; 1 sinh: Kim-Thủy)
+  "cachCucAlignment": "hung",
+  "purityScoreBase": 50,
+  "purityScoreFinal": 47.8,
+  "expMultiplierLinhCanBase": 1.0,
+  "expMultiplierLinhCanFinal": 0.97,
+  "expMultiplierTotal": 1.2028                  // = 0.97 × (62/50)
+}
+```
+
+Không đổi bất kỳ hệ thống nào khác ngoài Linh Căn — Aptitude/Căn Cốt vẫn giữ nguyên cách roll và
+ý nghĩa cũ (tốc độ tu luyện & tỷ lệ đột phá), CHỈ thêm vai trò MỚI là dung hòa Harmony Score như
+mô tả ở mục 7 này.
+

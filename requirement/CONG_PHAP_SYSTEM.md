@@ -115,3 +115,17 @@ Category không có handler phải trả lỗi `UNSUPPORTED_TECHNIQUE_CATEGORY`;
 - Resolver: `../js/engine.js`.
 - UI/action: `../js/ui.js` và `../js/main.js`.
 - Test: `../tools/verify_game.js`.
+
+## 9. Truyền thừa tông môn và tự động tu luyện (Revision 2026-09)
+
+- Ngoại Môn được truyền `Tông Môn Nội Tức`; Nội Môn trở lên được truyền thêm một Công pháp theo đặc tính thế lực.
+- Nguồn truyền thừa được lưu trong tiến độ nhân vật (`sourceGuildId`), còn catalog Công pháp là bất biến.
+- Thăng cấp mastery giữ năm mốc: Nhập Môn 0, Tiểu Thành 100, Đại Thành 300, Viên Mãn 700, Đại Viên Mãn 1500.
+- Tu luyện tự động chỉ lặp tối đa 20 chu kỳ, tự điều tức khi thiếu Linh Khí và dừng ở ngưỡng Thanh Tỉnh nguy hiểm hoặc trước khi Đột Phá.
+
+## 10. Nguồn Thông Thạo theo hoạt động
+
+- `cultivation`: mọi Công pháp đã học nhận Thông Thạo; Tâm Pháp dùng base 12, Thân/Phụ Trợ/Trận/Tạp Pháp base 8, Chiêu Thức/Cấm Thuật base 3.
+- `combat`: chỉ Chiêu Thức hoặc Cấm Thuật thực sự được thi triển nhận Thông Thạo, base 4. Đánh thường và Công pháp không được dùng không phát sinh Thông Thạo.
+- Mọi base nhân với `1 + Ngộ tính/100`, làm tròn và tối thiểu 1.
+- UI nhóm riêng Tâm Pháp, Chiến Đấu, Thân Pháp, Phụ Trợ, Trận Pháp, Cấm Thuật và Dị Pháp; mỗi nhóm có màu nhận diện riêng.

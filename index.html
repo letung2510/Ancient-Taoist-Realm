@@ -4,13 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cổ Dị Diện — Tiên Hiệp Text RPG</title>
-  <link rel="stylesheet" href="styles.css?v=20260904-equipment" />
+  <link rel="stylesheet" href="styles.css?v=20260905-gameplay2" />
 </head>
 <body>
   <div id="app">
     <header id="topbar">
       <div class="brand">Cổ Dị Diện <span class="brand-sub">Tiên Hiệp · Eldritch Text RPG</span></div>
-      <div id="save-indicator" class="save-indicator">—</div>
+      <div class="topbar-actions"><div id="save-indicator" class="save-indicator">—</div><button id="btn-save-file" class="btn btn-ghost" type="button" title="Tải bản lưu xuống thành tệp JSON">Lưu tệp</button></div>
     </header>
 
     <!-- ============ HOME ============ -->
@@ -40,6 +40,7 @@
 
         <div class="field">
           <span>1. Chọn nơi bắt đầu <b class="required-mark">(bắt buộc)</b></span>
+          <p class="muted">Chỉ hiển thị vùng mà sinh linh Di Mệnh Cảnh có thể tồn tại. Thiên Không Vực và U Minh Giới sẽ mở khi đạt cảnh giới tương ứng.</p>
           <div id="start-region-list" class="start-region-list"></div>
         </div>
 
@@ -58,27 +59,32 @@
     <!-- ============ GAME ============ -->
     <section id="screen-game" class="screen">
       <div class="game-layout">
-        <main class="story-panel">
-          <div id="story-location" class="story-location">—</div>
-          <div id="story-log" class="story-log"></div>
-          <div id="choice-list" class="choice-list"></div>
-        </main>
-
         <aside class="side-panel">
           <div class="tabs">
             <button class="tab active" data-tab="status">Trạng thái</button>
-            <button class="tab" data-tab="inventory">Hành trang</button>
+            <button class="tab modal-tab" data-modal="inventory">Hành trang</button>
             <button class="tab" data-tab="quests">Nhiệm vụ</button>
             <button class="tab" data-tab="relations">Nhân duyên</button>
             <button class="tab" data-tab="guilds">Tổ chức</button>
-            <button class="tab" data-tab="map">Bản đồ</button>
+            <button class="tab modal-tab" data-modal="map">Bản đồ</button>
+            <button class="tab modal-tab" data-modal="fate">Mệnh số</button>
+            <button class="tab modal-tab" data-modal="technique">Công pháp</button>
+            <button class="tab modal-tab" data-modal="realm">Cảnh giới</button>
             <button class="tab" data-tab="memory">Ký ức</button>
+            <button class="tab" data-tab="market">Phường thị</button>
+            <button class="tab" data-tab="qintian">Khâm Thiên Giám</button>
+            <button class="tab" data-tab="cauldron">Hư Thiên Đỉnh</button>
           </div>
           <div id="tab-content" class="tab-content"></div>
         </aside>
       </div>
 
       <div class="action-bar">
+        <main class="story-panel" aria-label="Diễn biến câu chuyện">
+          <div id="story-location" class="story-location">—</div>
+          <div id="story-log" class="story-log"></div>
+          <div id="choice-list" class="choice-list"></div>
+        </main>
         <div id="action-list" class="action-list" aria-label="Hành động khả dụng"></div>
         <form id="free-form" class="free-form" autocomplete="off">
           <span class="prompt">&gt;</span>
@@ -98,16 +104,26 @@
     </section>
   </div>
 
-  <script src="gemini-code-1788430656294.js?v=20260904-canonical2"></script>
-  <script src="data/world_data.js?v=20260904-canonical2"></script>
-  <script src="data/fate_data.js?v=20260904-canonical2"></script>
-  <script src="data/fate_relationships.js?v=20260904-canonical2"></script>
-  <script src="data/cong_phap.js?v=20260904-canonical2"></script>
-  <script src="data/npc_monsters.js?v=20260904-canonical2"></script>
-  <script src="data/path_fate_relations.js?v=20260904-canonical2"></script>
-  <script src="data/data.js?v=20260904-canonical2"></script>
-  <script src="js/engine.js?v=20260904-canonical2"></script>
-  <script src="js/ui.js?v=20260904-canonical2"></script>
-  <script src="js/main.js?v=20260904-canonical2"></script>
+  <div id="overlay" class="overlay hidden" aria-hidden="true">
+    <div class="overlay-panel" role="dialog" aria-modal="true">
+      <div class="overlay-head">
+        <b id="overlay-title">Chi tiết</b>
+        <button id="overlay-close" class="overlay-close" type="button" aria-label="Đóng">×</button>
+      </div>
+      <div id="overlay-content" class="overlay-content"></div>
+    </div>
+  </div>
+
+  <script src="gemini-code-1788430656294.js?v=20260905-gameplay2"></script>
+  <script src="data/world_data.js?v=20260905-gameplay2"></script>
+  <script src="data/fate_data.js?v=20260905-gameplay2"></script>
+  <script src="data/fate_relationships.js?v=20260905-gameplay2"></script>
+  <script src="data/cong_phap.js?v=20260905-gameplay2"></script>
+  <script src="data/npc_monsters.js?v=20260905-gameplay2"></script>
+  <script src="data/path_fate_relations.js?v=20260905-gameplay2"></script>
+  <script src="data/data.js?v=20260905-gameplay2"></script>
+  <script src="js/engine.js?v=20260905-gameplay2"></script>
+  <script src="js/ui.js?v=20260905-gameplay2"></script>
+  <script src="js/main.js?v=20260905-gameplay2"></script>
 </body>
 </html>

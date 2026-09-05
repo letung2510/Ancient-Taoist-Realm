@@ -14,6 +14,7 @@ type CharacterCreationInput = {
   aptitude?: number;
   comprehension?: number;
   spiritualRoots?: string[];
+  spiritualRootBranch?: "tap" | "song_tam" | "don" | "hiem" | "di" | null;
   personalityTraits?: string[];
   background?: string;
   hiddenGoal?: string;
@@ -49,6 +50,10 @@ Trọng số `65/30/5` là trọng số của từng lượt thử trước bư�
 - `hiddenProfession` luôn là `null` khi vừa tạo.
 - Trúng Luân Hồi Tiên chỉ tạo `hiddenProfessionCandidate = "luan_hoi_tien"`.
 - Lựa chọn Con Đường và lựa chọn tổ chức là hai quyết định độc lập.
+- `origin.spiritualRoots` là danh sách nguyên tố thuần (không kèm nhãn); nhãn linh căn và cách cục được suy ra một lần bởi `spiritualRootProfile`, không lặp lại trên từng nguyên tố.
+- `origin.spiritualRootBranch` phải giữ đúng nhánh đã roll (`tap`, `song_tam`, `don`, `hiem`, `di`) để profile linh căn không bị suy diễn sai khi nhân vật chỉ có một nguyên tố hay có dị hệ.
+- Nơi xuất thân phải qua `startRegionEligibility`. Nhân vật mới ở Di Mệnh Cảnh chỉ thấy sáu vùng phàm sinh; Thiên Không Vực yêu cầu Hư Giới Cảnh (tầng 7), U Minh Giới yêu cầu Chủ Tể Cảnh (tầng 10).
+- UI ẩn vùng không đủ điều kiện và engine vẫn từ chối nếu dữ liệu đầu vào cố vượt gate.
 
 ## 4. Nguồn triển khai
 
