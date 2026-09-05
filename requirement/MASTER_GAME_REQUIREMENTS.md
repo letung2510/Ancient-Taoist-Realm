@@ -93,5 +93,5 @@
 - Year rollover consumes one year of Thọ Nguyên, warns below 10%, and invokes Luân Hồi at zero; every 500 years emits a Đại Kiếp atmosphere beat.
 - History remains fully persisted while the DOM shows the latest 20 entries with an incremental “Xem thêm lịch sử” control and game timestamps.
 - Game screen uses a bounded `100dvh` flex layout; tab content owns scrolling and quick commands remain a single horizontal strip.
-- The legacy horizontal tab layer is retained for fast scanning; the story panel is intentionally shorter so status/function content gets more vertical space, while tab content scrolls independently.
+- Gameplay uses a vertical two-column split: Story Panel 40%, Action Bar/input 60%; below 760px it collapses to one column. Tab content remains independently scrollable.
 - Save files support both Export (`Lưu tệp`) and Import (`Nạp tệp`) JSON flows.
