@@ -233,6 +233,21 @@ Sự kiện có lựa chọn (VD "Hồ Ly Thử Lòng", "Cầu Cứu Giả/Thậ
    cân bằng tốc độ lên cấp trước đó — đo trước, chỉnh sau, không đoán mò).
 ## Trạng thái triển khai trong engine
 
+### Đồng bộ bắt buộc với Open World Map
+
+- Mỗi lần `move()` thành công đều đi qua `maybeTriggerRandomEncounter()`; cổng này luôn ghi nhận một biến cố bản đồ, kể cả khi không roll trúng NPC dị sĩ.
+- Biến cố được chọn theo node hiện tại: thú săn địa phương, mạch Linh Thạch, điềm báo tà nhiễm hoặc manh mối khám phá. Không có random event nào xuất hiện thành nút taskbar cố định.
+- Node procedural dùng chung `region`, `dangerLevel`, `corruption`, `linhKhiDensity`, `enemies` và `searchable`, nên event tự đồng bộ với sinh thái nơi chốn thay vì bảng random toàn cục.
+- Quái chủ động theo lãnh địa: node có `enemies` có thể phát động phục kích ngay khi tới nơi; `maybeSpawnCombatExtras()` tiếp tục kiểm tra thú săn, truy sát tông môn và hộ pháp cấm địa.
+- Encounter được ghi vào Story Panel, tăng `state.flags.mapEventCount`, tôn trọng giao chiến/Thanh Tỉnh/cooldown và không chặn lượt kế tiếp khi event không hợp lệ.
+
+### Quy tắc nhịp sự kiện
+
+1. Di chuyển vào node nguy hiểm: ưu tiên predator/ambush trước phần thưởng.
+2. Di chuyển vào node linh khí cao: tăng xác suất tài nguyên hoặc cơ duyên tu luyện.
+3. Di chuyển vào node tà nhiễm cao: bắt buộc có dấu hiệu bất thường và có thể trừ Thanh Tỉnh.
+4. Quay lại node đã khám phá: event không lặp y nguyên; trạng thái node, loot và cờ đã gặp được lưu trong save.
+
 - `maybeTriggerRandomEncounter(state)` là cổng duy nhất cho sự kiện phát sinh khi di chuyển/khám phá; encounter được ghi vào `state.history` để Story Panel hiển thị tuần tự.
 - Encounter random không được đưa thành nút taskbar; người chơi chỉ gặp qua hành động bản đồ và các bảng NPC/quái vật/cơ duyên hiện có.
 - Sự kiện tôn trọng `state.pendingEnding`, trạng thái chiến đấu, Thanh Tỉnh và cooldown vùng; kết quả đi qua `updateDerived()` và autosave.

@@ -474,9 +474,10 @@ window.GameUI = (function () {
 
     const edges = [];
     const edgeKeys = new Set();
+    const visibleIds = new Set([...visited, state.locationId, ...Object.values(exits).filter(Boolean)]);
     Object.entries(data.LOCATIONS).forEach(([from, location]) => {
       Object.values(location.exits || {}).forEach((to) => {
-        if (!points[from] || !points[to]) return;
+        if (!points[from] || !points[to] || (!visibleIds.has(from) && !visibleIds.has(to))) return;
         const key = [from, to].sort().join("|");
         if (!edgeKeys.has(key)) {
           edgeKeys.add(key);
@@ -504,6 +505,8 @@ window.GameUI = (function () {
       else if (isReachable) classes.push("reachable");
       else if (isVisited) classes.push("visited");
       else classes.push("unknown");
+      if (location.openWorld) classes.push("procedural");
+      if (location.enemies?.length) classes.push("dangerous");
       const label = isVisited || isReachable ? location.name : "Chưa khám phá";
       const action = direction ? ' data-map-dir="' + direction + '" title="Đi tới ' + location.name + '"' : "";
       return '<button class="' + classes.join(" ") + '" style="left:' + point.x + '%;top:' + point.y + '%"' + action + '>' + label + '</button>';

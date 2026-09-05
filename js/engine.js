@@ -2296,7 +2296,7 @@ window.GameEngine = (function () {
     if (target === "cam_dia") activateQuest(state, "bi_mat_cam_dia");
     checkQuestObjectives(state, "bi_mat_cam_dia");
     maybeTriggerRandomEncounter(state);
-    if (state.guildPursuit) maybeSpawnCombatExtras(state);
+    maybeSpawnCombatExtras(state);
     updateDerived(state);
   }
 
@@ -2415,7 +2415,7 @@ window.GameEngine = (function () {
     return state.dialogueStates[entityId] || "IDLE_GREET";
   }
   function regionOfLocation(state) {
-    return D().WORLD_MAP?.locations?.[state.locationId]?.region || null;
+    return D().WORLD_MAP?.locations?.[state.locationId]?.region || D().LOCATIONS?.[state.locationId]?.region || null;
   }
   function presentEntities(state) {
     const regionId = regionOfLocation(state);
@@ -2445,7 +2445,29 @@ window.GameEngine = (function () {
         return entity.id;
       }
     }
-    return null;
+    // Mỗi lần dịch chuyển/khám phá luôn để lại một biến cố bắt buộc trong Story Panel.
+    const loc = D().LOCATIONS[state.locationId];
+    state.flags.mapEventCount = Number(state.flags.mapEventCount || 0) + 1;
+    if (loc?.enemies?.length && !aliveEnemies(state).length && Math.random() < Math.min(0.78, 0.28 + Number(loc.dangerLevel || loc.corruption || 1) * 0.1)) {
+      pushHistory(state, { type: "warn", text: "⚠ Biến cố bản đồ: thú săn trong vùng đã ngửi thấy linh tức của ngươi." });
+      beginCombat(state);
+      return "regional_predator";
+    }
+    const eventRoll = Math.random();
+    if (eventRoll < 0.34) {
+      const amount = 1 + Math.max(0, Number(loc?.linhKhiDensity || 1) - 2);
+      addItem(state, "linh_thach", amount);
+      pushHistory(state, { type: "sys", text: "✦ Biến cố bản đồ: ngươi phát hiện một mạch Linh Thạch lộ thiên (" + amount + ")." });
+      return "resource_cache";
+    }
+    if (eventRoll < 0.67) {
+      const sanLoss = 1 + Math.max(0, Number(loc?.corruption || 1) - 1);
+      drainSan(state, sanLoss, "dư âm dị biến trên tuyến đường");
+      pushHistory(state, { type: "narr", text: "Một dấu chân không thuộc về bất cứ sinh linh nào in ngược trên mặt đất. Ngươi buộc phải đổi hướng." });
+      return "omen";
+    }
+    pushHistory(state, { type: "sys", text: "◇ Biến cố bản đồ: một luồng khí lạ đánh dấu node này; lần khám phá tiếp theo sẽ có dấu vết sâu hơn." });
+    return "map_clue";
   }
   function findEntityByName(name) {
     const norm = normalizedText(name);
@@ -2597,6 +2619,13 @@ window.GameEngine = (function () {
     if (forbidden.includes(state.locationId) && !state.enemies["ho_phap_huyen_lan"]) {
       if (spawnCombatEntity(state, "ho_phap_huyen_lan")) {
         pushHistory(state, { type: "warn", text: "Hộ Pháp Huyền Lân gầm lên, chặn đường ngươi." });
+      }
+    }
+    const loc = D().LOCATIONS[state.locationId];
+    if (loc?.enemies?.length && !aliveEnemies(state).length && Math.random() < Math.min(0.35, 0.08 + Number(loc.dangerLevel || 1) * 0.04)) {
+      const predator = loc.enemies.find((id) => getEntity(id));
+      if (predator && spawnCombatEntity(state, predator)) {
+        pushHistory(state, { type: "warn", text: "☠ Quái vật địa phương chủ động rời ổ, khóa đường lui của ngươi." });
       }
     }
   }
