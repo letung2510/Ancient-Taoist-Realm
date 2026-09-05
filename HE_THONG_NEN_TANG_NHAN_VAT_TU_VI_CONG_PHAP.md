@@ -362,6 +362,23 @@ realm_gate → path_gate → anchor_gate → body/mind_check → cost_commit
 
 Chỉ commit thay đổi sau khi tất cả bước hợp lệ. UI phải hiển thị điều kiện thiếu, giá phải trả và nguy cơ cưỡng ép trước khi xác nhận.
 
+#### 6.4.1. Requirement triển khai nghi thức theo cấp
+
+Nghi thức được phân tầng theo cảnh giới đích, không ép năm bước từ cấp thấp:
+
+| Cấp đích | Số bước | Chuỗi hành động |
+|---|---:|---|
+| 2 | 2 | Gọi Mệnh → Đối Chiếu Con Đường |
+| 3–4 | 3 | thêm Dựng Neo |
+| 5–7 | 4 | thêm Vượt Dị Tượng |
+| 8–14 | 5 | thêm Trả Giá |
+
+Engine lưu `state.flags.breakthroughRitual` và chỉ mở một hành động kế tiếp trên Action Bar. Luồng nguyên tử là `realm_gate → path_gate → anchor_gate → body/mind_check → cost_commit`; chỉ commit cảnh giới sau khi mọi bước hợp lệ. Bước Đối Chiếu liệt kê blocker; Dựng Neo cho phép tạo Neo địa điểm cơ bản ở cấp thấp; Vượt Dị Tượng kiểm tra Căn Cốt/Ngộ Tính; Trả Giá tiêu hao 5 Thanh Tỉnh ở cấp cao. Thất bại không trừ Tu vi, chỉ ghi log và có thể mất 3 Thanh Tỉnh.
+
+#### 6.4.2. Hướng dẫn người chơi
+
+Khi đạt mốc Tu vi, mở tab Cảnh giới và thực hiện lần lượt bước đang sáng trên Action Bar. Ô điều kiện cho biết Mệnh hiệu dụng, Con Đường, Neo, công pháp và tài nguyên còn thiếu. Cấp 2 chỉ cần hai bước; từ cấp 5 chuẩn bị Căn Cốt/Ngộ Tính; từ cấp 8 cần chấp nhận Trả Giá rồi mới bấm Đột Phá. Không thể bỏ qua thứ tự hoặc xác nhận khi còn blocker.
+
 ### 6.5. Công thức xác suất
 
 ```text

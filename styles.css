@@ -617,3 +617,5 @@ html, body {
   .start-region-list { grid-template-columns: 1fr; }
   .technique-category > header { display: block; }
 }
+
+.ritual-guide{margin-top:12px;padding:12px;border:1px solid var(--line,#444);background:rgba(30,20,45,.45);border-radius:8px}.ritual-guide ol{display:flex;gap:8px;flex-wrap:wrap;padding-left:20px}.ritual-step{opacity:.55}.ritual-step.current{opacity:1;color:#f7d774;font-weight:700}.ritual-step.done{opacity:1;color:#83d39b;text-decoration:line-through}

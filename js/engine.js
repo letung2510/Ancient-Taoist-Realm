@@ -1776,6 +1776,64 @@ window.GameEngine = (function () {
     return realmLevelOf(state.player);
   }
 
+  // Nghi thức được mở dần theo cấp đích: cấp thấp dễ học, cấp cao mới cần đủ 5 cửa.
+  function breakthroughRitualPlan(level) {
+    if (level <= 2) return ["call_fate", "compare"];
+    if (level <= 4) return ["call_fate", "anchor", "compare"];
+    if (level <= 7) return ["call_fate", "anchor", "compare", "omen"];
+    return ["call_fate", "anchor", "compare", "omen", "cost"];
+  }
+  const BREAKTHROUGH_RITUAL_LABELS = {
+    call_fate: "Gọi Mệnh",
+    anchor: "Dựng Neo",
+    compare: "Đối Chiếu Con Đường",
+    omen: "Vượt Dị Tượng",
+    cost: "Trả Giá"
+  };
+  function breakthroughRitualStatus(state) {
+    const next = D().REALMS[realmIndex(state) + 1];
+    if (!next) return { next: null, plan: [], completed: [], remaining: [], ready: true };
+    const plan = breakthroughRitualPlan(Number(next.level || 1));
+    const saved = state.flags?.breakthroughRitual;
+    const completed = saved && saved.targetRealmId === next.id ? [...(saved.completed || [])] : [];
+    return { next, plan, completed, remaining: plan.filter((step) => !completed.includes(step)), ready: plan.every((step) => completed.includes(step)) };
+  }
+  function performBreakthroughRitualStep(state, step) {
+    const status = breakthroughRitualStatus(state);
+    if (!status.next || cultivationTier(state) <= 1) return { changed: false, reason: "Cảnh giới này chưa cần nghi thức phân đoạn." };
+    const expected = status.remaining[0];
+    if (step !== expected) return { changed: false, reason: "Nghi thức phải theo thứ tự: " + (BREAKTHROUGH_RITUAL_LABELS[expected] || expected) + "." };
+    const flags = state.flags.breakthroughRitual = state.flags.breakthroughRitual && state.flags.breakthroughRitual.targetRealmId === status.next.id ? state.flags.breakthroughRitual : { targetRealmId: status.next.id, completed: [] };
+    if (step === "call_fate" && computeFate(state.player).effective <= 0) return { changed: false, reason: "Cần ít nhất một Mệnh đang hiệu dụng để gọi Mệnh." };
+    if (step === "anchor") {
+      const anchors = (state.player.anchors || []).filter((a) => !a.broken && Number(a.stability || 0) > 0);
+      if (!anchors.length) {
+        state.player.anchors = state.player.anchors || [];
+        state.player.anchors.push({ id: "anchor_" + (state.meta.turn || 0), name: "Neo nơi sinh thành", source: "location", stability: 30, broken: false });
+      }
+    }
+    if (step === "compare") {
+      const blockers = getBreakthroughBlockers(state).filter((b) => !b.startsWith("Nghi thức"));
+      if (blockers.length) return { changed: false, reason: "Đối chiếu thất bại: " + blockers.join("; ") };
+    }
+    if (step === "omen") {
+      const difficulty = 10 + Number(status.next.level || 1) * 3;
+      const body = skillCheck(Number(state.player.aptitude || 0), difficulty);
+      const mind = skillCheck(Number(state.player.comprehension || 0), difficulty);
+      if (!body.success || !mind.success) { drainSan(state, 3, "vượt dị tượng thất bại"); return { changed: false, reason: "Dị tượng áp đảo Căn Cốt hoặc Ngộ Tính; hãy tu luyện thêm rồi thử lại." }; }
+      flags.bodyMindPassed = true;
+    }
+    if (step === "cost") {
+      if (Number(state.player.san || 0) < 5) return { changed: false, reason: "Cần ít nhất 5 Thanh Tỉnh để trả giá." };
+      drainSan(state, 5, "trả giá nghi thức đột phá");
+      flags.costCommitted = true;
+    }
+    flags.completed = [...new Set([...(flags.completed || []), step])];
+    pushHistory(state, { type: "sys", text: "✓ Nghi thức: " + BREAKTHROUGH_RITUAL_LABELS[step] + " đã hoàn tất." });
+    updateDerived(state);
+    return { changed: true, reason: "Đã hoàn tất bước " + BREAKTHROUGH_RITUAL_LABELS[step] + "." };
+  }
+
   function breakthroughRequirements(state) {
     const current = D().REALMS[realmIndex(state)];
     const next = D().REALMS[realmIndex(state) + 1];
@@ -1792,6 +1850,8 @@ window.GameEngine = (function () {
     const add = (label, currentValue, target, met) => requirements.push({ label, current: currentValue, target, met: Boolean(met) });
     add("Tu vi", player.exp, requiredExp, player.exp >= requiredExp);
     if (cultivationTier(state) === 1) return { current, next, requiredExp, ready: requirements.every((item) => item.met), requirements };
+    const ritual = breakthroughRitualStatus(state);
+    add("Nghi thức đột phá", ritual.completed.length, ritual.plan.length, ritual.ready);
     if (cultivationTier(state) > 1 && !player.pathId) add("Con Đường", "Chưa chọn", "Chọn một Con Đường", false);
     if (Number(next.minFate || 0) > 0) add("Mệnh hiệu dụng", fate.effective, Number(next.minFate) * fateMultiplier, fate.effective >= Number(next.minFate) * fateMultiplier);
     if (Number(next.minNormalFate || 0) > 0) add("Mệnh Cát/Bình", fate.normal, Number(next.minNormalFate) * fateMultiplier, fate.normal >= Number(next.minNormalFate) * fateMultiplier);
@@ -2106,10 +2166,11 @@ window.GameEngine = (function () {
     if (next.requiresTrueNameTrial && !state.flags.trueNameTrialPassed) return { changed: false, reason: "Chưa giữ được Chân Danh qua phản phệ." };
     if (next.requiresFinalPreparation && !isUnbound && !state.player.tainted?.finalConflictPreparation && !state.flags.finalConflictPreparation) return { changed: false, reason: "Chưa hoàn tất chuẩn bị quyết chiến." };
 
+    const ritualFlags = state.flags.breakthroughRitual || {};
     const stats = computeStats(state.player);
     const difficulty = 10 + Number(next.level || 1) * 3 + (isUnbound ? 15 : 0);
-    const body = skillCheck(Number(state.player.aptitude || 0), difficulty);
-    const mind = skillCheck(Number(state.player.comprehension || 0), difficulty);
+    const body = ritualFlags.bodyMindPassed ? { success: true } : skillCheck(Number(state.player.aptitude || 0), difficulty);
+    const mind = ritualFlags.bodyMindPassed ? { success: true } : skillCheck(Number(state.player.comprehension || 0), difficulty);
     const chance = clamp(35 + state.player.aptitude * 0.25 + state.player.comprehension * 0.20 + Math.min(20, Math.max(0, fate.effective - minTotal) * 0.05) - state.player.corruptionRating * 0.15, 5, 95);
     const chanceRoll = rnd(1, 100);
     if (!body.success || !mind.success || chanceRoll > chance) {
@@ -2121,6 +2182,7 @@ window.GameEngine = (function () {
     }
     state.player.realmId = next.id;
     state.player.exp = Math.max(0, state.player.exp - expRequired);
+    state.flags.breakthroughRitual = null;
     recordTaintedMilestones(state);
     pushMemory(state, "Đột phá thành công: " + pathTitle(state));
     pushHistory(state, { type: "sys", text: "§ ĐỘT PHÁ THÀNH CÔNG — " + pathTitle(state) + "!" });
@@ -2910,6 +2972,11 @@ window.GameEngine = (function () {
     { id: "act_to_chuc", label: "Tổ Chức", aliases: ["to chuc", "tổ chức", "guild", "môn phái", "mon phai"], priority: 1 },
     { id: "act_tim_kiem", label: "Tìm Kiếm", aliases: ["tim kiem", "tìm kiếm", "tìm", "search"], priority: 1 },
     { id: "act_dot_pha", label: "Đột Phá", aliases: ["dot pha", "đột phá", "breakthrough"], priority: 1 },
+    { id: "act_ritual_call_fate", label: "Nghi Thức · Gọi Mệnh", aliases: ["gọi mệnh", "goi menh"], priority: 1 },
+    { id: "act_ritual_anchor", label: "Nghi Thức · Dựng Neo", aliases: ["dựng neo", "dung neo"], priority: 1 },
+    { id: "act_ritual_compare", label: "Nghi Thức · Đối Chiếu", aliases: ["đối chiếu", "doi chieu"], priority: 1 },
+    { id: "act_ritual_omen", label: "Nghi Thức · Vượt Dị Tượng", aliases: ["vượt dị tượng", "vuot di tuong"], priority: 1 },
+    { id: "act_ritual_cost", label: "Nghi Thức · Trả Giá", aliases: ["trả giá", "tra gia"], priority: 1 },
     { id: "act_nghi_ngoi", label: "Nghỉ Ngơi", aliases: ["nghi ngoi", "nghỉ ngơi", "rest", "nghi", "ngủ"], priority: 1 },
     { id: "act_bo_chay", label: "Bỏ Chạy", aliases: ["run", "chay", "bỏ chạy", "flee"], priority: 0 },
     { id: "act_chon_ban_phuoc", label: "Chọn Ban Phước", aliases: ["ban phuoc", "ban phước", "chon ban phuoc", "chọn ban phước"], priority: 1 },
@@ -2968,6 +3035,7 @@ window.GameEngine = (function () {
     }
     const actions = ACTION_DEFINITIONS.filter((a) => !forced || a.priority === 0).filter((a) => {
       if (a.id.startsWith("act_chon_")) return false;
+      if (a.id.startsWith("act_ritual_")) return false;
       if (a.id === "act_tu_luyen" || a.id === "act_tu_luyen_tu_dong") return !combatPossible;
       if (a.id === "act_nghi_ngoi") return !combatPossible;
       if (a.id === "act_tan_cong_thuong" || a.id === "act_bo_chay") return combatPossible;
@@ -2978,6 +3046,13 @@ window.GameEngine = (function () {
     const breakthrough = breakthroughRequirements(state);
     const breakthroughAction = actions.find((a) => a.id === "act_dot_pha");
     if (breakthroughAction && !breakthrough.ready) breakthroughAction.disabled_reason = "Chưa đủ toàn bộ điều kiện Đột Phá.";
+    if (!combatPossible && cultivationTier(state) > 1) {
+      const ritual = breakthroughRitualStatus(state);
+      if (ritual.remaining.length) {
+        const step = ritual.remaining[0];
+        actions.unshift({ id: "act_ritual_" + step, label: "Nghi Thức · " + BREAKTHROUGH_RITUAL_LABELS[step], aliases: [BREAKTHROUGH_RITUAL_LABELS[step]], priority: 1 });
+      }
+    }
     const secludedAction = actions.find((a) => a.id === "act_be_quan");
     if (secludedAction && Number(loc?.corruption || 0) > 2) secludedAction.disabled_reason = "Địa điểm có Tà Nhiễm quá cao; hãy tìm nơi an toàn hơn.";
     if (combatPossible) actions.push(...skillActions(state));
@@ -2999,6 +3074,7 @@ window.GameEngine = (function () {
     return fuzzy.length && (fuzzy.length === 1 || fuzzy[0].d < fuzzy[1].d) ? { actionId: fuzzy[0].x.action.id, suggestion: "Ý mày là: " + fuzzy[0].x.action.label + "?" } : null;
   }
   function resolveAction(state, actionId, options = {}) {
+    if (actionId.startsWith("act_ritual_")) return performBreakthroughRitualStep(state, actionId.slice("act_ritual_".length));
     if (actionId.startsWith("act_path_")) return selectPath(state, actionId.slice("act_path_".length));
     if (actionId.startsWith("act_faction_")) return chooseTaintedFaction(state, actionId.slice("act_faction_".length));
     if (actionId.startsWith("act_move_")) { move(state, actionId.slice("act_move_".length)); return true; }
@@ -3434,7 +3510,7 @@ window.GameEngine = (function () {
     getGuildBenefits, guildTierInfo, guildEligibility, guildExitCost, joinGuild, refuseGuild, leaveGuild, describeGuild,
     normalizeEquipment, equippedItemIds, equipmentCategory, equipmentCategoryLabel, equipmentSummary, protectionSlot, equipItem, inventoryActions, handleInventoryAction,
     fateVaultCapacity, fateCompatibility, pathMatchSummary, availablePaths, pathProgression, receiveFate, sacrificeFate, fateVaultSummary, validateFateInventory, swapFateFromVault, storeFateToVault, equipFateFromVault, upgradeFate, mergeFates, suggestFateForRealmRequirement, auditFateRolls, buyFateAtMarket, sacrificeLifespanForFate, qintianFateOffers, refreshMarket, marketOffers, buyMarketOffer, refineAtVoidCauldron,
-    cultivationTier, breakthroughRequirements, getBreakthroughBlockers, getChuyenSinhBlockers, processLuanHoi, processChuyenSinh, chooseTaintedAttention, rollTaintedAttention, chooseTaintedFaction, factionStatus, grantQuestMerit, resolveFactionHunt, switchTaintedFaction, selectPath, pathTitle, completeUnboundTrial, canUnlockDevourHeaven, recordTaintedMilestones,
+    cultivationTier, breakthroughRitualPlan, breakthroughRitualStatus, performBreakthroughRitualStep, breakthroughRequirements, getBreakthroughBlockers, getChuyenSinhBlockers, processLuanHoi, processChuyenSinh, chooseTaintedAttention, rollTaintedAttention, chooseTaintedFaction, factionStatus, grantQuestMerit, resolveFactionHunt, switchTaintedFaction, selectPath, pathTitle, completeUnboundTrial, canUnlockDevourHeaven, recordTaintedMilestones,
     elementRelation, familyMatchup, toCanonicalCharacter, fromCanonicalCharacter,
     gainExp, enterLuyenKhi, cultivate, autoCultivate, secludedCultivation, rest, doBreakthrough, drainSan, restoreSan, move, look, search, useItem,
     talk, combat, beginCombat, aliveEnemies, firstAliveEnemy, enemyTurn, afterPlayerCombatAction, applyPlayerDamage, endCombat, combatEntity, spawnCombatEntity, maybeSpawnCombatExtras, lootTable, rollEntityLoot, rollDefeatBonus, entityCatalog, getEntity, entityForPlayer, dialogueState, presentEntities, maybeTriggerRandomEncounter, findEntityByName, interactEntity, monsterAction, useTechnique, techniquePreview, learnTechnique, getKnownTechniques, techniqueStatus, techniqueProgress, contextState, moveActions, talkActions, skillActions, parseAction, resolveAction, submitActionId, submitTurn, describeStatus, describeInventory, describeQuests,

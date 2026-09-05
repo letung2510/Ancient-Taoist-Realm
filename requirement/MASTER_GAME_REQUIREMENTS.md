@@ -98,3 +98,4 @@
 - Gameplay retains the proven stacked layout from commit `8f37143`: Story Panel and Action Bar are full-width vertical sections, with the tab/function layer above them. Gameplay logic remains independent from this presentation layer.
 - Open-world map runtime now lazily generates deterministic neighboring nodes on all four directions, persists coordinates/nodes per save, and renders discovered procedural nodes in the local map graph.
 - Save files support both Export (`Lưu tệp`) and Import (`Nạp tệp`) JSON flows.
+- Nghi thức Đột Phá được phân tầng theo cấp đích (2–5 bước), mở từng action theo thứ tự Gọi Mệnh → Dựng Neo → Đối Chiếu → Vượt Dị Tượng → Trả Giá; chỉ commit cảnh giới khi toàn bộ gate hợp lệ.

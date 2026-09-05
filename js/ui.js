@@ -197,10 +197,12 @@ window.GameUI = (function () {
     const currentTitle = window.GameEngine.realmLore(state, progress.current).title;
     const nextTitle = window.GameEngine.realmLore(state, progress.next).title;
     const blockers = window.GameEngine.getBreakthroughBlockers ? window.GameEngine.getBreakthroughBlockers(state) : [];
+    const ritual = window.GameEngine.breakthroughRitualStatus ? window.GameEngine.breakthroughRitualStatus(state) : null;
+    const ritualGuide = ritual && Number(progress.current.level) > 1 ? '<div class="ritual-guide"><b>Nghi thức đột phá · tiến trình</b><ol>' + ritual.plan.map((step) => '<li class="ritual-step ' + (ritual.completed.includes(step) ? 'done' : (ritual.remaining[0] === step ? 'current' : '')) + '">' + escapeHtml(step) + '</li>').join('') + '</ol><small>Thực hiện lần lượt hành động nghi thức trên thanh hành động.</small></div>' : '';
     return '<div class="realm-guide ' + (progress.ready ? "ready" : "") + '" title="' + escapeHtml(blockers.join("; ")) + '"><div class="realm-route"><b>' + escapeHtml(currentTitle) + '</b><span>→</span><b>' + escapeHtml(nextTitle) + '</b></div>' +
       '<p>Cách thăng cấp: ' + (Number(progress.current.level) === 1 ? 'tu luyện đủ 100 Tu vi rồi chọn <b>Đột Phá</b>, hoặc dùng Thông Mạch Đan/Tụ Khí Đan/Hoán Huyết Đan để khai lộ sớm.' : 'hoàn thành mọi điều kiện bên dưới, sau đó chọn <b>Đột Phá</b>.') + '</p><div class="requirement-grid">' +
       progress.requirements.map((item) => '<div class="requirement ' + (item.met ? "met" : "missing") + '"><span>' + (item.met ? "✓" : "○") + ' ' + helpLabel(escapeHtml(item.label), "Điều kiện bắt buộc do engine cảnh giới kiểm tra trước khi cho phép Đột Phá.") + '</span><b>' + escapeHtml(item.current) + ' / ' + escapeHtml(item.target) + '</b>' + ((/Mệnh|Tương hợp|Mệnh dẫn|Mệnh hiệu/i.test(item.label) && !item.met) ? '<button class="help-button" data-fate-suggest="' + escapeHtml(item.label) + '">?</button>' : '') + '</div>').join("") +
-      '</div></div>';
+      '</div>' + ritualGuide + '</div>';
   }
 
   function renderStatus(state) {
