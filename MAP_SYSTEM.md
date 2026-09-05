@@ -301,6 +301,27 @@ MapNode {
    (màu viền khác, action "Tấn Công Chiếm Đoạt" thay vì "Chinh Phục")?
 ## Trạng thái triển khai trong engine
 
+### 8. Open World Runtime đã áp dụng
+
+Engine hiện vận hành bản đồ như một đồ thị mở vô hạn thay vì danh sách địa điểm đóng:
+
+- Mỗi save có `openWorld.coordinates` và `openWorld.nodes`; node sinh ra được lưu lại, không roll lại khi quay về hoặc nạp save.
+- Bốn hướng Bắc/Nam/Đông/Tây luôn là cạnh tiềm năng. Nếu node tĩnh không có lối đi, engine lazy-generate node mới tại tọa độ kế bên và tự nối cạnh ngược.
+- Node procedural dùng hash tọa độ để tạo kết quả ổn định: vùng, cấp nguy hiểm, mật độ linh khí, tà nhiễm, quái và tài nguyên. Cùng một tọa độ luôn cho cùng một địa điểm trong cùng thế giới.
+- Khoảng cách từ vùng khởi nguyên điều khiển độ nguy hiểm; các vùng Đông Hoang, Nam Chướng, Tây Mạc, Bắc Nguyên, Vô Tận Hải, Thiên Không Vực và U Minh Giới đan xen theo các vành sinh thái.
+- Node mới có mô tả, lối quay về, tài nguyên và quái phù hợp, nên mọi hướng di chuyển đều mở rộng thành mạng lưới liên thông thay vì ngõ cụt giả.
+- `visitedLocations` tiếp tục làm fog-of-war cho người chơi; `openWorld.nodes` là dữ liệu đã biết, còn node chưa đi tới không bị lộ nội dung.
+- Hư Thiên Đỉnh, sự kiện ngẫu nhiên, chiến đấu và tu luyện dùng chung `locationId`, vì vậy node procedural hoạt động như node authored và không cần nhánh logic riêng.
+
+### 9. Nguyên tắc thiết kế thế giới mở
+
+1. **Liên thông trước, nội dung sau:** mọi node phải có ít nhất một cạnh quay lại; vùng biên được mở lazy thay vì khóa bản đồ.
+2. **Tính liên tục:** tọa độ, vùng và nguy cơ quyết định cảm giác hành trình; di chuyển xa tăng giá phải trả nhưng không chặn khám phá tuyệt đối.
+3. **Điểm neo:** node tĩnh (tông môn, thành trấn, di tích, cấm địa) là landmark; node procedural tạo khoảng thở, đường tắt, tài nguyên và bí mật nối giữa landmark.
+4. **Thông tin theo lớp:** bản đồ chỉ hiển thị tên thật sau khi đến; trước đó chỉ có hướng, khoảng cách ước lượng và dấu hiệu khí tượng.
+5. **Thế giới sống:** mỗi node có cooldown sự kiện, trạng thái chiếm cứ, dấu vết người chơi và biến động tà nhiễm; quay lại một nơi không đồng nghĩa trải nghiệm lặp lại.
+6. **Không sinh bừa:** seed tọa độ phải quyết định kết quả; thay đổi do người chơi (chiếm động phủ, thanh tẩy, phá hủy) ghi đè lên node đã lưu.
+
 - `WORLD_MAP`, `LOCATIONS`, `startRegionEligibility()` và `guildEligibility()` là nguồn dữ liệu/luật đang chạy trong `data/data.js` và `js/engine.js`.
 - Vùng có ngưỡng Tông Môn từ cấp 3 (Đông Hoang, Vô Tận Hải) không ép nhân vật gia nhập ngay: UI hiển thị lộ trình Tán Tu, điều kiện Cảnh giới/Hiệu Mệnh và tự mở thế lực khi đủ chuẩn.
 - Di chuyển gọi `move()` và `maybeTriggerRandomEncounter()`; mọi thay đổi state đều được lưu qua `serialize()`.

@@ -1109,6 +1109,7 @@ window.GameEngine = (function () {
       startRegionId: input.startRegionId || character.startRegionId || "trung_vuc",
       locationId: input.locationId || "son_mon",
       visitedLocations: [input.locationId || "son_mon"],
+      openWorld: { coordinates: { [input.locationId || "son_mon"]: [0, 0] }, nodes: {} },
       generatedItems: {}, // itemId -> định nghĩa item procedural, được lưu cùng save
       inventory: {},       // itemId -> quantity
       fateInventory: canonicalInput?.fate?.vaultIds?.slice() || [],   // Mệnh Số chưa gắn; dung lượng = 2 x số Mệnh Số đang gắn
@@ -2223,13 +2224,60 @@ window.GameEngine = (function () {
   }
 
   /* ---------- Movement ---------- */
+  const OPEN_WORLD_DELTAS = { bac: [0, 1], nam: [0, -1], dong: [1, 0], tay: [-1, 0] };
+  const OPEN_WORLD_OPPOSITE = { bac: "nam", nam: "bac", dong: "tay", tay: "dong" };
+  function openWorldHash(x, y) {
+    let h = 2166136261;
+    for (const ch of String(x) + ":" + String(y)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+    return h >>> 0;
+  }
+  function ensureOpenWorld(state) {
+    state.openWorld = state.openWorld || { coordinates: {}, nodes: {} };
+    state.openWorld.coordinates = state.openWorld.coordinates || {};
+    state.openWorld.nodes = state.openWorld.nodes || {};
+    if (!state.openWorld.coordinates[state.locationId]) state.openWorld.coordinates[state.locationId] = [0, 0];
+    Object.entries(state.openWorld.nodes).forEach(([id, node]) => { if (!D().LOCATIONS[id]) D().LOCATIONS[id] = node; });
+    return state.openWorld;
+  }
+  function generateOpenWorldNode(state, x, y) {
+    const world = ensureOpenWorld(state);
+    const id = "open_" + x + "_" + y;
+    if (D().LOCATIONS[id]) return id;
+    const hash = openWorldHash(x, y);
+    const distance = Math.abs(x) + Math.abs(y);
+    const region = distance < 6 ? "trung_vuc" : distance < 16 ? ["dong_hoang", "nam_chuong", "tay_mac"][hash % 3] : distance < 30 ? ["bac_nguyen", "vo_tan_hai", "dong_hoang"][hash % 3] : ["thien_khong_vuc", "u_minh_gioi", "vo_tan_hai"][hash % 3];
+    const danger = Math.min(5, 1 + Math.floor(distance / 8) + (hash % 2));
+    const names = ["Dã Lộ Vô Danh", "Cổ Trạm Tàn Nguyệt", "Linh Hoang Vực", "Hắc Thủy Bến", "Thiên Khuyết Ngoại Biên"];
+    const node = { id, name: names[hash % names.length] + " · " + x + "," + y, x, y, region, corruption: Math.max(1, danger - 1), dangerLevel: danger, linhKhiDensity: Math.max(1, 5 - Math.floor(distance / 12)), npcs: [], enemies: danger >= 3 ? [hash % 2 ? "yeu_thu" : "di_qui"] : [], searchable: ["linh_thach", "tu_khi_dan"], exits: { bac: null, nam: null, dong: null, tay: null }, openWorld: true, desc: "Một khoảng đất chưa từng được ghi vào địa đồ. Linh khí trôi dạt thành những dòng xoáy, còn bóng tối dường như đang học cách gọi tên ngươi." };
+    D().LOCATIONS[id] = node;
+    world.nodes[id] = node;
+    world.coordinates[id] = [x, y];
+    return id;
+  }
+  function openWorldTarget(state, dir) {
+    const world = ensureOpenWorld(state);
+    const current = world.coordinates[state.locationId] || [0, 0];
+    const delta = OPEN_WORLD_DELTAS[dir];
+    if (!delta) return null;
+    const x = current[0] + delta[0], y = current[1] + delta[1];
+    const loc = D().LOCATIONS[state.locationId];
+    let target = loc?.exits?.[dir];
+    if (!target || !D().LOCATIONS[target]) target = generateOpenWorldNode(state, x, y);
+    world.coordinates[target] = world.coordinates[target] || [x, y];
+    if (loc && loc.exits) loc.exits[dir] = target;
+    const destination = D().LOCATIONS[target];
+    destination.exits = destination.exits || {};
+    if (!destination.exits[OPEN_WORLD_OPPOSITE[dir]]) destination.exits[OPEN_WORLD_OPPOSITE[dir]] = state.locationId;
+    return target;
+  }
   function move(state, dir) {
+    ensureOpenWorld(state);
     const loc = D().LOCATIONS[state.locationId];
     if (!loc || !loc.exits) {
       pushHistory(state, { type: "warn", text: "× Không thể đi từ đây." });
       return;
     }
-    const target = loc.exits[dir];
+    const target = openWorldTarget(state, dir);
     if (!target || !D().LOCATIONS[target]) {
       pushHistory(state, { type: "warn", text: "× Không có lối về hướng đó." });
       return;
@@ -3247,6 +3295,7 @@ window.GameEngine = (function () {
     state.guildPursuit = state.guildPursuit || null;
     state.autoCultivation = state.autoCultivation || null;
     ensureGameClock(state);
+    ensureOpenWorld(state);
     state.pendingRewardSummaries = Array.isArray(state.pendingRewardSummaries) ? state.pendingRewardSummaries : [];
     state.market = state.market && Array.isArray(state.market.offers) ? state.market : { generatedAt: 0, refreshIntervalMs: 60000, offers: [], purchased: {} };
     state.pendingGuildChoice = Boolean(state.pendingGuildChoice);

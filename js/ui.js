@@ -367,7 +367,7 @@ window.GameUI = (function () {
         '<p class="muted">Đang ở Di Mệnh Cảnh. Hãy tích đủ EXP hoặc dùng đan khai mạch để bước vào Khai Lộ Cảnh.</p>';
     }
 
-    const regionId = data.WORLD_MAP.locations[state.locationId]?.region || "trung_vuc";
+    const regionId = data.WORLD_MAP.locations[state.locationId]?.region || data.LOCATIONS[state.locationId]?.region || "trung_vuc";
     const region = data.WORLD_MAP.regions.find((item) => item.id === regionId);
     const regional = data.GUILDS.filter((guild) => guild.region_id === regionId);
     const available = regional.filter((guild) => window.GameEngine.guildEligibility(state, guild).visible)
@@ -457,7 +457,15 @@ window.GameUI = (function () {
   }
 
   function renderLocalMap(state, data, map) {
-
+    const points = { ...(map.locations || {}) };
+    const coords = state.openWorld?.coordinates || {};
+    const currentCoords = coords[state.locationId] || [0, 0];
+    // Đưa các node procedural đã sinh vào bản đồ cục bộ quanh vị trí hiện tại.
+    Object.entries(state.openWorld?.nodes || {}).forEach(([id]) => {
+      if (!coords[id]) return;
+      const dx = coords[id][0] - currentCoords[0], dy = coords[id][1] - currentCoords[1];
+      points[id] = { x: Math.max(4, Math.min(96, 50 + dx * 12)), y: Math.max(4, Math.min(96, 50 - dy * 12)), region: data.LOCATIONS[id]?.region || "trung_vuc" };
+    });
     const visited = new Set(state.visitedLocations || [state.locationId]);
     const current = data.LOCATIONS[state.locationId];
     const exits = current?.exits || {};
@@ -468,7 +476,7 @@ window.GameUI = (function () {
     const edgeKeys = new Set();
     Object.entries(data.LOCATIONS).forEach(([from, location]) => {
       Object.values(location.exits || {}).forEach((to) => {
-        if (!map.locations[from] || !map.locations[to]) return;
+        if (!points[from] || !points[to]) return;
         const key = [from, to].sort().join("|");
         if (!edgeKeys.has(key)) {
           edgeKeys.add(key);
@@ -478,13 +486,13 @@ window.GameUI = (function () {
     });
 
     const lines = edges.map(([from, to]) => {
-      const a = map.locations[from];
-      const b = map.locations[to];
+      const a = points[from];
+      const b = points[to];
       const explored = visited.has(from) && visited.has(to) ? " explored" : "";
       return '<line class="map-path' + explored + '" x1="' + a.x + '" y1="' + a.y + '" x2="' + b.x + '" y2="' + b.y + '"></line>';
     }).join("");
 
-    const nodes = Object.entries(map.locations).map(([id, point]) => {
+    const nodes = Object.entries(points).map(([id, point]) => {
       const location = data.LOCATIONS[id];
       if (!location) return "";
       const direction = directionByTarget[id];
@@ -501,7 +509,7 @@ window.GameUI = (function () {
       return '<button class="' + classes.join(" ") + '" style="left:' + point.x + '%;top:' + point.y + '%"' + action + '>' + label + '</button>';
     }).join("");
 
-    const currentPoint = map.locations[state.locationId];
+    const currentPoint = points[state.locationId];
     const region = map.regions.find((item) => item.id === currentPoint?.region);
     return '<div class="map-heading"><b>' + map.name + '</b><small>' + (region ? region.name + " — " + region.desc : "") + '</small></div>' +
       '<div class="world-map"><svg viewBox="0 0 100 100" preserveAspectRatio="none">' + lines + '</svg>' + nodes + '</div>' +

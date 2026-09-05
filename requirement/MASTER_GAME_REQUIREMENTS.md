@@ -94,4 +94,5 @@
 - History remains fully persisted while the DOM shows the latest 20 entries with an incremental “Xem thêm lịch sử” control and game timestamps.
 - Game screen uses a bounded `100dvh` flex layout; tab content owns scrolling and quick commands remain a single horizontal strip.
 - Gameplay retains the proven stacked layout from commit `8f37143`: Story Panel and Action Bar are full-width vertical sections, with the tab/function layer above them. Gameplay logic remains independent from this presentation layer.
+- Open-world map runtime now lazily generates deterministic neighboring nodes on all four directions, persists coordinates/nodes per save, and renders discovered procedural nodes in the local map graph.
 - Save files support both Export (`Lưu tệp`) and Import (`Nạp tệp`) JSON flows.
