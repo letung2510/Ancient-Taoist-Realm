@@ -86,3 +86,11 @@
 - `WORLDVIEW_ATMOSPHERE.md` is applied through a continuous Wrongness gradient derived from distance, Tà Nhiễm and Thanh Tỉnh.
 - Descriptions and Story entries may receive deterministic Ambient Dread details; low Thanh Tỉnh can also produce bounded, presentation-only perceived values without changing real state.
 - Forbidden knowledge flags are persisted when marked Mệnh Số/Công pháp are acquired, allowing later narrative systems to react without inventing a second corruption stat.
+
+## GameClock and web UX audit
+
+- `state.gameClock` stores year/era/month/day, fractional day progress and real-time ratio (1 real minute = 1 game day by default); action turns and realtime ticks advance it safely.
+- Year rollover consumes one year of Thọ Nguyên, warns below 10%, and invokes Luân Hồi at zero; every 500 years emits a Đại Kiếp atmosphere beat.
+- History remains fully persisted while the DOM shows the latest 20 entries with an incremental “Xem thêm lịch sử” control and game timestamps.
+- Game screen uses a bounded `100dvh` flex layout; tab content owns scrolling and quick commands remain a single horizontal strip.
+- Save files support both Export (`Lưu tệp`) and Import (`Nạp tệp`) JSON flows.

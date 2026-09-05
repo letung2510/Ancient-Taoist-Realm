@@ -17,6 +17,9 @@
   const pendingActions = [];
   let drainingActions = false;
   let renderedHistoryEntries = new WeakSet();
+  let storyWindowSize = 20;
+  const commandHistory = [];
+  let commandHistoryCursor = -1;
 
   function enqueueAction(task) {
     if (typeof task !== "function") return;
@@ -60,7 +63,23 @@
     if (UI.bindOverlay) UI.bindOverlay();
     UI.showScreen("home");
     refreshContinue();
-    if (typeof setInterval === "function") setInterval(() => { if (state && document.querySelector('.tab.active')?.dataset.tab === 'market') { E.refreshMarket(state); UI.renderPanel(state); saveGame(); } }, 1000);
+    if (typeof setInterval === "function") setInterval(() => {
+      if (!state) return;
+      const now = Date.now();
+      const clock = E.ensureGameClock ? E.ensureGameClock(state) : null;
+      if (clock) {
+        const elapsed = Math.max(0, Math.min(300, (now - Number(clock.lastRealTimestamp || now)) / 1000));
+        clock.lastRealTimestamp = now;
+        if (elapsed > 0 && E.advanceGameTime) {
+          const historyLength = state.history?.length || 0;
+          E.advanceGameTime(state, elapsed * Number(clock.realTimeToGameTimeRatio || 1 / 60));
+          if ((state.history?.length || 0) !== historyLength) renderStoryWindow();
+          updateClockDisplay();
+          updateAtmosphereClass();
+        }
+      }
+      if (document.querySelector('.tab.active')?.dataset.tab === 'market') { E.refreshMarket(state); UI.renderPanel(state); saveGame(); }
+    }, 1000);
   }
 
   function bindHome() {
@@ -154,6 +173,8 @@
   /* ---------- game screen ---------- */
   function bindGame() {
     $("btn-save-file")?.addEventListener("click", exportSaveFile);
+    $("btn-load-file")?.addEventListener("click", () => $("save-file-input")?.click());
+    $("save-file-input")?.addEventListener("change", importSaveFile);
     document.querySelectorAll(".tab").forEach((tab) => {
       tab.addEventListener("click", () => {
         if (tab.dataset.modal) {
@@ -175,7 +196,17 @@
 
     $("free-form").addEventListener("submit", (e) => {
       e.preventDefault();
+      const value = $("free-input").value.trim();
+      if (value && commandHistory[commandHistory.length - 1] !== value) commandHistory.push(value);
+      commandHistoryCursor = commandHistory.length;
       enqueueAction(submitAction);
+    });
+    $("free-input").addEventListener("keydown", (event) => {
+      if (!commandHistory.length || !["ArrowUp", "ArrowDown"].includes(event.key)) return;
+      event.preventDefault();
+      commandHistoryCursor += event.key === "ArrowUp" ? -1 : 1;
+      commandHistoryCursor = Math.max(0, Math.min(commandHistory.length, commandHistoryCursor));
+      $("free-input").value = commandHistory[commandHistoryCursor] || "";
     });
 
     $("tab-content").addEventListener("click", (event) => {
@@ -332,13 +363,7 @@
   function renderAfterTurn() {
     if (!state) return;
     const history = Array.isArray(state.history) ? state.history : [];
-    // Track object identity instead of an array index: the engine trims
-    // history to a fixed size, so a numeric cursor can skip new entries.
-    for (const h of history) {
-      if (!h || typeof h !== "object" || renderedHistoryEntries.has(h)) continue;
-      if (UI.addStory(h.type || "narr", h.text, h.portrait) === false) break;
-      renderedHistoryEntries.add(h);
-    }
+    renderStoryWindow();
     window._renderedTurn = history.length;
 
     flushRewardSummaries();
@@ -353,6 +378,17 @@
     UI.setLocation(D.LOCATIONS[state.locationId].name);
     UI.renderPanel(state);
     renderActionButtons();
+    updateClockDisplay();
+    updateAtmosphereClass();
+  }
+
+  function renderStoryWindow() {
+    if (!state || !UI.renderStoryWindow) return;
+    const history = Array.isArray(state.history) ? state.history : [];
+    UI.renderStoryWindow(history, storyWindowSize, () => {
+      storyWindowSize = Math.min(history.length, storyWindowSize + 20);
+      renderStoryWindow();
+    });
   }
 
   function flushRewardSummaries() {
@@ -366,15 +402,33 @@
     UI.clearStory();
     window._renderedTurn = 0;
     renderedHistoryEntries = new WeakSet();
-    state.history.forEach((h) => {
-      if (h && UI.addStory(h.type || "narr", h.text, h.portrait) !== false) renderedHistoryEntries.add(h);
-    });
+    storyWindowSize = 20;
+    renderStoryWindow();
     window._renderedTurn = state.history.length;
     UI.renderPanel(state);
     renderActionButtons();
     flushRewardSummaries();
     if (state.pendingEnding) showEnding(state.pendingEnding);
+    updateClockDisplay();
+    updateAtmosphereClass();
     flashSave("Đã tải bản lưu");
+  }
+
+  function updateClockDisplay() {
+    const el = $("game-clock");
+    if (el && state && E.clockLabel) el.textContent = E.clockLabel(state);
+  }
+  function updateAtmosphereClass() {
+    const screen = $("screen-game");
+    if (!screen || !state) return;
+    const ratio = Number(state.player?.maxSan || 100) > 0 ? Number(state.player?.san || 0) / Number(state.player?.maxSan || 100) : 0;
+    if (typeof screen.classList.toggle === "function") {
+      screen.classList.toggle("san-low", ratio < 0.4);
+      screen.classList.toggle("san-critical", ratio < 0.2);
+    } else {
+      if (ratio < 0.4) screen.classList.add("san-low"); else screen.classList.remove("san-low");
+      if (ratio < 0.2) screen.classList.add("san-critical"); else screen.classList.remove("san-critical");
+    }
   }
 
   const INFO_TAB_ACTIONS = {
@@ -544,6 +598,24 @@
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 0);
     flashSave("Đã tải tệp lưu");
+  }
+  function importSaveFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const imported = E.deserialize(String(reader.result || ""));
+        state = imported;
+        saveGame();
+        UI.showScreen("game");
+        renderFull();
+        flashSave("Đã nạp tệp lưu");
+      } catch (err) {
+        alert("Tệp lưu không hợp lệ hoặc đã hỏng.");
+      } finally { event.target.value = ""; }
+    };
+    reader.readAsText(file);
   }
   function loadGame() {
     const sourceKey = [SAVE_KEY, ...LEGACY_SAVE_KEYS].find((key) => localStorage.getItem(key));

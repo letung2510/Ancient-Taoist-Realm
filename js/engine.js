@@ -845,6 +845,7 @@ window.GameEngine = (function () {
       hp: 0, qi: 0, san: 100,
       exp: 0,
       lifespan: 0,
+      currentAge: Number(input.currentAge || 0),
       maxQa: realmById(realmId).maxQa
     };
     const stats = computeStats(character);
@@ -1093,6 +1094,16 @@ window.GameEngine = (function () {
         chapter: 1,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
+      },
+      gameClock: {
+        currentYear: 1,
+        currentEra: "Kỷ Nguyên Linh Khí Dị Biến",
+        currentMonth: 1,
+        currentDay: 1,
+        dayProgress: 0,
+        realTimeToGameTimeRatio: 1 / 60,
+        eraIndex: 1,
+        lastRealTimestamp: Date.now()
       },
       player: character,
       startRegionId: input.startRegionId || character.startRegionId || "trung_vuc",
@@ -2149,6 +2160,7 @@ window.GameEngine = (function () {
       if (state.player.san <= 25) { reason = "Dừng vì Thanh Tỉnh đã xuống ngưỡng nguy hiểm."; break; }
       if (breakthroughRequirements(state).ready) { reason = "Đã đủ điều kiện đột phá; cần mệnh nhân tự quyết định phá cảnh."; break; }
       state.meta.turn += 1;
+      advanceGameTime(state, 1);
       const beforeExp = state.player.exp;
       cultivate(state);
       if (state.player.exp > beforeExp) cultivated += 1;
@@ -2643,8 +2655,57 @@ window.GameEngine = (function () {
     if (!state.memory.longTerm.includes(text)) state.memory.longTerm.push(text);
     if (state.memory.longTerm.length > 30) state.memory.longTerm.shift();
   }
+  function ensureGameClock(state) {
+    state.gameClock = state.gameClock || {};
+    const clock = state.gameClock;
+    if (!Number.isFinite(Number(clock.currentYear))) clock.currentYear = 1;
+    if (!Number.isFinite(Number(clock.currentMonth))) clock.currentMonth = 1;
+    if (!Number.isFinite(Number(clock.currentDay))) clock.currentDay = 1;
+    if (!Number.isFinite(Number(clock.dayProgress))) clock.dayProgress = 0;
+    if (!Number.isFinite(Number(clock.realTimeToGameTimeRatio))) clock.realTimeToGameTimeRatio = 1 / 60;
+    if (!clock.currentEra) clock.currentEra = "Kỷ Nguyên Linh Khí Dị Biến";
+    if (!Number.isFinite(Number(clock.eraIndex))) clock.eraIndex = 1;
+    return clock;
+  }
+  function clockLabel(state) {
+    const c = ensureGameClock(state);
+    return "Năm " + c.currentYear + ", Tháng " + c.currentMonth + " ngày " + c.currentDay + " · " + c.currentEra;
+  }
+  function onGameYearPass(state) {
+    const p = state.player;
+    if (!p) return;
+    p.currentAge = Number(p.currentAge || 0) + 1;
+    p.lifespan = Math.max(0, Number(p.lifespan || 0) - 1);
+    const max = Number(p.maxLifespan || computeLifespan(p));
+    if (p.lifespan <= Math.max(1, Math.ceil(max * 0.1))) {
+      pushHistory(state, { type: "warn", text: "⚠ Thọ Nguyên sắp cạn: chỉ còn " + p.lifespan + " năm." });
+    }
+    if (p.lifespan <= 0) processLuanHoi(state);
+  }
+  function advanceGameTime(state, gameDays = 1) {
+    const c = ensureGameClock(state);
+    let days = Math.max(0, Number(gameDays) || 0);
+    c.dayProgress += days;
+    while (c.dayProgress >= 1) {
+      c.dayProgress -= 1;
+      c.currentDay += 1;
+      if (c.currentDay > 30) {
+        c.currentDay = 1; c.currentMonth += 1;
+        if (c.currentMonth > 12) {
+          c.currentMonth = 1; c.currentYear += 1;
+          onGameYearPass(state);
+          if (c.currentYear % 500 === 0) {
+            c.eraIndex += 1;
+            c.currentEra = "Kỷ Nguyên " + c.eraIndex + " · Linh Khí Dị Biến";
+            pushHistory(state, { type: "warn", text: weaveAtmosphere(state, "✦ Đại Kiếp chuyển thế: một Kỷ Nguyên mới bắt đầu. Những vì sao đã đổi vị trí.", "era:" + c.currentYear) });
+          }
+        }
+      }
+    }
+    return c;
+  }
   function pushHistory(state, entry) {
-    state.history.push({ turn: state.meta.turn, ...entry });
+    state.history.push({ turn: state.meta.turn, clock: clockLabel(state), ...entry });
     if (state.history.length > 200) state.history.shift();
   }
 
@@ -2782,6 +2843,7 @@ window.GameEngine = (function () {
     if (!action) return false;
     state.meta.turn += 1;
     state.meta.updatedAt = new Date().toISOString();
+    advanceGameTime(state, 1);
     pushHistory(state, { type: "action", text: "> [" + action.label + "]" });
     const result = resolveAction(state, actionId, options);
     updateDerived(state);
@@ -2798,6 +2860,7 @@ window.GameEngine = (function () {
     }
     state.meta.turn += 1;
     state.meta.updatedAt = new Date().toISOString();
+    advanceGameTime(state, 1);
     pushHistory(state, { type: "action", text: "> " + text });
     const norm = text.toLowerCase();
     const available = contextState(state).actions;
@@ -2915,7 +2978,7 @@ window.GameEngine = (function () {
     const fates = state.player.fates || [];
     const patterns = D().FATE_PATTERNS;
     const retained = fates.map((id) => patterns.find((f) => f.id === id)).filter(Boolean).sort((a, b) => b.score - a.score)[0];
-    state.player.realmId = "di_menh"; state.player.exp = 0; state.player.lifespan = 75; state.player.fates = retained ? [retained.id] : [];
+    state.player.realmId = "di_menh"; state.player.exp = 0; state.player.lifespan = 75; state.player.currentAge = 0; state.player.fates = retained ? [retained.id] : [];
     state.fateInventory = []; state.player.techniques = { kiem_khi_so_cap: { masteryStage: 0, masteryExp: 0, usageCount: 0 } }; state.pendingEnding = "reincarnation";
     pushHistory(state, { type: "sys", text: "§ Luân Hồi bắt buộc: Thọ Nguyên đã cạn. Giữ lại một Mệnh Số cao nhất để mở kiếp mới." });
     updateDerived(state); return { success: true, retainedFate: retained?.id || null };
@@ -2924,7 +2987,7 @@ window.GameEngine = (function () {
     const blockers = getChuyenSinhBlockers(state);
     if (blockers.length) return { success: false, blockers, reason: blockers.join("; ") };
     state.flags = state.flags || {}; state.flags.chuyenSinhPoints = Number(state.flags.chuyenSinhPoints || 0) + 1; state.flags.chuyenSinhCooldownUntil = Date.now() + 86400000;
-    state.player.aptitude = Number(state.player.aptitude || 0) + 2; state.player.realmId = "di_menh"; state.player.exp = 0; state.player.lifespan = 75;
+    state.player.aptitude = Number(state.player.aptitude || 0) + 2; state.player.realmId = "di_menh"; state.player.exp = 0; state.player.lifespan = 75; state.player.currentAge = 0;
     state.pendingEnding = "reincarnation"; pushHistory(state, { type: "sys", text: "§ Chuyển Sinh thành công: Chuyển Sinh Điểm +1, Căn Cốt nền +2." }); updateDerived(state);
     return { success: true, points: state.flags.chuyenSinhPoints };
   }
@@ -2945,7 +3008,7 @@ window.GameEngine = (function () {
       "Khí Huyết: " + perceivedHp + "/" + p.maxHp,
       "Linh Khí: " + perceivedQi + "/" + p.maxQi,
       "Thanh Tỉnh: " + p.san + "/" + (p.maxSan || 100) + " · " + sanStatus(p).name,
-      "Thọ Nguyên: " + p.lifespan + " năm",
+      "Tuổi: " + Number(p.currentAge || 0) + " năm · Thọ Nguyên: " + p.lifespan + "/" + (p.maxLifespan || p.lifespan) + " năm",
       "Tà Nhiễm: " + p.corruptionRating + "/100 | Công Đức: " + Number(p.merit || 0),
       "Tu Vi: " + p.exp + (next ? " / " + expRequired + " (đột phá cấp " + next.level + ")" : " (tối thượng)"),
       "Thể phách: " + s.phy + "  |  Linh lực: " + s.mag + "  |  Khí Vận: " + perceivedFortune,
@@ -3042,7 +3105,7 @@ window.GameEngine = (function () {
       presentation: { archetypeId: player.archetypeId, portrait: player.portrait },
       realm: { id: realm.id, level: realm.level, title: pathTitle(state), exp: player.exp },
       path: { primary: player.pathId || null, secondary: player.secondaryPathId || null, pathScore: player.pathId ? pathMatchSummary(player, player.pathId).score : 0, professionStage: player.professionStage || null },
-      stats: { phy: player.basePhy, mag: player.baseMag, aptitude: player.aptitude, comprehension: player.comprehension, vitality: player.hp, vitalityMax: player.maxHp, qi: player.qi, qiMax: player.maxQi, staminaCurrent: player.stamina, staminaMax: player.maxStamina, san: player.san, sanMax: player.maxSan, corruption: player.corruptionRating, lifespan: player.lifespan, fortune: player.baseFortune, sat: player.sat, merit: player.merit },
+      stats: { phy: player.basePhy, mag: player.baseMag, aptitude: player.aptitude, comprehension: player.comprehension, vitality: player.hp, vitalityMax: player.maxHp, qi: player.qi, qiMax: player.maxQi, staminaCurrent: player.stamina, staminaMax: player.maxStamina, san: player.san, sanMax: player.maxSan, corruption: player.corruptionRating, lifespan: player.lifespan, currentAge: player.currentAge, fortune: player.baseFortune, sat: player.sat, merit: player.merit },
       fate: { equippedIds: (player.fates || []).slice(), vaultIds: (state.fateInventory || []).slice(), vaultCapacity: fateVaultCapacity(state), total: fate.total, normal: fate.normal, ratioR: fate.ratio, debt: fate.debt, surplus: fate.surplus, pacts: (player.fatePacts || []).slice() },
       anchors: (player.anchors || []).map((anchor) => ({ ...anchor })),
       techniqueIds: Object.keys(player.techniques || {}),
@@ -3077,7 +3140,7 @@ window.GameEngine = (function () {
       race: origin.race, startRegionId: origin.regionId, spiritualRoots: origin.spiritualRoots, spiritualRootBranch: origin.spiritualRootBranch,
       personalityTraits: origin.personality, background: origin.background, hiddenGoal: origin.hiddenGoal,
       basePhy: stats.phy, baseMag: stats.mag, aptitude: stats.aptitude, comprehension: stats.comprehension,
-      baseFortune: stats.fortune, sat: stats.sat, merit: stats.merit, stamina: stats.staminaCurrent,
+      baseFortune: stats.fortune, sat: stats.sat, merit: stats.merit, stamina: stats.staminaCurrent, currentAge: stats.currentAge,
       corruptionRating: stats.corruption, fates: character.fate?.equippedIds,
       fateDebt: character.fate?.debt, fateSurplus: character.fate?.surplus, fatePacts: character.fate?.pacts,
       anchors: character.anchors, techniques: character.techniqueProgress || Object.fromEntries((character.techniqueIds || []).map((id) => [id, { masteryStage: 0, masteryExp: 0, usageCount: 0 }])),
@@ -3109,6 +3172,7 @@ window.GameEngine = (function () {
       state.player.san = Number(canonical.stats?.san ?? state.player.san);
       state.player.merit = Number(canonical.stats?.merit ?? state.player.merit ?? 0);
       state.player.lifespan = Number(canonical.stats?.lifespan ?? state.player.lifespan);
+      state.player.currentAge = Number(canonical.stats?.currentAge ?? state.player.currentAge ?? 0);
       state.player.unboundTrials = { ...(canonical.unboundTrials || {}) };
       state.player.unboundPathProven = Boolean(canonical.unboundPathProven);
       state.fateInventory = (canonical.fate.vaultIds || []).slice();
@@ -3163,6 +3227,7 @@ window.GameEngine = (function () {
     state.guildMembership = state.guildMembership || null;
     state.guildPursuit = state.guildPursuit || null;
     state.autoCultivation = state.autoCultivation || null;
+    ensureGameClock(state);
     state.pendingRewardSummaries = Array.isArray(state.pendingRewardSummaries) ? state.pendingRewardSummaries : [];
     state.market = state.market && Array.isArray(state.market.offers) ? state.market : { generatedAt: 0, refreshIntervalMs: 60000, offers: [], purchased: {} };
     state.pendingGuildChoice = Boolean(state.pendingGuildChoice);
@@ -3186,6 +3251,6 @@ window.GameEngine = (function () {
     elementRelation, familyMatchup, toCanonicalCharacter, fromCanonicalCharacter,
     gainExp, enterLuyenKhi, cultivate, autoCultivate, secludedCultivation, rest, doBreakthrough, drainSan, restoreSan, move, look, search, useItem,
     talk, combat, beginCombat, aliveEnemies, firstAliveEnemy, enemyTurn, afterPlayerCombatAction, applyPlayerDamage, endCombat, combatEntity, spawnCombatEntity, maybeSpawnCombatExtras, lootTable, rollEntityLoot, rollDefeatBonus, entityCatalog, getEntity, entityForPlayer, dialogueState, presentEntities, maybeTriggerRandomEncounter, findEntityByName, interactEntity, monsterAction, useTechnique, techniquePreview, learnTechnique, getKnownTechniques, techniqueStatus, techniqueProgress, contextState, moveActions, talkActions, skillActions, parseAction, resolveAction, submitActionId, submitTurn, describeStatus, describeInventory, describeQuests,
-    describeFate, describeMap, serialize, deserialize, pushMemory, pushHistory
+    describeFate, describeMap, serialize, deserialize, pushMemory, pushHistory, ensureGameClock, clockLabel, advanceGameTime
   };
 })();

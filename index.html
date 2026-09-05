@@ -10,7 +10,7 @@
   <div id="app">
     <header id="topbar">
       <div class="brand">Cổ Dị Diện <span class="brand-sub">Tiên Hiệp · Eldritch Text RPG</span></div>
-      <div class="topbar-actions"><div id="save-indicator" class="save-indicator">—</div><button id="btn-save-file" class="btn btn-ghost" type="button" title="Tải bản lưu xuống thành tệp JSON">Lưu tệp</button></div>
+      <div class="topbar-actions"><span id="game-clock" class="game-clock" title="Thời gian trong thế giới tu tiên">—</span><div id="save-indicator" class="save-indicator">—</div><button id="btn-save-file" class="btn btn-ghost" type="button" title="Tải bản lưu xuống thành tệp JSON">Lưu tệp</button><button id="btn-load-file" class="btn btn-ghost" type="button" title="Nạp bản lưu JSON từ máy">Nạp tệp</button><input id="save-file-input" type="file" accept="application/json,.json" hidden></div>
     </header>
 
     <!-- ============ HOME ============ -->
@@ -88,7 +88,12 @@
         <div id="action-list" class="action-list" aria-label="Hành động khả dụng"></div>
         <form id="free-form" class="free-form" autocomplete="off">
           <span class="prompt">&gt;</span>
-          <input id="free-input" type="text" placeholder="Bạn làm gì? (gõ `giúp` để xem lệnh)" maxlength="200" />
+          <input id="free-input" list="command-suggestions" type="text" placeholder="Bạn làm gì? (gõ `giúp` để xem lệnh)" maxlength="200" />
+          <datalist id="command-suggestions">
+            <option value="nhìn"></option><option value="trạng thái"></option><option value="tu luyện"></option>
+            <option value="hành trang"></option><option value="bản đồ"></option><option value="tổ chức"></option>
+            <option value="công pháp"></option><option value="mệnh số"></option><option value="bế quan tu luyện"></option>
+          </datalist>
           <button type="submit" class="btn btn-primary">Hành động</button>
         </form>
         <div class="quick-hints">

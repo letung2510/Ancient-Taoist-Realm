@@ -17,7 +17,7 @@ window.GameUI = (function () {
     screens[name].classList.add("active");
   }
 
-  function addStory(cls, text, portrait) {
+  function addStory(cls, text, portrait, timestamp) {
     const log = document.getElementById("story-log");
     // Story rendering is best-effort. A tab/modal transition can briefly
     // remove the panel; never let that abort the action render pipeline.
@@ -34,8 +34,34 @@ window.GameUI = (function () {
     const p = document.createElement("p");
     p.className = cls;
     p.textContent = text;
+    if (timestamp) {
+      const time = document.createElement("small");
+      time.className = "story-time";
+      time.textContent = "[" + timestamp + "]";
+      wrap.appendChild(time);
+    }
     wrap.appendChild(p);
     log.appendChild(wrap);
+    log.scrollTop = log.scrollHeight;
+    return true;
+  }
+
+  function renderStoryWindow(entries, visibleCount, onLoadMore) {
+    const log = document.getElementById("story-log");
+    if (!log) return false;
+    log.innerHTML = "";
+    const list = Array.isArray(entries) ? entries : [];
+    const count = Math.max(1, Number(visibleCount) || 20);
+    const start = Math.max(0, list.length - count);
+    if (start > 0) {
+      const older = document.createElement("button");
+      older.type = "button";
+      older.className = "story-load-more";
+      older.textContent = "↑ Xem thêm lịch sử (" + start + " dòng cũ hơn)";
+      older.addEventListener("click", onLoadMore);
+      log.appendChild(older);
+    }
+    list.slice(start).forEach((entry) => addStory(entry.type || "narr", entry.text, entry.portrait, entry.clock));
     log.scrollTop = log.scrollHeight;
     return true;
   }
@@ -639,7 +665,7 @@ window.GameUI = (function () {
   }
 
   return {
-    showScreen, addStory, clearStory, renderChoices, clearChoices, renderActions,
+    showScreen, addStory, renderStoryWindow, clearStory, renderChoices, clearChoices, renderActions,
     setLocation, setSaveIndicator, renderPanel, setMapView, setActiveTab,
     renderFateDetail, renderFateSlotChooser, renderRewardSummary, renderTechniqueDetail, renderRealmDetail, renderMapDetail, renderMarket, renderQintian, renderInventoryModal,
     openOverlay, closeOverlay, bindOverlay, escapeHtml, openEquipmentPicker

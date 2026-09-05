@@ -52,9 +52,11 @@ html, body {
 .brand { font-family: var(--display); font-size: 18px; font-weight: 700; letter-spacing: .06em; color: var(--jade); }
 .brand-sub { font-size: 11px; color: var(--ink-dim); letter-spacing: .03em; margin-left: 8px; }
 .save-indicator { font-size: 12px; color: var(--ink-dim); font-family: var(--mono); }
+.game-clock { color: var(--gold); font: 11px var(--mono); white-space: nowrap; }
 
 .screen { display: none; flex: 1; overflow: hidden; }
 .screen.active { display: flex; }
+#screen-game { min-height: 0; height: 100dvh; flex-direction: column; }
 
 /* ---------- Home ---------- */
 .home-hero {
@@ -177,6 +179,8 @@ html, body {
 .story-log p.warn { color: var(--danger); white-space: pre-wrap; }
 .story-entry { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
 .story-entry p { flex: 1; }
+.story-time { display: block; flex: 0 0 150px; color: var(--ink-dim); font: 10px var(--mono); white-space: nowrap; }
+.story-load-more { align-self: center; margin: 0 auto 12px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel-2); color: var(--jade); cursor: pointer; }
 .portrait-thumb {
   width: 44px; height: 44px;
   object-fit: cover;
@@ -425,6 +429,7 @@ html, body {
 }
 .free-form input:focus { outline: none; border-color: var(--jade); box-shadow: 0 0 0 3px var(--jade-glow); }
 .quick-hints { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.quick-hints { overflow-x: auto; overflow-y: hidden; flex-wrap: nowrap; white-space: nowrap; max-height: 34px; padding-bottom: 2px; }
 .chip {
   font-family: var(--mono);
   font-size: 12px;
@@ -436,6 +441,9 @@ html, body {
   cursor: pointer;
 }
 .chip:hover { color: var(--jade); border-color: var(--jade); }
+.san-low .story-panel { text-shadow: 0 0 5px rgba(224,106,106,.18); }
+.san-critical .story-panel { animation: perception-glitch 2.8s steps(2,end) infinite; }
+@keyframes perception-glitch { 0%,92%,100% { filter:none; } 94% { filter:hue-rotate(12deg) saturate(1.25); } 96% { filter:hue-rotate(-16deg); } }
 .action-chip.danger { color: var(--danger); border-color: var(--danger); }
 .action-chip:disabled { opacity: 0.45; cursor: not-allowed; }
 
