@@ -44,7 +44,7 @@
 
 - Hành Trang mở bằng modal; vật phẩm đã trang bị ẩn mặc định, bộ chọn Trang Bị chỉ hiện item cùng loại/slot.
 - Phường Thị rotation theo `state.market.generatedAt`, mỗi 60 giây đổi Mệnh Số, Đan dược và Trang bị; mua bằng Linh thạch.
-- Khâm Thiên Giám hiến tế Thọ Nguyên để nhận Mệnh Số; thành tựu hiến tế tăng trần phẩm cấp đúng một bậc.
+- Khâm Thiên Giám có hai gacha độc lập: Hiến Tế Cố Định mất 10 năm và Hiến Thọ Tỷ Lệ mất 1/10 Thọ Nguyên tối đa; cả hai neo theo phẩm trật chiếm đa số, chỉ có xác suất thấp rơi cao hơn đúng một bậc, không mua trực tiếp Mệnh Số.
 - Hư Thiên Đỉnh nhận 3–9 vật phẩm hợp lệ, transaction rollback khi thất bại, kết quả đi qua `receiveFate` nếu là Mệnh Số.
 
 ## Thọ Nguyên, Luân Hồi và Chuyển Sinh

@@ -1850,24 +1850,41 @@ window.GameEngine = (function () {
     pushHistory(state, { type: "sys", text: "§ Phường thị giao dịch " + fate.name + " · Linh thạch -" + cost + "." });
     return { success: true, fate };
   }
-  function sacrificeLifespanForFate(state, fateId) {
-    const fate = D().FATE_PATTERNS.find((f) => f.id === fateId);
-    const cost = 10;
-    if (!fate) return { success: false, reason: "Mệnh Số không tồn tại." };
+  function dominantFateGrade(state) {
+    const rank = { phan: 1, linh: 2, hoang: 3, huyen: 4, dia: 5, thien: 6, thanh: 7, tien: 8 };
+    const counts = {};
+    (state.player.fates || []).forEach((id) => { const fate = D().FATE_PATTERNS.find((f) => f.id === id); if (fate) counts[fate.grade] = (counts[fate.grade] || 0) + 1; });
+    const grade = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || (rank[b] || 1) - (rank[a] || 1))[0] || "phan";
+    return { grade, rank: rank[grade] || 1, rankTable: rank };
+  }
+  function rollQintianFate(state, method) {
+    const dominant = dominantFateGrade(state);
+    const maxRank = Math.max(...Object.values(dominant.rankTable));
+    // Tỷ lệ vượt một phẩm rất thấp, nhưng không bao giờ vượt quá +1 cấp.
+    const upgradeChance = method === "ratio" ? 0.1 : 0.035;
+    const targetRank = Math.min(maxRank, dominant.rank + (Math.random() < upgradeChance ? 1 : 0));
+    let pool = D().FATE_PATTERNS.filter((f) => (dominant.rankTable[f.grade] || 1) === targetRank && !(state.player.fates || []).includes(f.id) && !(state.fateInventory || []).includes(f.id));
+    if (!pool.length) pool = D().FATE_PATTERNS.filter((f) => (dominant.rankTable[f.grade] || 1) <= targetRank && !(state.player.fates || []).includes(f.id) && !(state.fateInventory || []).includes(f.id));
+    return pool.length ? pool[rnd(0, pool.length - 1)] : null;
+  }
+  function sacrificeLifespanForFate(state, method = "fixed") {
+    const mode = method === "ratio" || method === "proportional" ? "ratio" : "fixed";
+    const maxLifespan = Number(state.player.maxLifespan || computeLifespan(state.player) || 75);
+    const cost = mode === "ratio" ? Math.max(1, Math.floor(maxLifespan / 10)) : 10;
     if (Number(state.player.lifespan || 0) <= cost) return { success: false, reason: "Thọ nguyên không đủ để hiến tế." };
-    state.player.lifespan -= cost;
-    state.flags = state.flags || {};
-    const firstSacrifice = !state.flags.qintianSacrificeAchievement;
+    const fate = rollQintianFate(state, mode);
+    if (!fate) return { success: false, reason: "Thiên cơ chưa tìm thấy Mệnh Số phù hợp trong kho gacha." };
+    state.player.lifespan -= cost; state.flags = state.flags || {};
     const result = receiveFate(state, fate.id);
     if (!result.added) { state.player.lifespan += cost; return { success: false, reason: result.reason }; }
-    if (firstSacrifice) state.flags.qintianSacrificeAchievement = true;
-    pushHistory(state, { type: "warn", text: "§ Khâm Thiên Giám thu -" + cost + " năm Thọ Nguyên, ban xuống " + fate.name + "." });
-    return { success: true, fate, achievement: firstSacrifice ? "Thiên Giám Hiến Tế" : null };
+    state.flags.qintianSacrificeCount = Number(state.flags.qintianSacrificeCount || 0) + 1;
+    state.flags[mode === "ratio" ? "qintianRatioCount" : "qintianFixedCount"] = Number(state.flags[mode === "ratio" ? "qintianRatioCount" : "qintianFixedCount"] || 0) + 1;
+    pushHistory(state, { type: "warn", text: "§ Khâm Thiên Giám mở gacha " + (mode === "ratio" ? "Hiến Thọ 1/10" : "Hiến Tế Cố Định") + ": -" + cost + " năm, nhận được " + fate.name + " (neo theo phẩm " + dominantFateGrade(state).grade + ")." });
+    return { success: true, fate, cost, method: mode };
   }
   function qintianFateOffers(state) {
-    const rank = { phan: 1, linh: 2, hoang: 3, huyen: 4, dia: 5, thien: 6, thanh: 7, tien: 8 };
-    const base = state.flags?.qintianSacrificeAchievement ? 2 : 1;
-    return D().FATE_PATTERNS.filter((f) => f.sign === "cat" && (rank[f.grade] || 1) <= base + 1).sort((a, b) => (rank[b.grade] || 1) - (rank[a.grade] || 1) || b.score - a.score).slice(0, 8);
+    const dominant = dominantFateGrade(state);
+    return [{ id: "fixed", method: "fixed", label: "Hiến Tế Cố Định", cost: 10, desc: "Đốt đúng 10 năm Thọ Nguyên; phẩm trật neo theo Mệnh Số chiếm đa số, cơ hội +1 cấp rất thấp." }, { id: "ratio", method: "ratio", label: "Hiến Thọ Tỷ Lệ", cost: Math.max(1, Math.floor(Number(state.player.maxLifespan || computeLifespan(state.player) || 75) / 10)), desc: "Đốt 1/10 Thọ Nguyên tối đa; banner độc lập, cơ hội +1 cấp cao hơn nhưng vẫn không vượt quá một phẩm." }].map((offer) => ({ ...offer, dominantGrade: dominant.grade }));
   }
 
   function excludedFromTainted(state) {

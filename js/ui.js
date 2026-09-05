@@ -143,6 +143,12 @@ window.GameUI = (function () {
     return '<div class="section-title">Khâm Thiên Giám</div><p class="muted">Hiến tế 10 năm Thọ Nguyên để cầu một Mệnh Số. Mệnh Kho phải còn chỗ.</p><div class="market-grid">' + stock.map((f) => '<article class="market-card fate-card grade-' + f.grade + '"><b>' + escapeHtml(f.name) + '</b><small>' + escapeHtml(f.gradeLabel || f.grade) + ' · Cát · Hiệu quả +' + f.score + '</small><button class="guild-action" data-qintian-fate="' + escapeHtml(f.id) + '">Hiến tế · 10 năm</button></article>').join("") + '</div>';
   }
 
+  // Khâm Thiên Giám dùng hai banner gacha độc lập, không hiển thị Mệnh Số để mua trực tiếp.
+  function renderQintian(state) {
+    const offers = window.GameEngine.qintianFateOffers(state);
+    return '<div class="section-title">Khâm Thiên Giám</div><p class="muted">Hai nghi thức độc lập: mỗi lần hiến tế đều roll ngẫu nhiên theo phẩm trật Mệnh Số chiếm đa số.</p><div class="market-grid">' + offers.map((offer) => '<article class="market-card fate-card"><b>' + escapeHtml(offer.label) + '</b><small>' + escapeHtml(offer.desc) + '<br>Neo phẩm: ' + escapeHtml(offer.dominantGrade) + '</small><button class="guild-action" data-qintian-method="' + escapeHtml(offer.method) + '">Hiến ' + offer.cost + ' năm · Gacha</button></article>').join('') + '</div>';
+  }
+
   function renderCauldron(state) {
     return '<div class="section-title">Hư Thiên Đỉnh</div><p class="muted">Chọn 3–9 vật phẩm không dùng để dung luyện thành Mệnh Số hoặc bảo vật mới.</p><div class="cauldron-selection" data-cauldron-selection><b>Đã chọn: <span data-cauldron-count>0</span>/9</b><button class="guild-action" data-cauldron-refine>Dung Luyện</button></div>' + renderInventory(state, { selectable: true });
   }
