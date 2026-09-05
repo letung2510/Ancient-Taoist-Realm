@@ -308,7 +308,7 @@ window.GameEngine = (function () {
     (character.fates || []).forEach((f) => {
       const p = patterns.find((x) => x.id === f);
       if (!p) return;
-      const score = Number(p.score || 0);
+      const score = Number(p.score || 0) + Number(character.fateEnhancements?.[f] || 0) * 2;
       total += score;
       if (p.sign !== "hung" && !String(p.type || "").toLowerCase().includes("hung")) normal += score;
     });
@@ -839,6 +839,7 @@ window.GameEngine = (function () {
       fateDebt: Number(input.fateDebt || 0),
       fateSurplus: Number(input.fateSurplus || 0),
       fatePacts: Array.isArray(input.fatePacts) ? input.fatePacts.slice() : [],
+      fateEnhancements: { ...(input.fateEnhancements || {}) },
       anchors: Array.isArray(input.anchors) ? input.anchors.map((anchor) => ({ ...anchor })) : [],
       tainted: input.tainted || { attention: false, vocation: null, faction: null, quests: 0, finalConflictPreparation: false, taintedGodDefeated: false, rewards: {} },
       equipment: normalizeEquipment(input.equipment),
@@ -1403,6 +1404,7 @@ window.GameEngine = (function () {
     if (!candidate) return { success: false, reason: "Chưa tìm thấy Mệnh Số tương hợp để triệu hoán." };
     state.fateInventory.splice(index, 1);
     const result = receiveFate(state, candidate.item.id);
+    if (!result.added) { state.fateInventory.splice(index, 0, offered.id); return { success: false, reason: result.reason || "Mệnh Kho không thể tiếp nhận Mệnh mới." }; }
     drainSan(state, 5, "hiến tế Mệnh Số");
     pushHistory(state, { type: "warn", text: "Hiến tế " + (offered?.name || fateId) + ", triệu hoán " + candidate.item.name + "." });
     updateDerived(state);
@@ -1436,6 +1438,46 @@ window.GameEngine = (function () {
     updateDerived(state);
     pushHistory(state, { type: "sys", text: "§ Hoán đổi Ấn ký Mệnh Số thành công." });
     return { success: true, activeId: active[index], vaultId: vault[vaultIndex] };
+  }
+  function storeFateToVault(state, activeIndex) {
+    const active = Array.isArray(state.player?.fates) ? state.player.fates : [];
+    const index = Number(activeIndex); const id = active[index];
+    if (!id) return { success: false, reason: "Ô Ấn ký này đang trống." };
+    const vault = state.fateInventory = Array.isArray(state.fateInventory) ? state.fateInventory : [];
+    if (vault.length >= fateVaultCapacity(state)) return { success: false, reason: "Mệnh Kho đã đầy." };
+    vault.push(id); active.splice(index, 1); updateDerived(state);
+    pushHistory(state, { type: "sys", text: "Đã tháo Mệnh Số khỏi Ấn ký và đưa vào Mệnh Kho." });
+    return { success: true, fateId: id };
+  }
+  function equipFateFromVault(state, vaultId, activeIndex = -1) {
+    const active = Array.isArray(state.player?.fates) ? state.player.fates : [];
+    const index = activeIndex >= 0 ? Number(activeIndex) : active.findIndex((id) => !id);
+    const target = index >= 0 ? index : active.length;
+    return swapFateFromVault(state, target, vaultId);
+  }
+  function upgradeFate(state, targetId, materialId) {
+    const owned = [...(state.player.fates || []), ...(state.fateInventory || [])];
+    if (!owned.includes(targetId)) return { success: false, reason: "Mệnh Số mục tiêu chưa thuộc quyền sở hữu." };
+    const vault = state.fateInventory || []; const materialIndex = vault.indexOf(materialId);
+    if (materialIndex < 0 || materialId === targetId) return { success: false, reason: "Cần một Mệnh Số khác trong Mệnh Kho làm chất liệu." };
+    const target = D().FATE_PATTERNS.find((f) => f.id === targetId); const material = D().FATE_PATTERNS.find((f) => f.id === materialId);
+    if (!target || !material || target.grade !== material.grade) return { success: false, reason: "Chỉ dung hợp Mệnh Số cùng phẩm trật." };
+    vault.splice(materialIndex, 1); state.player.fateEnhancements = state.player.fateEnhancements || {};
+    state.player.fateEnhancements[targetId] = Number(state.player.fateEnhancements[targetId] || 0) + 1;
+    updateDerived(state); pushHistory(state, { type: "sys", text: "Dung hợp thành công: " + target.name + " tăng một tầng Mệnh Lực." });
+    return { success: true, level: state.player.fateEnhancements[targetId] };
+  }
+  function mergeFates(state, fateIds) {
+    const ids = [...new Set(fateIds || [])]; const vault = state.fateInventory || [];
+    if (ids.length < 2 || ids.some((id) => !vault.includes(id))) return { success: false, reason: "Cần ít nhất 2 Mệnh Số trong Mệnh Kho." };
+    ids.forEach((id) => vault.splice(vault.indexOf(id), 1));
+    const rank = { phan: 1, linh: 2, hoang: 3, huyen: 4, dia: 5, thien: 6 };
+    const minRank = Math.min(...ids.map((id) => rank[D().FATE_PATTERNS.find((f) => f.id === id)?.grade] || 1));
+    const pool = D().FATE_PATTERNS.filter((f) => (rank[f.grade] || 1) >= Math.min(6, minRank + 1) && ![...(state.player.fates || []), ...vault].includes(f.id));
+    const fate = pool[rnd(0, Math.max(0, pool.length - 1))]; const result = fate && receiveFate(state, fate.id);
+    if (!result?.added) { ids.forEach((id) => vault.push(id)); return { success: false, reason: result?.reason || "Không thể dung hợp lúc này." }; }
+    pushHistory(state, { type: "sys", text: "Mệnh Kho dung hợp " + ids.length + " Mệnh Số, sinh ra " + fate.name + "." });
+    return { success: true, fate };
   }
 
   function registerGeneratedItem(state, item) {
@@ -2445,8 +2487,10 @@ window.GameEngine = (function () {
         return entity.id;
       }
     }
-    // Mỗi lần dịch chuyển/khám phá luôn để lại một biến cố bắt buộc trong Story Panel.
+    // Biến cố bản đồ là cơ hội ngẫu nhiên, tăng theo độ nguy hiểm; không ép mỗi lượt.
     const loc = D().LOCATIONS[state.locationId];
+    const eventChance = Math.min(0.72, 0.18 + Number(loc?.dangerLevel || loc?.corruption || 1) * 0.08);
+    if (Math.random() > eventChance) return null;
     state.flags.mapEventCount = Number(state.flags.mapEventCount || 0) + 1;
     if (loc?.enemies?.length && !aliveEnemies(state).length && Math.random() < Math.min(0.78, 0.28 + Number(loc.dangerLevel || loc.corruption || 1) * 0.1)) {
       pushHistory(state, { type: "warn", text: "⚠ Biến cố bản đồ: thú săn trong vùng đã ngửi thấy linh tức của ngươi." });
@@ -3201,7 +3245,7 @@ window.GameEngine = (function () {
       realm: { id: realm.id, level: realm.level, title: pathTitle(state), exp: player.exp },
       path: { primary: player.pathId || null, secondary: player.secondaryPathId || null, pathScore: player.pathId ? pathMatchSummary(player, player.pathId).score : 0, professionStage: player.professionStage || null },
       stats: { phy: player.basePhy, mag: player.baseMag, aptitude: player.aptitude, comprehension: player.comprehension, vitality: player.hp, vitalityMax: player.maxHp, qi: player.qi, qiMax: player.maxQi, staminaCurrent: player.stamina, staminaMax: player.maxStamina, san: player.san, sanMax: player.maxSan, corruption: player.corruptionRating, lifespan: player.lifespan, currentAge: player.currentAge, fortune: player.baseFortune, sat: player.sat, merit: player.merit },
-      fate: { equippedIds: (player.fates || []).slice(), vaultIds: (state.fateInventory || []).slice(), vaultCapacity: fateVaultCapacity(state), total: fate.total, normal: fate.normal, ratioR: fate.ratio, debt: fate.debt, surplus: fate.surplus, pacts: (player.fatePacts || []).slice() },
+      fate: { equippedIds: (player.fates || []).slice(), vaultIds: (state.fateInventory || []).slice(), vaultCapacity: fateVaultCapacity(state), total: fate.total, normal: fate.normal, ratioR: fate.ratio, debt: fate.debt, surplus: fate.surplus, pacts: (player.fatePacts || []).slice(), enhancements: { ...(player.fateEnhancements || {}) } },
       anchors: (player.anchors || []).map((anchor) => ({ ...anchor })),
       techniqueIds: Object.keys(player.techniques || {}),
       techniqueProgress: JSON.parse(JSON.stringify(player.techniques || {})),
@@ -3237,7 +3281,7 @@ window.GameEngine = (function () {
       basePhy: stats.phy, baseMag: stats.mag, aptitude: stats.aptitude, comprehension: stats.comprehension,
       baseFortune: stats.fortune, sat: stats.sat, merit: stats.merit, stamina: stats.staminaCurrent, currentAge: stats.currentAge,
       corruptionRating: stats.corruption, fates: character.fate?.equippedIds,
-      fateDebt: character.fate?.debt, fateSurplus: character.fate?.surplus, fatePacts: character.fate?.pacts,
+      fateDebt: character.fate?.debt, fateSurplus: character.fate?.surplus, fatePacts: character.fate?.pacts, fateEnhancements: character.fate?.enhancements,
       anchors: character.anchors, techniques: character.techniqueProgress || Object.fromEntries((character.techniqueIds || []).map((id) => [id, { masteryStage: 0, masteryExp: 0, usageCount: 0 }])),
       hiddenFates: character.hiddenFates, hiddenProfessionCandidate: character.hiddenProfessionCandidate,
       hiddenProfession: character.hiddenProfession, pathId: character.path?.primary, tainted, equipment: character.equipment
@@ -3343,7 +3387,7 @@ window.GameEngine = (function () {
     addItem, removeItem, registerGeneratedItem, createLootItem, activateQuest, checkQuestObjectives, failQuest,
     getGuildBenefits, guildTierInfo, guildEligibility, guildExitCost, joinGuild, refuseGuild, leaveGuild, describeGuild,
     normalizeEquipment, equippedItemIds, equipmentCategory, equipmentCategoryLabel, equipmentSummary, protectionSlot, equipItem, inventoryActions, handleInventoryAction,
-    fateVaultCapacity, fateCompatibility, pathMatchSummary, availablePaths, pathProgression, receiveFate, sacrificeFate, fateVaultSummary, validateFateInventory, swapFateFromVault, suggestFateForRealmRequirement, auditFateRolls, buyFateAtMarket, sacrificeLifespanForFate, qintianFateOffers, refreshMarket, marketOffers, buyMarketOffer, refineAtVoidCauldron,
+    fateVaultCapacity, fateCompatibility, pathMatchSummary, availablePaths, pathProgression, receiveFate, sacrificeFate, fateVaultSummary, validateFateInventory, swapFateFromVault, storeFateToVault, equipFateFromVault, upgradeFate, mergeFates, suggestFateForRealmRequirement, auditFateRolls, buyFateAtMarket, sacrificeLifespanForFate, qintianFateOffers, refreshMarket, marketOffers, buyMarketOffer, refineAtVoidCauldron,
     cultivationTier, breakthroughRequirements, getBreakthroughBlockers, getChuyenSinhBlockers, processLuanHoi, processChuyenSinh, chooseTaintedAttention, rollTaintedAttention, chooseTaintedFaction, factionStatus, grantQuestMerit, resolveFactionHunt, switchTaintedFaction, selectPath, pathTitle, completeUnboundTrial, canUnlockDevourHeaven, recordTaintedMilestones,
     elementRelation, familyMatchup, toCanonicalCharacter, fromCanonicalCharacter,
     gainExp, enterLuyenKhi, cultivate, autoCultivate, secludedCultivation, rest, doBreakthrough, drainSan, restoreSan, move, look, search, useItem,

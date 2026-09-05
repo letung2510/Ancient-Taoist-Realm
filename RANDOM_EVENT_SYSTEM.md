@@ -233,13 +233,13 @@ Sự kiện có lựa chọn (VD "Hồ Ly Thử Lòng", "Cầu Cứu Giả/Thậ
    cân bằng tốc độ lên cấp trước đó — đo trước, chỉnh sau, không đoán mò).
 ## Trạng thái triển khai trong engine
 
-### Đồng bộ bắt buộc với Open World Map
+### Đồng bộ xác suất với Open World Map
 
-- Mỗi lần `move()` thành công đều đi qua `maybeTriggerRandomEncounter()`; cổng này luôn ghi nhận một biến cố bản đồ, kể cả khi không roll trúng NPC dị sĩ.
+- Mỗi lần `move()` thành công đều đi qua `maybeTriggerRandomEncounter()`; cổng này roll xác suất theo `dangerLevel`/`corruption` của node (vùng nguy hiểm có tần suất cao hơn), không ép event ở mọi lượt.
 - Biến cố được chọn theo node hiện tại: thú săn địa phương, mạch Linh Thạch, điềm báo tà nhiễm hoặc manh mối khám phá. Không có random event nào xuất hiện thành nút taskbar cố định.
 - Node procedural dùng chung `region`, `dangerLevel`, `corruption`, `linhKhiDensity`, `enemies` và `searchable`, nên event tự đồng bộ với sinh thái nơi chốn thay vì bảng random toàn cục.
 - Quái chủ động theo lãnh địa: node có `enemies` có thể phát động phục kích ngay khi tới nơi; `maybeSpawnCombatExtras()` tiếp tục kiểm tra thú săn, truy sát tông môn và hộ pháp cấm địa.
-- Encounter được ghi vào Story Panel, tăng `state.flags.mapEventCount`, tôn trọng giao chiến/Thanh Tỉnh/cooldown và không chặn lượt kế tiếp khi event không hợp lệ.
+- Encounter được ghi vào Story Panel, tăng `state.flags.mapEventCount` khi thực sự xảy ra, tôn trọng giao chiến/Thanh Tỉnh/cooldown và không chặn lượt kế tiếp khi event không hợp lệ.
 
 ### Quy tắc nhịp sự kiện
 
