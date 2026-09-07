@@ -223,6 +223,10 @@
       const clearCauldron = event.target.closest("[data-cauldron-clear]");
       if (clearCauldron) { document.querySelectorAll("[data-cauldron-item]").forEach((box) => { box.checked = false; }); const label = document.querySelector("[data-cauldron-count]"); if (label) label.textContent = "0"; return; }
       if (event.target.matches("[data-cauldron-item]")) { const count = document.querySelectorAll("[data-cauldron-item]:checked").length; const label = document.querySelector("[data-cauldron-count]"); if (label) label.textContent = count; return; }
+      const questTrack = event.target.closest("[data-quest-track]");
+      if (questTrack && state) { if (E.trackQuest(state, questTrack.dataset.questTrack, true)) { saveGame(); UI.renderPanel(state); } return; }
+      const questAbandon = event.target.closest("[data-quest-abandon]");
+      if (questAbandon && state) { if (confirm("Từ bỏ nhiệm vụ này? Hậu quả sẽ được ghi vào lịch sử.")) { E.abandonQuest(state, questAbandon.dataset.questAbandon); saveGame(); UI.renderPanel(state); } return; }
       const fateEquip = event.target.closest("[data-fate-equip]");
       if (fateEquip && state) { const result = E.equipFateFromVault(state, fateEquip.dataset.fateEquip); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
       const fateUpgrade = event.target.closest("[data-fate-upgrade-target]");

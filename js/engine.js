@@ -32,6 +32,25 @@ window.GameEngine = (function () {
     nam_chuong: "linh_dien", bac_nguyen: "bac_nguyen_khoi_diem", vo_tan_hai: "vo_tan_hai_khoi_diem",
     thien_khong_vuc: "thien_khong_khoi_diem", u_minh_gioi: "u_minh_khoi_diem"
   };
+  const ORIGIN_SITUATIONS = {
+    trung_vuc: [
+      { id: "tan_tu_luu_lac", title: "Tán Tu Lưu Lạc", startLocationId: "van_phong", questSeed: "thu_linh_thao" },
+      { id: "the_gia_suy_tan", title: "Thế Gia Suy Tàn", startLocationId: "truyen_phap", questSeed: "co_tich" },
+      { id: "ke_song_sot", title: "Kẻ Sống Sót Tai Biến", startLocationId: "cam_dia", questSeed: "bi_mat_cam_dia" }
+    ],
+    dong_hoang: [
+      { id: "tan_tu_luu_lac", title: "Tán Tu Lưu Lạc", startLocationId: "hac_lam", questSeed: "cursed" },
+      { id: "ke_song_sot", title: "Kẻ Sống Sót Tai Biến", startLocationId: "co_mieu", questSeed: "cursed" }
+    ],
+    vo_tan_hai: [
+      { id: "nguoi_duoc_cuu", title: "Người Được Cứu", startLocationId: "vo_tan_hai_khoi_diem", questSeed: "nhan_mon" },
+      { id: "tan_tu_luu_lac", title: "Tán Tu Lưu Lạc", startLocationId: "vo_tan_hai_khoi_diem", questSeed: "thu_linh_thao" }
+    ]
+  };
+  function rollOriginSituation(regionId) {
+    const pool = ORIGIN_SITUATIONS[regionId] || [{ id: "tan_tu_luu_lac", title: "Tán Tu Lưu Lạc", startLocationId: START_LOCATIONS[regionId], questSeed: "thu_linh_thao" }];
+    return { ...pool[rnd(0, pool.length - 1)] };
+  }
   const START_REGION_RULES = {
     thien_khong_vuc: { minRealm: 7, reason: "Thiên Không Vực nằm ngoài cương phong; chỉ tu sĩ từ Hư Giới Cảnh mới đủ sức vượt tầng mây." },
     u_minh_gioi: { minRealm: 10, reason: "U Minh Giới là khe nứt tử vực; chỉ tồn tại từ Chủ Tể Cảnh mới có thể chống u minh đồng hóa." }
@@ -385,6 +404,7 @@ window.GameEngine = (function () {
     const spiritualRoots = rootRoll.elements;
     const spiritualRootBranch = rootRoll.branch;
     const archetypeId = archetypeForRoots(spiritualRoots);
+    const originSituation = rollOriginSituation(regionId);
     const cultivationMethods = {
       kiem_tong: "Dẫn Khí Kiếm Quyết (Nhập môn)",
       huyen_co: "Huyền Cơ Nạp Khí Pháp (Nhập môn)",
@@ -395,7 +415,8 @@ window.GameEngine = (function () {
     const hiddenFates = Math.random() < hiddenRate / 100 ? ["luan_hoi_tien"] : [];
     return {
       startRegionId: regionId,
-      startLocationId: START_LOCATIONS[regionId],
+      startLocationId: originSituation.startLocationId || START_LOCATIONS[regionId],
+      originSituation,
       race: weightedValue(REGION_RACE_WEIGHTS[regionId]),
       realmId: "di_menh",
       aptitude: gaussianAttribute(),
@@ -1120,7 +1141,7 @@ window.GameEngine = (function () {
       pendingGuildChoice: false,
       relationships: {},   // npcId -> { trust, fear, respect, suspicion }
       quests: {},          // questId -> { status, objectives }
-      flags: {},
+      flags: { originChoicePending: Boolean(character.originSituation), originSituation: character.originSituation || null, originChoice: null },
       memory: { shortTerm: [], longTerm: [], worldFacts: [] },
       history: [],
       enemies: {},
@@ -1138,14 +1159,17 @@ window.GameEngine = (function () {
 
     // register quests available
     Object.keys(D().QUESTS).forEach((qid) => {
-      state.quests[qid] = { id: qid, status: "available", objectives: D().QUESTS[qid].objectives.map((o) => ({ ...o, done: false })) };
+      const def = D().QUESTS[qid];
+      state.quests[qid] = { id: qid, type: def.type || def.kind || "khu_vuc", title: def.title, priority: def.priority || 1, status: "available", objectives: def.objectives.map((o) => ({ ...o, done: false })), branches: def.branches || [], alternatives: def.alternatives || [], consequences: def.consequences || {}, tracked: false, discoveredAt: null, completedAt: null, failedAt: null };
     });
+    if (character.originSituation?.questSeed && state.quests[character.originSituation.questSeed]) state.quests[character.originSituation.questSeed].status = "hidden";
     state._fateState = fateState(character);
     updateDerived(state);
     if (state.player.san <= 0) triggerMadness(state, "Mệnh Số tương khắc khi thức tỉnh");
     const startRegion = D().WORLD_MAP?.regions?.find((region) => region.id === state.startRegionId);
     pushMemory(state, "Bắt đầu hành trình tại " + (startRegion?.name || "Trung Vực") + ".");
     pushHistory(state, { type: "sys", text: "Ngươi tỉnh giấc tại " + (startRegion?.name || "Trung Vực") + "." });
+    if (character.originSituation) pushHistory(state, { type: "narr", text: "Bối cảnh: " + character.originSituation.title + ". Hãy chọn thân phận hành đạo trước khi tìm đến bất kỳ Tông Môn nào." });
     return state;
   }
 
@@ -1520,11 +1544,47 @@ window.GameEngine = (function () {
   }
 
   /* ---------- Quest ---------- */
+  function chooseOriginBranch(state, branch) {
+    if (!state.flags.originChoicePending) return { success: false, reason: "Thân phận hành đạo đã được định." };
+    const allowed = ["tan_tu", "the_gia", "seek_guild"];
+    if (!allowed.includes(branch)) return { success: false, reason: "Thân phận không hợp lệ." };
+    state.flags.originChoicePending = false; state.flags.originChoice = { branch, chosenAt: Date.now(), consequences: [] };
+    if (branch === "tan_tu") { state.player.background = "Tán Tu"; state.flags.guildDecision = "tan_tu"; }
+    if (branch === "the_gia") { state.player.background = "Thế Gia"; state.flags.guildDecision = "the_gia"; state.player.merit = Number(state.player.merit || 0) + 2; }
+    if (branch === "seek_guild") { state.flags.guildDecision = null; state.pendingGuildChoice = false; }
+    const seed = state.flags.originSituation?.questSeed;
+    if (seed && state.quests[seed]) { state.quests[seed].status = "active"; state.flags.originChoice.starterQuestId = seed; }
+    activateQuest(state, "chon_dao_lo");
+    pushMemory(state, "Chọn thân phận hành đạo: " + (branch === "tan_tu" ? "Tán Tu" : branch === "the_gia" ? "Thế Gia" : "Tìm Tông Môn") + ".");
+    pushHistory(state, { type: "sys", text: "§ Thân phận đầu đời đã định: " + (branch === "tan_tu" ? "Tán Tu" : branch === "the_gia" ? "Thế Gia" : "Tìm Tông Môn") + "." });
+    checkAllQuests(state); updateDerived(state); return { success: true, branch };
+  }
   function activateQuest(state, questId) {
     const q = state.quests[questId];
     if (q && (q.status === "available" || q.status === "locked")) {
-      q.status = "active";
+      q.status = "active"; q.discoveredAt = q.discoveredAt || Date.now(); q.tracked = true;
     }
+  }
+  function trackQuest(state, questId, tracked = true) {
+    const q = state.quests?.[questId]; if (!q || !["active", "available"].includes(q.status)) return false;
+    Object.values(state.quests).forEach((item) => { item.tracked = false; }); q.tracked = Boolean(tracked); return true;
+  }
+  function abandonQuest(state, questId, reason = "Người chơi từ bỏ") {
+    const q = state.quests?.[questId]; if (!q || !["active", "available"].includes(q.status)) return false;
+    q.status = "failed"; q.failedAt = Date.now(); q.failureReason = reason; pushHistory(state, { type: "warn", text: "× Đã từ bỏ nhiệm vụ: " + (q.title || questId) + "." }); return true;
+  }
+  function maybeSpawnDynamicQuest(state) {
+    state.flags.dynamicQuestCooldown = Number(state.flags.dynamicQuestCooldown || 0);
+    if (state.flags.dynamicQuestCooldown > Number(state.meta.turn || 0)) return;
+    const activeDynamic = Object.values(state.quests || {}).some((q) => q.id.startsWith("dynamic_") && q.status === "active");
+    if (activeDynamic || Math.random() >= 0.2) return;
+    const loc = D().LOCATIONS[state.locationId]; if (!loc) return;
+    const id = "dynamic_trace_" + state.meta.turn;
+    const title = "Dấu Chân Chưa Khép · " + loc.name;
+    D().QUESTS[id] = { id, title, kind: "co_duyen", priority: 2, objectives: [{ id: "observe", label: "Quan Sát hoặc Tìm Kiếm tại khu vực này", check: (st) => Number(st.flags.searches?.[st.locationId] || 0) > 0 || st.flags.lastCombatOutcome === "fled" }], reward: { exp: 25, merit: 3 } };
+    state.quests[id] = { id, type: "co_duyen", title, priority: 2, status: "active", tracked: true, discoveredAt: Date.now(), objectives: [{ id: "observe", label: "Quan Sát hoặc Tìm Kiếm tại khu vực này", done: false }], branches: [{ id: "investigate", label: "Điều tra dấu vết", alternatives: ["search", "talk"] }], alternatives: ["search", "talk", "combat"], consequences: {}, expiresAt: Date.now() + 86400000 };
+    state.flags.dynamicQuestCooldown = Number(state.meta.turn || 0) + 6;
+    pushHistory(state, { type: "narr", text: "✦ Cơ duyên động: " + title + ". Hãy Quan Sát hoặc Tìm Kiếm để lần theo dấu vết." });
   }
   function checkQuestObjectives(state, questId) {
     const q = state.quests[questId];
@@ -1538,6 +1598,7 @@ window.GameEngine = (function () {
     });
     if (allDone) {
       q.status = "completed";
+      q.completedAt = Date.now();
       const r = def.reward || {};
       const summary = { questId, title: def.title, kind: def.kind || "normal", rewards: [] };
       if (r.exp) { gainExp(state, r.exp); summary.rewards.push({ type: "Tu vi", value: r.exp }); }
@@ -1560,7 +1621,7 @@ window.GameEngine = (function () {
   function failQuest(state, questId, reason) {
     const q = state.quests[questId];
     if (q && q.status === "active") {
-      q.status = "failed";
+      q.status = "failed"; q.failedAt = Date.now(); q.failureReason = reason || "Không hoàn thành mục tiêu";
       pushHistory(state, { type: "warn", text: "× Nhiệm vụ thất bại: " + D().QUESTS[questId].title + (reason ? " (" + reason + ")" : "") });
     }
   }
@@ -2454,6 +2515,7 @@ window.GameEngine = (function () {
     explorationMilestone(state);
     const newLoc = D().LOCATIONS[target];
     pushHistory(state, { type: "sys", text: weaveAtmosphere(state, "→ Ngươi tiến đến " + newLoc.name + ".", "move:" + target) });
+    maybeSpawnDynamicQuest(state);
     // corruption SAN check on entry
     if (newLoc.corruption >= 3) {
       const res = sanCheck(state.player, newLoc.corruption);
@@ -2994,6 +3056,9 @@ window.GameEngine = (function () {
     { id: "act_nhin", label: "Quan Sát", aliases: ["nhin", "nhìn", "look"], priority: 1 },
     { id: "act_hanh_trang", label: "Hành Trang", aliases: ["inventory", "hanh trang", "hành trang"], priority: 1 },
     { id: "act_trang_thai", label: "Trạng Thái", aliases: ["trang thai", "trạng thái", "status"], priority: 1 },
+    { id: "act_origin_tan_tu", label: "Chọn Tán Tu", aliases: ["chọn tán tu", "chon tan tu"], priority: 0 },
+    { id: "act_origin_the_gia", label: "Chọn Thế Gia", aliases: ["chọn thế gia", "chon the gia"], priority: 0 },
+    { id: "act_origin_seek_guild", label: "Tìm Tông Môn", aliases: ["tìm tông môn", "tim tong mon"], priority: 0 },
     { id: "act_nhiem_vu", label: "Nhiệm Vụ", aliases: ["nhiem vu", "nhiệm vụ", "quest"], priority: 1 },
     { id: "act_menh", label: "Tử Vi Mệnh Số", aliases: ["menh", "mệnh", "fate", "tử vi"], priority: 1 },
     { id: "act_cong_phap", label: "Công Pháp", aliases: ["cong phap", "công pháp", "kỹ năng", "ky nang", "skills"], priority: 1 },
@@ -3054,6 +3119,9 @@ window.GameEngine = (function () {
     if (state.player.tainted?.attentionPending) {
       return { inCombat: false, forced: true, state: "TAINTED_ATTENTION_CHOICE", actions: ACTION_DEFINITIONS.filter((action) => action.id.startsWith("act_chon_")) };
     }
+    if (state.flags.originChoicePending) {
+      return { inCombat: false, forced: true, state: "ORIGIN_CHOICE", actions: ACTION_DEFINITIONS.filter((action) => action.id.startsWith("act_origin_")) };
+    }
     if (state.flags.pathChoicePending && !state.player.pathId) {
       const actions = availablePaths(state).map((pathId) => ({ id: "act_path_" + pathId, label: PATH_LABELS[pathId] || pathId, aliases: [pathId, PATH_LABELS[pathId] || pathId], priority: 1 }));
       return { inCombat: false, forced: true, state: "PATH_CHOICE", actions };
@@ -3113,6 +3181,7 @@ window.GameEngine = (function () {
     if (actionId.startsWith("act_talk_")) { talk(state, (D().NPCS[actionId.slice("act_talk_".length)] || getEntity(actionId.slice("act_talk_".length)) || {}).name); return true; }
     if (actionId.startsWith("act_skill_")) { useTechnique(state, actionId.slice("act_skill_".length), options); return true; }
     const handlers = {
+      act_origin_tan_tu: () => chooseOriginBranch(state, "tan_tu"), act_origin_the_gia: () => chooseOriginBranch(state, "the_gia"), act_origin_seek_guild: () => chooseOriginBranch(state, "seek_guild"),
       act_tu_luyen: () => cultivate(state), act_tu_luyen_tu_dong: () => autoCultivate(state, 5), act_be_quan: () => secludedCultivation(state, Number(options.hours || 1)), act_tan_cong_thuong: () => combat(state), act_nhin: () => pushHistory(state, { type: "sys", text: look(state) }),
       act_hanh_trang: () => pushHistory(state, { type: "sys", text: describeInventory(state) }),
       act_trang_thai: () => pushHistory(state, { type: "sys", text: describeStatus(state) }),
@@ -3124,7 +3193,7 @@ window.GameEngine = (function () {
       act_tim_kiem: () => search(state),
       act_dot_pha: () => doBreakthrough(state),
       act_nghi_ngoi: () => rest(state),
-      act_bo_chay: () => { state.enemies = {}; state.flags.fledUntilTurn = Number(state.meta.turn || 0) + 1; pushHistory(state, { type: "sys", text: "Ngươi bỏ chạy khỏi giao chiến. Hãy Nghỉ Ngơi để hồi phục Thanh Tỉnh trước khi hành động tiếp." }); },
+      act_bo_chay: () => { const stayedAt = state.locationId; state.enemies = {}; state.flags.fledUntilTurn = Number(state.meta.turn || 0) + 1; state.flags.lastCombatOutcome = "fled"; state.flags.threatLevel = Math.min(5, Number(state.flags.threatLevel || 0) + 1); state.locationId = stayedAt; pushHistory(state, { type: "sys", text: "Ngươi bỏ chạy khỏi giao chiến nhưng vẫn trụ lại tại khu vực này. Các lối đi vẫn thông; hãy nghỉ ngơi hoặc rời đi khi sẵn sàng." }); },
       act_chon_ban_phuoc: () => chooseTaintedAttention(state, "blessing"),
       act_chon_nghi_ky: () => chooseTaintedAttention(state, "suspicion"),
       act_chon_ho_hung: () => chooseTaintedAttention(state, "indifference")
@@ -3537,8 +3606,8 @@ window.GameEngine = (function () {
 
   return {
     rnd, clamp, computeFate, fateState, fateStatusLabel, drawInitialFates, rollCharacterCreation, rollSpiritualRootBranch, spiritualRootProfile, startRegionEligibility, availableStartRegions, computeStats, computeRelationshipEffects, skillCheck, sanCheck, sanStatus, fortuneStatus, worldviewWrongness, weaveAtmosphere, perceivedValue, realmLore, getPathDisplayName, spiritualRootGrade,
-    createCharacter, createState, updateDerived,
-    addItem, removeItem, registerGeneratedItem, createLootItem, activateQuest, checkQuestObjectives, failQuest,
+    createCharacter, createState, updateDerived, chooseOriginBranch,
+    addItem, removeItem, registerGeneratedItem, createLootItem, activateQuest, trackQuest, abandonQuest, checkQuestObjectives, failQuest,
     getGuildBenefits, guildTierInfo, guildEligibility, guildExitCost, joinGuild, refuseGuild, leaveGuild, describeGuild,
     normalizeEquipment, equippedItemIds, equipmentCategory, equipmentCategoryLabel, equipmentSummary, protectionSlot, equipItem, inventoryActions, handleInventoryAction,
     fateVaultCapacity, fateCompatibility, pathMatchSummary, availablePaths, pathProgression, receiveFate, sacrificeFate, fateVaultSummary, validateFateInventory, swapFateFromVault, storeFateToVault, equipFateFromVault, upgradeFate, mergeFates, suggestFateForRealmRequirement, auditFateRolls, buyFateAtMarket, sacrificeLifespanForFate, qintianFateOffers, refreshMarket, marketOffers, buyMarketOffer, refineAtVoidCauldron,

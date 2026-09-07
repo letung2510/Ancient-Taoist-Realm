@@ -103,4 +103,5 @@
 - Command input giữ tối đa 50 lệnh gần nhất và hỗ trợ ↑/↓; hành động Tìm Kiếm có thể lặp lại tại địa điểm, ghi số lần thử và kết quả riêng trong Story Panel.
 - Điều hướng tab được gom thành ba cụm Nhân Vật / Thế Giới / Đặc Biệt; Hư Thiên Đỉnh có Chọn tự động, lưu kết quả dung luyện; Phường thị và Khâm Thiên Giám lưu kết quả giao dịch/gacha gần nhất.
 - Sidebar có PinnedCharacterSummary độc lập với TabContent; Action Bar được nhóm theo ngữ cảnh (Di chuyển, Tu luyện, Giao tiếp, Thêm), tự đóng cụm sau khi chọn action và giữ lại thông tin nhân vật khi chuyển bản đồ/chiến đấu.
+- QUEST_SYSTEM_REDESIGN.md đã được triển khai một phần lõi: roll bối cảnh tỉnh dậy theo vùng, bắt buộc chọn Tán Tu/Thế Gia/Tìm Tông Môn, bỏ chạy giữ nguyên node, quest record có lifecycle/tracking và Cơ Duyên Động xuất hiện theo cooldown khi di chuyển.
 - Mệnh Kho hỗ trợ trực tiếp Trang bị, Nâng cấp bằng chất liệu cùng phẩm trật và Dung hợp chọn nhiều Mệnh Số; kết quả được đưa lại vào Mệnh Kho hoặc Ấn ký theo luật sức chứa.

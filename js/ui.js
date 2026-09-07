@@ -113,6 +113,7 @@ window.GameUI = (function () {
       ["Giao tiếp", sorted.filter((a) => a.id.startsWith("act_talk_"))],
       ["Thêm", sorted.filter((a) => !a.id.startsWith("act_move_") && !a.id.startsWith("act_talk_") && !["act_tu_luyen", "act_tu_luyen_tu_dong", "act_be_quan", "act_dot_pha", "act_nghi_ngoi"].includes(a.id) && !a.id.startsWith("act_ritual_"))]
     ];
+    if (ctx.forced) { sorted.forEach((action) => box.appendChild(makeButton(action))); return; }
     groups.forEach(([label, items]) => {
       if (!items.length) return;
       const details = document.createElement("details"); details.className = "action-cluster"; details.open = label !== "Thêm";
@@ -347,11 +348,12 @@ window.GameUI = (function () {
     const list = Object.values(state.quests).filter((q) => q.status !== "available");
     if (!list.length) return '<div class="section-title">Nhiệm vụ</div><p class="muted">Chưa có.</p>';
     return '<div class="section-title">Nhiệm vụ</div>' + list.map((q) => {
-      const def = window.GameData.QUESTS[q.id];
+      const def = window.GameData.QUESTS[q.id] || q;
       const cls = q.status === "completed" ? "quest-done" : q.status === "failed" ? "quest-failed" : "";
       const mark = q.status === "completed" ? "✓" : q.status === "failed" ? "×" : "·";
       const objs = q.objectives.map((o) => (o.done ? "✓ " : "○ ") + o.label).join("<br>");
-      return '<div class="quest-row ' + cls + '">' + mark + " " + def.title + " <small>(" + q.status + ")</small><br><small>" + objs + "</small></div>";
+      const controls = q.status === "active" ? '<div class="quest-controls"><button class="guild-action" data-quest-track="' + escapeHtml(q.id) + '">' + (q.tracked ? "Đang theo dấu" : "Theo dấu") + '</button><button class="guild-action" data-quest-abandon="' + escapeHtml(q.id) + '">Từ bỏ</button></div>' : '';
+      return '<div class="quest-row ' + cls + '">' + mark + " " + escapeHtml(def.title || q.id) + " <small>(" + q.status + ")</small><br><small>" + objs + "</small>" + controls + '</div>';
     }).join("");
   }
 
