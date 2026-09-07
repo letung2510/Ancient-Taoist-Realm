@@ -523,3 +523,6 @@ Hãy thực hiện yêu cầu này theo đúng thứ tự:
 >
 > **KHÔNG được hiểu "pinned" là đưa Character Summary lên đầu toàn trang.**
 
+## Override hiện hành (2026-09-07)
+
+Sau rà soát UX, yêu cầu Character Summary ghim riêng được thu hồi. Trạng thái nhân vật phải trở về cấu trúc legacy: khi chọn tab **Trạng thái**, toàn bộ thông tin (thanh tài nguyên, tâm cảnh, chủng tộc, thuộc tính, linh căn, khí vận, trang bị và cảnh giới) được render trực tiếp trong `#tab-content`. Không thêm panel tóm tắt thứ hai trong Sidebar. Các thay đổi về Story Panel, Action Bar, bản đồ và logic gameplay vẫn giữ nguyên.
