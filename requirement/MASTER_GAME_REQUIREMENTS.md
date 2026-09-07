@@ -1,6 +1,13 @@
 # Cổ Dị Diện — Master Game Requirements
 
-Đây là tài liệu canonical để trace toàn bộ UI, engine, Cảnh Giới, Con Đường, Mệnh Số, Công Pháp, Hành Trang và vòng đời nhân vật. Các tài liệu patch cũ đã được hợp nhất vào đây.
+Đây là tài liệu canonical để trace toàn bộ UI, engine, Cảnh Giới, Con Đường, Mệnh Số, Công Pháp, Hành Trang, bản đồ, bối cảnh và vòng đời nhân vật. Các requirement đã triển khai không được tạo luật mới ngoài tài liệu này.
+
+## Registry tài liệu
+
+- Đang áp dụng: tài liệu này, `HE_THONG_NEN_TANG_NHAN_VAT_TU_VI_CONG_PHAP.md`, `MAP_SYSTEM.md`, `RANDOM_EVENT_SYSTEM.md`, `WORLDVIEW_ATMOSPHERE.md`, `ACTION_HYBRID_SYSTEM.md`, `character_creation_system.md`, `CONG_PHAP_SYSTEM.md`, `NPC_MONSTER_SYSTEM.md`, `RELATIONSHIP_SYSTEM.md`, `Xianxin_map.md`, `UI_LAYOUT_REQUIREMENT_KEEP_STRUCTURE_ADJUST_WIDTH.md`.
+- Requirement đã triển khai và lưu để truy vết lịch sử: `ARCHIVE_BREAKTHROUGH_RITUAL_DETAIL.md`, `ARCHIVE_QUEST_SYSTEM_REDESIGN.md`.
+- Tài liệu thiết kế đời đầu chỉ lưu tham khảo: `ARCHIVE_AI_Interactive_Story_RPG_Master_Plan.md`, `ARCHIVE_Xianxin_Fatelife.md`.
+- Các file `prompt_*.md` là phiếu công việc tạm thời; sau khi apply phải xóa, không dùng làm nguồn luật.
 
 ## Nguyên tắc kiến trúc
 
@@ -94,8 +101,7 @@
 - `state.gameClock` stores year/era/month/day, fractional day progress and real-time ratio (1 real minute = 1 game day by default); action turns and realtime ticks advance it safely.
 - Year rollover consumes one year of Thọ Nguyên, warns below 10%, and invokes Luân Hồi at zero; every 500 years emits a Đại Kiếp atmosphere beat.
 - History remains fully persisted while the DOM shows the latest 20 entries with an incremental “Xem thêm lịch sử” control and game timestamps.
-- Game screen uses a bounded `100dvh` flex layout; tab content owns scrolling and quick commands remain a single horizontal strip.
-- Gameplay retains the proven stacked layout from commit `8f37143`: Story Panel and Action Bar are full-width vertical sections, with the tab/function layer above them. Gameplay logic remains independent from this presentation layer.
+- Game screen uses a bounded `100dvh` two-column layout; Sidebar trái giữ navigation và Character Summary, Story Panel/Action Bar nằm bên phải; mỗi vùng có overflow độc lập.
 - Open-world map runtime now lazily generates deterministic neighboring nodes on all four directions, persists coordinates/nodes per save, and renders discovered procedural nodes in the local map graph.
 - Save files support both Export (`Lưu tệp`) and Import (`Nạp tệp`) JSON flows.
 - Nghi thức Đột Phá được phân tầng theo cấp đích (2–5 bước), mở từng action theo thứ tự Gọi Mệnh → Dựng Neo → Đối Chiếu → Vượt Dị Tượng → Trả Giá; chỉ commit cảnh giới khi toàn bộ gate hợp lệ.
