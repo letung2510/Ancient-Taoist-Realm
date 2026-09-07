@@ -3865,12 +3865,17 @@ window.GameEngine = (function () {
       safeTravel.description = destination?.reason || "Di chuyển nhanh tới điểm trú ẩn đã biết.";
     }
     const breakthroughAction = actions.find((a) => a.id === "act_dot_pha");
-    if (breakthroughAction && !breakthrough.ready) breakthroughAction.disabled_reason = "Chưa đủ toàn bộ điều kiện Đột Phá.";
+    const ritualStatus = breakthroughRitualStatus(state);
+    if (breakthroughAction && ritualStatus.remaining.length) {
+      breakthroughAction.label = "Nghi Thức Đột Phá · Xem tiến trình";
+      breakthroughAction.open_only = true;
+      breakthroughAction.description = "Mở cổng nghi thức hiện tại; xác nhận bước này trong modal để tiếp tục.";
+    } else if (breakthroughAction && !breakthrough.ready) breakthroughAction.disabled_reason = "Chưa đủ toàn bộ điều kiện Đột Phá.";
     if (!combatPossible && cultivationTier(state) > 1) {
       const ritual = breakthroughRitualStatus(state);
       if (ritual.remaining.length) {
         const step = ritual.remaining[0];
-        const ritualAction = { id: "act_ritual_" + step, label: "Nghi Thức · " + BREAKTHROUGH_RITUAL_LABELS[step], aliases: [BREAKTHROUGH_RITUAL_LABELS[step]], priority: 1 };
+        const ritualAction = { id: "act_ritual_" + step, label: "Nghi Thức · " + BREAKTHROUGH_RITUAL_LABELS[step], aliases: [BREAKTHROUGH_RITUAL_LABELS[step]], priority: 1, open_only: true };
         const hint = breakthroughRitualGateHint(state, step);
         if (hint && step !== "omen") ritualAction.disabled_reason = hint;
         actions.unshift(ritualAction);
@@ -3925,7 +3930,7 @@ window.GameEngine = (function () {
       act_search_collect: () => collectSearchFindings(state),
       act_search_investigate: () => investigateSearchFinding(state),
       act_search_leave: () => leaveSearchSession(state),
-      act_dot_pha: () => doBreakthrough(state),
+      act_dot_pha: () => breakthroughRitualStatus(state).remaining.length ? { changed: false, reason: "Hãy mở Nghi Thức Đột Phá và hoàn tất cổng đang active trước." } : doBreakthrough(state),
       act_nghi_ngoi: () => rest(state),
       act_bo_chay: () => { const stayedAt = state.locationId; state.enemies = {}; state.flags.fledUntilTurn = Number(state.meta.turn || 0) + 1; state.flags.lastCombatOutcome = "fled"; state.flags.threatLevel = Math.min(5, Number(state.flags.threatLevel || 0) + 1); state.locationId = stayedAt; pushHistory(state, { type: "sys", text: "Ngươi bỏ chạy khỏi giao chiến nhưng vẫn trụ lại tại khu vực này. Các lối đi vẫn thông; hãy nghỉ ngơi hoặc rời đi khi sẵn sàng." }); },
       act_chon_ban_phuoc: () => chooseTaintedAttention(state, "blessing"),

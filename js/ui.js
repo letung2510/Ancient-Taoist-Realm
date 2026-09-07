@@ -146,7 +146,7 @@ window.GameUI = (function () {
       btn.className = "action-chip action-category-" + action.category + (action.priority === 0 ? " danger" : "");
       btn.textContent = action.label;
       if (action.description) btn.title = action.description;
-      if (action.disabled_reason || action.disabled) {
+      if ((action.disabled_reason || action.disabled) && !action.open_only) {
         btn.disabled = true;
         btn.title = action.disabled_reason || "Chưa sẵn sàng";
       }

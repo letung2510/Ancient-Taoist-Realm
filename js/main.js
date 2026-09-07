@@ -550,6 +550,13 @@
         showMapOverlay();
         return;
       }
+      if (action.id === "act_dot_pha") {
+        const ritual = E.breakthroughRitualStatus ? E.breakthroughRitualStatus(state) : null;
+        if (ritual?.remaining?.length) {
+          UI.openOverlay("Nghi Thức Đột Phá", UI.renderRitualModal(state, ritual.remaining[0], action));
+          return;
+        }
+      }
       if (action.id === "act_be_quan") {
         const rawHours = prompt("Bế quan bao nhiêu giờ? (1–8)", "1");
         if (rawHours === null) return;
