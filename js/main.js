@@ -177,6 +177,7 @@
     $("save-file-input")?.addEventListener("change", importSaveFile);
     document.querySelectorAll(".tab").forEach((tab) => {
       tab.addEventListener("click", () => {
+        tab.closest("details.tab-group")?.removeAttribute("open");
         if (tab.dataset.modal) {
           showInfoOverlay(tab.dataset.modal);
           return;

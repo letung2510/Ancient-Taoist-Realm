@@ -96,7 +96,7 @@ window.GameUI = (function () {
       const rank = (id) => id.startsWith("act_move_") ? 0 : id.startsWith("act_talk_") ? 1 : id.startsWith("act_tan_cong") || id.startsWith("act_bo_chay") ? 2 : id.startsWith("act_skill_") ? 3 : id.startsWith("act_tu_luyen") || id === "act_be_quan" || id === "act_tim_kiem" || id === "act_dot_pha" || id === "act_nghi_ngoi" ? 4 : 5;
       return rank(a.id) - rank(b.id);
     });
-    sorted.forEach((action) => {
+    const makeButton = (action) => {
       const btn = document.createElement("button");
       btn.className = "chip action-chip" + (action.priority === 0 ? " danger" : "");
       btn.textContent = action.label;
@@ -104,8 +104,20 @@ window.GameUI = (function () {
         btn.disabled = true;
         btn.title = action.disabled_reason || "Chưa sẵn sàng";
       }
-      btn.addEventListener("click", () => onAction(action));
-      box.appendChild(btn);
+      btn.addEventListener("click", () => { box.querySelectorAll("details.action-cluster").forEach((menu) => { menu.open = false; }); onAction(action); });
+      return btn;
+    };
+    const groups = [
+      ["Di chuyển", sorted.filter((a) => a.id.startsWith("act_move_"))],
+      ["Tu luyện", sorted.filter((a) => ["act_tu_luyen", "act_tu_luyen_tu_dong", "act_be_quan", "act_dot_pha", "act_nghi_ngoi"].includes(a.id) || a.id.startsWith("act_ritual_"))],
+      ["Giao tiếp", sorted.filter((a) => a.id.startsWith("act_talk_"))],
+      ["Thêm", sorted.filter((a) => !a.id.startsWith("act_move_") && !a.id.startsWith("act_talk_") && !["act_tu_luyen", "act_tu_luyen_tu_dong", "act_be_quan", "act_dot_pha", "act_nghi_ngoi"].includes(a.id) && !a.id.startsWith("act_ritual_"))]
+    ];
+    groups.forEach(([label, items]) => {
+      if (!items.length) return;
+      const details = document.createElement("details"); details.className = "action-cluster"; details.open = label !== "Thêm";
+      const summary = document.createElement("summary"); summary.textContent = label; details.appendChild(summary);
+      const content = document.createElement("div"); content.className = "action-cluster-items"; items.forEach((action) => content.appendChild(makeButton(action))); details.appendChild(content); box.appendChild(details);
     });
   }
 
@@ -117,10 +129,19 @@ window.GameUI = (function () {
     document.getElementById("save-indicator").textContent = text;
   }
 
+  function renderPinnedCharacterSummary(state) {
+    const p = state.player || {}; const s = p.stats || {}; const fortune = window.GameEngine.fortuneStatus ? window.GameEngine.fortuneStatus(p) : { name: "Chưa định" };
+    const race = p.race || p.species || "Chưa rõ"; const roots = (p.spiritualRootProfile?.elements || p.spiritualRoots || []).join(" · ") || "Chưa rõ";
+    const bar = (label, value, max, cls) => '<div class="pinned-stat"><span>' + label + '</span><b>' + Math.round(Number(value || 0)) + '/' + Math.round(Number(max || 0)) + '</b><i><em class="' + cls + '" style="width:' + Math.max(0, Math.min(100, Number(value || 0) / Math.max(1, Number(max || 1)) * 100)) + '%"></em></i></div>';
+    return '<div class="pinned-head"><img src="assets/ui/fate-illustration.webp" alt="Chân dung nhân vật"><div><b>' + escapeHtml(p.name || "Vô Danh") + '</b><small>' + escapeHtml(window.GameEngine.pathTitle?.(state) || "Chưa chọn Con Đường") + '</small></div></div>' + bar("Khí Huyết", s.hp, s.maxHp, "hp") + bar("Linh Khí", s.qi, s.maxQi, "qi") + bar("Thanh Tỉnh", p.san, p.maxSan, "san") + '<div class="pinned-kv"><span>Tâm cảnh</span><b>' + escapeHtml(window.GameEngine.sanStatus?.(p) || "Ổn định") + '</b></div><div class="pinned-kv"><span>Chủng tộc</span><b title="Chủng tộc quyết định huyết mạch, thiên phú và điểm yếu của nhân vật.">' + escapeHtml(race) + '</b></div><div class="pinned-kv"><span>Căn cốt · Ngộ tính</span><b>' + Math.round(Number(p.aptitude || 0)) + ' · ' + Math.round(Number(p.comprehension || 0)) + '</b></div><div class="pinned-kv"><span>Tà nhiễm</span><b>' + Math.round(Number(p.corruptionRating || 0)) + '</b></div><div class="pinned-kv"><span>Linh căn</span><b>' + escapeHtml(roots) + '</b></div><div class="pinned-kv"><span>Khí vận</span><b>' + escapeHtml(fortune.name || "Chưa định") + '</b></div>';
+  }
+
   function renderPanel(state) {
+    const pinned = document.getElementById("pinned-character-summary");
+    if (pinned) pinned.innerHTML = renderPinnedCharacterSummary(state);
     const active = document.querySelector(".tab.active")?.dataset.tab || "status";
     let html = "";
-    if (active === "status") html = renderStatus(state);
+    if (active === "status") html = '<div class="section-title">Trạng thái chi tiết</div><p class="muted">Bảng tóm tắt nhân vật được ghim cố định ở đầu sidebar; các tab khác không làm mất thông tin này.</p><div class="status-detail-index">Khí Huyết · Linh Khí · Thanh Tỉnh · Tâm cảnh · Chủng tộc · Căn cốt · Ngộ tính · Tà Nhiễm · Linh Căn</div><div hidden>' + renderStatus(state) + '</div>';
     else if (active === "inventory") html = renderInventory(state);
     else if (active === "quests") html = renderQuests(state);
     else if (active === "relations") html = renderRelations(state);
