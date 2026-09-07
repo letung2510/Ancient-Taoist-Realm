@@ -197,7 +197,7 @@
     $("free-form").addEventListener("submit", (e) => {
       e.preventDefault();
       const value = $("free-input").value.trim();
-      if (value && commandHistory[commandHistory.length - 1] !== value) commandHistory.push(value);
+      if (value && commandHistory[commandHistory.length - 1] !== value) { commandHistory.push(value); if (commandHistory.length > 50) commandHistory.shift(); }
       commandHistoryCursor = commandHistory.length;
       enqueueAction(submitAction);
     });
@@ -210,7 +210,24 @@
     });
 
     $("tab-content").addEventListener("click", (event) => {
+      const autoCauldron = event.target.closest("[data-cauldron-auto]");
+      if (autoCauldron && state) {
+        const equipped = new Set(E.equippedItemIds(state.player.equipment));
+        const boxes = [...document.querySelectorAll("[data-cauldron-item]")];
+        boxes.forEach((box) => { box.checked = false; });
+        boxes.filter((box) => !equipped.has(box.dataset.cauldronItem)).slice(0, 9).forEach((box) => { box.checked = true; });
+        const label = document.querySelector("[data-cauldron-count]"); if (label) label.textContent = document.querySelectorAll("[data-cauldron-item]:checked").length;
+        return;
+      }
+      const clearCauldron = event.target.closest("[data-cauldron-clear]");
+      if (clearCauldron) { document.querySelectorAll("[data-cauldron-item]").forEach((box) => { box.checked = false; }); const label = document.querySelector("[data-cauldron-count]"); if (label) label.textContent = "0"; return; }
       if (event.target.matches("[data-cauldron-item]")) { const count = document.querySelectorAll("[data-cauldron-item]:checked").length; const label = document.querySelector("[data-cauldron-count]"); if (label) label.textContent = count; return; }
+      const fateEquip = event.target.closest("[data-fate-equip]");
+      if (fateEquip && state) { const result = E.equipFateFromVault(state, fateEquip.dataset.fateEquip); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
+      const fateUpgrade = event.target.closest("[data-fate-upgrade-target]");
+      if (fateUpgrade && state) { const target = fateUpgrade.dataset.fateUpgradeTarget; const targetFate = D.FATE_PATTERNS.find((f) => f.id === target); const owned = [...(state.fateInventory || [])].find((id) => id !== target && D.FATE_PATTERNS.find((f) => f.id === id)?.grade === targetFate?.grade); const result = owned ? E.upgradeFate(state, target, owned) : { success: false, reason: "Cần một Mệnh Số cùng phẩm trật trong Mệnh Kho làm chất liệu." }; if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
+      const fateMerge = event.target.closest("[data-fate-merge-submit]");
+      if (fateMerge && state) { const ids = [...document.querySelectorAll("[data-fate-merge]:checked")].map((el) => el.dataset.fateMerge); const result = E.mergeFates(state, ids); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
       const market = event.target.closest("[data-market-fate]");
       if (market && state) { const result = E.buyFateAtMarket(state, market.dataset.marketFate); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
       const qintian = event.target.closest("[data-qintian-fate]");
@@ -284,6 +301,12 @@
         UI.openOverlay("Hành Trang", UI.renderInventoryModal(state));
         return;
       }
+      const fateEquip = event.target.closest("[data-fate-equip]");
+      if (fateEquip && state) { const result = E.equipFateFromVault(state, fateEquip.dataset.fateEquip); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
+      const fateUpgrade = event.target.closest("[data-fate-upgrade-target]");
+      if (fateUpgrade && state) { const target = fateUpgrade.dataset.fateUpgradeTarget; const targetFate = D.FATE_PATTERNS.find((f) => f.id === target); const owned = [...(state.fateInventory || [])].find((id) => id !== target && D.FATE_PATTERNS.find((f) => f.id === id)?.grade === targetFate?.grade); const result = owned ? E.upgradeFate(state, target, owned) : { success: false, reason: "Cần một Mệnh Số cùng phẩm trật trong Mệnh Kho làm chất liệu." }; if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
+      const fateMerge = event.target.closest("[data-fate-merge-submit]");
+      if (fateMerge && state) { const ids = [...document.querySelectorAll("#overlay-content [data-fate-merge]:checked")].map((el) => el.dataset.fateMerge); const result = E.mergeFates(state, ids); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
       const endingAction = event.target.closest("[data-ending-action]");
       if (endingAction) {
         const action = endingAction.dataset.endingAction;

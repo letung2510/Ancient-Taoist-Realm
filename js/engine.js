@@ -1193,7 +1193,7 @@ window.GameEngine = (function () {
     if (offer.kind === "fate") result = receiveFate(state, offer.id);
     else result.added = addItem(state, offer.id, 1);
     if (!result.added) { state.inventory.linh_thach += cost; return { success: false, reason: result.reason || "Không thể nhận vật phẩm." }; }
-    market.purchased[offerId] = true; pushHistory(state, { type: "sys", text: "§ Phường thị giao dịch thành công: " + offer.id + "." }); return { success: true, offer };
+    market.purchased[offerId] = true; state.flags.lastMarketResult = offer.kind === "fate" ? "Mệnh Số · " + (D().FATE_PATTERNS.find((f) => f.id === offer.id)?.name || offer.id) : "Vật phẩm · " + (D().ITEMS[offer.id]?.name || offer.id); pushHistory(state, { type: "sys", text: "§ Phường thị giao dịch thành công: " + offer.id + "." }); return { success: true, offer };
   }
 
   function refineAtVoidCauldron(state, itemIds) {
@@ -1204,9 +1204,10 @@ window.GameEngine = (function () {
     ids.forEach((id) => removeItem(state, id, 1));
     const gradeByCount = ids.length >= 7 ? ["phan", "linh", "hoang"] : ids.length >= 5 ? ["phan", "linh"] : ["phan"];
     const equipmentPool = Object.values(D().ITEMS).filter((item) => equipmentCategory(item) && !equippedItemIds(state.player.equipment).includes(item.id));
-    if (equipmentPool.length && Math.random() < Math.min(0.4, 0.12 + ids.length * 0.03)) {
+    if (equipmentPool.length && Math.random() < Math.min(0.7, 0.28 + ids.length * 0.045)) {
       const item = equipmentPool[rnd(0, equipmentPool.length - 1)];
       addItem(state, item.id, 1);
+      state.flags.lastCauldronResult = "Pháp bảo · " + item.name;
       pushHistory(state, { type: "sys", text: "§ Hư Thiên Đỉnh dung luyện " + ids.length + " vật phẩm, kết tinh thành pháp bảo " + item.name + "." });
       return { success: true, result: { kind: "item", item } };
     }
@@ -1214,6 +1215,7 @@ window.GameEngine = (function () {
     const fate = pool[rnd(0, Math.max(0, pool.length - 1))];
     const result = fate && receiveFate(state, fate.id);
     if (!fate || !result?.added) { ids.forEach((id) => addItem(state, id, 1)); return { success: false, reason: result?.reason || "Lò luyện chưa tìm thấy cách cục tương hợp." }; }
+    state.flags.lastCauldronResult = "Mệnh Số · " + fate.name;
     pushHistory(state, { type: "sys", text: "§ Hư Thiên Đỉnh dung luyện " + ids.length + " vật phẩm, kết thành " + fate.name + "." });
     return { success: true, result: { kind: "fate", fate } };
   }
@@ -1958,6 +1960,7 @@ window.GameEngine = (function () {
     if (!result.added) { state.player.lifespan += cost; return { success: false, reason: result.reason }; }
     state.flags.qintianSacrificeCount = Number(state.flags.qintianSacrificeCount || 0) + 1;
     state.flags[mode === "ratio" ? "qintianRatioCount" : "qintianFixedCount"] = Number(state.flags[mode === "ratio" ? "qintianRatioCount" : "qintianFixedCount"] || 0) + 1;
+    state.flags.lastQintianResult = fate.name + " · " + (fate.gradeLabel || fate.grade);
     pushHistory(state, { type: "warn", text: "§ Khâm Thiên Giám mở gacha " + (mode === "ratio" ? "Hiến Thọ 1/10" : "Hiến Tế Cố Định") + ": -" + cost + " năm, nhận được " + fate.name + " (neo theo phẩm " + dominantFateGrade(state).grade + ")." });
     return { success: true, fate, cost, method: mode };
   }
@@ -2458,19 +2461,22 @@ window.GameEngine = (function () {
   /* ---------- Search ---------- */
   function search(state) {
     const loc = D().LOCATIONS[state.locationId];
+    state.flags.searches = state.flags.searches || {};
+    const attempt = Number(state.flags.searches[state.locationId] || 0) + 1;
+    state.flags.searches[state.locationId] = attempt;
     if (!loc.searchable || !loc.searchable.length) {
-      pushHistory(state, { type: "sys", text: "Ngươi tìm kiếm nhưng không thấy gì đáng chú ý." });
+      pushHistory(state, { type: "sys", text: "Lần tìm kiếm thứ " + attempt + ": Ngươi tìm kiếm nhưng không thấy gì đáng chú ý." });
       return;
     }
     const stats = computeStats(state.player);
     const check = skillCheck(stats.mag, 12);
     if (!check.success) {
-      pushHistory(state, { type: "warn", text: "× Tìm kiếm không phát hiện gì (roll " + check.roll + ")." });
+      pushHistory(state, { type: "warn", text: "× Lần tìm kiếm thứ " + attempt + " không phát hiện gì (roll " + check.roll + "). Có thể tiếp tục tìm kiếm." });
       return;
     }
     const itemId = loc.searchable[rnd(0, loc.searchable.length - 1)];
     addItem(state, itemId, 1);
-    pushHistory(state, { type: "sys", text: "§ Tìm thấy: " + D().ITEMS[itemId].name + "!" });
+    pushHistory(state, { type: "sys", text: "§ Lần tìm kiếm thứ " + attempt + " · Tìm thấy: " + D().ITEMS[itemId].name + "!" });
     if (Math.random() < 0.3) {
       const generated = createLootItem(state, Math.random() < 0.7 ? "consumable" : null);
       if (generated) pushHistory(state, { type: "sys", text: "§ Cơ duyên bất ngờ: " + generated.name + "!" });

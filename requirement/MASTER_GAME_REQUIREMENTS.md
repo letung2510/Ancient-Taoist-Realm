@@ -99,3 +99,6 @@
 - Open-world map runtime now lazily generates deterministic neighboring nodes on all four directions, persists coordinates/nodes per save, and renders discovered procedural nodes in the local map graph.
 - Save files support both Export (`Lưu tệp`) and Import (`Nạp tệp`) JSON flows.
 - Nghi thức Đột Phá được phân tầng theo cấp đích (2–5 bước), mở từng action theo thứ tự Gọi Mệnh → Dựng Neo → Đối Chiếu → Vượt Dị Tượng → Trả Giá; chỉ commit cảnh giới khi toàn bộ gate hợp lệ.
+- Command input giữ tối đa 50 lệnh gần nhất và hỗ trợ ↑/↓; hành động Tìm Kiếm có thể lặp lại tại địa điểm, ghi số lần thử và kết quả riêng trong Story Panel.
+- Điều hướng tab được gom thành ba cụm Nhân Vật / Thế Giới / Đặc Biệt; Hư Thiên Đỉnh có Chọn tự động, lưu kết quả dung luyện; Phường thị và Khâm Thiên Giám lưu kết quả giao dịch/gacha gần nhất.
+- Mệnh Kho hỗ trợ trực tiếp Trang bị, Nâng cấp bằng chất liệu cùng phẩm trật và Dung hợp chọn nhiều Mệnh Số; kết quả được đưa lại vào Mệnh Kho hoặc Ấn ký theo luật sức chứa.
