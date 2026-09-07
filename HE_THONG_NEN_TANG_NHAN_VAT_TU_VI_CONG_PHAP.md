@@ -368,16 +368,17 @@ Nghi thức được phân tầng theo cảnh giới đích, không ép năm bư
 
 | Cấp đích | Số bước | Chuỗi hành động |
 |---|---:|---|
-| 2 | 2 | Gọi Mệnh → Đối Chiếu Con Đường |
-| 3–4 | 3 | thêm Dựng Neo |
-| 5–7 | 4 | thêm Vượt Dị Tượng |
-| 8–14 | 5 | thêm Trả Giá |
+| 3–4 | 2 | Gọi Mệnh → Đối Chiếu Con Đường |
+| 5–7 | 3 | + Dựng Neo |
+| 8–10 | 4 | + Vượt Dị Tượng |
+| 11–13 | 5 | + Trả Giá |
+| 14 | 6 | + Thử Thách Cuối bespoke |
 
-Engine lưu `state.flags.breakthroughRitual` và chỉ mở một hành động kế tiếp trên Action Bar. Luồng nguyên tử là `realm_gate → path_gate → anchor_gate → body/mind_check → cost_commit`; chỉ commit cảnh giới sau khi mọi bước hợp lệ. Bước Đối Chiếu liệt kê blocker; Dựng Neo cho phép tạo Neo địa điểm cơ bản ở cấp thấp; Vượt Dị Tượng kiểm tra Căn Cốt/Ngộ Tính; Trả Giá tiêu hao 5 Thanh Tỉnh ở cấp cao. Thất bại không trừ Tu vi, chỉ ghi log và có thể mất 3 Thanh Tỉnh.
+Engine lưu `state.flags.breakthroughRitual` và chỉ mở một hành động kế tiếp trên Action Bar. Cấp 1→2 vẫn dùng Khai Mạch riêng, không qua nghi thức này. Luồng nguyên tử là `realm_gate → path_gate → anchor_gate → body/mind_check → cost_commit`; cấp 14 thêm thử thách cuối. Chỉ Vượt Dị Tượng có roll; các cổng còn lại là deterministic/setup. Chỉ commit cảnh giới sau khi mọi bước hợp lệ; thất bại Dị Tượng không trừ Tu vi, chỉ ghi log và có thể mất 3 Thanh Tỉnh.
 
 #### 6.4.2. Hướng dẫn người chơi
 
-Khi đạt mốc Tu vi, mở tab Cảnh giới và thực hiện lần lượt bước đang sáng trên Action Bar. Ô điều kiện cho biết Mệnh hiệu dụng, Con Đường, Neo, công pháp và tài nguyên còn thiếu. Cấp 2 chỉ cần hai bước; từ cấp 5 chuẩn bị Căn Cốt/Ngộ Tính; từ cấp 8 cần chấp nhận Trả Giá rồi mới bấm Đột Phá. Không thể bỏ qua thứ tự hoặc xác nhận khi còn blocker.
+Khi đạt mốc Tu vi, mở tab Cảnh giới và thực hiện lần lượt bước đang sáng trên Action Bar. Cấp 3–4 chỉ cần Gọi Mệnh và Đối Chiếu; cấp 5–7 thêm Dựng Neo; cấp 8–10 thêm Vượt Dị Tượng; cấp 11–13 thêm Trả Giá; cấp 14 phải hoàn tất Thử Thách Cuối. Không thể bỏ qua thứ tự hoặc xác nhận khi còn blocker.
 
 ### 6.5. Công thức xác suất
 

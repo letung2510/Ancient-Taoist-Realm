@@ -293,6 +293,8 @@
     });
 
     $("overlay-content").addEventListener("click", (event) => {
+      const ritualConfirm = event.target.closest("[data-ritual-confirm]");
+      if (ritualConfirm && state && !ritualConfirm.disabled) { const actionId = "act_ritual_" + ritualConfirm.dataset.ritualConfirm; UI.closeOverlay(); enqueueAction(() => { E.submitActionId(state, actionId); renderAfterTurn(); }); return; }
       const itemAction = event.target.closest("[data-item-action]");
       if (itemAction && state) {
         const ok = E.handleInventoryAction(state, itemAction.dataset.itemId, itemAction.dataset.itemAction);
@@ -496,6 +498,12 @@
           E.submitActionId(state, action.id, { hours });
           renderAfterTurn();
         });
+        return;
+      }
+      if (action.id.startsWith("act_ritual_")) {
+        const gate = action.id.slice("act_ritual_".length);
+        const guides = { call_fate: "Game kiểm tra Tu Vi và Mệnh hiệu dụng với cảnh giới kế tiếp.", compare: "Game đối chiếu Mệnh Số và Công Pháp với Con Đường đã chọn.", anchor: "Hãy lấy một địa điểm, người hoặc vật làm Neo để giữ tâm trí không tan rã.", omen: "Đây là cổng duy nhất có roll thật; thất bại không mất Tu Vi nhưng có thể hao 3 Thanh Tỉnh.", cost: "Ngươi phải trả 5 Thanh Tỉnh, khoản này không hoàn lại.", trial: "Thử thách cuối yêu cầu đánh bại Tà Thần hoặc Ngoại Đạo Giả." };
+        UI.openOverlay("Hướng dẫn · " + (action.label || gate), '<p>' + guides[gate] + '</p><p class="muted">' + (action.disabled_reason || "Cổng đang sẵn sàng.") + '</p><button class="guild-action" data-ritual-confirm="' + gate + '"' + (action.disabled_reason ? ' disabled' : '') + '>Xác nhận bước này</button>');
         return;
       }
       enqueueAction(() => {

@@ -1780,17 +1780,20 @@ window.GameEngine = (function () {
 
   // Nghi thức được mở dần theo cấp đích: cấp thấp dễ học, cấp cao mới cần đủ 5 cửa.
   function breakthroughRitualPlan(level) {
-    if (level <= 2) return ["call_fate", "compare"];
-    if (level <= 4) return ["call_fate", "anchor", "compare"];
-    if (level <= 7) return ["call_fate", "anchor", "compare", "omen"];
-    return ["call_fate", "anchor", "compare", "omen", "cost"];
+    if (level <= 2) return [];
+    if (level <= 4) return ["call_fate", "compare"];
+    if (level <= 7) return ["call_fate", "compare", "anchor"];
+    if (level <= 10) return ["call_fate", "compare", "anchor", "omen"];
+    if (level <= 13) return ["call_fate", "compare", "anchor", "omen", "cost"];
+    return ["call_fate", "compare", "anchor", "omen", "cost", "trial"];
   }
   const BREAKTHROUGH_RITUAL_LABELS = {
     call_fate: "Gọi Mệnh",
     anchor: "Dựng Neo",
     compare: "Đối Chiếu Con Đường",
     omen: "Vượt Dị Tượng",
-    cost: "Trả Giá"
+    cost: "Trả Giá",
+    trial: "Thử Thách Cuối"
   };
   function breakthroughRitualStatus(state) {
     const next = D().REALMS[realmIndex(state) + 1];
@@ -1807,6 +1810,11 @@ window.GameEngine = (function () {
     if (step !== expected) return { changed: false, reason: "Nghi thức phải theo thứ tự: " + (BREAKTHROUGH_RITUAL_LABELS[expected] || expected) + "." };
     const flags = state.flags.breakthroughRitual = state.flags.breakthroughRitual && state.flags.breakthroughRitual.targetRealmId === status.next.id ? state.flags.breakthroughRitual : { targetRealmId: status.next.id, completed: [] };
     if (step === "call_fate" && computeFate(state.player).effective <= 0) return { changed: false, reason: "Cần ít nhất một Mệnh đang hiệu dụng để gọi Mệnh." };
+    if (step === "call_fate") {
+      const req = breakthroughRequirements(state).requirements || [];
+      const missing = req.filter((item) => !item.met && (/^Tu vi$|Mệnh hiệu dụng|Mệnh Cát/.test(item.label)));
+      if (missing.length) return { changed: false, reason: "Gọi Mệnh chưa đạt: " + missing.map((item) => item.label + " " + item.current + "/" + item.target).join("; ") };
+    }
     if (step === "anchor") {
       const anchors = (state.player.anchors || []).filter((a) => !a.broken && Number(a.stability || 0) > 0);
       if (!anchors.length) {
@@ -1815,14 +1823,15 @@ window.GameEngine = (function () {
       }
     }
     if (step === "compare") {
-      const blockers = getBreakthroughBlockers(state).filter((b) => !b.startsWith("Nghi thức"));
+      const blockers = getBreakthroughBlockers(state).filter((b) => !b.startsWith("Nghi thức") && !/^Tu vi:|Mệnh hiệu dụng:|Mệnh Cát/.test(b));
       if (blockers.length) return { changed: false, reason: "Đối chiếu thất bại: " + blockers.join("; ") };
     }
     if (step === "omen") {
-      const difficulty = 10 + Number(status.next.level || 1) * 3;
-      const body = skillCheck(Number(state.player.aptitude || 0), difficulty);
-      const mind = skillCheck(Number(state.player.comprehension || 0), difficulty);
-      if (!body.success || !mind.success) { drainSan(state, 3, "vượt dị tượng thất bại"); return { changed: false, reason: "Dị tượng áp đảo Căn Cốt hoặc Ngộ Tính; hãy tu luyện thêm rồi thử lại." }; }
+      const level = Number(status.next.level || 8);
+      const chance = clamp(82 - Math.max(0, level - 8) * 8 + (Number(state.player.aptitude || 0) - 50) * 0.5 + (Number(state.player.comprehension || 0) - 50) * 0.3, 10, 95);
+      const success = rnd(1, 100) <= chance;
+      if (!success) { if (rnd(1, 100) <= Math.min(80, 25 + level * 3)) drainSan(state, 3, "vượt dị tượng thất bại"); return { changed: false, reason: "Dị tượng áp đảo; xác suất lần này " + Math.round(chance) + "%. Hãy ổn định Thanh Tỉnh rồi thử lại." }; }
+      pushHistory(state, { type: "sys", text: "✦ Ngươi xuyên qua Dị Tượng, nghe thấy tiếng vọng ngoài kia rồi giữ được Chân Tâm." });
       flags.bodyMindPassed = true;
     }
     if (step === "cost") {
@@ -1830,10 +1839,24 @@ window.GameEngine = (function () {
       drainSan(state, 5, "trả giá nghi thức đột phá");
       flags.costCommitted = true;
     }
+    if (step === "trial") {
+      const passed = Boolean(state.player.hiddenProfession === "luan_hoi_tien" || state.player.tainted?.taintedGodDefeated || state.flags.finalVictory);
+      if (!passed) return { changed: false, reason: "Cần đánh bại Tà Thần hoặc Ngoại Đạo Giả trước khi vượt thử thách cuối." };
+    }
     flags.completed = [...new Set([...(flags.completed || []), step])];
     pushHistory(state, { type: "sys", text: "✓ Nghi thức: " + BREAKTHROUGH_RITUAL_LABELS[step] + " đã hoàn tất." });
     updateDerived(state);
     return { changed: true, reason: "Đã hoàn tất bước " + BREAKTHROUGH_RITUAL_LABELS[step] + "." };
+  }
+  function breakthroughRitualGateHint(state, step) {
+    if (step === "call_fate") {
+      const req = breakthroughRequirements(state).requirements || [];
+      return req.filter((item) => !item.met && (/^Tu vi$|Mệnh hiệu dụng|Mệnh Cát/.test(item.label))).map((item) => item.label + ": " + item.current + " / " + item.target).join("; ");
+    }
+    if (step === "compare") return getBreakthroughBlockers(state).filter((b) => !b.startsWith("Nghi thức") && !/^Tu vi:|Mệnh hiệu dụng:|Mệnh Cát/.test(b)).join("; ");
+    if (step === "cost" && Number(state.player.san || 0) < 5) return "Thanh Tỉnh: " + state.player.san + " / 5";
+    if (step === "trial" && !Boolean(state.player.hiddenProfession === "luan_hoi_tien" || state.player.tainted?.taintedGodDefeated || state.flags.finalVictory)) return "Cần đánh bại Tà Thần hoặc Ngoại Đạo Giả.";
+    return "";
   }
 
   function breakthroughRequirements(state) {
@@ -3056,7 +3079,10 @@ window.GameEngine = (function () {
       const ritual = breakthroughRitualStatus(state);
       if (ritual.remaining.length) {
         const step = ritual.remaining[0];
-        actions.unshift({ id: "act_ritual_" + step, label: "Nghi Thức · " + BREAKTHROUGH_RITUAL_LABELS[step], aliases: [BREAKTHROUGH_RITUAL_LABELS[step]], priority: 1 });
+        const ritualAction = { id: "act_ritual_" + step, label: "Nghi Thức · " + BREAKTHROUGH_RITUAL_LABELS[step], aliases: [BREAKTHROUGH_RITUAL_LABELS[step]], priority: 1 };
+        const hint = breakthroughRitualGateHint(state, step);
+        if (hint && step !== "omen") ritualAction.disabled_reason = hint;
+        actions.unshift(ritualAction);
       }
     }
     const secludedAction = actions.find((a) => a.id === "act_be_quan");
