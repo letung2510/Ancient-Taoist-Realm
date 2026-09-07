@@ -86,40 +86,102 @@ window.GameUI = (function () {
     document.getElementById("choice-list").innerHTML = "";
   }
 
+  function actionPresentation(state) {
+    const ctx = window.GameEngine.contextState(state);
+    const basePriority = {
+      act_nhin: 130, act_tu_luyen: 120, act_tim_kiem: 124, act_nghi_ngoi: 95,
+      act_hanh_trang: 110, act_tu_luyen_tu_dong: 76, act_be_quan: 74,
+      act_dot_pha: 72, act_nhiem_vu: 70, act_ban_do: 65, act_cong_phap: 62,
+      act_tim_tong_mon: 92, act_trang_thai: 55, act_to_chuc: 50, act_menh: 48, act_giup: 5,
+      act_tan_cong_thuong: 150, act_bo_chay: 130
+    };
+    const category = (id) => id.startsWith("act_move_") ? "movement"
+      : id.startsWith("act_talk_") ? "social"
+        : id.startsWith("act_skill_") || id === "act_tan_cong_thuong" || id === "act_bo_chay" ? "combat"
+          : id === "act_tim_kiem" ? "interaction"
+            : ["act_hanh_trang", "act_trang_thai", "act_ban_do", "act_cong_phap", "act_menh", "act_nhiem_vu", "act_to_chuc", "act_tim_tong_mon", "act_giup"].includes(id) ? "utility" : "core";
+    const score = (action) => {
+      let value = basePriority[action.id] ?? 80;
+      if (action.id.startsWith("act_move_")) value = 115;
+      if (action.id.startsWith("act_talk_")) value = 128;
+      if (action.id.startsWith("act_skill_")) value = 140;
+      if (action.id.startsWith("act_ritual_")) value = 145;
+      if (action.id.startsWith("act_search_")) value = 146;
+      if (action.id === "act_dot_pha" && !action.disabled_reason) value = 138;
+      if (action.id === "act_nghi_ngoi" && Number(state.flags?.fledUntilTurn || 0) > Number(state.meta?.turn || 0)) value = 136;
+      if (action.disabled_reason || action.disabled) value -= 80;
+      return value;
+    };
+    const sorted = (ctx.actions || []).map((action, index) => ({
+      ...action,
+      category: action.category || category(action.id),
+      effectivePriority: score(action),
+      _sourceIndex: index
+    })).sort((a, b) => b.effectivePriority - a.effectivePriority || a._sourceIndex - b._sourceIndex);
+    if (ctx.forced) return { context: ctx, quick: sorted, overflow: [] };
+    const caps = { social: 1, combat: 5, movement: 3 };
+    const counts = {};
+    const quick = [];
+    const overflow = [];
+    sorted.forEach((action) => {
+      const cap = caps[action.category] ?? Infinity;
+      if (quick.length < 8 && (counts[action.category] || 0) < cap) {
+        quick.push(action);
+        counts[action.category] = (counts[action.category] || 0) + 1;
+      } else {
+        overflow.push(action);
+      }
+    });
+    return { context: ctx, quick, overflow };
+  }
+
   function renderActions(state, onAction) {
     const box = document.getElementById("action-list");
     if (!box || !window.GameEngine.contextState) return;
     box.innerHTML = "";
-    const ctx = window.GameEngine.contextState(state);
-    const order = { move: 0, talk: 1, combat: 2, skill: 3, primary: 4, info: 5 };
-    const sorted = (ctx.actions || []).slice().sort((a, b) => {
-      const rank = (id) => id.startsWith("act_move_") ? 0 : id.startsWith("act_talk_") ? 1 : id.startsWith("act_tan_cong") || id.startsWith("act_bo_chay") ? 2 : id.startsWith("act_skill_") ? 3 : id.startsWith("act_tu_luyen") || id === "act_be_quan" || id === "act_tim_kiem" || id === "act_dot_pha" || id === "act_nghi_ngoi" ? 4 : 5;
-      return rank(a.id) - rank(b.id);
-    });
+    const presentation = actionPresentation(state);
     const makeButton = (action) => {
       const btn = document.createElement("button");
-      btn.className = "chip action-chip" + (action.priority === 0 ? " danger" : "");
+      btn.type = "button";
+      btn.className = "action-chip action-category-" + action.category + (action.priority === 0 ? " danger" : "");
       btn.textContent = action.label;
+      if (action.description) btn.title = action.description;
       if (action.disabled_reason || action.disabled) {
         btn.disabled = true;
         btn.title = action.disabled_reason || "Chưa sẵn sàng";
       }
-      btn.addEventListener("click", () => { box.querySelectorAll("details.action-cluster").forEach((menu) => { menu.open = false; }); onAction(action); });
+      btn.addEventListener("click", () => { box.querySelectorAll("details.action-more").forEach((menu) => { menu.open = false; }); onAction(action); });
       return btn;
     };
-    const groups = [
-      ["Di chuyển", sorted.filter((a) => a.id.startsWith("act_move_"))],
-      ["Tu luyện", sorted.filter((a) => ["act_tu_luyen", "act_tu_luyen_tu_dong", "act_be_quan", "act_dot_pha", "act_nghi_ngoi"].includes(a.id) || a.id.startsWith("act_ritual_"))],
-      ["Giao tiếp", sorted.filter((a) => a.id.startsWith("act_talk_"))],
-      ["Thêm", sorted.filter((a) => !a.id.startsWith("act_move_") && !a.id.startsWith("act_talk_") && !["act_tu_luyen", "act_tu_luyen_tu_dong", "act_be_quan", "act_dot_pha", "act_nghi_ngoi"].includes(a.id) && !a.id.startsWith("act_ritual_"))]
-    ];
-    if (ctx.forced) { sorted.forEach((action) => box.appendChild(makeButton(action))); return; }
-    groups.forEach(([label, items]) => {
-      if (!items.length) return;
-      const details = document.createElement("details"); details.className = "action-cluster"; details.open = label !== "Thêm";
-      const summary = document.createElement("summary"); summary.textContent = label; details.appendChild(summary);
-      const content = document.createElement("div"); content.className = "action-cluster-items"; items.forEach((action) => content.appendChild(makeButton(action))); details.appendChild(content); box.appendChild(details);
-    });
+    presentation.quick.forEach((action) => box.appendChild(makeButton(action)));
+    if (!presentation.overflow.length) return;
+    const more = document.createElement("details");
+    more.className = "action-more";
+    const summary = document.createElement("summary");
+    summary.className = "action-more-trigger";
+    summary.textContent = "⋯ Thêm";
+    summary.setAttribute("aria-label", "Mở các hành động khác");
+    more.appendChild(summary);
+    const menu = document.createElement("div");
+    menu.className = "action-more-menu";
+    presentation.overflow.forEach((action) => menu.appendChild(makeButton(action)));
+    more.appendChild(menu);
+    box.appendChild(more);
+  }
+
+  function renderOriginChoice(state) {
+    const profiles = window.GameEngine.originOptions();
+    const cards = Object.entries(profiles).map(([type, profile]) => {
+      const specializations = Object.entries(profile.specializations).map(([id, specialization], index) => {
+        const modifiers = { ...profile.baseModifiers };
+        Object.entries(specialization.modifiers || {}).forEach(([key, value]) => { modifiers[key] = Number(modifiers[key] || 0) + Number(value || 0); });
+        const modifierLabels = { combatDamagePct: "Sát thương", maxStaminaPct: "Thể lực", cultivationSpeedPct: "Tu luyện", maxQiPct: "Linh Khí", qiRecoveryPct: "Hồi Linh Khí", searchDiscoveryPct: "Khám phá", searchRarePct: "Cơ duyên hiếm", searchRiskReductionPct: "Giảm rủi ro", fortuneFlat: "Khí Vận" };
+        const modifierText = Object.entries(modifiers).map(([key, value]) => (modifierLabels[key] || key) + " " + (Number(value) > 0 ? "+" : "") + value + (key === "fortuneFlat" ? "" : "%")).join(" · ");
+        return '<label class="origin-specialization"><input type="radio" name="origin-specialization" value="' + escapeHtml(type + ":" + id) + '"' + (type === "tan_tu" && index === 0 ? " checked" : "") + '><span><b>' + escapeHtml(specialization.name) + '</b><small>' + escapeHtml(modifierText) + '</small></span></label>';
+      }).join("");
+      return '<section class="origin-choice-card origin-' + escapeHtml(type) + '"><h3>' + escapeHtml(profile.name) + '</h3><p>' + escapeHtml(profile.description) + '</p><div class="origin-specializations">' + specializations + '</div></section>';
+    }).join("");
+    return '<div class="origin-choice"><p class="muted">Xuất thân quyết định passive, tài nguyên đầu game và trait lâu dài. Lựa chọn chỉ xác nhận một lần.</p><div class="origin-choice-grid">' + cards + '</div><button type="button" class="btn btn-primary origin-confirm" data-origin-confirm>Xác nhận xuất thân</button></div>';
   }
 
   function setLocation(name) {
@@ -148,13 +210,21 @@ window.GameUI = (function () {
 
   function renderMarket(state) {
     const offers = window.GameEngine.marketOffers(state);
+    const meritOffers = window.GameEngine.meritFateOffers(state);
     const latest = state.flags?.lastMarketResult ? '<p class="reward-banner">Giao dịch gần nhất: ' + escapeHtml(state.flags.lastMarketResult) + '</p>' : '';
-    return '<div class="section-title">Phường thị · Mệnh Số, Đan dược, Trang bị</div><p class="muted">Hàng hóa tự đổi mỗi 60 giây · mua bằng Linh thạch.</p>' + latest + '<div class="market-grid">' + offers.map((offer) => { const item = offer.kind === "fate" ? window.GameData.FATE_PATTERNS.find((f) => f.id === offer.id) : window.GameData.ITEMS[offer.id]; return '<article class="market-card"><b>' + escapeHtml(item?.name || offer.id) + '</b><small>' + escapeHtml(item?.gradeLabel || item?.desc || offer.kind) + '</small><button class="guild-action" data-market-offer="' + escapeHtml(offer.id) + '" data-market-kind="' + offer.kind + '">Mua · ' + offer.price.linhThach + ' Linh thạch</button></article>'; }).join("") + '</div>';
+    const meritLatest = state.flags?.lastMeritFateResult ? '<p class="reward-banner">' + escapeHtml(state.flags.lastMeritFateResult) + '</p>' : '';
+    const meritSection = '<div class="section-title">Đổi Công Đức lấy Mệnh Số</div><p class="muted">Công Đức hiện có: <b>' + Number(state.player.merit || 0) + '</b> · Mệnh nhận được đưa vào Mệnh Kho hoặc chờ xử lý nếu kho đầy.</p>' + meritLatest + '<div class="market-grid">' + meritOffers.map((offer) => '<article class="market-card fate-card grade-' + escapeHtml(offer.fate.grade) + '"><b>' + escapeHtml(offer.fate.name) + '</b><small>' + escapeHtml(offer.fate.gradeLabel || offer.fate.grade) + ' · Cát · ' + offer.fate.score + ' điểm</small><button class="guild-action" data-merit-fate="' + escapeHtml(offer.fate.id) + '">Đổi · ' + offer.merit + ' Công Đức</button></article>').join("") + '</div>';
+    return '<div class="section-title">Phường thị · Mệnh Số, Đan dược, Trang bị</div><p class="muted">Hàng hóa tự đổi mỗi 60 giây · mua bằng Linh thạch.</p>' + latest + '<div class="market-grid">' + offers.map((offer) => { const item = offer.kind === "fate" ? window.GameData.FATE_PATTERNS.find((f) => f.id === offer.id) : window.GameData.ITEMS[offer.id]; return '<article class="market-card"><b>' + escapeHtml(item?.name || offer.id) + '</b><small>' + escapeHtml(item?.gradeLabel || item?.desc || offer.kind) + '</small><button class="guild-action" data-market-offer="' + escapeHtml(offer.id) + '" data-market-kind="' + offer.kind + '">Mua · ' + offer.price.linhThach + ' Linh thạch</button></article>'; }).join("") + '</div>' + meritSection;
   }
 
   function renderQintian(state) {
     const stock = window.GameEngine.qintianFateOffers(state);
     return '<div class="section-title">Khâm Thiên Giám</div><p class="muted">Hiến tế 10 năm Thọ Nguyên để cầu một Mệnh Số. Mệnh Kho phải còn chỗ.</p><div class="market-grid">' + stock.map((f) => '<article class="market-card fate-card grade-' + f.grade + '"><b>' + escapeHtml(f.name) + '</b><small>' + escapeHtml(f.gradeLabel || f.grade) + ' · Cát · Hiệu quả +' + f.score + '</small><button class="guild-action" data-qintian-fate="' + escapeHtml(f.id) + '">Hiến tế · 10 năm</button></article>').join("") + '</div>';
+  }
+
+  function renderBlackMarket(state) {
+    const offers = window.GameEngine.blackMarketOffers(state);
+    return '<div class="section-title">Nghịch Thương Nhân · Chợ đen</div><p class="muted">Mỗi lần gặp sẽ làm mới 3 Mệnh Số ngẫu nhiên cấp 2–8. Giá tăng theo cấp, trả bằng Thọ Nguyên; Mệnh nhận được đưa vào Mệnh Kho hoặc chờ xử lý.</p><div class="market-grid">' + offers.map((offer) => '<article class="market-card fate-card grade-' + escapeHtml(offer.fate.grade) + '"><b>' + escapeHtml(offer.fate.name) + '</b><small>Cấp ' + offer.tier + ' · ' + escapeHtml(offer.fate.gradeLabel || offer.fate.grade) + ' · Điểm ' + offer.fate.score + '</small><button class="guild-action danger" data-black-market-fate="' + escapeHtml(offer.fate.id) + '">Đổi · ' + offer.lifespan + ' năm Thọ Nguyên</button></article>').join("") + '</div>';
   }
 
   // Khâm Thiên Giám dùng hai banner gacha độc lập, không hiển thị Mệnh Số để mua trực tiếp.
@@ -165,7 +235,7 @@ window.GameUI = (function () {
   }
 
   function renderCauldron(state) {
-    return '<div class="section-title">Hư Thiên Đỉnh</div><p class="muted">Chọn 3–9 vật phẩm không dùng để dung luyện. Kết quả được thêm thẳng vào Hành Trang hoặc Mệnh Kho và hiển thị lại sau khi luyện.</p><div class="cauldron-toolbar" data-cauldron-selection><b>Đã chọn: <span data-cauldron-count>0</span>/9</b><button class="guild-action" data-cauldron-auto>Chọn tự động</button><button class="guild-action" data-cauldron-clear>Bỏ chọn</button><button class="guild-action" data-cauldron-refine>Dung Luyện</button></div>' + (state.flags?.lastCauldronResult ? '<p class="reward-banner">Kết quả gần nhất: ' + escapeHtml(state.flags.lastCauldronResult) + '</p>' : '') + renderInventory(state, { selectable: true });
+    return '<div class="section-title">Hư Thiên Đỉnh</div><p class="muted">Chọn thủ công 3–9 đơn vị. <b>Chọn nhanh chỉ lấy vật liệu an toàn</b>; Linh Thạch, đan dược, vật đang trang bị và vật phẩm nhiệm vụ luôn bị bỏ qua. Không có thao tác nào tự tiêu hao cho tới khi bấm Dung Luyện và xác nhận.</p><div class="cauldron-toolbar" data-cauldron-selection><b>Tổng đơn vị: <span data-cauldron-count>0</span>/9</b><span class="cauldron-summary" data-cauldron-summary>Chưa chọn nguyên liệu</span><button class="guild-action" data-cauldron-auto>Chọn nhanh vật liệu an toàn</button><button class="guild-action" data-cauldron-clear>Bỏ chọn</button><button class="guild-action" data-cauldron-refine disabled>Dung Luyện</button></div>' + (state.flags?.lastCauldronResult ? '<p class="reward-banner">Kết quả gần nhất: ' + escapeHtml(state.flags.lastCauldronResult) + '</p>' : '') + renderInventory(state, { selectable: true });
   }
 
   function bar(label, value, max, cls, help) {
@@ -206,6 +276,16 @@ window.GameUI = (function () {
     return '<span class="has-help" tabindex="0" data-help="' + escapeHtml(help) + '">' + label + '<i>?</i></span>';
   }
 
+  function breakthroughRequirementGuide(label) {
+    const text = String(label || "");
+    if (/Neo Nhân Tính/i.test(text)) return "Mở Nghi Thức Đột Phá, đến bước Dựng Neo và chọn một Neo Nhân Tính phù hợp. Giữ Neo nguyên vẹn rồi hoàn tất các bước nghi thức còn lại.";
+    if (/Mệnh|Tương hợp|Mệnh Số/i.test(text)) return "Mở Tử Vi Mệnh Số, trang bị hoặc đổi sang Mệnh Số tương hợp với Con Đường hiện tại và đạt điểm yêu cầu.";
+    if (/Công Pháp|Cốt Lõi/i.test(text)) return "Mở Công Pháp, học hoặc nâng Công Pháp Cốt Lõi đến đúng tầng engine yêu cầu.";
+    if (/Tu vi|Tu Vi|Kinh nghiệm/i.test(text)) return "Tu luyện, tìm kiếm hoặc chiến đấu để tăng Tu Vi đến mức hiển thị bên cạnh điều kiện.";
+    if (/Thanh Tỉnh|Tỉnh/i.test(text)) return "Nghỉ ngơi hoặc dùng vật phẩm hồi Thanh Tỉnh, sau đó quay lại nghi thức khi chỉ số đạt mức yêu cầu.";
+    return "Thực hiện hành động gắn với điều kiện này (tu luyện, trang bị hoặc nghi thức tương ứng) cho đến khi giá trị hiện tại đạt mục tiêu.";
+  }
+
   function renderBreakthrough(state) {
     const progress = window.GameEngine.breakthroughRequirements(state);
     if (!progress.next) return '<div class="realm-guide ready"><b>Đã đạt cảnh giới tối thượng</b></div>';
@@ -220,7 +300,7 @@ window.GameUI = (function () {
     const ritualGuide = ritual && Number(progress.current.level) > 1 ? '<div class="ritual-guide"><b>Nghi thức đột phá · tiến trình</b><ol>' + ritual.plan.map((step) => '<li class="ritual-step ' + (ritual.completed.includes(step) ? 'done' : (ritual.remaining[0] === step ? 'current' : '')) + '">' + escapeHtml(ritualNames[step] || step) + '</li>').join('') + '</ol>' + (activeGate ? '<p><b>Cổng đang active:</b> ' + escapeHtml(ritualNames[activeGate] || activeGate) + '<br>' + quickHint + '</p>' : '') + '<small>Thực hiện lần lượt hành động nghi thức trên thanh hành động.</small></div>' : '';
     return '<div class="realm-guide ' + (progress.ready ? "ready" : "") + '" title="' + escapeHtml(blockers.join("; ")) + '"><div class="realm-route"><b>' + escapeHtml(currentTitle) + '</b><span>→</span><b>' + escapeHtml(nextTitle) + '</b></div>' +
       '<p>Cách thăng cấp: ' + (Number(progress.current.level) === 1 ? 'tu luyện đủ 100 Tu vi rồi chọn <b>Đột Phá</b>, hoặc dùng Thông Mạch Đan/Tụ Khí Đan/Hoán Huyết Đan để khai lộ sớm.' : 'hoàn thành mọi điều kiện bên dưới, sau đó chọn <b>Đột Phá</b>.') + '</p><div class="requirement-grid">' +
-      progress.requirements.map((item) => '<div class="requirement ' + (item.met ? "met" : "missing") + '"><span>' + (item.met ? "✓" : "○") + ' ' + helpLabel(escapeHtml(item.label), "Điều kiện bắt buộc do engine cảnh giới kiểm tra trước khi cho phép Đột Phá.") + '</span><b>' + escapeHtml(item.current) + ' / ' + escapeHtml(item.target) + '</b>' + ((/Mệnh|Tương hợp|Mệnh dẫn|Mệnh hiệu/i.test(item.label) && !item.met) ? '<button class="help-button" data-fate-suggest="' + escapeHtml(item.label) + '">?</button>' : '') + '</div>').join("") +
+      progress.requirements.map((item) => { const guide = breakthroughRequirementGuide(item.label); return '<div class="requirement ' + (item.met ? "met" : "missing") + '"><span>' + (item.met ? "✓" : "○") + ' ' + helpLabel(escapeHtml(item.label), guide) + '</span><b>' + escapeHtml(item.current) + ' / ' + escapeHtml(item.target) + '</b>' + ((!item.met) ? '<button class="help-button" data-breakthrough-help="' + escapeHtml(item.label) + '" data-breakthrough-guide="' + escapeHtml(guide) + '" data-breakthrough-current="' + escapeHtml(item.current) + '" data-breakthrough-target="' + escapeHtml(item.target) + '" title="Xem cách hoàn thành điều kiện">?</button>' : '') + '</div>'; }).join("") +
       '</div>' + ritualGuide + '</div>';
   }
 
@@ -277,7 +357,7 @@ window.GameUI = (function () {
       '<div class="kv root-row">' + helpLabel("Linh căn", "Mỗi Linh căn là một thuộc tính hấp thu linh khí độc lập; phẩm chất và số lượng quyết định tốc độ cùng độ tinh thuần khi tu luyện.") + '<b>' + (roots.length ? escapeHtml(roots.join(" · ")) : "Chưa rõ") + (rootGrade ? ' <span class="root-grade">' + escapeHtml(rootGrade) + '</span>' : '') + '</b></div>' +
       (rootProfile.cachCucName ? '<div class="kv root-row root-cach-cuc root-cach-cuc--' + escapeHtml(rootProfile.cachCucAlignment || "trung") + '">' + helpLabel("Cách cục Linh căn", "Cách cục được suy ra từ quan hệ Tương Sinh/Tương Khắc nội tại giữa các nguyên tố trong bộ linh căn.") + '<b>' + escapeHtml(rootProfile.cachCucName) + '</b></div>' : '') +
       '<div class="kv">' + helpLabel("Tính cách", "Khuynh hướng hành xử bẩm sinh, được dùng trong đối thoại, lựa chọn và một số kiểm tra ẩn.") + '<b>' + ((p.personalityTraits || []).join(" · ") || "Chưa rõ") + "</b></div>" +
-      '<div class="kv">' + helpLabel("Xuất thân", "Thân phận xã hội khởi đầu hoặc hiện tại; ảnh hưởng cách NPC và thế lực đối đãi.") + '<b>' + (p.background || "Vô Danh") + "</b></div>" +
+      '<div class="kv">' + helpLabel("Xuất thân", "Thân phận khởi đầu được khóa vĩnh viễn; passive và trait tiếp tục ảnh hưởng suốt hành trình.") + '<b>' + escapeHtml(p.origin ? p.origin.name + " · " + p.origin.specializationName : (p.background || "Vô Danh")) + "</b></div>" +
       '<div class="kv">' + helpLabel("Mục tiêu ẩn", "Chấp niệm sâu nhất của nhân vật, có thể mở khóa lựa chọn và kết cục riêng.") + '<b>' + (p.hiddenGoal || "Trường sinh") + "</b></div>" +
       '<div class="kv">' + helpLabel("Công pháp chủ tu", "Pháp môn đang định hình cách vận hành linh khí; chi tiết và cấp thông thạo nằm trong modal Công Pháp.") + '<b>' + (p.cultivationMethod || "Dẫn Khí Nhập Môn") + "</b></div>" +
       '<div class="kv">' + helpLabel("Thể phách", "Sức mạnh thân thể; tăng sát thương vật lý, khí huyết tối đa và thể lực.") + '<b>' + s.phy + "</b></div>" +
@@ -306,7 +386,14 @@ window.GameUI = (function () {
         const it = window.GameData.ITEMS[id];
         const equipped = window.GameEngine.equippedItemIds(state.player.equipment).includes(id);
         const actionId = equipped ? "unequip" : "equip";
-        return '<div class="equip-pick-row"><div><b>' + escapeHtml(it.name) + '</b><small>' + escapeHtml(it.desc || "Không rõ lai lịch.") + (equipped ? ' · Đang trang bị' : '') + '</small></div><button class="item-action" data-equip-pick="' + id + '" data-equip-action="' + actionId + '">' + (equipped ? "Tháo" : "Trang Bị") + '</button></div>';
+        const eligibility = window.GameEngine.equipmentEligibility(state, id, slot);
+        let controls = '';
+        if (equipped) controls = '<button class="item-action" data-equip-pick="' + id + '" data-equip-action="unequip">Tháo</button>';
+        else if ((category === "artifact" || category === "personal") && !eligibility.eligible && eligibility.reason.includes("đã đủ")) {
+          const max = category === "artifact" ? 2 : 3;
+          controls = Array.from({ length: max }, (_, index) => '<button class="item-action" data-equip-pick="' + id + '" data-equip-action="equip" data-equip-target-slot="' + index + '">Thay ô ' + (index + 1) + '</button>').join('');
+        } else controls = '<button class="item-action" data-equip-pick="' + id + '" data-equip-action="' + actionId + '" data-equip-target-slot="' + escapeHtml(eligibility.targetSlot ?? slot ?? '') + '"' + (!eligibility.eligible ? ' disabled' : '') + '>' + (eligibility.occupiedBy ? "Thay thế" : "Trang Bị") + '</button>';
+        return '<div class="equip-pick-row"><div><b>' + escapeHtml(it.name) + '</b><small>' + escapeHtml(it.desc || "Không rõ lai lịch.") + (equipped ? ' · Đang trang bị' : '') + '</small>' + (Object.keys(eligibility.statDelta || {}).length ? '<div class="stat-tags">' + renderEffects(eligibility.statDelta) + '</div>' : '') + (!eligibility.eligible && !equipped ? '<small class="inline-blocker">' + escapeHtml(eligibility.reason) + '</small>' : '') + '</div><div class="equip-pick-actions">' + controls + '</div></div>';
       }).join("")
       : '<p class="muted">Chưa có vật phẩm nào phù hợp với loại trang bị này.</p>';
     openOverlay("Chọn Vật Phẩm Trang Bị", '<div class="equip-picker">' + rows + '</div>');
@@ -327,7 +414,11 @@ window.GameUI = (function () {
       ).join(" ");
       const categoryLabel = window.GameEngine.equipmentCategoryLabel(it);
       const itemEffects = Object.fromEntries(["phy", "mag", "sanResist", "phyDef", "heal", "exp", "san"].filter((key) => it[key] != null).map((key) => [key, it[key]]));
-      return '<div class="item-row inspectable" title="' + escapeHtml(it.desc || "Không rõ lai lịch.") + '"><b>' + (options.selectable ? '<input type="checkbox" data-cauldron-item="' + escapeHtml(id) + '"> ' : '') + it.name + '</b> ×' + state.inventory[id] + '<br><small>' +
+      const freeQty = window.GameEngine.freeItemQuantity(state, id);
+      const safety = options.selectable && window.GameEngine.cauldronItemSafety ? window.GameEngine.cauldronItemSafety(state, id) : { selectable: true, quickSafe: false };
+      const safeForQuick = Boolean(safety.quickSafe);
+      const selector = options.selectable && safety.selectable && freeQty > 0 ? '<label class="cauldron-quantity' + (safeForQuick ? ' quick-safe' : ' protected') + '">Chọn thủ công <input type="number" min="0" max="' + Math.min(9, freeQty) + '" value="0" data-cauldron-item="' + escapeHtml(id) + '" data-cauldron-name="' + escapeHtml(it.name) + '" data-cauldron-safe="' + (safeForQuick ? 'true' : 'false') + '"> / ' + freeQty + '</label>' : '';
+      return '<div class="item-row inspectable" title="' + escapeHtml(it.desc || "Không rõ lai lịch.") + '"><b>' + it.name + '</b> ×' + state.inventory[id] + selector + '<br><small>' +
         categoryLabel + equipped + generated + cursed + '<br>' + (it.desc || "Không rõ lai lịch.") + '</small><div class="stat-tags">' + renderEffects(itemEffects) + '</div><div class="item-actions">' + actions + '</div></div>';
     }).join("");
   }
@@ -496,15 +587,15 @@ window.GameUI = (function () {
     });
     const visited = new Set(state.visitedLocations || [state.locationId]);
     const current = data.LOCATIONS[state.locationId];
-    const exits = current?.exits || {};
+    const exits = window.GameEngine.locationExits(state);
     const directionByTarget = {};
-    Object.entries(exits).forEach(([direction, target]) => { directionByTarget[target] = direction; });
+    Object.entries(exits).forEach(([direction, target]) => { if (target) directionByTarget[target] = direction; });
 
     const edges = [];
     const edgeKeys = new Set();
     const visibleIds = new Set([...visited, state.locationId, ...Object.values(exits).filter(Boolean)]);
-    Object.entries(data.LOCATIONS).forEach(([from, location]) => {
-      Object.values(location.exits || {}).forEach((to) => {
+    Object.entries(data.LOCATIONS).forEach(([from]) => {
+      Object.values(window.GameEngine.locationExits(state, from)).forEach((to) => {
         if (!points[from] || !points[to] || (!visibleIds.has(from) && !visibleIds.has(to))) return;
         const key = [from, to].sort().join("|");
         if (!edgeKeys.has(key)) {
@@ -541,9 +632,17 @@ window.GameUI = (function () {
     }).join("");
 
     const currentPoint = points[state.locationId];
+    const unexploredOffsets = { bac: [0, -12], nam: [0, 12], dong: [12, 0], tay: [-12, 0] };
+    const directionLabels = { bac: "Bắc", nam: "Nam", dong: "Đông", tay: "Tây" };
+    const unexploredNodes = currentPoint ? Object.entries(unexploredOffsets).map(([direction, offset]) => {
+      if (exits[direction]) return "";
+      const x = Math.max(4, Math.min(96, currentPoint.x + offset[0]));
+      const y = Math.max(4, Math.min(96, currentPoint.y + offset[1]));
+      return '<button class="map-node reachable unknown-exit" style="left:' + x + '%;top:' + y + '%" data-map-dir="' + direction + '" title="Mở đường về hướng ' + directionLabels[direction] + '">Chưa khám phá · ' + directionLabels[direction] + '</button>';
+    }).join("") : "";
     const region = map.regions.find((item) => item.id === currentPoint?.region);
     return '<div class="map-heading"><b>' + map.name + '</b><small>' + (region ? region.name + " — " + region.desc : "") + '</small></div>' +
-      '<div class="world-map"><svg viewBox="0 0 100 100" preserveAspectRatio="none">' + lines + '</svg>' + nodes + '</div>' +
+      '<div class="world-map"><svg viewBox="0 0 100 100" preserveAspectRatio="none">' + lines + '</svg>' + nodes + unexploredNodes + '</div>' +
       '<p class="map-legend"><span class="dot current"></span> Hiện tại <span class="dot reachable"></span> Có thể đi <span class="dot visited"></span> Đã khám phá</p>';
   }
 
@@ -557,19 +656,25 @@ window.GameUI = (function () {
       if (!fate) return "";
       const sign = fate.sign === "cat" ? "Cát" : fate.sign === "hung" ? "Hung" : "Bình";
       const compatibility = p.pathId ? window.GameEngine.fateCompatibility(p.pathId, fate) : null;
+      const enhancement = window.GameEngine.fateEnhancementLevel(p, id);
+      const effectiveScore = Number(fate.score || 0) + enhancement * 2;
+      const activeSlots = Number((window.GameData.REALMS || []).find((r) => r.id === p.realmId)?.activeSlots || (p.fates || []).length);
+      const activeFull = (p.fates || []).filter(Boolean).length >= activeSlots;
       const narrative = fateNarrative(fate);
-      const actions = '<div class="fate-actions">' + (inVault ? '<button class="guild-action" data-fate-equip="' + escapeHtml(id) + '">Trang bị</button>' : '') + '<button class="guild-action" data-fate-upgrade-target="' + escapeHtml(id) + '">Nâng cấp</button>' + (inVault ? '<label class="fate-select"><input type="checkbox" data-fate-merge="' + escapeHtml(id) + '"> Chọn dung hợp</label>' : '') + '</div>';
-      return '<article class="fate-card ' + (fate.sign || "binh") + ' grade-' + escapeHtml(fate.grade || "phan") + '" title="' + escapeHtml(narrative) + '"><div><b>' + escapeHtml(fate.name) + '</b><small><span class="fate-grade-badge">' + escapeHtml(fate.gradeLabel || fate.grade || "") + '</span> · ' + sign + ' · ' + helpLabel("Mệnh Điểm", "Giá trị gốc đóng góp vào Tổng Mệnh; Hung Mệnh có thể mang điểm âm.") + ' ' + fate.score + (compatibility == null ? "" : ' · ' + helpLabel("Tương hợp", "Mức phù hợp giữa Mệnh Số này và Con Đường đang chọn.") + ' ' + compatibility) + '</small></div><p>' + escapeHtml(narrative) + '</p><div class="stat-tags">' + renderEffects(fate.effects) + '</div>' + (inVault ? '<span class="vault-mark">Trong Mệnh Kho</span>' : '') + actions + '</article>';
+      const equipLabel = activeFull ? "Thay thế…" : "Trang bị";
+      const relationship = window.GameEngine.fateRelationshipStatus(p, id);
+      const actions = '<div class="fate-actions">' + (inVault ? '<button class="guild-action" data-fate-equip="' + escapeHtml(id) + '">' + equipLabel + '</button>' : '<button class="guild-action" data-fate-unequip="' + escapeHtml(id) + '">Tháo xuống Mệnh Kho</button><button class="guild-action" data-fate-nurture="' + escapeHtml(id) + '">Dưỡng Mệnh</button><button class="guild-action" data-fate-resonate="' + escapeHtml(id) + '"' + (relationship.stage !== 2 ? ' disabled title="Cần đạt Tương Ứng trước"' : '') + '>Cộng Minh</button>') + '<button class="guild-action" data-fate-upgrade-target="' + escapeHtml(id) + '"' + (enhancement >= 5 ? ' disabled title="Đã đạt tối đa +5"' : '') + '>Nâng cấp</button>' + (inVault ? '<label class="fate-select"><input type="checkbox" data-fate-merge="' + escapeHtml(id) + '"> Chọn dung hợp</label>' : '') + '</div>';
+      return '<article class="fate-card ' + (fate.sign || "binh") + ' grade-' + escapeHtml(fate.grade || "phan") + '" title="' + escapeHtml(narrative) + '"><div><b>' + escapeHtml(fate.name) + (enhancement ? ' <span class="fate-enhancement">+' + enhancement + '</span>' : '') + '</b><small><span class="fate-grade-badge">' + escapeHtml(fate.gradeLabel || fate.grade || "") + '</span> · ' + sign + ' · Quan hệ: ' + escapeHtml(relationship.label) + ' · ' + helpLabel("Mệnh Điểm", "Giá trị đang đóng góp vào Tổng Mệnh, đã gồm Cường Hóa.") + ' ' + effectiveScore + (compatibility == null ? "" : ' · ' + helpLabel("Tương hợp", "Điểm tư vấn build; không phải điều kiện khóa trang bị.") + ' ' + compatibility + '/10') + '</small></div><p>' + escapeHtml(narrative) + '</p><div class="stat-tags">' + renderEffects(window.GameEngine.enhancedFateEffects(p, fate)) + '</div>' + (inVault ? '<span class="vault-mark">Mệnh Kho · Không kích hoạt · Không cộng chỉ số</span>' : '<span class="vault-mark active-mark">Đang kích hoạt</span>') + actions + '</article>';
     };
     const relations = relation.activePairs.map((pair) => '<div class="relation-edge ' + (pair.type === "TUONG_SINH" ? "positive" : "negative") + '"><b>' + (pair.type === "TUONG_SINH" ? "↔ Tương Sinh" : "⚡ Tương Khắc") + '</b><span>' + escapeHtml(pair.label || (pair.from + " ↔ " + pair.to)) + '</span></div>').join("") +
       relation.activeCombos.map((combo) => '<div class="relation-edge combo"><b>★ ' + escapeHtml(combo.name) + '</b><span>' + escapeHtml(combo.effect || "Combo Mệnh Số") + '</span></div>').join("");
-    const ownedText = vault.ownedCount + " Mệnh Số sở hữu · " + vault.activeCount + " đang kích hoạt";
+    const ownedText = "Sở hữu " + vault.ownedCount + " · Đang kích hoạt " + vault.activeCount + " · Trong Mệnh Kho " + vault.used + "/" + vault.capacity;
     const slotCount = Number((window.GameData.REALMS || []).find((r) => r.id === p.realmId)?.activeSlots || (p.fates || []).length);
     const paperSlots = Array.from({ length: Math.max(slotCount, (p.fates || []).length) }, (_, index) => { const id = (p.fates || [])[index]; const fate = window.GameData.FATE_PATTERNS.find((f) => f.id === id); return '<button class="fate-anchor' + (fate ? '' : ' empty') + '" data-fate-slot="' + index + '" title="' + escapeHtml(fate ? fate.name : "Ấn ký trống — chọn Mệnh Số từ Mệnh Kho") + '">' + escapeHtml(fate ? fate.name : "Trống · gắn từ Mệnh Kho") + '</button>'; }).join("");
     return '<img class="modal-illustration" src="assets/ui/fate-illustration.webp" alt="Tinh bàn Mệnh Số">' +
-      '<p class="muted fate-owned-count">' + escapeHtml(ownedText) + '</p><div class="fate-view-toggle"><button class="chip" data-fate-view="body">Xem dạng cơ thể</button><button class="chip" data-fate-view="grid">Xem dạng lưới</button></div><div class="fate-paperdoll"><img src="assets/ui/fate-paperdoll.png" alt="Cơ thể Ấn ký Mệnh Số"><div class="fate-anchor-list">' + paperSlots + '</div></div>' +
+      '<p class="muted fate-owned-count">' + escapeHtml(ownedText) + '</p>' + (state.flags?.lastFateUpgrade ? '<p class="reward-banner fate-upgrade-result">' + escapeHtml(state.flags.lastFateUpgrade) + '</p>' : '') + (state.pendingFateReward ? '<div class="pending-fate-banner"><b>Mệnh Số đang chờ nhận' + ((state.pendingFateRewards || []).length ? ' · còn ' + (state.pendingFateRewards.length + 1) + ' phần thưởng' : '') + '</b><span>' + escapeHtml((window.GameData.FATE_PATTERNS.find((f) => f.id === state.pendingFateReward.fateId)?.name || state.pendingFateReward.fateId) + ' · ' + state.pendingFateReward.source) + '</span><button class="guild-action" data-pending-fate-resolve>Chọn Mệnh trong kho để thay</button><button class="guild-action" data-pending-fate-dismiss>Từ chối</button></div>' : '') + '<div class="fate-view-toggle"><button class="chip" data-fate-view="body">Xem dạng cơ thể</button><button class="chip" data-fate-view="grid">Xem dạng lưới</button></div><div class="fate-paperdoll"><img src="assets/ui/fate-paperdoll.png" alt="Cơ thể Ấn ký Mệnh Số"><div class="fate-anchor-list">' + paperSlots + '</div></div>' +
       '<div class="detail-summary"><b>' + helpLabel("Tổng Mệnh", "Tổng điểm nguyên bản của mọi Mệnh Số đang kích hoạt, gồm cả Cát, Bình và Hung.") + ' ' + total.total + '</b><span>' + helpLabel("Thuận Mệnh", "Tổng điểm Cát và Bình trước khi chịu ảnh hưởng của Hung Mệnh.") + ' ' + total.normal + '</span><span>' + helpLabel("Hiệu Mệnh", "Điểm Mệnh thực sự được engine dùng sau khi tính Hung Mệnh, Mệnh Trái, Mệnh Dư và khế ước.") + ' ' + total.effective + '</span><span>' + helpLabel("Mệnh Hòa Tỷ", "Tỷ số Tổng Mệnh trên trị tuyệt đối Thuận Mệnh. 1,00 là ổn định; thấp hơn 1 cho thấy Hung Mệnh đang bào mòn, số âm báo hiệu phản phệ nghiêm trọng.") + ' ' + total.ratio.toFixed(2) + '</span></div>' +
-      '<div class="detail-block"><h4>Cách tăng Mệnh</h4><p>Thu nhận Mệnh Số qua cơ duyên, nhiệm vụ và chiến lợi phẩm; ưu tiên Mệnh có điểm tương hợp cao với Con Đường. Tương Sinh/Combo tăng sức mạnh, còn Tương Khắc có thể làm giảm chỉ số và hao Tỉnh Táo. Mệnh Số không dùng EXP riêng.</p></div>' +
+      '<div class="detail-block"><h4>Nguồn thu nhận</h4><p>Chọn Con Đường bảo đảm Mệnh tương hợp đầu tiên. Đột Phá từ Cấp 3 có 50% cơ hội và bảo đảm ở lần kế nếu hụt; ngoài ra còn có quest, boss/tinh anh, Search/Discovery Chain, manh mối bản đồ, Phường Thị, Khâm Thiên Giám và Hư Thiên Đỉnh.</p><p class="fate-pity">Thiên Cơ Đột Phá: <b>' + (Number(state.flags?.fatePityMisses || 0) ? '1/2 · lần kế bảo đảm' : '0/2') + '</b></p></div>' +
       '<div class="detail-columns" hidden><section><h3>Mệnh đang kích hoạt</h3>' + (p.fates || []).map((id) => fateCard(id, false)).join("") + '</section><section><h3>Mệnh Kho · ' + vault.used + '/' + vault.capacity + '</h3><p class="muted">Chọn Trang bị để đưa Mệnh vào Ấn ký đầu tiên còn trống. Chọn 2–9 ô để dung hợp; cùng phẩm trật sẽ tăng cơ hội thăng cấp.</p>' + (vault.ids.length ? vault.ids.map((id) => fateCard(id, true)).join("") : '<p class="empty-state">Mệnh Kho đang trống.</p>') + '<button class="guild-action" data-fate-merge-submit>Dung hợp các Mệnh đã chọn</button></section></div>' +
       '<div class="detail-block"><h4>Quan hệ đang kích hoạt</h4><div class="relation-list">' + (relations || '<p class="empty-state">Chưa có Tương Sinh, Tương Khắc hoặc Combo được kích hoạt.</p>') + '</div></div>';
   }
@@ -640,6 +745,62 @@ window.GameUI = (function () {
     return '<div class="detail-block"><h3>Ấn ký vị trí ' + (Number(activeIndex) + 1) + '</h3><p>Hiện tại: <b>' + escapeHtml(active?.name || "Trống") + '</b></p><p class="muted">Chọn một Mệnh Số trong Mệnh Kho để hoán đổi.</p><div class="fate-swap-list">' + (vault.ids.map((id) => { const fate = window.GameData.FATE_PATTERNS.find((f) => f.id === id); return '<button class="chip" data-fate-swap-active="' + activeIndex + '" data-fate-vault-id="' + escapeHtml(id) + '">' + escapeHtml(fate?.name || id) + '</button>'; }).join("") || '<span class="muted">Mệnh Kho đang trống.</span>') + '</div></div>';
   }
 
+  function fateDeltaRows(preview) {
+    if (!preview) return "";
+    const rows = [
+      ["Tổng Mệnh", preview.beforeFate?.total, preview.afterFate?.total],
+      ["Hiệu Mệnh", preview.beforeFate?.effective, preview.afterFate?.effective],
+      ["Tương hợp", preview.beforeMatch?.score, preview.afterMatch?.score],
+      ["Thể phách", preview.beforeStats?.phy, preview.afterStats?.phy],
+      ["Linh lực", preview.beforeStats?.mag, preview.afterStats?.mag]
+    ];
+    return '<div class="fate-delta-grid">' + rows.map(([label, before, after]) => '<div><span>' + label + '</span><b>' + before + ' → ' + after + '</b></div>').join("") + '</div>';
+  }
+
+  function renderFateReplacementChooser(state, vaultId) {
+    const incoming = window.GameData.FATE_PATTERNS.find((f) => f.id === vaultId);
+    const rows = (state.player.fates || []).map((id, index) => {
+      const current = window.GameData.FATE_PATTERNS.find((f) => f.id === id);
+      const preview = window.GameEngine.fateSwapPreview(state, index, vaultId);
+      return '<article class="fate-replace-row"><header><b>' + escapeHtml(current?.name || "Ấn ký trống") + '</b><span>→ ' + escapeHtml(incoming?.name || vaultId) + '</span></header>' + fateDeltaRows(preview) + '<button class="guild-action" data-fate-swap-active="' + index + '" data-fate-vault-id="' + escapeHtml(vaultId) + '">Thay Ấn ký ' + (index + 1) + '</button></article>';
+    }).join("");
+    return '<div class="ritual-shell"><p class="muted">Tất cả Ấn ký đã đầy. Chọn Mệnh đang kích hoạt để đưa xuống kho; thay đổi chỉ được commit sau cú bấm bên dưới.</p>' + rows + '</div>';
+  }
+
+  function renderFateUpgradeChooser(state, targetId) {
+    const target = window.GameData.FATE_PATTERNS.find((f) => f.id === targetId);
+    const materials = (state.fateInventory || []).filter((id) => id !== targetId && window.GameData.FATE_PATTERNS.find((f) => f.id === id)?.grade === target?.grade);
+    const base = window.GameEngine.fateUpgradePreview(state, targetId);
+    if (base.capped) return '<div class="detail-block"><h3>' + escapeHtml(target?.name || targetId) + ' · +5</h3><p>Đã đạt Cường Hóa tối đa.</p></div>';
+    const rows = materials.map((id) => {
+      const material = window.GameData.FATE_PATTERNS.find((f) => f.id === id);
+      const preview = window.GameEngine.fateUpgradePreview(state, targetId, id);
+      return '<article class="fate-replace-row"><header><b>Tiêu hao: ' + escapeHtml(material?.name || id) + '</b><span>Cường Hóa +' + preview.level + ' → +' + preview.afterLevel + '</span></header><div class="fate-delta-grid"><div><span>Mệnh Điểm</span><b>' + preview.beforeScore + ' → ' + preview.afterScore + '</b></div><div><span>Modifier dương</span><b>+' + (preview.level * 5) + '% → +' + (preview.afterLevel * 5) + '%</b></div></div><button class="guild-action" data-fate-upgrade-confirm="' + escapeHtml(targetId) + '" data-fate-upgrade-material="' + escapeHtml(id) + '">Nâng cấp bằng Mệnh này</button></article>';
+    }).join("");
+    return '<div class="ritual-shell"><h3>' + escapeHtml(target?.name || targetId) + ' · Cường Hóa +' + base.level + '</h3><p class="muted">Chọn một Mệnh cùng phẩm trong Mệnh Kho. Nguyên liệu sẽ bị tiêu hao vĩnh viễn.</p>' + (rows || '<p class="empty-state">Thiếu nguyên liệu cùng phẩm ' + escapeHtml(target?.gradeLabel || target?.grade || "") + ' trong Mệnh Kho.</p>') + '</div>';
+  }
+
+  function renderPendingFateChooser(state) {
+    const pending = state.pendingFateReward;
+    const incoming = window.GameData.FATE_PATTERNS.find((f) => f.id === pending?.fateId);
+    const rows = (state.fateInventory || []).map((id) => { const fate = window.GameData.FATE_PATTERNS.find((f) => f.id === id); return '<button class="fate-vault-replace-button" data-pending-fate-replace="' + escapeHtml(id) + '"><b>' + escapeHtml(fate?.name || id) + '</b><span>Tương hợp ' + window.GameEngine.fateCompatibility(state.player.pathId, fate) + '</span></button>'; }).join("");
+    return '<div class="ritual-shell"><h3>Nhận ' + escapeHtml(incoming?.name || pending?.fateId || "Mệnh Số") + '</h3><p>Chọn một Mệnh trong kho để thay. Mệnh bị thay sẽ mất vĩnh viễn.</p><div class="fate-vault-replace-list">' + rows + '</div></div>';
+  }
+
+  function renderRitualModal(state, gate, action) {
+    const status = window.GameEngine.breakthroughRitualStatus(state);
+    const progress = window.GameEngine.breakthroughRequirements(state);
+    const labels = { call_fate: "Gọi Mệnh", compare: "Đối Chiếu Con Đường", anchor: "Dựng Neo", omen: "Vượt Dị Tượng", cost: "Trả Giá", trial: "Thử Thách Cuối" };
+    const descriptions = { call_fate: "Kết nối Mệnh đang kích hoạt với cảnh giới kế tiếp.", compare: "Đối chiếu Mệnh Số và Công Pháp với Con Đường đã chọn.", anchor: "Xác lập Neo Nhân Tính để giữ tâm trí ổn định.", omen: "Đối diện Dị Tượng bằng Căn Cốt và Ngộ Tính.", cost: "Thanh toán cái giá cuối của nghi thức.", trial: "Chứng minh tư cách bước ra ngoài giới hạn hiện tại." };
+    const steps = status.plan.map((step) => '<div class="ritual-step ' + (status.completed.includes(step) ? 'done' : step === gate ? 'current' : '') + '"><span>' + (status.completed.includes(step) ? '✓' : status.plan.indexOf(step) + 1) + '</span><b>' + labels[step] + '</b></div>').join("");
+    const gateChecks = window.GameEngine.breakthroughRitualGateRequirements(state, gate);
+    const checks = (gateChecks.length ? gateChecks : (progress.requirements || []).filter((item) => item.label !== "Nghi thức đột phá")).map((item) => '<li class="' + (item.met ? 'met' : 'missing') + '"><span>' + (item.met ? '✓' : '!') + '</span><b>' + escapeHtml(item.label) + '</b><em>' + escapeHtml(String(item.current)) + ' / ' + escapeHtml(String(item.target)) + '</em></li>').join("");
+    const blocked = Boolean(action?.disabled_reason);
+    const shortcuts = blocked ? '<div class="ritual-shortcuts"><button class="guild-action" data-ritual-open="fate">Mở Tử Vi Mệnh Số</button><button class="guild-action" data-ritual-open="technique">Mở Công Pháp</button></div>' : '';
+    const risk = gate === "omen" ? "Bước có xác suất; thất bại có thể mất 3 Thanh Tĩnh." : gate === "cost" ? "Tiêu hao 5 Thanh Tĩnh, không hoàn lại." : "Đối chiếu xác định, không roll ngẫu nhiên.";
+    return '<div class="ritual-shell"><header class="ritual-heading"><small>NGHI THỨC ĐỘT PHÁ</small><h3>' + escapeHtml(window.GameEngine.pathTitle(state)) + ' → ' + escapeHtml(status.next?.name || "Cảnh giới kế") + '</h3></header><div class="ritual-stepper">' + steps + '</div><section class="ritual-current"><span>BƯỚC HIỆN TẠI</span><h3>' + labels[gate] + '</h3><p>' + descriptions[gate] + '</p></section><ul class="ritual-checklist">' + checks + '</ul><div class="ritual-outcome"><div><b>Kết quả</b><span>Hoàn tất cổng và mở bước nghi thức tiếp theo.</span></div><div><b>Chi phí & rủi ro</b><span>' + risk + '</span></div></div>' + (blocked ? '<p class="ritual-blocker">Còn thiếu: ' + escapeHtml(action.disabled_reason) + '</p>' : '<p class="ritual-ready">✓ Toàn bộ điều kiện của bước này đã sẵn sàng.</p>') + shortcuts + '<button class="btn btn-primary ritual-confirm" data-ritual-confirm="' + gate + '"' + (blocked ? ' disabled' : '') + '>Hoàn tất ' + labels[gate] + '</button></div>';
+  }
+
   function renderRealmDetail(state) {
     const realms = window.GameData.REALMS || [];
     const currentLevel = window.GameEngine.cultivationTier(state);
@@ -674,28 +835,31 @@ window.GameUI = (function () {
     return true;
   }
 
-  function openOverlay(title, content) {
+  function openOverlay(title, content, options = {}) {
     const overlay = document.getElementById("overlay");
     const titleEl = document.getElementById("overlay-title");
     const contentEl = document.getElementById("overlay-content");
     if (!overlay || !titleEl || !contentEl) return;
     titleEl.textContent = title;
     contentEl.innerHTML = content;
+    overlay.classList.toggle("overlay-locked", Boolean(options.locked));
     overlay.classList.remove("hidden");
     overlay.setAttribute("aria-hidden", "false");
   }
 
-  function closeOverlay() {
+  function closeOverlay(force = false) {
     const overlay = document.getElementById("overlay");
     if (!overlay) return;
+    if (!force && overlay.classList.contains("overlay-locked")) return;
     overlay.classList.add("hidden");
+    overlay.classList.remove("overlay-locked");
     overlay.setAttribute("aria-hidden", "true");
   }
 
   function bindOverlay() {
     const close = document.getElementById("overlay-close");
     const overlay = document.getElementById("overlay");
-    if (close) close.addEventListener("click", closeOverlay);
+    if (close) close.addEventListener("click", () => closeOverlay());
     if (overlay) overlay.addEventListener("click", (e) => { if (e.target === overlay) closeOverlay(); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeOverlay(); });
   }
@@ -705,9 +869,9 @@ window.GameUI = (function () {
   }
 
   return {
-    showScreen, addStory, renderStoryWindow, clearStory, renderChoices, clearChoices, renderActions,
+    showScreen, addStory, renderStoryWindow, clearStory, renderChoices, clearChoices, actionPresentation, renderActions, renderOriginChoice,
     setLocation, setSaveIndicator, renderPanel, setMapView, setActiveTab,
-    renderFateDetail, renderFateSlotChooser, renderRewardSummary, renderTechniqueDetail, renderRealmDetail, renderMapDetail, renderMarket, renderQintian, renderInventoryModal,
+    renderFateDetail, renderFateSlotChooser, renderFateReplacementChooser, renderFateUpgradeChooser, renderPendingFateChooser, renderRitualModal, renderRewardSummary, renderTechniqueDetail, renderRealmDetail, renderMapDetail, renderMarket, renderBlackMarket, renderQintian, renderInventoryModal,
     openOverlay, closeOverlay, bindOverlay, escapeHtml, openEquipmentPicker
   };
 })();

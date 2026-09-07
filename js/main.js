@@ -72,8 +72,8 @@
         clock.lastRealTimestamp = now;
         if (elapsed > 0 && E.advanceGameTime) {
           const historyLength = state.history?.length || 0;
-          E.advanceGameTime(state, elapsed * Number(clock.realTimeToGameTimeRatio || 1 / 60));
-          if ((state.history?.length || 0) !== historyLength) renderStoryWindow();
+          E.advanceGameTime(state, elapsed * Number(clock.realTimeToGameTimeRatio || (1 / Number(E.GAME_TIME_CONFIG?.realSecondsPerGameDay || 120))));
+          if ((state.history?.length || 0) !== historyLength) { renderStoryWindow(); flushRewardSummaries(); saveGame(); }
           updateClockDisplay();
           updateAtmosphereClass();
         }
@@ -210,27 +210,41 @@
       $("free-input").value = commandHistory[commandHistoryCursor] || "";
     });
 
+    const updateCauldronSelectionUI = () => {
+      const inputs = [...document.querySelectorAll("[data-cauldron-item]")];
+      let remaining = 9;
+      inputs.forEach((input) => { const max = Math.min(Number(input.max || 9), remaining); input.value = Math.max(0, Math.min(max, Math.floor(Number(input.value || 0)))); remaining -= Number(input.value || 0); });
+      const selected = inputs.filter((input) => Number(input.value || 0) > 0);
+      const total = selected.reduce((sum, input) => sum + Number(input.value || 0), 0);
+      const label = document.querySelector("[data-cauldron-count]"); if (label) label.textContent = total;
+      const summary = document.querySelector("[data-cauldron-summary]"); if (summary) summary.textContent = selected.length ? selected.map((input) => input.dataset.cauldronName + " ×" + input.value).join(" · ") : "Chưa chọn nguyên liệu";
+      const submit = document.querySelector("[data-cauldron-refine]"); if (submit) submit.disabled = total < 3 || total > 9;
+    };
+    $("tab-content").addEventListener("input", (event) => { if (event.target.matches("[data-cauldron-item]")) updateCauldronSelectionUI(); });
     $("tab-content").addEventListener("click", (event) => {
       const autoCauldron = event.target.closest("[data-cauldron-auto]");
       if (autoCauldron && state) {
-        const equipped = new Set(E.equippedItemIds(state.player.equipment));
         const boxes = [...document.querySelectorAll("[data-cauldron-item]")];
-        boxes.forEach((box) => { box.checked = false; });
-        boxes.filter((box) => !equipped.has(box.dataset.cauldronItem)).slice(0, 9).forEach((box) => { box.checked = true; });
-        const label = document.querySelector("[data-cauldron-count]"); if (label) label.textContent = document.querySelectorAll("[data-cauldron-item]:checked").length;
+        boxes.forEach((box) => { box.value = 0; });
+        let remaining = 9;
+        boxes.forEach((box) => { if (remaining <= 0 || box.dataset.cauldronSafe !== "true") return; const qty = Math.min(remaining, Number(box.max || 0)); box.value = qty; remaining -= qty; });
+        updateCauldronSelectionUI();
         return;
       }
       const clearCauldron = event.target.closest("[data-cauldron-clear]");
-      if (clearCauldron) { document.querySelectorAll("[data-cauldron-item]").forEach((box) => { box.checked = false; }); const label = document.querySelector("[data-cauldron-count]"); if (label) label.textContent = "0"; return; }
-      if (event.target.matches("[data-cauldron-item]")) { const count = document.querySelectorAll("[data-cauldron-item]:checked").length; const label = document.querySelector("[data-cauldron-count]"); if (label) label.textContent = count; return; }
+      if (clearCauldron) { document.querySelectorAll("[data-cauldron-item]").forEach((box) => { box.value = 0; }); updateCauldronSelectionUI(); return; }
       const questTrack = event.target.closest("[data-quest-track]");
       if (questTrack && state) { if (E.trackQuest(state, questTrack.dataset.questTrack, true)) { saveGame(); UI.renderPanel(state); } return; }
       const questAbandon = event.target.closest("[data-quest-abandon]");
       if (questAbandon && state) { if (confirm("Từ bỏ nhiệm vụ này? Hậu quả sẽ được ghi vào lịch sử.")) { E.abandonQuest(state, questAbandon.dataset.questAbandon); saveGame(); UI.renderPanel(state); } return; }
       const fateEquip = event.target.closest("[data-fate-equip]");
-      if (fateEquip && state) { const result = E.equipFateFromVault(state, fateEquip.dataset.fateEquip); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
+      if (fateEquip && state) { const result = E.equipFateFromVault(state, fateEquip.dataset.fateEquip); if (result.requiresReplacement) UI.openOverlay("Thay thế Ấn Ký Mệnh Số", UI.renderFateReplacementChooser(state, fateEquip.dataset.fateEquip)); else if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
       const fateUpgrade = event.target.closest("[data-fate-upgrade-target]");
-      if (fateUpgrade && state) { const target = fateUpgrade.dataset.fateUpgradeTarget; const targetFate = D.FATE_PATTERNS.find((f) => f.id === target); const owned = [...(state.fateInventory || [])].find((id) => id !== target && D.FATE_PATTERNS.find((f) => f.id === id)?.grade === targetFate?.grade); const result = owned ? E.upgradeFate(state, target, owned) : { success: false, reason: "Cần một Mệnh Số cùng phẩm trật trong Mệnh Kho làm chất liệu." }; if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
+      if (fateUpgrade && state) { UI.openOverlay("Cường Hóa Mệnh Số", UI.renderFateUpgradeChooser(state, fateUpgrade.dataset.fateUpgradeTarget)); return; }
+      const fateNurture = event.target.closest("[data-fate-nurture]");
+      if (fateNurture && state) { const result = E.nurtureFate(state, fateNurture.dataset.fateNurture); if (!result.success) alert(result.reason || (result.blockers || []).join("\n")); else { saveGame(); UI.renderPanel(state); } return; }
+      const fateResonate = event.target.closest("[data-fate-resonate]");
+      if (fateResonate && state) { const result = E.resonateFate(state, fateResonate.dataset.fateResonate); if (!result.success) alert((result.blockers || [result.reason]).join("\n")); else { saveGame(); UI.renderPanel(state); } return; }
       const fateMerge = event.target.closest("[data-fate-merge-submit]");
       if (fateMerge && state) { const ids = [...document.querySelectorAll("[data-fate-merge]:checked")].map((el) => el.dataset.fateMerge); const result = E.mergeFates(state, ids); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
       const market = event.target.closest("[data-market-fate]");
@@ -241,10 +255,16 @@
       if (qintianMethod && state) { const result = E.sacrificeLifespanForFate(state, qintianMethod.dataset.qintianMethod); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
       const offer = event.target.closest("[data-market-offer]");
       if (offer && state) { const result = E.buyMarketOffer(state, offer.dataset.marketOffer); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
+      const blackMarketFate = event.target.closest("[data-black-market-fate]");
+      if (blackMarketFate && state) { const result = E.buyBlackMarketOffer(state, blackMarketFate.dataset.blackMarketFate); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Nghịch Thương Nhân", UI.renderBlackMarket(state)); } return; }
+      const meritFate = event.target.closest("[data-merit-fate]");
+      if (meritFate && state) { const result = E.buyFateWithMerit(state, meritFate.dataset.meritFate); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
       const refine = event.target.closest("[data-cauldron-refine]");
-      if (refine && state) { const ids = [...document.querySelectorAll("[data-cauldron-item]:checked")].map((el) => el.dataset.cauldronItem); const result = E.refineAtVoidCauldron(state, ids); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
+      if (refine && state) { const selection = [...document.querySelectorAll("[data-cauldron-item]")].map((el) => ({ itemId: el.dataset.cauldronItem, name: el.dataset.cauldronName, quantity: Number(el.value || 0) })).filter((entry) => entry.quantity > 0); if (!selection.length) { alert("Hãy chọn nguyên liệu thủ công trước."); return; } const total = selection.reduce((sum, entry) => sum + entry.quantity, 0); const summary = selection.map((entry) => entry.name + " ×" + entry.quantity).join("\n"); if (!confirm("Xác nhận tiêu hao " + total + " đơn vị sau?\n\n" + summary + "\n\nKhông thể hoàn tác sau khi dung luyện.")) return; const result = E.refineAtVoidCauldron(state, selection); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
       const suggest = event.target.closest("[data-fate-suggest]");
       if (suggest && state) { const rows = E.suggestFateForRealmRequirement(state, suggest.dataset.fateSuggest).map((f) => '<li><b>' + f.name + '</b> · ' + f.grade + ' · Hiệu quả +' + f.impact + '<br><small>' + f.source + '</small></li>').join(""); UI.openOverlay("Gợi ý Mệnh Số", '<p>Ưu tiên Mệnh tương hợp với Con Đường hiện tại:</p><ol>' + (rows || '<li>Chưa có Mệnh Số phù hợp.</li>') + '</ol>'); return; }
+      const breakthroughHelp = event.target.closest("[data-breakthrough-help]");
+      if (breakthroughHelp && state) { UI.openOverlay("Cách hoàn thành điều kiện", '<div class="detail-block"><h3>' + breakthroughHelp.dataset.breakthroughHelp + '</h3><p><b>Cần làm:</b> ' + breakthroughHelp.dataset.breakthroughGuide + '</p><p>Hiện tại: <b>' + breakthroughHelp.dataset.breakthroughCurrent + '</b> · Mục tiêu: <b>' + breakthroughHelp.dataset.breakthroughTarget + '</b></p></div>'); return; }
       const fateSlot = event.target.closest("[data-fate-slot]");
       if (fateSlot && state) { UI.openOverlay("Hoán đổi Ấn ký Mệnh Số", UI.renderFateSlotChooser(state, fateSlot.dataset.fateSlot)); return; }
       const equipRow = event.target.closest("[data-equip-category]");
@@ -255,7 +275,8 @@
       const itemAction = event.target.closest("[data-item-action]");
       if (itemAction && state) {
         enqueueAction(() => {
-          E.handleInventoryAction(state, itemAction.dataset.itemId, itemAction.dataset.itemAction);
+          const result = E.handleInventoryAction(state, itemAction.dataset.itemId, itemAction.dataset.itemAction);
+          if (result !== true) alert(typeof result === "string" ? result : "Không thể sử dụng vật phẩm này.");
           renderAfterTurn();
         });
         return;
@@ -292,26 +313,47 @@
       const target = event.target.closest("[data-map-dir]");
       if (!target || !state) return;
       enqueueAction(() => {
-        E.move(state, target.dataset.mapDir);
+        E.submitActionId(state, "act_move_" + target.dataset.mapDir);
         renderAfterTurn();
       });
     });
 
     $("overlay-content").addEventListener("click", (event) => {
+      const originConfirm = event.target.closest("[data-origin-confirm]");
+      if (originConfirm && state) {
+        const selected = document.querySelector('#overlay-content input[name="origin-specialization"]:checked')?.value || "";
+        const [type, specialization] = selected.split(":");
+        const result = E.chooseOrigin(state, type, specialization);
+        if (!result.success) { alert(result.reason); return; }
+        UI.closeOverlay(true);
+        saveGame();
+        renderAfterTurn();
+        return;
+      }
       const ritualConfirm = event.target.closest("[data-ritual-confirm]");
       if (ritualConfirm && state && !ritualConfirm.disabled) { const actionId = "act_ritual_" + ritualConfirm.dataset.ritualConfirm; UI.closeOverlay(); enqueueAction(() => { E.submitActionId(state, actionId); renderAfterTurn(); }); return; }
       const itemAction = event.target.closest("[data-item-action]");
       if (itemAction && state) {
-        const ok = E.handleInventoryAction(state, itemAction.dataset.itemId, itemAction.dataset.itemAction);
-        if (!ok) alert("Không thể sử dụng vật phẩm này.");
+        const result = E.handleInventoryAction(state, itemAction.dataset.itemId, itemAction.dataset.itemAction);
+        if (result !== true) { alert(typeof result === "string" ? result : "Không thể sử dụng vật phẩm này."); return; }
         saveGame();
         UI.openOverlay("Hành Trang", UI.renderInventoryModal(state));
         return;
       }
+      const blackMarketFate = event.target.closest("[data-black-market-fate]");
+      if (blackMarketFate && state) { const result = E.buyBlackMarketOffer(state, blackMarketFate.dataset.blackMarketFate); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Nghịch Thương Nhân", UI.renderBlackMarket(state)); } return; }
       const fateEquip = event.target.closest("[data-fate-equip]");
-      if (fateEquip && state) { const result = E.equipFateFromVault(state, fateEquip.dataset.fateEquip); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
+      if (fateEquip && state) { const result = E.equipFateFromVault(state, fateEquip.dataset.fateEquip); if (result.requiresReplacement) UI.openOverlay("Thay thế Ấn Ký Mệnh Số", UI.renderFateReplacementChooser(state, fateEquip.dataset.fateEquip)); else if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
+      const fateUnequip = event.target.closest("[data-fate-unequip]");
+      if (fateUnequip && state) { const index = (state.player.fates || []).indexOf(fateUnequip.dataset.fateUnequip); const result = E.storeFateToVault(state, index); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
       const fateUpgrade = event.target.closest("[data-fate-upgrade-target]");
-      if (fateUpgrade && state) { const target = fateUpgrade.dataset.fateUpgradeTarget; const targetFate = D.FATE_PATTERNS.find((f) => f.id === target); const owned = [...(state.fateInventory || [])].find((id) => id !== target && D.FATE_PATTERNS.find((f) => f.id === id)?.grade === targetFate?.grade); const result = owned ? E.upgradeFate(state, target, owned) : { success: false, reason: "Cần một Mệnh Số cùng phẩm trật trong Mệnh Kho làm chất liệu." }; if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
+      if (fateUpgrade && state) { UI.openOverlay("Cường Hóa Mệnh Số", UI.renderFateUpgradeChooser(state, fateUpgrade.dataset.fateUpgradeTarget)); return; }
+      const fateNurture = event.target.closest("[data-fate-nurture]");
+      if (fateNurture && state) { const result = E.nurtureFate(state, fateNurture.dataset.fateNurture); if (!result.success) alert(result.reason || (result.blockers || []).join("\n")); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
+      const fateResonate = event.target.closest("[data-fate-resonate]");
+      if (fateResonate && state) { const result = E.resonateFate(state, fateResonate.dataset.fateResonate); if (!result.success) alert((result.blockers || [result.reason]).join("\n")); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
+      const fateUpgradeConfirm = event.target.closest("[data-fate-upgrade-confirm]");
+      if (fateUpgradeConfirm && state) { const result = E.upgradeFate(state, fateUpgradeConfirm.dataset.fateUpgradeConfirm, fateUpgradeConfirm.dataset.fateUpgradeMaterial); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
       const fateMerge = event.target.closest("[data-fate-merge-submit]");
       if (fateMerge && state) { const ids = [...document.querySelectorAll("#overlay-content [data-fate-merge]:checked")].map((el) => el.dataset.fateMerge); const result = E.mergeFates(state, ids); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
       const endingAction = event.target.closest("[data-ending-action]");
@@ -333,16 +375,25 @@
       }
       const suggest = event.target.closest("[data-fate-suggest]");
       if (suggest && state) { const rows = E.suggestFateForRealmRequirement(state, suggest.dataset.fateSuggest).map((f) => '<li><b>' + f.name + '</b> · ' + f.grade + ' · Hiệu quả +' + f.impact + '<br><small>' + f.source + '</small></li>').join(""); UI.openOverlay("Gợi ý Mệnh Số", '<ol>' + (rows || '<li>Chưa có Mệnh Số phù hợp.</li>') + '</ol>'); return; }
+      const breakthroughHelp = event.target.closest("[data-breakthrough-help]");
+      if (breakthroughHelp && state) { UI.openOverlay("Cách hoàn thành điều kiện", '<div class="detail-block"><h3>' + breakthroughHelp.dataset.breakthroughHelp + '</h3><p><b>Cần làm:</b> ' + breakthroughHelp.dataset.breakthroughGuide + '</p><p>Hiện tại: <b>' + breakthroughHelp.dataset.breakthroughCurrent + '</b> · Mục tiêu: <b>' + breakthroughHelp.dataset.breakthroughTarget + '</b></p></div>'); return; }
       const swap = event.target.closest("[data-fate-swap-active]");
       if (swap && state) { const result = E.swapFateFromVault(state, swap.dataset.fateSwapActive, swap.dataset.fateVaultId); if (!result.success) alert(result.reason); else { UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); saveGame(); } return; }
+      const pendingResolve = event.target.closest("[data-pending-fate-resolve]");
+      if (pendingResolve && state) { if ((state.fateInventory || []).length < E.fateVaultCapacity(state)) { const result = E.resolvePendingFateReward(state); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } } else UI.openOverlay("Xử lý Mệnh Số chờ nhận", UI.renderPendingFateChooser(state)); return; }
+      const pendingReplace = event.target.closest("[data-pending-fate-replace]");
+      if (pendingReplace && state) { const result = E.resolvePendingFateReward(state, pendingReplace.dataset.pendingFateReplace); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
+      const pendingDismiss = event.target.closest("[data-pending-fate-dismiss]");
+      if (pendingDismiss && state) { if (confirm("Từ chối Mệnh Số đang chờ? Lựa chọn này không thể hoàn tác.")) { E.dismissPendingFateReward(state); saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
       const pick = event.target.closest("[data-equip-pick]");
       if (pick && state) {
-        E.handleInventoryAction(state, pick.dataset.equipPick, pick.dataset.equipAction);
-        UI.closeOverlay();
-        saveGame();
-        UI.renderPanel(state);
+        const result = pick.dataset.equipAction === "equip" ? E.equipItem(state, pick.dataset.equipPick, pick.dataset.equipTargetSlot || null) : E.handleInventoryAction(state, pick.dataset.equipPick, pick.dataset.equipAction);
+        if (result !== true) { alert(result || "Không thể thay đổi trang bị."); return; }
+        UI.closeOverlay(); saveGame(); UI.renderPanel(state);
         return;
       }
+      const ritualOpen = event.target.closest("[data-ritual-open]");
+      if (ritualOpen && state) { if (ritualOpen.dataset.ritualOpen === "fate") showFateOverlay(); else showTechniqueOverlay(); return; }
       const view = event.target.closest("[data-map-view]");
       if (view && state) {
         UI.setMapView(view.dataset.mapView, state);
@@ -352,7 +403,7 @@
       const target = event.target.closest("[data-map-dir]");
       if (target && state) {
         enqueueAction(() => {
-          E.move(state, target.dataset.mapDir);
+          E.submitActionId(state, "act_move_" + target.dataset.mapDir);
           UI.closeOverlay();
           renderAfterTurn();
         });
@@ -412,6 +463,8 @@
     renderActionButtons();
     updateClockDisplay();
     updateAtmosphereClass();
+    if (state.flags?.blackMarketOpen) { state.flags.blackMarketOpen = false; UI.openOverlay("Nghịch Thương Nhân", UI.renderBlackMarket(state)); }
+    if (state.flags?.originChoicePending && UI.renderOriginChoice) showOriginModal();
   }
 
   function renderStoryWindow() {
@@ -426,7 +479,7 @@
   function flushRewardSummaries() {
     if (!state || state.pendingEnding || !state.pendingRewardSummaries?.length) return;
     const summaries = state.pendingRewardSummaries.splice(0);
-    UI.openOverlay("Nhiệm vụ hoàn thành", UI.renderRewardSummary(summaries));
+    UI.openOverlay("Phần thưởng nhận được", UI.renderRewardSummary(summaries));
   }
 
   function renderFull() {
@@ -444,11 +497,12 @@
     updateClockDisplay();
     updateAtmosphereClass();
     flashSave("Đã tải bản lưu");
+    if (state.flags?.originChoicePending && UI.renderOriginChoice) showOriginModal();
   }
 
   function updateClockDisplay() {
     const el = $("game-clock");
-    if (el && state && E.clockLabel) el.textContent = E.clockLabel(state);
+    if (el && state && E.clockLabel) { el.textContent = E.clockLabel(state); el.title = "Thời gian trong thế giới tu tiên · 1 ngày game = " + Number(E.GAME_TIME_CONFIG?.realSecondsPerGameDay || 120) + " giây thực · 1 năm = " + (Number(E.GAME_TIME_CONFIG?.realSecondsPerGameDay || 120) * 360 / 3600).toFixed(1) + " giờ thực"; }
   }
   function updateAtmosphereClass() {
     const screen = $("screen-game");
@@ -467,7 +521,8 @@
     act_trang_thai: "status",
     act_hanh_trang: "inventory",
     act_nhiem_vu: "quests",
-    act_to_chuc: "guilds"
+    act_to_chuc: "guilds",
+    act_tim_tong_mon: "guilds"
   };
 
   function renderActionButtons() {
@@ -507,8 +562,7 @@
       }
       if (action.id.startsWith("act_ritual_")) {
         const gate = action.id.slice("act_ritual_".length);
-        const guides = { call_fate: "Game kiểm tra Tu Vi và Mệnh hiệu dụng với cảnh giới kế tiếp.", compare: "Game đối chiếu Mệnh Số và Công Pháp với Con Đường đã chọn.", anchor: "Hãy lấy một địa điểm, người hoặc vật làm Neo để giữ tâm trí không tan rã.", omen: "Đây là cổng duy nhất có roll thật; thất bại không mất Tu Vi nhưng có thể hao 3 Thanh Tỉnh.", cost: "Ngươi phải trả 5 Thanh Tỉnh, khoản này không hoàn lại.", trial: "Thử thách cuối yêu cầu đánh bại Tà Thần hoặc Ngoại Đạo Giả." };
-        UI.openOverlay("Hướng dẫn · " + (action.label || gate), '<p>' + guides[gate] + '</p><p class="muted">' + (action.disabled_reason || "Cổng đang sẵn sàng.") + '</p><button class="guild-action" data-ritual-confirm="' + gate + '"' + (action.disabled_reason ? ' disabled' : '') + '>Xác nhận bước này</button>');
+        UI.openOverlay("Nghi Thức Đột Phá", UI.renderRitualModal(state, gate, action));
         return;
       }
       enqueueAction(() => {
@@ -533,6 +587,11 @@
 
   function showRealmOverlay() {
     UI.openOverlay("Cảnh Giới", UI.renderRealmDetail(state));
+  }
+
+  function showOriginModal() {
+    if (!state?.flags?.originChoicePending) return;
+    UI.openOverlay("Chọn Xuất Thân", UI.renderOriginChoice(state), { locked: true });
   }
 
   function showInfoOverlay(type) {

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cổ Dị Diện — Tiên Hiệp Text RPG</title>
-  <link rel="stylesheet" href="styles.css?v=20260905-gameplay2" />
+  <link rel="stylesheet" href="styles.css?v=20260907-fateux" />
 </head>
 <body>
   <div id="app">
@@ -81,10 +81,12 @@
           <div id="story-log" class="story-log"></div>
           <div id="choice-list" class="choice-list"></div>
         </main>
+        <div class="action-panel-title">Hành động</div>
         <div id="action-list" class="action-list" aria-label="Hành động khả dụng"></div>
         <form id="free-form" class="free-form" autocomplete="off">
+          <label class="advanced-command-label" for="free-input">Lệnh nâng cao</label>
           <span class="prompt">&gt;</span>
-          <input id="free-input" list="command-suggestions" type="text" placeholder="Bạn làm gì? (gõ `giúp` để xem lệnh)" maxlength="200" />
+          <input id="free-input" list="command-suggestions" type="text" placeholder="Nhập lệnh tùy chọn…" maxlength="200" />
           <datalist id="command-suggestions">
             <option value="nhìn"></option><option value="trạng thái"></option><option value="tu luyện"></option>
             <option value="hành trang"></option><option value="bản đồ"></option><option value="tổ chức"></option>
@@ -92,15 +94,6 @@
           </datalist>
           <button type="submit" class="btn btn-primary">Hành động</button>
         </form>
-        <div class="quick-hints">
-          <button class="chip" data-cmd="nhìn">nhìn</button>
-          <button class="chip" data-cmd="trạng thái">trạng thái</button>
-          <button class="chip" data-cmd="tu luyện">tu luyện</button>
-          <button class="chip" data-cmd="hành trang">hành trang</button>
-          <button class="chip" data-cmd="bản đồ">bản đồ</button>
-          <button class="chip" data-cmd="tổ chức">tổ chức</button>
-          <button class="chip" data-cmd="giúp">giúp</button>
-        </div>
       </div>
     </section>
   </div>
@@ -122,9 +115,9 @@
   <script src="data/cong_phap.js?v=20260905-gameplay2"></script>
   <script src="data/npc_monsters.js?v=20260905-gameplay2"></script>
   <script src="data/path_fate_relations.js?v=20260905-gameplay2"></script>
-  <script src="data/data.js?v=20260905-gameplay2"></script>
-  <script src="js/engine.js?v=20260905-gameplay2"></script>
-  <script src="js/ui.js?v=20260905-gameplay2"></script>
-  <script src="js/main.js?v=20260905-gameplay2"></script>
+  <script src="data/data.js?v=20260907-fateux"></script>
+  <script src="js/engine.js?v=20260907-map-travel-hubs"></script>
+  <script src="js/ui.js?v=20260907-map-travel-hubs"></script>
+  <script src="js/main.js?v=20260907-map-travel-hubs"></script>
 </body>
 </html>

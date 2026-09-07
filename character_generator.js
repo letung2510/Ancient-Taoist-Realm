@@ -3,8 +3,11 @@
 // Generator Node canonical theo HE_THONG_NEN_TANG_NHAN_VAT_TU_VI_CONG_PHAP.md.
 const fs = require("fs");
 const path = require("path");
+const vm = require("vm");
 const ROOT = __dirname;
-const fatePool = JSON.parse(fs.readFileSync(path.join(ROOT, "data", "fate-pool.json"), "utf8"));
+const fateContext = { window: {} };
+vm.runInNewContext(fs.readFileSync(path.join(ROOT, "data", "fate_data.js"), "utf8"), fateContext, { filename: "data/fate_data.js" });
+const fatePool = { fates: fateContext.window.FATE_DATA || [] };
 const pathFateRelations = JSON.parse(fs.readFileSync(path.join(ROOT, "data", "path_fate_relations.json"), "utf8"));
 
 const REGION_RACE_WEIGHTS = {

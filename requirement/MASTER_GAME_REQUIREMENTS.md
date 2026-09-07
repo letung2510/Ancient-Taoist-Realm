@@ -104,10 +104,135 @@
 - Game screen uses a bounded `100dvh` two-column layout; Sidebar trái giữ navigation và Character Summary, Story Panel/Action Bar nằm bên phải; mỗi vùng có overflow độc lập.
 - Open-world map runtime now lazily generates deterministic neighboring nodes on all four directions, persists coordinates/nodes per save, and renders discovered procedural nodes in the local map graph.
 - Save files support both Export (`Lưu tệp`) and Import (`Nạp tệp`) JSON flows.
-- Nghi thức Đột Phá được phân tầng theo cấp đích (2–5 bước), mở từng action theo thứ tự Gọi Mệnh → Dựng Neo → Đối Chiếu → Vượt Dị Tượng → Trả Giá; chỉ commit cảnh giới khi toàn bộ gate hợp lệ.
+- Nghi thức Đột Phá được phân tầng theo cấp đích, mở từng action theo thứ tự Gọi Mệnh → Đối Chiếu Con Đường → Dựng Neo → Vượt Dị Tượng → Trả Giá → Thử Thách Cuối; cấp thấp chỉ dùng tiền tố cần thiết của chuỗi này và chỉ commit cảnh giới khi toàn bộ gate hợp lệ.
 - BREAKTHROUGH_RITUAL_DETAIL.md là đặc tả chuẩn: cấp 1→2 dùng Khai Mạch; cấp 3–4 có 2 gate, 5–7 có 3, 8–10 có 4, 11–13 có 5 và cấp 14 thêm Thử Thách Cuối. Action Bar chỉ hiện gate kế tiếp; Vượt Dị Tượng là roll duy nhất, các gate khác deterministic/setup, tutorial modal hiển thị mỗi lượt.
 - Command input giữ tối đa 50 lệnh gần nhất và hỗ trợ ↑/↓; hành động Tìm Kiếm có thể lặp lại tại địa điểm, ghi số lần thử và kết quả riêng trong Story Panel.
 - Điều hướng tab được gom thành ba cụm Nhân Vật / Thế Giới / Đặc Biệt; Hư Thiên Đỉnh có Chọn tự động, lưu kết quả dung luyện; Phường thị và Khâm Thiên Giám lưu kết quả giao dịch/gacha gần nhất.
 - UI giữ cấu trúc hai cột nguyên bản: Sidebar trái chứa Nhân Vật/TabGroupNav/TabContent; Story Panel và Action Bar nằm bên phải. Tab Trạng thái render toàn bộ bảng trạng thái trong `#tab-content` theo UX legacy, không tạo bảng Character Summary ghim riêng để tránh trùng lặp và lỗi hiển thị `[object Object]`.
 - QUEST_SYSTEM_REDESIGN.md đã được triển khai một phần lõi: roll bối cảnh tỉnh dậy theo vùng, bắt buộc chọn Tán Tu/Thế Gia/Tìm Tông Môn, bỏ chạy giữ nguyên node, quest record có lifecycle/tracking và Cơ Duyên Động xuất hiện theo cooldown khi di chuyển.
 - Mệnh Kho hỗ trợ trực tiếp Trang bị, Nâng cấp bằng chất liệu cùng phẩm trật và Dung hợp chọn nhiều Mệnh Số; kết quả được đưa lại vào Mệnh Kho hoặc Ấn ký theo luật sức chứa.
+
+## Đề xuất UX và luật giao dịch Mệnh Số, Trang Bị, Nghi Thức, Hư Thiên Đỉnh (chờ duyệt)
+
+> Trạng thái: bản requirement để review, chưa xác nhận là runtime đã triển khai. Mục này thay thế các mô tả UI/giao dịch mơ hồ trước đó khi được duyệt; không thay đổi công thức Cảnh Giới ngoài các điểm được ghi rõ bên dưới.
+
+### 1. Phân biệt Tương hợp và khả năng trang bị Mệnh Số
+
+- `fateCompatibility(pathId, fate)` là điểm tư vấn build, không phải điều kiện khóa thao tác Trang bị. Mệnh có Tương hợp `3` vẫn không thể gắn nếu không còn Ấn ký trống; UI phải nói rõ nguyên nhân là **đầy Ấn ký**, không được báo chung chung “Ấn ký không hợp lệ”.
+- Mỗi thẻ Mệnh phải hiển thị riêng: phẩm trật, Cát/Bình/Hung, Mệnh Điểm hiệu dụng, cấp Cường Hóa, Tương hợp Con Đường, modifier đang có và thay đổi dự kiến nếu gắn.
+- Trạng thái nút phải có đúng một trong ba nhãn:
+  - `Trang bị`: còn Ấn ký trống.
+  - `Thay thế…`: toàn bộ Ấn ký đã đầy; mở bộ chọn Mệnh đang kích hoạt để thay.
+  - `Đang kích hoạt`: Mệnh đã nằm trên người, kèm nút `Tháo xuống Mệnh Kho`.
+- Khi thay thế, UI phải preview `Trước → Sau` cho Tổng Mệnh, Thuận Mệnh, Hiệu Mệnh, điểm Tương hợp, Tương Sinh/Tương Khắc/Combo và các stat thay đổi. Chỉ commit sau khi người chơi xác nhận.
+- Thao tác gắn/tháo/thay phải là transaction nguyên tử. Lỗi sức chứa hoặc dữ liệu không hợp lệ không được làm mất hay nhân đôi Mệnh.
+
+### 2. Mệnh đang kích hoạt và Mệnh Kho
+
+- `active_fate_slot_capacity` lấy từ `realm.activeSlots`; không suy ra từ độ dài mảng Mệnh đang gắn.
+- Sức chứa Mệnh Kho ổn định theo số Ấn ký đã mở:
+
+```text
+Fate_Vault_Capacity = 2 × active_fate_slot_capacity
+```
+
+- Việc tháo một Mệnh không được làm co sức chứa kho. Nếu kho đã đầy, thao tác `Tháo xuống Mệnh Kho` bị khóa với lý do cụ thể và UI phải đề xuất `Thay thế trực tiếp` hoặc `Dung hợp/Hiến tế` để giải phóng chỗ.
+- Mệnh đang kích hoạt có thể tháo riêng từng ô. Mệnh trong kho có thể:
+  - gắn vào ô trống;
+  - thay trực tiếp một Mệnh đang kích hoạt;
+  - dùng làm nguyên liệu nâng cấp, dung hợp hoặc hiến tế khi đủ điều kiện.
+- Tóm tắt đầu modal dùng ba số độc lập: `Sở hữu`, `Đang kích hoạt`, `Trong Mệnh Kho`; không dùng câu `5 sở hữu · 5 đang kích hoạt` mà thiếu trạng thái kho/slot.
+- Bộ lọc/sắp xếp Mệnh Kho tối thiểu gồm: Tương hợp cao nhất, Mệnh Điểm, phẩm trật, Cát/Hung và modifier chính.
+
+### 3. Nâng cấp Mệnh Số
+
+- Không tự chọn và tiêu hao “Mệnh cùng phẩm đầu tiên”. Bấm `Nâng cấp` phải mở modal chọn nguyên liệu hợp lệ trong Mệnh Kho.
+- Modal xác nhận phải hiển thị:
+  - Mệnh mục tiêu và `Cường Hóa +N → +(N+1)`;
+  - nguyên liệu sẽ bị tiêu hao;
+  - Mệnh Điểm `trước → sau`;
+  - Hiệu Mệnh và các chỉ số nhân vật `trước → sau` nếu Mệnh đang kích hoạt;
+  - cảnh báo transaction không thể hoàn tác.
+- Công thức đề xuất cho mỗi tầng Cường Hóa, tối đa `+5`:
+
+```text
+effective_fate_score = base_fate_score + 2 × enhancement_level
+positive_numeric_effect = base_effect × (1 + 0.05 × enhancement_level)
+```
+
+- Hiệu ứng boolean và modifier bất lợi không được tự khuếch đại bởi Cường Hóa. Mọi phép làm tròn phải dùng cùng một helper giữa preview và `computeStats`.
+- Sau khi thành công phải có phản hồi rõ: banner kết quả, animation/highlight ngắn trên thẻ, cấp Cường Hóa mới và danh sách delta thực tế. Save/load phải giữ nguyên cấp và stat sau nâng cấp.
+- Nếu thiếu nguyên liệu, nút vẫn có thể được hiển thị nhưng disabled và ghi rõ: cần phẩm nào, hiện có bao nhiêu, tìm tại đâu.
+
+### 4. Thu nhận Mệnh Số và chống kẹt tiến trình
+
+- Năm Mệnh khởi đầu chỉ là bộ đang kích hoạt; game phải tạo được Mệnh mới trong Mệnh Kho qua gameplay thông thường, không buộc người chơi chỉ dùng Phường Thị hoặc hiến Thọ Nguyên.
+- Các nguồn bắt buộc và phải xuất hiện trong mục `Nguồn thu nhận` của modal Mệnh:
+  - lần đầu chọn Con Đường: bảo đảm một Mệnh Phàm tương hợp `≥3` vào Mệnh Kho;
+  - Đột Phá từ Cấp 3 trở đi: một cơ hội Mệnh theo phẩm trật của cảnh, có pity bảo đảm sau hai lần Đột Phá liên tiếp không nhận được Mệnh;
+  - quest có `reward.fate`/`reward.fates`: trao qua `receiveFate` và Reward Summary;
+  - boss/tinh anh, Discovery Chain/Search và manh mối bản đồ: có bảng xác suất và log nguồn;
+  - Phường Thị, Khâm Thiên Giám, Hiến tế Mệnh và Hư Thiên Đỉnh: giữ là nguồn chủ động có chi phí.
+- Thêm tiến trình nhìn thấy được `Thiên Cơ / Fate Pity`. Mỗi quest lớn, boss đầu tiên, mốc khám phá 5 node và lần Đột Phá không rơi Mệnh cộng một điểm; đủ ngưỡng quy định phải tạo một Mệnh không trùng, ưu tiên tương hợp với Con Đường.
+- Mọi lần nhận Mệnh phải trả kết quả có cấu trúc: `added`, `destination`, `replaced`, `reason`, `source`. Nếu kho đầy, không được âm thầm loại Mệnh: mở đề nghị thay thế và giữ phần thưởng chờ xử lý cho tới khi người chơi nhận hoặc từ chối.
+- Story/Reward Summary phải ghi tên Mệnh, phẩm trật, nguồn, đích đến (Mệnh Kho/Ấn ký/chờ xử lý) và lý do nếu chưa nhận được.
+
+### 5. UI Nghi Thức Đột Phá
+
+- Bỏ modal dạng đoạn văn `Hướng dẫn · ... / Cổng đang sẵn sàng / Xác nhận bước này`. Modal Nghi Thức là một màn trạng thái có cấu trúc:
+  - tiêu đề: cảnh giới hiện tại → cảnh giới đích;
+  - stepper hiển thị toàn bộ bước của cấp đích với trạng thái `Đã xong / Hiện tại / Chưa mở`;
+  - tên bước hiện tại và mô tả một câu bằng ngôn ngữ gameplay;
+  - checklist điều kiện gồm giá trị hiện tại, yêu cầu và trạng thái đạt/thiếu;
+  - khối `Kết quả khi hoàn tất`, `Chi phí` và `Rủi ro`;
+  - CTA cụ thể như `Hoàn tất Đối Chiếu`, không dùng `Xác nhận bước này`.
+- `Đối Chiếu Con Đường` phải hiển thị riêng: điểm Tương hợp hiện tại/yêu cầu, số Mệnh Dẫn, số Mệnh Trợ, Công Pháp Cốt Lõi và các blocker khác. Tương hợp đạt `3/3` chỉ đánh dấu riêng điều kiện đó đã đạt; nếu cổng còn bị khóa, UI phải chỉ đúng điều kiện còn thiếu.
+- Khi thiếu Mệnh/Công Pháp, modal cung cấp shortcut `Mở Tử Vi Mệnh Số` hoặc `Mở Công Pháp`. Khi không có blocker, CTA enabled và ghi rõ thao tác deterministic, không tạo cảm giác đây là một roll.
+- Sau khi hoàn tất một bước, modal cập nhật stepper và hiển thị biên nhận kết quả trước khi đóng hoặc chuyển sang bước kế tiếp. Bước có roll phải công bố xác suất trước khi xác nhận và kết quả roll sau khi thực hiện.
+- Đóng modal không làm tiêu hao lượt. Chỉ thao tác hoàn tất gate mới đi qua Action Engine; một click chỉ được tính đúng một lượt.
+
+### 6. Trang bị vật phẩm
+
+- Engine phải có một validator chung `equipmentEligibility(state, itemId, targetSlot)` trả về `eligible`, `category`, `targetSlot`, `occupiedBy`, `requirements`, `blockers`, `statDelta`. UI và thao tác commit phải dùng cùng kết quả này.
+- Không suy loại trang bị chủ yếu từ tên vật phẩm. Item trang bị mới bắt buộc khai báo `equipmentType`; Hộ thân bắt buộc có `protectionSlot`. Heuristic tên chỉ dùng để migrate item cũ và phải ghi cảnh báo kiểm thử.
+- Nếu ô đơn đã có vật phẩm, nút phải là `Thay thế` và preview món cũ/mới; không được im lặng ghi đè. Với Pháp khí/Tùy thân nhiều ô, khi đầy phải cho chọn ô cần thay.
+- Pháp khí Sinh hoạt bị khóa phải hiển thị chính xác yêu cầu tông môn/chuyên môn còn thiếu. Không dùng thông báo chung “không phù hợp với môn phái hiện tại”.
+- Inventory dạng stack phải tính số đơn vị tự do:
+
+```text
+free_quantity(itemId) = inventory_quantity(itemId) - equipped_quantity(itemId)
+```
+
+- Một bản đang trang bị không được làm toàn bộ stack cùng `itemId` biến mất hoặc bị cấm dùng/dung luyện. Bộ chọn trang bị và Hư Thiên Đỉnh chỉ thao tác trên `free_quantity`.
+- Mọi lỗi trang bị phải hiển thị inline trong modal và Story log; không chỉ dùng `alert`.
+
+### 7. Hư Thiên Đỉnh và số lượng vật phẩm
+
+- Đơn vị dung luyện là **số lượng**, không phải số loại item. `Linh Thạch ×10` có thể chọn từ 0 đến 9 đơn vị; chọn 3 Linh Thạch được tính là 3/9 nguyên liệu.
+- Mỗi dòng vật phẩm dùng quantity stepper/input có miền `0..min(free_quantity, 9)`. Toolbar hiển thị `Tổng đơn vị đã chọn: N/9` và tóm tắt `Tên × số lượng`.
+- Payload chuẩn cho engine:
+
+```js
+[
+  { itemId: "linh_thach", quantity: 3 },
+  { itemId: "thanh_tam_thao", quantity: 2 }
+]
+```
+
+- `refineAtVoidCauldron` phải normalize payload, tổng quantity trong khoảng `3..9`, kiểm tra tồn kho tự do, rồi trừ đúng quantity. Không mở rộng payload thành mảng ID ở UI.
+- `Chọn tự động` chọn theo từng đơn vị tự do cho đến 9, không chỉ chọn tối đa 9 dòng. Mặc định ưu tiên nguyên liệu phẩm thấp, không trang bị, không quest item và không bị khóa.
+- Trước khi dung luyện phải có preview tổng số đơn vị, các stack sẽ bị trừ và dải kết quả có thể nhận. Sau thành công hiển thị biên nhận `đã dùng` và `nhận được`; nếu thất bại transaction rollback toàn bộ quantity.
+
+### 8. Migration và acceptance criteria
+
+- Save cũ có `player.fates` dạng mảng dày 5 phần tử phải giữ đúng thứ tự Ấn ký. `fateEnhancements`, Mệnh Kho và trang bị cũ không bị mất khi migrate.
+- Ca kiểm thử bắt buộc:
+  1. Năm Ấn ký đầy, Mệnh Kho có Mệnh tương hợp 3: bấm từ kho mở luồng thay thế và thay thành công.
+  2. Tháo một Mệnh đang kích hoạt vào kho còn chỗ; gắn lại và save/load không đổi stat.
+  3. Kho đầy: tháo bị chặn có lý do, thay trực tiếp vẫn hoạt động và không mất Mệnh.
+  4. Nâng cấp Mệnh đang đeo: tiêu hao đúng nguyên liệu đã chọn, cấp/delta hiển thị và stat thực tăng sau reload.
+  5. Đối Chiếu có Tương hợp 3/3 nhưng thiếu Công Pháp: checklist đánh dấu Tương hợp đạt và chỉ rõ Công Pháp còn thiếu.
+  6. Trang bị sai loại/sai tông môn/đầy ô: mỗi trường hợp trả blocker riêng; thay món giữ đúng inventory quantity.
+  7. Stack Linh Thạch ×10 chọn quantity 9: UI báo 9/9, engine trừ đúng 9; một bản trang bị trong stack chỉ làm giảm free quantity đúng một.
+  8. Quest, Đột Phá, khám phá/pity và boss có thể đưa Mệnh mới vào Mệnh Kho; kết quả không bị rơi mất khi kho đầy.
+  9. Mọi thao tác thất bại giữ nguyên state trước transaction và `node tools/verify_game.js` phải pass.

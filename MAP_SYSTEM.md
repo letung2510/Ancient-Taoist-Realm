@@ -7,6 +7,12 @@
 
 ---
 
+## 7. ĐIỂM NEO VÀ ĐƯỜNG VỀ AN TOÀN
+
+World data bổ sung `travel_hubs`: `son_mon` và `van_phong` là hub tông môn/nghi thức; `tay_mac_khoi_diem`, `vo_tan_hai_khoi_diem` và `bac_nguyen_khoi_diem` là thành/trạm an toàn theo vùng. Hub có `human_npc=true` và `safe_for_ritual=true` để engine ưu tiên khi người chơi cần dựng Neo Nhân Tính hoặc hoàn tất nghi thức.
+
+Khi không giao chiến, action bar hiển thị **Về [điểm neo]**. Action này đưa nhân vật về hub phù hợp trong vùng; nếu nghi thức đang chờ, engine ưu tiên hub có NPC nhân tộc. Riêng Vô Tận Hải có NPC Tạ Hải Sinh tại Lưu Vân Hải Cảng, giúp người chơi không phải dò từng node để tìm NPC dạng người. Di chuyển nhanh vẫn tốn một lượt game và hủy phiên tìm kiếm chưa thu thập; không thể dùng trong giao chiến.
+
 ## 1. MÔ HÌNH DỮ LIỆU NỀN: NODE-GRAPH + FOG OF WAR
 
 Bản đồ là 1 đồ thị vô hướng: `nodes[]` (địa điểm) + `edges[]` (đường nối giữa 2 node). Node có 2

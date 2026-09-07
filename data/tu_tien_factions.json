@@ -124,6 +124,13 @@
         "bac_nguyen",
         "thien_khong_vuc"
       ]
+    ],
+    "travel_hubs": [
+      { "id": "son_mon", "name": "Sơn Môn Thiên Huyền Tông", "region_id": "trung_vuc", "role": "tong_mon", "human_npc": true, "safe_for_ritual": true },
+      { "id": "van_phong", "name": "Vạn Phong Điện", "region_id": "trung_vuc", "role": "tong_mon", "human_npc": true, "safe_for_ritual": true },
+      { "id": "tay_mac_khoi_diem", "name": "Sa Thành Tây Mạc", "region_id": "tay_mac", "role": "thanh_chinh", "human_npc": true, "safe_for_ritual": true },
+      { "id": "vo_tan_hai_khoi_diem", "name": "Lưu Vân Hải Cảng", "region_id": "vo_tan_hai", "role": "thanh_chinh", "human_npc": true, "safe_for_ritual": true },
+      { "id": "bac_nguyen_khoi_diem", "name": "Băng Trại Bắc Nguyên", "region_id": "bac_nguyen", "role": "thanh_chinh", "human_npc": true, "safe_for_ritual": true }
     ]
   },
   "factions": [

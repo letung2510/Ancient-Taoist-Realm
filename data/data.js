@@ -76,7 +76,7 @@ window.GameData = (function () {
     requiresFinalPreparation: Boolean(realm.requires_final_preparation ?? realm.requiresFinalPreparation),
     requiresHighAnchor: Boolean(realm.requires_high_anchor ?? realm.requiresHighAnchor),
     maxCorruption: realm.max_corruption ?? realm.maxCorruption ?? null,
-    activeSlots: realm.active_slots ?? realm.activeSlots,
+    activeSlots: realm.active_slots ?? realm.activeSlots ?? Math.max(5, 5 + Math.floor((Number(realm.level || 1) - 1) / 2)),
     lifespanBase: realm.lifespan_base ?? realm.lifespanBase ?? 75,
     lifespanBonus: realm.lifespan_bonus ?? realm.lifespanBonus,
     breakExp: Object.prototype.hasOwnProperty.call(realm, "break_exp")
@@ -240,7 +240,7 @@ window.GameData = (function () {
     vo_tan_hai_khoi_diem: {
       id: "vo_tan_hai_khoi_diem", name: "Lưu Vân Hải Cảng", corruption: 2,
       desc: "Hải cảng dựng trên những đảo đá trôi, nơi hạm đội tu sĩ neo đậu giữa tiếng hải thú gầm xa.",
-      exits: { tay: "linh_dien" }, npcs: [], enemies: [], searchable: ["linh_thach"]
+      exits: { tay: "linh_dien" }, npcs: ["hai_su_tu"], enemies: [], searchable: ["linh_thach"]
     },
     thien_khong_khoi_diem: {
       id: "thien_khong_khoi_diem", name: "Phù Không Đảo", corruption: 3,
@@ -286,6 +286,15 @@ window.GameData = (function () {
 
   /* ---------- NPC ---------- */
   const NPCS = {
+    hai_su_tu: {
+      id: "hai_su_tu", name: "Tạ Hải Sinh", title: "Độ thuyền nhân tộc",
+      portrait: "assets/characters/char_07.jpg",
+      desc: "Một tu sĩ nhân tộc trấn giữ hải cảng, chuyên đưa người qua các tuyến đảo và chỉ dẫn nơi dựng Neo.",
+      dialogue: {
+        default: "Vô Tận Hải không thiếu người, chỉ là họ thường sống trên thuyền. Muốn dựng Neo, hãy tìm về hải cảng hoặc trở lại tông môn.",
+        ritual: "Hải cảng có linh đài sạch tà niệm. Ngươi có thể nghỉ, bế quan hoặc hoàn tất nghi thức tại đây."
+      }
+    },
     su_phu: {
       id: "su_phu", name: "Lạc Trần Tử", title: "Chưởng môn",
       portrait: "assets/characters/char_01.jpg",

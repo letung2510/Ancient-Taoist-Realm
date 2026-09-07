@@ -65,12 +65,45 @@ function verifyGeneratedItems(sandbox) {
   equipmentItems.forEach((item) => { D.ITEMS[item.id] = item; E.addItem(state, item.id, 1); });
   ["qa_a1", "qa_a2", "qa_a3"].forEach((id) => E.useItem(state, D.ITEMS[id].name));
   assert.strictEqual(state.player.equipment.artifacts.length, 2);
+  assert(E.equipmentEligibility(state, "qa_a3").reason.includes("đã đủ"));
+  assert.strictEqual(E.equipItem(state, "qa_a3", 0), true);
+  assert.strictEqual(state.player.equipment.artifacts[0], "qa_a3");
   ["qa_armor", "qa_boots", "qa_pants", "qa_helmet"].forEach((id) => E.useItem(state, D.ITEMS[id].name));
   assert.strictEqual(Object.values(state.player.equipment.protection).filter(Boolean).length, 4);
   ["qa_p1", "qa_p2", "qa_p3", "qa_p4"].forEach((id) => E.useItem(state, D.ITEMS[id].name));
   assert.strictEqual(state.player.equipment.personal.length, 3);
   E.useItem(state, D.ITEMS.qa_spirit.name);
   assert.strictEqual(state.player.equipment.spiritTreasure, "qa_spirit");
+
+  state.inventory.linh_thach = 10;
+  const cauldron = E.refineAtVoidCauldron(state, [{ itemId: "linh_thach", quantity: 9 }]);
+  assert.strictEqual(cauldron.success, true);
+  assert.strictEqual(cauldron.totalQuantity, 9);
+  assert.strictEqual(state.inventory.linh_thach || 0, 1);
+
+  const fateState = E.createState({ character: E.createCharacter({ name: "Fate UX", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  const activeIds = new Set(fateState.player.fates);
+  const vaultFate = D.FATE_PATTERNS.find((fate) => !activeIds.has(fate.id));
+  fateState.fateInventory.push(vaultFate.id);
+  const capacityBefore = E.fateVaultCapacity(fateState);
+  const equipFull = E.equipFateFromVault(fateState, vaultFate.id);
+  assert.strictEqual(equipFull.requiresReplacement, true);
+  assert.strictEqual(E.swapFateFromVault(fateState, 0, vaultFate.id).success, true);
+  assert.strictEqual(E.storeFateToVault(fateState, 0).success, true);
+  assert.strictEqual(E.fateVaultCapacity(fateState), capacityBefore);
+
+  const upgradeTarget = fateState.player.fates[0];
+  const targetFate = D.FATE_PATTERNS.find((fate) => fate.id === upgradeTarget);
+  const material = D.FATE_PATTERNS.find((fate) => fate.id !== upgradeTarget && fate.grade === targetFate.grade && !fateState.player.fates.includes(fate.id) && !fateState.fateInventory.includes(fate.id));
+  assert(material);
+  fateState.fateInventory.push(material.id);
+  const preview = E.fateUpgradePreview(fateState, upgradeTarget, material.id);
+  assert.strictEqual(preview.afterScore, preview.beforeScore + 2);
+  assert.strictEqual(E.upgradeFate(fateState, upgradeTarget, material.id).success, true);
+  assert.strictEqual(E.fateEnhancementLevel(fateState.player, upgradeTarget), 1);
+  const restoredFateState = E.deserialize(E.serialize(fateState));
+  assert.strictEqual(E.fateEnhancementLevel(restoredFateState.player, upgradeTarget), 1);
+  assert.strictEqual(E.computeFate(restoredFateState.player).total, E.computeFate(fateState.player).total);
 }
 
 function verifyTechniquesAndActions(sandbox) {
@@ -106,9 +139,8 @@ function verifyDataIntegrity(sandbox) {
   const fateIds = new Set(D.FATE_PATTERNS.map((fate) => fate.id));
   assertUnique(D.FATE_PATTERNS, (fate) => fate.id, "Browser fate id");
 
-  const pool = JSON.parse(read("data/fate-pool.json"));
-  assert.strictEqual(pool.total, pool.fates.length);
-  assertUnique(pool.fates, (fate) => fate.id, "JSON fate id");
+  // Canonical Fate source is data/fate_data.js (the old 1,300-entry JSON pool was removed).
+  assert.strictEqual(D.FATE_PATTERNS.filter((fate) => !String(fate.id).startsWith("luan_hoi_tien")).length, 10000);
 
   const cultivationSource = JSON.parse(read("data/canh_gioi_tien_hiep.json"));
   const cultivationRealms = Array.isArray(cultivationSource) ? cultivationSource : cultivationSource.realms;
@@ -239,9 +271,115 @@ function verifyBrowserEngine(sandbox) {
     fates: E.drawInitialFates()
   });
   const state = E.createState({ character });
+  const lookTurn = state.meta.turn;
+  const lookHistory = state.history.length;
+  E.submitActionId(state, "act_nhin");
+  assert.strictEqual(state.meta.turn, lookTurn + 1);
+  assert.strictEqual(state.history.length, lookHistory + 2);
+
+  const commandState = E.createState({ character });
+  const commandTurn = commandState.meta.turn;
+  E.submitTurn(commandState, { text: "nhìn" });
+  assert.strictEqual(commandState.meta.turn, commandTurn + 1);
+  assert(commandState.history.some((entry) => entry.text.includes("Quan Sát") || entry.text.includes("Cổng đá")));
+
+  const originState = E.createState({ character: E.createCharacter({ name: "Tán Tu", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  originState.flags.originChoicePending = true;
+  const staminaBeforeOrigin = originState.player.maxStamina;
+  const originResult = E.chooseOrigin(originState, "tan_tu", "du_hiep");
+  assert(originResult.success);
+  assert.strictEqual(originState.player.origin.type, "tan_tu");
+  assert(originState.player.origin.traits.includes("spirit_hunter"));
+  assert(originState.player.maxStamina > staminaBeforeOrigin);
+  assert.strictEqual(originState.flags.originChoicePending, false);
+  assert.strictEqual(E.chooseOrigin(originState, "the_gia", "linh_mach").success, false);
+  assert(!E.contextState(originState).actions.some((action) => action.id.startsWith("act_origin_")));
+  const restoredOrigin = E.deserialize(E.serialize(originState));
+  assert.strictEqual(restoredOrigin.player.origin.specialization, "du_hiep");
+
+  const familyState = E.createState({ character: E.createCharacter({ name: "Thế Gia", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  familyState.flags.originChoicePending = true;
+  const qiBeforeOrigin = familyState.player.maxQi;
+  assert(E.chooseOrigin(familyState, "the_gia", "linh_mach").success);
+  assert(familyState.player.maxQi > qiBeforeOrigin);
+  assert(familyState.inventory.linh_thach >= 8);
+  familyState.player.realmId = "khai_lo";
+  E.updateDerived(familyState);
+  assert(E.contextState(familyState).actions.some((action) => action.id === "act_tim_tong_mon"));
+
+  const originalRandom = vm.runInContext("Math.random", sandbox);
+  vm.runInContext("Math.random = () => 0.5", sandbox);
+  const searchState = E.createState({ character: E.createCharacter({ name: "Tầm Bảo", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  const inventoryBeforeSearch = Object.values(searchState.inventory).reduce((sum, qty) => sum + qty, 0);
+  const firstSearch = E.search(searchState);
+  assert(firstSearch.success && firstSearch.rolls === 3);
+  assert.strictEqual(E.searchStatus(searchState).depth, 3);
+  assert(searchState.pendingSearch?.findings.some((finding) => finding.type === "resource"));
+  assert(E.contextState(searchState).actions.some((action) => action.id === "act_search_collect"));
+  assert(E.collectSearchFindings(searchState).success);
+  assert(Object.values(searchState.inventory).reduce((sum, qty) => sum + qty, 0) > inventoryBeforeSearch);
+  assert.strictEqual(E.search(searchState).rolls, 2);
+  E.collectSearchFindings(searchState);
+  assert.strictEqual(E.search(searchState).rolls, 1);
+  E.collectSearchFindings(searchState);
+  assert(E.searchStatus(searchState).depleted);
+  assert(!E.contextState(searchState).actions.some((action) => action.id === "act_tim_kiem"));
+  searchState.meta.turn += 8;
+  assert.strictEqual(E.searchStatus(searchState).depth, 5);
+
+  const chainState = E.createState({ character: E.createCharacter({ name: "Truy Dấu", archetypeId: "kiem_tong", fates: E.drawInitialFates(), comprehension: 100 }) });
+  for (let stage = 1; stage <= 3; stage++) {
+    chainState.pendingSearch = { locationId: chainState.locationId, session: stage, findings: [{ type: "information", label: "Dấu vết kiểm thử" }], createdAtTurn: chainState.meta.turn };
+    assert.strictEqual(E.investigateSearchFinding(chainState).chainStage, stage);
+  }
+  assert(Object.keys(chainState.quests).some((id) => id.startsWith("search_chain_")));
+  assert(chainState.searchSites[chainState.locationId].secretLocationId);
+  assert(E.locationExits(chainState)[chainState.searchSites[chainState.locationId].secretDirection]);
+
+  const dangerState = E.createState({ character: E.createCharacter({ name: "Mạo Hiểm", archetypeId: "kiem_tong", fates: E.drawInitialFates(), comprehension: 100 }) });
+  dangerState.locationId = "hac_lam";
+  vm.runInContext("Math.random = () => 0", sandbox);
+  const dangerSearch = E.search(dangerState);
+  assert(dangerSearch.findings.some((finding) => finding.type === "rare"));
+  assert(dangerSearch.findings.some((finding) => finding.type === "encounter"));
+  sandbox.__originalRandom = originalRandom;
+  vm.runInContext("Math.random = __originalRandom", sandbox);
+  delete sandbox.__originalRandom;
+
   E.move(state, "bac");
   assert(state.visitedLocations.includes("van_phong"));
   assert(E.describeMap(state).includes("Vạn Giới Lộ"));
+
+  // Every cardinal direction remains traversable. Unknown exits are generated
+  // lazily, including immediately after fleeing a combat encounter.
+  const openWorldState = E.createState({ character });
+  const oldLocation = openWorldState.locationId;
+  assert.deepStrictEqual(Array.from(E.contextState(openWorldState).actions.filter((action) => action.id.startsWith("act_move_")).map((action) => action.id)), ["act_move_bac", "act_move_dong", "act_move_tay"]);
+  E.move(openWorldState, "nam");
+  const dangerousLocation = openWorldState.locationId;
+  assert.notStrictEqual(dangerousLocation, oldLocation);
+  D.LOCATIONS[dangerousLocation].enemies = ["yeu_thu"];
+  E.beginCombat(openWorldState);
+  E.submitActionId(openWorldState, "act_bo_chay");
+  assert.strictEqual(openWorldState.locationId, dangerousLocation);
+  assert.strictEqual(Object.keys(openWorldState.enemies).length, 0);
+  assert.strictEqual(E.contextState(openWorldState).actions.filter((action) => action.id.startsWith("act_move_")).length, 4);
+  E.submitActionId(openWorldState, "act_move_dong");
+  assert.notStrictEqual(openWorldState.locationId, dangerousLocation);
+  assert.notStrictEqual(openWorldState.locationId, oldLocation);
+  const openedLocation = openWorldState.locationId;
+  const restoredOpenWorld = E.deserialize(E.serialize(openWorldState));
+  assert.strictEqual(E.locationExits(restoredOpenWorld, dangerousLocation).dong, openedLocation);
+  assert.strictEqual(E.locationExits(restoredOpenWorld, openedLocation).tay, dangerousLocation);
+
+  // Migration for saves written before per-save exit topology was introduced.
+  const legacyOpenWorld = E.createState({ character });
+  E.move(legacyOpenWorld, "nam");
+  const legacyGenerated = legacyOpenWorld.locationId;
+  legacyOpenWorld.openWorld.nodes[legacyGenerated].exits.bac = oldLocation;
+  delete legacyOpenWorld.openWorld.exits;
+  const migratedOpenWorld = E.deserialize(E.serialize(legacyOpenWorld));
+  assert.strictEqual(E.locationExits(migratedOpenWorld, oldLocation).nam, legacyGenerated);
 
   const localGuild = D.GUILDS.find((guild) => guild.region_id === "trung_vuc" && guild.pyramid_tier === 5);
   assert.strictEqual(E.joinGuild(state, localGuild.id), false);
@@ -279,6 +417,7 @@ function verifyBrowserEngine(sandbox) {
   const restoredSan = E.restoreSan(mentalState, 10);
   assert(restoredSan > 0 && restoredSan < 10);
   const autoState = E.createState({ character: E.createCharacter({ name: "Tự Tu", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  assert(!E.contextState(autoState).actions.some((action) => action.id === "act_be_quan"));
   const combatMasteryBefore = autoState.player.techniques.kiem_khi_so_cap.masteryExp;
   const mindMasteryBefore = autoState.player.techniques.tam_phap_dan_dien.masteryExp;
   assert(E.autoCultivate(autoState, 5).completed > 0);
@@ -368,12 +507,60 @@ function verifyMapUI(sandbox) {
 
   const E = sandbox.window.GameEngine;
   const character = E.createCharacter({ name: "Test", archetypeId: "kiem_tong", fates: E.drawInitialFates() });
+  const actionState = E.createState({ character });
+  const normalActions = sandbox.window.GameUI.actionPresentation(actionState);
+  const normalQuickIds = normalActions.quick.map((action) => action.id);
+  assert(normalQuickIds.includes("act_nhin"));
+  assert(normalQuickIds.includes("act_tu_luyen"));
+  assert(normalQuickIds.includes("act_hanh_trang"));
+  assert(normalQuickIds.some((id) => id.startsWith("act_move_")));
+  assert(normalActions.quick.length <= 8);
+  assert(normalActions.overflow.some((action) => action.id === "act_giup"), "utility actions must remain available in More");
+  const searchAction = normalActions.quick.concat(normalActions.overflow).find((action) => action.id === "act_tim_kiem");
+  assert(searchAction?.description.includes("Search Depth"));
+
+  const originHtml = sandbox.window.GameUI.renderOriginChoice(actionState);
+  ["Tán Tu", "Thế Gia", "Kiếm Tu Lang Bạt", "Linh Mạch Truyền Thừa", "data-origin-confirm"].forEach((label) => assert(originHtml.includes(label), `missing origin modal content: ${label}`));
+  actionState.inventory.linh_thach = 10;
+  const cauldronHtml = sandbox.window.GameUI.renderCauldron ? sandbox.window.GameUI.renderCauldron(actionState) : (() => { sandbox.activeTestTab = "cauldron"; sandbox.window.GameUI.renderPanel(actionState); return elements["tab-content"].innerHTML; })();
+  assert(cauldronHtml.includes('type="number"'));
+  assert(cauldronHtml.includes('max="9"'));
+  const fateUxHtml = sandbox.window.GameUI.renderFateDetail(actionState);
+  assert(fateUxHtml.includes("Tháo xuống Mệnh Kho"));
+  assert(fateUxHtml.includes("Sở hữu "));
+  const ritualState = E.createState({ character: E.createCharacter({ name: "Ritual UI", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  ritualState.player.realmId = "khai_lo";
+  E.updateDerived(ritualState);
+  const ritualHtml = sandbox.window.GameUI.renderRitualModal(ritualState, "call_fate", { disabled_reason: "Tu vi: 0 / 100" });
+  ["ritual-stepper", "BƯỚC HIỆN TẠI", "Chi phí & rủi ro", "Mở Tử Vi Mệnh Số"].forEach((label) => assert(ritualHtml.includes(label), `missing ritual UI: ${label}`));
+  assert(!E.breakthroughRitualGateRequirements(ritualState, "compare").some((item) => item.label.includes("Neo")), "compare gate must not be blocked by the later anchor step");
+  sandbox.activeTestTab = "map";
+
+  const npcState = E.createState({ character });
+  npcState.locationId = "van_phong";
+  const npcQuickIds = sandbox.window.GameUI.actionPresentation(npcState).quick.map((action) => action.id);
+  assert(npcQuickIds.some((id) => id.startsWith("act_talk_")), "NPC talk must be promoted to quick actions");
+
+  const actualMoveIds = E.moveActions(actionState).map((action) => action.id).sort();
+  const declaredMoveIds = Object.keys(E.locationExits(actionState)).map((direction) => "act_move_" + direction).sort();
+  assert.deepStrictEqual(Array.from(actualMoveIds), Array.from(declaredMoveIds));
+
+  const combatState = E.createState({ character });
+  combatState.enemies = { yeu_thu: 1 };
+  const combatQuickIds = sandbox.window.GameUI.actionPresentation(combatState).quick.map((action) => action.id);
+  ["act_tan_cong_thuong", "act_bo_chay", "act_nhin", "act_hanh_trang"].forEach((id) => assert(combatQuickIds.includes(id), `missing combat quick action: ${id}`));
+  assert(combatQuickIds.some((id) => id.startsWith("act_skill_")));
+
   sandbox.window.GameUI.renderPanel(E.createState({ character }));
   assert(elements["tab-content"].innerHTML.includes("world-map"));
   assert(elements["tab-content"].innerHTML.includes("faction-pin"));
   assert(elements["tab-content"].innerHTML.includes("guild-pin"));
   sandbox.window.GameUI.setMapView("local", E.createState({ character }));
   assert(elements["tab-content"].innerHTML.includes("data-map-dir"));
+  ["bac", "nam", "dong", "tay"].forEach((direction) => {
+    assert(elements["tab-content"].innerHTML.includes(`data-map-dir="${direction}"`), `missing open-world direction: ${direction}`);
+  });
+  assert(elements["tab-content"].innerHTML.includes("Chưa khám phá"));
   sandbox.activeTestTab = "status";
   sandbox.window.GameUI.renderPanel(E.createState({ character }));
   ["Khí Huyết", "Thanh Tỉnh", "Tà Nhiễm", "Căn cốt", "Ngộ tính", "Mệnh Trạng Thái", "Trang Bị / Pháp Bảo", "Loại Trang Bị", "Số Lượng", "Vật Phẩm Đã Trang Bị", "Pháp khí", "Hộ thân · Giáp", "Hộ thân · Ngoa", "Hộ thân · Quần", "Hộ thân · Mũ", "Tùy thân Pháp khí", "Bản mệnh Linh bảo", "Pháp khí Sinh hoạt", "<i>?</i>"]
