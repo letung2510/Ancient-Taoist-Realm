@@ -251,7 +251,10 @@ function main() {
     });
   });
 
-const outPath = path.join(__dirname, "..", "data", "fate_data.js");
+// Legacy importer output is staging-only. Never overwrite the Phase 3 runtime catalog.
+const generatedDir = path.join(__dirname, "..", "fate_system_update", "generated");
+fs.mkdirSync(generatedDir, { recursive: true });
+const outPath = path.join(generatedDir, "fate_data.generated.js");
   const content = "/* CỔ DỊ DIỆN — Mệnh Số từ tu_han_viet_tien_hiep.json (8 phẩm chất + tỷ lệ) */\nwindow.FATE_DATA = " + JSON.stringify(fates) + ";\n";
   fs.writeFileSync(outPath, content, "utf8");
 

@@ -116,20 +116,21 @@ window.GameData = (function () {
     }
   ];
 
-  /* ---------- Tử Vi Mệnh Số (9900 cách cục từ fate_data.js) ---------- */
+  /* ---------- Tử Vi Mệnh Số (10.000 entry canonical từ fate_data.js) ---------- */
   const FATE_PATTERNS_BASE = (typeof window !== "undefined" && window.FATE_DATA && window.FATE_DATA.length)
     ? window.FATE_DATA
     : [
         // fallback cục bộ (nếu fate_data.js chưa được nạp)
-        { id: "tu_phu", name: "Tử Phủ Đồng Cung", sign: "cat", grade: "kim", score: 18,
+        { id: "tu_phu", name: "Tử Phủ Đồng Cung", sign: "cat", grade: "phan", gradeLabel: "Phàm Phẩm", score: 18,
           effects: { fortune: 100, breakBonus: 0.2, resistPossession: true },
           desc: "Khí vận +100, +20% đột phá, kháng đoạt xá." },
-        { id: "nhat_xuat", name: "Nhật Xuất Đản Diêu", sign: "cat", grade: "tim", score: 12,
+        { id: "nhat_xuat", name: "Nhật Xuất Đản Diêu", sign: "cat", grade: "linh", gradeLabel: "Linh Phẩm", score: 12,
           effects: { fortune: 50, lightFireMult: 1.5, sanResist: 0.3 },
           desc: "Khí vận +50, x1.5 sát thương Quang/Hỏa, kháng 30% SAN drain." }
       ];
-  const FATE_PATTERNS = FATE_PATTERNS_BASE.concat([{ id: "luan_hoi_tien", name: "Luân Hồi Tiên", sign: "cat", grade: "tien", tier: 8, score: 0,
-    type: "Nghề Ẩn", tags: ["luân hồi", "tiên", "sinh tử"], effects: { reincarnation: true }, desc: "Mệnh Số Tiên Phẩm độc quyền cho Nghề Ẩn Luân Hồi Tiên." }]);
+  // Luân Hồi Tiên là Nghề Ẩn, không phải entry thứ 10.001 của catalog FATE.
+  // Quyền mở khóa được lưu ở hiddenFates/hiddenProfession và định nghĩa tại path_fate_relations.js.
+  const FATE_PATTERNS = FATE_PATTERNS_BASE;
 
   /* ---------- Quan hệ Mệnh Số (tương sinh/khắc, combo, fusion) ---------- */
   const FATE_RELATIONSHIPS = (typeof window !== "undefined" && window.FATE_RELATIONSHIPS)

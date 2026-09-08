@@ -1088,7 +1088,64 @@ window.GameEngine = (function () {
   }
 
   /* ---------- Công pháp / kỹ năng ---------- */
-  function techniqueCatalog() { return (typeof window !== "undefined" && window.CONG_PHAP_DATA?.techniques) || {}; }
+  function techniqueCatalog() {
+    const catalog = (typeof window !== "undefined" && window.CONG_PHAP_DATA?.techniques) || {};
+    // Mỗi tổ chức có một bí pháp truyền thừa riêng, tạo ổn định từ guild id để
+    // save cũ vẫn giữ nguyên id và không cần nhân bản thủ công 150 bản ghi.
+    const guilds = (typeof window !== "undefined" && window.GUILD_DATA?.guilds) || [];
+    guilds.forEach((guild) => {
+      const id = "guild_signature_" + guild.id;
+      if (catalog[id]) return;
+      const tier = Math.max(1, Number(guild.pyramid_tier || 5));
+      const affinity = (guild.traits || []).slice(0, 2).join(" · ") || guild.type || "bản sắc riêng";
+      catalog[id] = {
+        id,
+        name: "Bí Pháp Truyền Thừa · " + guild.name,
+        category: "guild_signature",
+        family: "guild",
+        grade: tier <= 2 ? "linh" : "pham",
+        quality: tier <= 2 ? "trung" : "ha",
+        element: "vo_he",
+        minRealmLevel: 1,
+        spiritualRootRequirements: [],
+        isCore: false,
+        sourceGuildId: guild.id,
+        description: "Bí pháp chỉ truyền trong " + guild.name + "; cộng hưởng với bản sắc " + affinity + ".",
+        visibleStats: {
+          powerCoefficient: 0.45 + Math.max(0, 5 - tier) * 0.05,
+          manaCost: 8,
+          staminaCost: 2,
+          corruptionCost: 0,
+          sanCost: 0,
+          lifespanCost: 0,
+          cooldownSeconds: 8,
+          castTimeSeconds: 1,
+          baseEffect: "Cộng hưởng tông môn",
+          allStatMultiplier: 0.015 + Math.max(0, 5 - tier) * 0.005
+        },
+        hiddenAttributes: [],
+        corruptionProfile: null,
+        mastery: { stage: 0, exp: 0, usageCount: 0 },
+        evolutionPaths: []
+      };
+      [
+        { suffix: "support", label: "Phụ Trợ", category: "phu_tro", bonus: 0.01, effect: "Hỗ trợ tu luyện và hồi phục" },
+        { suffix: "secret", label: "Mật Truyền", category: "chieu_thuc", bonus: 0.02, effect: "Tuyệt kỹ đặc hữu của tông môn" }
+      ].forEach((variant) => {
+        const variantId = id + "_" + variant.suffix;
+        if (catalog[variantId]) return;
+        catalog[variantId] = {
+          ...catalog[id],
+          id: variantId,
+          name: variant.label + " · " + guild.name,
+          category: variant.category,
+          description: variant.effect + "; chỉ truyền trong " + guild.name + ".",
+          visibleStats: { ...catalog[id].visibleStats, baseEffect: variant.effect, allStatMultiplier: Number(catalog[id].visibleStats.allStatMultiplier || 0) + variant.bonus }
+        };
+      });
+    });
+    return catalog;
+  }
   function initialTechniqueProgress(technique) {
     const mastery = technique?.mastery || {};
     return { masteryStage: Number(mastery.stage || 0), masteryExp: Number(mastery.exp || 0), usageCount: Number(mastery.usageCount || 0) };
@@ -1342,6 +1399,8 @@ window.GameEngine = (function () {
       generatedItems: {}, // itemId -> định nghĩa item procedural, được lưu cùng save
       inventory: {},       // itemId -> quantity
       fateInventory: canonicalInput?.fate?.vaultIds?.slice() || [],   // Mệnh Số chưa gắn; dung lượng = 2 x số Mệnh Số đang gắn
+      fateExcessEssence: Number(canonicalInput?.fate?.excessEssence || 0),
+      fateInstances: canonicalInput?.fate?.instances ? JSON.parse(JSON.stringify(canonicalInput.fate.instances)) : {},
       guildMembership: null, // Chỉ được quyết định sau khi bước vào Luyện Khí.
       guildPursuit: null,
       autoCultivation: null,
@@ -1359,7 +1418,9 @@ window.GameEngine = (function () {
       pendingEnding: null,
       pendingRewardSummaries: [],
       market: { generatedAt: 0, refreshIntervalMs: 60000, offers: [], purchased: {} },
-      _fateState: "NORMAL_GROWTH"
+      _fateState: "NORMAL_GROWTH",
+      fateCatalogVersion: "v1-regraded-phase3",
+      fateMigration: { phase3Regrade: "phase3-20260908" }
       ,dialogueStates: {}
     };
 
@@ -1490,8 +1551,7 @@ window.GameEngine = (function () {
       pushHistory(state, { type: "sys", text: "§ Hư Thiên Đỉnh dung luyện " + totalQuantity + " đơn vị, kết tinh thành pháp bảo " + item.name + "." });
       return { success: true, consumed: normalized, totalQuantity, result: { kind: "item", item } };
     }
-    const pool = D().FATE_PATTERNS.filter((f) => gradeByCount.includes(f.grade));
-    const fate = pool[rnd(0, Math.max(0, pool.length - 1))];
+    const fate = rollFateByProgression(state, { level: Math.max(1, totalQuantity - 1), gradeCap: gradeByCount.length, minimumGrade: 1 });
     const result = fate && receiveFate(state, fate.id);
     if (!fate || !result?.added) { normalized.forEach(({ itemId, quantity }) => addItem(state, itemId, quantity)); return { success: false, reason: result?.reason || "Lò luyện chưa tìm thấy cách cục tương hợp." }; }
     state.flags.lastCauldronResult = "Mệnh Số · " + fate.name;
@@ -1674,9 +1734,26 @@ window.GameEngine = (function () {
     const fate = D().FATE_PATTERNS.find((item) => item.id === fateId || String(item.id) === String(fateId));
     if (!fate) return { added: false, reason: "Mệnh Số không tồn tại." };
     state.fateInventory = Array.isArray(state.fateInventory) ? state.fateInventory : [];
-    if ((state.player.fates || []).includes(fate.id) || state.fateInventory.includes(fate.id)) return { added: false, reason: "Mệnh Số đã sở hữu." };
+    const uniqueOwner = fateUniqueOwner(state, fate);
+    if (fate.grade === "tien" && uniqueOwner && uniqueOwner !== (state.player?.id || "local")) {
+      return { added: false, uniqueLocked: true, reason: "Mệnh Số Tiên đã được khóa bởi chủ nhân duy nhất trong thế giới này." };
+    }
+    if ((state.player.fates || []).includes(fate.id) || state.fateInventory.includes(fate.id)) {
+      // Duplicate cấp thấp không bị nuốt mất: chuyển thành Tinh Hoa Dư để nuôi Mệnh Số.
+      const essenceByGrade = { phan: 1, linh: 3, hoang: 8 };
+      const essence = essenceByGrade[fate.grade];
+      if (essence) {
+        state.player.fateExcessEssence = Number(state.player.fateExcessEssence || 0) + essence;
+        state.fateExcessEssence = state.player.fateExcessEssence;
+        pushHistory(state, { type: "sys", text: "◆ Mệnh Số trùng " + fate.name + " đã chuyển thành Tinh Hoa Dư +" + essence + "." });
+        return { added: false, duplicate: true, converted: true, essenceGained: essence, reason: "Mệnh Số trùng đã chuyển thành Tinh Hoa Dư." };
+      }
+      return { added: false, duplicate: true, reason: "Mệnh Số đã sở hữu; cấp này cần xử lý thay thế hoặc dung hợp." };
+    }
+    state.player.fateInstances = state.player.fateInstances || {};
+    const instance = { fateId: fate.id, acquiredAtTurn: Number(state.meta?.turn || 0), source: options.source || "không rõ", relationshipStage: 0, resonanceProgress: 0, nurtureLevel: 0 };
     const capacity = fateVaultCapacity(state);
-    if (state.fateInventory.length < capacity) { state.fateInventory.push(fate.id); markForbiddenKnowledge(state, fate); return { added: true, destination: "vault", replaced: null, source: options.source || "không rõ" }; }
+    if (state.fateInventory.length < capacity) { state.fateInventory.push(fate.id); state.player.fateInstances[fate.id] = instance; markForbiddenKnowledge(state, fate); return { added: true, destination: "vault", replaced: null, source: options.source || "không rõ" }; }
     if (options.allowPending) {
       const reward = { fateId: fate.id, source: options.source || "phần thưởng", createdAtTurn: Number(state.meta?.turn || 0) };
       state.pendingFateRewards = Array.isArray(state.pendingFateRewards) ? state.pendingFateRewards : [];
@@ -1692,7 +1769,7 @@ window.GameEngine = (function () {
       const score = fateCompatibility(pathId, current);
       if (score < lowest) { lowest = score; replaceIndex = index; }
     });
-    if (replaceIndex >= 0 && incomingScore > lowest) { const replaced = state.fateInventory[replaceIndex]; state.fateInventory[replaceIndex] = fate.id; markForbiddenKnowledge(state, fate); return { added: true, destination: "vault", replaced, source: options.source || "không rõ" }; }
+    if (replaceIndex >= 0 && incomingScore > lowest) { const replaced = state.fateInventory[replaceIndex]; state.fateInventory[replaceIndex] = fate.id; delete state.player.fateInstances[replaced]; state.player.fateInstances[fate.id] = instance; markForbiddenKnowledge(state, fate); return { added: true, destination: "vault", replaced, source: options.source || "không rõ" }; }
     return { added: false, reason: "Mệnh Kho đã đầy; Mệnh Số mới không tương hợp hơn các Mệnh đang giữ." };
   }
   function grantMerit(state, amount, source = "hành thiện") {
@@ -1871,10 +1948,10 @@ window.GameEngine = (function () {
     const ids = [...new Set(fateIds || [])]; const vault = state.fateInventory || [];
     if (ids.length < 2 || ids.some((id) => !vault.includes(id))) return { success: false, reason: "Cần ít nhất 2 Mệnh Số trong Mệnh Kho." };
     ids.forEach((id) => vault.splice(vault.indexOf(id), 1));
-    const rank = { phan: 1, linh: 2, hoang: 3, huyen: 4, dia: 5, thien: 6 };
+    const rank = FATE_GRADE_RANK;
     const minRank = Math.min(...ids.map((id) => rank[D().FATE_PATTERNS.find((f) => f.id === id)?.grade] || 1));
-    const pool = D().FATE_PATTERNS.filter((f) => (rank[f.grade] || 1) >= Math.min(6, minRank + 1) && ![...(state.player.fates || []), ...vault].includes(f.id));
-    const fate = pool[rnd(0, Math.max(0, pool.length - 1))]; const result = fate && receiveFate(state, fate.id);
+    const fate = rollFateByProgression(state, { level: Math.max(3, minRank + 1), minimumGrade: Math.min(8, minRank + 1), gradeCap: Math.min(6, minRank + 2) });
+    const result = fate && receiveFate(state, fate.id);
     if (!result?.added) { ids.forEach((id) => vault.push(id)); return { success: false, reason: result?.reason || "Không thể dung hợp lúc này." }; }
     pushHistory(state, { type: "sys", text: "Mệnh Kho dung hợp " + ids.length + " Mệnh Số, sinh ra " + fate.name + "." });
     return { success: true, fate };
@@ -2080,12 +2157,18 @@ window.GameEngine = (function () {
 
   function guildTechniqueIds(guild, rankName) {
     const ids = ["tong_mon_noi_tuc"];
-    if (rankName === "Ngoại Môn") return ids;
+    if (guild?.id) ids.push("guild_signature_" + guild.id);
     const source = normalizedText([guild?.name, guild?.type, guild?.allegiance, ...(guild?.traits || [])].join(" "));
-    if (/ma|hắc|hac|huyết|huyet|tà|ta/.test(source)) ids.push("huyet_sat_bi_luc");
+    if (/ma|hắc|hac|huyết|huyet|tà|ta|sát|sat/.test(source)) ids.push("huyet_sat_bi_luc");
     else if (/mộc|moc|dược|duoc|yêu|yeu/.test(source)) ids.push("bich_moc_hoi_xuan");
     else if (/trận|tran|huyền|huyen|thổ|tho/.test(source)) ids.push("huyen_mon_tran_giai");
     else ids.push("thanh_phong_kiem_quyet");
+    // Mỗi tổ chức có một pháp môn bản sắc ngay từ Ngoại Môn; lên cấp mới mở thêm pháp môn.
+    if (rankName === "Ngoại Môn") return ids;
+    if (guild?.id) ids.push("guild_signature_" + guild.id + "_support");
+    if (/kiếm|kiem/.test(source) && !ids.includes("thanh_phong_kiem_quyet")) ids.push("thanh_phong_kiem_quyet");
+    if (/đan|duoc|dược/.test(source) && !ids.includes("bich_moc_hoi_xuan")) ids.push("bich_moc_hoi_xuan");
+    if ((rankName === "Chân Truyền" || rankName === "Trưởng Lão") && guild?.id) ids.push("guild_signature_" + guild.id + "_secret");
     return ids;
   }
 
@@ -2148,7 +2231,12 @@ window.GameEngine = (function () {
     };
     state.pendingGuildChoice = false;
     state.flags.guildDecision = "guild:" + guild.id;
-    grantGuildTechniques(state);
+    const learnedTechniques = grantGuildTechniques(state);
+    if (learnedTechniques.length) {
+      state.flags.lastGuildTechniques = learnedTechniques.slice();
+      const names = learnedTechniques.map((id) => techniqueCatalog()[id]?.name || id);
+      pushHistory(state, { type: "sys", text: "§ Tông môn truyền thụ công pháp: " + names.join(", ") + ". Có thể mở mục Công Pháp để luyện và xem hiệu ứng." });
+    }
     pushMemory(state, "Gia nhập " + guild.name + ".");
     pushHistory(state, { type: "sys", text: "§ Ngươi đã gia nhập " + guild.name + " với thân phận Ngoại Môn." });
     checkQuestObjectives(state, "chon_dao_lo");
@@ -2221,7 +2309,11 @@ window.GameEngine = (function () {
     if (cultivationTier(state) !== 1) return false;
     const next = D().REALMS.find((realm) => realm.level === 2) || D().REALMS[realmIndex(state) + 1];
     if (!next) return false;
+    const previousMaxLifespan = Number(state.player.maxLifespan || computeLifespan(state.player));
     state.player.realmId = next.id;
+    const upgradedMaxLifespan = computeLifespan(state.player);
+    const lifespanDelta = Math.max(0, upgradedMaxLifespan - previousMaxLifespan);
+    if (lifespanDelta) state.player.lifespan = Number(state.player.lifespan || 0) + lifespanDelta;
     state.flags.pathChoicePending = !state.player.pathId;
     state.pendingGuildChoice = true;
     state.flags.enteredKhaiLo = true;
@@ -2251,7 +2343,7 @@ window.GameEngine = (function () {
   // Nghi thức được mở dần theo cấp đích: cấp thấp dễ học, cấp cao mới cần đủ 5 cửa.
   function breakthroughRitualPlan(level) {
     if (level <= 2) return [];
-    if (level <= 4) return ["call_fate", "compare"];
+    if (level <= 3) return ["call_fate", "compare"];
     if (level <= 7) return ["call_fate", "compare", "anchor"];
     if (level <= 10) return ["call_fate", "compare", "anchor", "omen"];
     if (level <= 13) return ["call_fate", "compare", "anchor", "omen", "cost"];
@@ -2285,6 +2377,28 @@ window.GameEngine = (function () {
     };
     return requirements.filter((item) => matches[step]?.(item.label));
   }
+  function anchorCandidates(state) {
+    const relationships = state.relationships || {};
+    const entities = { ...(D().NPCS || {}), ...entityCatalog() };
+    return Object.entries(relationships).map(([npcId, relation]) => {
+      const npc = entities[npcId];
+      if (!npc) return null;
+      const trust = Number(relation?.trust || 0); const respect = Number(relation?.respect || 0);
+      if (trust < 20 && respect < 15) return null;
+      return { npcId, name: npc.name || npcId, trust, respect, stability: clamp(Math.round(35 + trust * 0.55 + respect * 0.35), 25, 100) };
+    }).filter(Boolean).sort((a, b) => b.stability - a.stability);
+  }
+  function establishHumanAnchor(state, npcId) {
+    const candidate = anchorCandidates(state).find((entry) => entry.npcId === npcId);
+    if (!candidate) return { success: false, reason: "NPC chưa đủ tin cậy hoặc tôn trọng để trở thành Neo Nhân Tính." };
+    state.player.anchors = Array.isArray(state.player.anchors) ? state.player.anchors : [];
+    const active = state.player.anchors.find((anchor) => !anchor.broken && Number(anchor.stability || 0) > 0);
+    if (active) return { success: false, reason: "Đã có một Neo Nhân Tính đang giữ tâm. Không thể dựng thêm neo." };
+    const anchor = { id: "anchor_npc_" + npcId, name: "Neo Nhân Tính · " + candidate.name, source: "npc", npcId, stability: candidate.stability, integrity: "intact", broken: false, establishedAtTurn: Number(state.meta?.turn || 0) };
+    state.player.anchors.push(anchor);
+    pushHistory(state, { type: "sys", text: "✦ Đã chọn " + candidate.name + " làm Neo Nhân Tính (ổn định " + candidate.stability + ")." });
+    return { success: true, anchor };
+  }
   function performBreakthroughRitualStep(state, step) {
     const status = breakthroughRitualStatus(state);
     if (!status.next || cultivationTier(state) <= 1) return { changed: false, reason: "Cảnh giới này chưa cần nghi thức phân đoạn." };
@@ -2298,10 +2412,8 @@ window.GameEngine = (function () {
     }
     if (step === "anchor") {
       const anchors = (state.player.anchors || []).filter((a) => !a.broken && Number(a.stability || 0) > 0);
-      if (!anchors.length) {
-        state.player.anchors = state.player.anchors || [];
-        state.player.anchors.push({ id: "anchor_" + (state.meta.turn || 0), name: "Neo nơi sinh thành", source: "location", stability: 30, broken: false });
-      }
+      if (!anchors.length) return { changed: false, reason: "Hãy chọn một NPC đủ tin cậy trong Nhân Duyên để dựng Neo Nhân Tính trước." };
+      if (!anchors.some((anchor) => anchor.source === "npc" && anchor.integrity !== "broken")) return { changed: false, reason: "Neo hiện tại không phải Neo Nhân Tính từ NPC; hãy chọn lại một NPC phù hợp." };
     }
     if (step === "compare") {
       const blockers = breakthroughRitualGateRequirements(state, step).filter((item) => !item.met).map((item) => item.label + ": " + item.current + " / " + item.target);
@@ -2331,6 +2443,7 @@ window.GameEngine = (function () {
   }
   function breakthroughRitualGateHint(state, step) {
     if (step === "call_fate" || step === "compare" || step === "omen") return breakthroughRitualGateRequirements(state, step).filter((item) => !item.met).map((item) => item.label + ": " + item.current + " / " + item.target).join("; ");
+    if (step === "anchor" && !anchorCandidates(state).length && !(state.player.anchors || []).some((anchor) => anchor.source === "npc" && !anchor.broken && Number(anchor.stability || 0) > 0)) return "Chưa có NPC đủ quan hệ để dựng Neo Nhân Tính.";
     if (step === "cost" && Number(state.player.san || 0) < 5) return "Thanh Tỉnh: " + state.player.san + " / 5";
     if (step === "trial" && !Boolean(state.player.hiddenProfession === "luan_hoi_tien" || state.player.tainted?.taintedGodDefeated || state.flags.finalVictory)) return "Cần đánh bại Tà Thần hoặc Ngoại Đạo Giả.";
     return "";
@@ -2438,15 +2551,62 @@ window.GameEngine = (function () {
     const grade = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || (rank[b] || 1) - (rank[a] || 1))[0] || "phan";
     return { grade, rank: rank[grade] || 1, rankTable: rank };
   }
+  // Resolver duy nhất cho mọi nguồn nhận Mệnh Số. Luôn chọn phẩm trước rồi mới chọn entry,
+  // giúp tỷ lệ theo cảnh giới không bị lệch bởi kích thước pool sau Phase 3.
+  const FATE_GRADE_ORDER = ["phan", "linh", "hoang", "huyen", "dia", "thien", "thanh", "tien"];
+  const FATE_GRADE_RANK = Object.freeze(FATE_GRADE_ORDER.reduce((out, grade, index) => { out[grade] = index + 1; return out; }, {}));
+  const FATE_REWARD_WEIGHTS = Object.freeze({
+    "1-2": { phan: 65, linh: 30, hoang: 5 },
+    "3-4": { phan: 15, linh: 45, hoang: 25, huyen: 10, dia: 5 },
+    "5-6": { phan: 5, linh: 20, hoang: 35, huyen: 25, dia: 10, thien: 5 },
+    "7-8": { phan: 2, linh: 10, hoang: 25, huyen: 30, dia: 20, thien: 10, thanh: 3 },
+    "9+": { phan: 1, linh: 5, hoang: 15, huyen: 25, dia: 25, thien: 18, thanh: 11, tien: 0.01 }
+  });
+  function fateRewardWeights(level = 1) {
+    const n = Number(level) || 1;
+    return n <= 2 ? FATE_REWARD_WEIGHTS["1-2"] : n <= 4 ? FATE_REWARD_WEIGHTS["3-4"] : n <= 6 ? FATE_REWARD_WEIGHTS["5-6"] : n <= 8 ? FATE_REWARD_WEIGHTS["7-8"] : FATE_REWARD_WEIGHTS["9+"];
+  }
+  function fateUniqueOwner(state, fate) {
+    if (fate?.grade !== "tien") return null;
+    state.meta = state.meta || {};
+    state.meta.uniqueFateOwnership = state.meta.uniqueFateOwnership || {};
+    const localOwned = (state.player?.fates || []).includes(fate.id) || (state.fateInventory || []).includes(fate.id);
+    if (localOwned && !state.meta.uniqueFateOwnership[fate.id]) state.meta.uniqueFateOwnership[fate.id] = state.player?.id || "local";
+    return state.meta.uniqueFateOwnership[fate.id] || null;
+  }
+  function rollFateByProgression(state, options = {}) {
+    const level = Number(options.level || cultivationTier(state) || 1);
+    const weights = { ...fateRewardWeights(level) };
+    const cap = Number(options.gradeCap || 0);
+    const minimum = Number(options.minimumGrade || 1);
+    const owned = new Set([...(state.player?.fates || []), ...(state.fateInventory || [])]);
+    const pool = D().FATE_PATTERNS.filter((fate) => {
+      const rank = FATE_GRADE_RANK[fate.grade] || 1;
+      if (rank < minimum || (cap && rank > cap) || fate.sign === "hung") return false;
+      if (owned.has(fate.id)) return false;
+      if (fate.grade === "tien" && fateUniqueOwner(state, fate) && !options.allowUniqueTien) return false;
+      return true;
+    });
+    if (!pool.length) return null;
+    const availableGrades = new Set(pool.map((fate) => fate.grade));
+    const gradeWeights = Object.entries(weights).filter(([grade, weight]) => availableGrades.has(grade) && Number(weight) > 0);
+    let grade;
+    if (gradeWeights.length) {
+      const total = gradeWeights.reduce((sum, [, weight]) => sum + Number(weight), 0);
+      let roll = Math.random() * total;
+      grade = gradeWeights.find(([, weight]) => (roll -= Number(weight)) <= 0)?.[0] || gradeWeights[gradeWeights.length - 1][0];
+    } else {
+      grade = pool.slice().sort((a, b) => (FATE_GRADE_RANK[a.grade] || 1) - (FATE_GRADE_RANK[b.grade] || 1))[0].grade;
+    }
+    const candidates = pool.filter((fate) => fate.grade === grade);
+    return candidates[rnd(0, candidates.length - 1)] || pool[rnd(0, pool.length - 1)];
+  }
   function rollQintianFate(state, method) {
     const dominant = dominantFateGrade(state);
-    const maxRank = Math.max(...Object.values(dominant.rankTable));
     // Tỷ lệ vượt một phẩm rất thấp, nhưng không bao giờ vượt quá +1 cấp.
     const upgradeChance = method === "ratio" ? 0.1 : 0.035;
-    const targetRank = Math.min(maxRank, dominant.rank + (Math.random() < upgradeChance ? 1 : 0));
-    let pool = D().FATE_PATTERNS.filter((f) => (dominant.rankTable[f.grade] || 1) === targetRank && !(state.player.fates || []).includes(f.id) && !(state.fateInventory || []).includes(f.id));
-    if (!pool.length) pool = D().FATE_PATTERNS.filter((f) => (dominant.rankTable[f.grade] || 1) <= targetRank && !(state.player.fates || []).includes(f.id) && !(state.fateInventory || []).includes(f.id));
-    return pool.length ? pool[rnd(0, pool.length - 1)] : null;
+    const targetRank = Math.min(8, dominant.rank + (Math.random() < upgradeChance ? 1 : 0));
+    return rollFateByProgression(state, { level: Math.max(1, cultivationTier(state)), minimumGrade: targetRank, gradeCap: targetRank });
   }
   function sacrificeLifespanForFate(state, method = "fixed") {
     const mode = method === "ratio" || method === "proportional" ? "ratio" : "fixed";
@@ -2620,13 +2780,8 @@ window.GameEngine = (function () {
       pushHistory(state, { type: "sys", text: "◇ Thiên Cơ tích lũy 1/2 · lần Đột Phá kế tiếp bảo đảm xuất hiện Mệnh Số." });
       return null;
     }
-    const ranks = { phan: 1, linh: 2, hoang: 3, huyen: 4, dia: 5, thien: 6, thanh: 7, tien: 8 };
     const cap = Math.min(8, 1 + Math.floor((Number(targetLevel) - 2) / 2));
-    const owned = new Set([...(state.player.fates || []), ...(state.fateInventory || [])]);
-    const pool = D().FATE_PATTERNS.filter((fate) => !owned.has(fate.id) && (ranks[fate.grade] || 1) <= cap)
-      .sort((a, b) => fateCompatibility(state.player.pathId, b) - fateCompatibility(state.player.pathId, a) || Number(b.score || 0) - Number(a.score || 0));
-    const top = pool.slice(0, Math.max(1, Math.min(8, pool.length)));
-    const fate = top.length ? top[rnd(0, top.length - 1)] : null;
+    const fate = rollFateByProgression(state, { level: Number(targetLevel), gradeCap: cap });
     if (!fate) return null;
     const result = receiveFate(state, fate.id, { source: "Đột Phá Cấp " + targetLevel, allowPending: true });
     state.flags.fatePityMisses = result.added ? 0 : state.flags.fatePityMisses;
@@ -2706,12 +2861,16 @@ window.GameEngine = (function () {
       pushHistory(state, { type: "warn", text: "× Đột phá thất bại; mất " + expLoss + " EXP." });
       return { changed: false, reason: "Đột phá thất bại." };
     }
+    const previousMaxLifespan = Number(state.player.maxLifespan || computeLifespan(state.player));
     state.player.realmId = next.id;
+    const upgradedMaxLifespan = computeLifespan(state.player);
+    const lifespanDelta = Math.max(0, upgradedMaxLifespan - previousMaxLifespan);
+    if (lifespanDelta) state.player.lifespan = Number(state.player.lifespan || 0) + lifespanDelta;
     state.player.exp = Math.max(0, state.player.exp - expRequired);
     state.flags.breakthroughRitual = null;
     recordTaintedMilestones(state);
     pushMemory(state, "Đột phá thành công: " + pathTitle(state));
-    pushHistory(state, { type: "sys", text: "§ ĐỘT PHÁ THÀNH CÔNG — " + pathTitle(state) + "!" });
+    pushHistory(state, { type: "sys", text: "§ ĐỘT PHÁ THÀNH CÔNG — " + pathTitle(state) + "!" + (lifespanDelta ? " Thọ Nguyên tối đa +" + lifespanDelta + " năm, hiện tại +" + lifespanDelta + " năm." : "") });
     grantBreakthroughFate(state, next.level);
     updateDerived(state);
     return { changed: true, reason: "Đột phá thành công." };
@@ -2897,8 +3056,16 @@ window.GameEngine = (function () {
     const previous = Number(clock.lastRealTimestamp || now);
     const elapsedSeconds = Math.max(0, Math.min(8 * 3600, (Number(now) - previous) / 1000));
     clock.lastRealTimestamp = Number(now);
-    const gameDays = Math.floor(elapsedSeconds / Number(GAME_TIME_CONFIG.realSecondsPerGameDay));
-    if (gameDays < 1 || state.pendingEnding) return { elapsedSeconds, gameDays, cultivated: 0, rested: 0, skipped: true };
+    const secondsPerGameDay = Number(GAME_TIME_CONFIG.realSecondsPerGameDay);
+    const elapsedGameDays = elapsedSeconds / secondsPerGameDay;
+    const gameDays = Math.floor(elapsedGameDays);
+    if (state.pendingEnding) return { elapsedSeconds, gameDays, cultivated: 0, rested: 0, skipped: true };
+    if (gameDays < 1) {
+      advanceGameTime(state, elapsedGameDays);
+      state.autoCultivation = { mode: "offline", elapsedSeconds, gameDays: 0, cultivated: 0, rested: 0, skipped: false, completedAt: Number(now) };
+      updateDerived(state);
+      return { elapsedSeconds, gameDays: 0, cultivated: 0, rested: 0, skipped: false };
+    }
     const safe = !aliveEnemies(state).length && Number(D().LOCATIONS[state.locationId]?.corruption || 0) <= 2;
     let cultivated = 0; let rested = 0;
     state._suppressHistory = true;
@@ -2911,8 +3078,9 @@ window.GameEngine = (function () {
         if (!result.completed && !result.rested) break;
       }
     } else {
-      advanceGameTime(state, gameDays);
+      advanceGameTime(state, elapsedGameDays);
     }
+    if (safe) advanceGameTime(state, elapsedGameDays - gameDays);
     state._suppressHistory = false;
     state.autoCultivation = { mode: "offline", elapsedSeconds, gameDays, cultivated, rested, skipped: !safe, completedAt: Number(now) };
     pushHistory(state, { type: "sys", text: safe ? "§ Bế quan offline hoàn tất: " + cultivated + " lượt vận công, " + rested + " lượt điều tức trong " + gameDays + " ngày game." : "§ Offline: thời gian đã trôi qua " + gameDays + " ngày game; địa điểm không an toàn nên không tự tu luyện." });
@@ -3356,8 +3524,8 @@ window.GameEngine = (function () {
       return "omen";
     }
     if (Math.random() < 0.12) {
-      const dominant = dominantFateGrade(state); const pool = D().FATE_PATTERNS.filter((f) => (dominant.rankTable[f.grade] || 1) <= dominant.rank + 1 && !(state.player.fates || []).includes(f.id) && !(state.fateInventory || []).includes(f.id));
-      const fate = pool.length ? pool[rnd(0, pool.length - 1)] : null;
+      const dominant = dominantFateGrade(state);
+      const fate = rollFateByProgression(state, { level: cultivationTier(state), gradeCap: Math.min(8, dominant.rank + 1) });
       const fateResult = fate ? receiveFate(state, fate.id, { source: "manh mối bản đồ", allowPending: true }) : null;
       if (fate && (fateResult?.added || fateResult?.pending)) {
         grantMerit(state, 1, "giải mã điềm mệnh trên bản đồ");
@@ -3554,9 +3722,7 @@ window.GameEngine = (function () {
     const fateChance = elite ? 0.25 : 0.06;
     if (Math.random() < fateChance) {
       const dominant = dominantFateGrade(state);
-      const owned = new Set([...(state.player.fates || []), ...(state.fateInventory || [])]);
-      const candidates = D().FATE_PATTERNS.filter((fate) => !owned.has(fate.id) && (dominant.rankTable[fate.grade] || 1) <= dominant.rank + (elite ? 1 : 0));
-      const fate = candidates.length ? candidates[rnd(0, candidates.length - 1)] : null;
+      const fate = rollFateByProgression(state, { level: cultivationTier(state), gradeCap: Math.min(8, dominant.rank + (elite ? 1 : 0)) });
       if (fate) {
         const received = receiveFate(state, fate.id, { source: (elite ? "tinh anh/boss " : "chiến lợi phẩm ") + info.name, allowPending: true });
         pushHistory(state, { type: received.added ? "sys" : "warn", text: "◇ Chiến lợi phẩm Mệnh Số: " + fate.name + (received.pending ? " đang chờ xử lý." : " đã vào Mệnh Kho.") });
@@ -3631,8 +3797,12 @@ window.GameEngine = (function () {
     text = weaveAtmosphere(state, text, "talk:" + entityId);
     pushHistory(state, { type: "sys", text: "§ " + npc.name + " nói: \"" + text + "\"", portrait: npc.portrait });
     if (entityId === "su_phu") state.flags.metSuPhu = true;
-    if (!state.relationships[entityId]) state.relationships[entityId] = { trust: 20, fear: 0, respect: 10, suspicion: 0 };
-    state.relationships[entityId].trust = clamp(state.relationships[entityId].trust + 2, 0, 100);
+    if (!state.relationships[entityId]) state.relationships[entityId] = { trust: 5, fear: 0, respect: 0, suspicion: 0, interactionCount: 0 };
+    const relation = state.relationships[entityId];
+    relation.interactionCount = Number(relation.interactionCount || 0) + 1;
+    relation.trust = clamp(Number(relation.trust || 0) + 3, 0, 100);
+    relation.respect = clamp(Number(relation.respect || 0) + 1, 0, 100);
+    if (relation.trust >= 20 || relation.respect >= 15) pushHistory(state, { type: "sys", text: "◇ Quan hệ với " + npc.name + " đã đủ nền tảng để cân nhắc Neo Nhân Tính." });
     checkQuestObjectives(state, "nhan_mon");
     updateDerived(state);
   }
@@ -3689,10 +3859,8 @@ window.GameEngine = (function () {
     const clock = ensureGameClock(state);
     const dayIndex = gameDayIndex(clock);
     if (dayIndex < Number(clock.nextOnlineFateDay || 0)) return null;
-    const owned = new Set([...(state.player.fates || []), ...(state.fateInventory || [])]);
-    const dominant = dominantFateGrade(state); const maxRank = Math.min(3, Number(dominant.rank || 1) + 1);
-    const candidates = D().FATE_PATTERNS.filter((f) => !owned.has(f.id) && (dominant.rankTable[f.grade] || 1) <= maxRank && f.sign !== "hung");
-    const fate = candidates.length ? candidates[rnd(0, candidates.length - 1)] : null;
+    const dominant = dominantFateGrade(state); const maxRank = Math.min(8, Number(dominant.rank || 1) + 1);
+    const fate = rollFateByProgression(state, { source: "online", level: cultivationTier(state), gradeCap: maxRank });
     clock.nextOnlineFateDay = dayIndex + GAME_TIME_CONFIG.onlineFateIntervalDays;
     if (!fate) return null;
     const received = receiveFate(state, fate.id, { source: "cơ duyên online · ngày " + dayIndex, allowPending: true });
@@ -3806,7 +3974,7 @@ window.GameEngine = (function () {
   }
   function skillActions(state) {
     return getKnownTechniques(state)
-      .filter((t) => t.category === "chieu_thuc" || t.category === "cam_thuat" || t.category === "than_phap" || t.category === "phu_tro" || t.category === "tran_phap")
+      .filter((t) => t.category === "chieu_thuc" || t.category === "cam_thuat" || t.category === "than_phap" || t.category === "phu_tro" || t.category === "tran_phap" || t.category === "guild_signature")
       .map((t) => {
         const preview = techniquePreview(state, t.id);
         return { id: "act_skill_" + t.id, label: "Dùng " + t.name, aliases: [t.name, t.id], priority: 1, requiresConfirmation: preview.requiresConfirmation, preview };
@@ -4207,7 +4375,7 @@ window.GameEngine = (function () {
       realm: { id: realm.id, level: realm.level, title: pathTitle(state), exp: player.exp },
       path: { primary: player.pathId || null, secondary: player.secondaryPathId || null, pathScore: player.pathId ? pathMatchSummary(player, player.pathId).score : 0, professionStage: player.professionStage || null },
       stats: { phy: player.basePhy, mag: player.baseMag, aptitude: player.aptitude, comprehension: player.comprehension, vitality: player.hp, vitalityMax: player.maxHp, qi: player.qi, qiMax: player.maxQi, staminaCurrent: player.stamina, staminaMax: player.maxStamina, san: player.san, sanMax: player.maxSan, corruption: player.corruptionRating, lifespan: player.lifespan, lifespanConsumableBonus: Number(player.lifespanConsumableBonus || 0), currentAge: player.currentAge, fortune: player.baseFortune, sat: player.sat, merit: player.merit },
-      fate: { equippedIds: (player.fates || []).slice(), vaultIds: (state.fateInventory || []).slice(), vaultCapacity: fateVaultCapacity(state), total: fate.total, normal: fate.normal, ratioR: fate.ratio, debt: fate.debt, surplus: fate.surplus, pacts: (player.fatePacts || []).slice(), enhancements: { ...(player.fateEnhancements || {}) } },
+      fate: { equippedIds: (player.fates || []).slice(), vaultIds: (state.fateInventory || []).slice(), vaultCapacity: fateVaultCapacity(state), total: fate.total, normal: fate.normal, ratioR: fate.ratio, debt: fate.debt, surplus: fate.surplus, excessEssence: Number(state.fateExcessEssence || player.fateExcessEssence || 0), instances: JSON.parse(JSON.stringify(state.fateInstances || player.fateInstances || {})), pacts: (player.fatePacts || []).slice(), enhancements: { ...(player.fateEnhancements || {}) } },
       anchors: (player.anchors || []).map((anchor) => ({ ...anchor })),
       techniqueIds: Object.keys(player.techniques || {}),
       techniqueProgress: JSON.parse(JSON.stringify(player.techniques || {})),
@@ -4264,6 +4432,16 @@ window.GameEngine = (function () {
   function deserialize(json) {
     const data = JSON.parse(json);
     const state = data.state;
+    // Save cũ chỉ lưu timestamp ở metadata ngoài; đưa nó vào gameClock để
+    // khoảng thời gian người chơi offline vẫn được mô phỏng khi đăng nhập lại.
+    const savedAtMs = Date.parse(data.savedAt || "");
+    if (state && Number.isFinite(savedAtMs)) {
+      state.gameClock = state.gameClock || {};
+      const clockStamp = Number(state.gameClock.lastRealTimestamp || 0);
+      // savedAt là mốc chắc chắn của lần xuất file; dùng mốc mới hơn để
+      // không bị timestamp trong state cũ làm mất toàn bộ thời gian offline.
+      state.gameClock.lastRealTimestamp = Math.max(clockStamp, savedAtMs);
+    }
     if (state.player?.realm && state.player?.fate) {
       const canonical = state.player;
       state.player = fromCanonicalCharacter(canonical);
@@ -4277,6 +4455,8 @@ window.GameEngine = (function () {
       state.player.unboundTrials = { ...(canonical.unboundTrials || {}) };
       state.player.unboundPathProven = Boolean(canonical.unboundPathProven);
       state.fateInventory = (canonical.fate.vaultIds || []).slice();
+      state.fateExcessEssence = Number(canonical.fate.excessEssence || 0);
+      state.fateInstances = canonical.fate.instances ? JSON.parse(JSON.stringify(canonical.fate.instances)) : {};
       state._fateState = canonical.state || state._fateState;
     }
     state.player.realmId = realmById(state.player.realmId).id;
@@ -4354,6 +4534,19 @@ window.GameEngine = (function () {
     state.pendingSearch = state.pendingSearch || null;
     state.pendingFateReward = state.pendingFateReward || null;
     state.pendingFateRewards = Array.isArray(state.pendingFateRewards) ? state.pendingFateRewards : [];
+    state.fateExcessEssence = Number(state.fateExcessEssence || state.player.fateExcessEssence || 0);
+    state.player.fateExcessEssence = state.fateExcessEssence;
+    state.fateInstances = state.fateInstances || {};
+    [...(state.player.fates || []), ...(state.fateInventory || [])].forEach((id) => {
+      if (!state.fateInstances[id]) state.fateInstances[id] = { fateId: id, acquiredAtTurn: 0, source: "save cũ", relationshipStage: 0, resonanceProgress: 0, nurtureLevel: 0 };
+    });
+    state.meta = state.meta || {};
+    state.meta.uniqueFateOwnership = state.meta.uniqueFateOwnership || {};
+    // Grandfather Tiên hiện có trong save, nhưng khóa các lần nhận tiếp theo.
+    (state.player.fates || []).concat(state.fateInventory || []).forEach((id) => {
+      const fate = D().FATE_PATTERNS.find((entry) => entry.id === id);
+      if (fate?.grade === "tien" && !state.meta.uniqueFateOwnership[id]) state.meta.uniqueFateOwnership[id] = state.player.id || "local";
+    });
     Object.values(state.quests || {}).filter((quest) => quest.id?.startsWith("search_chain_")).forEach((quest) => {
       ensureSearchChainQuest(state, quest.searchLocationId || quest.id.slice("search_chain_".length), quest.requiredSearches || 1);
     });
@@ -4380,7 +4573,7 @@ window.GameEngine = (function () {
     normalizeEquipment, equippedItemIds, equippedItemQuantity, freeItemQuantity, equipmentCategory, equipmentCategoryLabel, equipmentSummary, equipmentEligibility, protectionSlot, equipItem, inventoryActions, handleInventoryAction, cauldronItemSafety,
     GRADE_TO_TIER, TIER_TO_GRADE, SIGN_TO_TYPE_LABEL, TYPE_LABEL_TO_SIGN, fateDefinition, fateElement, fatePathAffinity, splitFateEffects, fateRelationshipsFor, fateCombosFor, fateFusionRecipesFor, fateRelationshipStatus, nurtureFate, resonateFate, meritFateOffers, buyFateWithMerit,
     fateVaultCapacity, fateCompatibility, fateEnhancementLevel, enhancedFateEffects, pathMatchSummary, availablePaths, pathProgression, receiveFate, sacrificeFate, fateVaultSummary, validateFateInventory, swapFateFromVault, fateSwapPreview, storeFateToVault, equipFateFromVault, fateUpgradePreview, upgradeFate, resolvePendingFateReward, dismissPendingFateReward, mergeFates, suggestFateForRealmRequirement, auditFateRolls, buyFateAtMarket, sacrificeLifespanForFate, qintianFateOffers, refreshMarket, marketOffers, buyMarketOffer, refreshBlackMarket, blackMarketOffers, buyBlackMarketOffer, meritFateOffers, buyFateWithMerit, refineAtVoidCauldron,
-    cultivationTier, breakthroughRitualPlan, breakthroughRitualStatus, breakthroughRitualGateRequirements, performBreakthroughRitualStep, breakthroughRequirements, getBreakthroughBlockers, getChuyenSinhBlockers, processLuanHoi, processChuyenSinh, chooseTaintedAttention, rollTaintedAttention, chooseTaintedFaction, factionStatus, grantQuestMerit, resolveFactionHunt, switchTaintedFaction, selectPath, pathTitle, completeUnboundTrial, canUnlockDevourHeaven, recordTaintedMilestones,
+    cultivationTier, fateRewardWeights, rollFateByProgression, anchorCandidates, establishHumanAnchor, breakthroughRitualPlan, breakthroughRitualStatus, breakthroughRitualGateRequirements, performBreakthroughRitualStep, breakthroughRequirements, getBreakthroughBlockers, getChuyenSinhBlockers, processLuanHoi, processChuyenSinh, chooseTaintedAttention, rollTaintedAttention, chooseTaintedFaction, factionStatus, grantQuestMerit, resolveFactionHunt, switchTaintedFaction, selectPath, pathTitle, completeUnboundTrial, canUnlockDevourHeaven, recordTaintedMilestones,
     elementRelation, familyMatchup, toCanonicalCharacter, fromCanonicalCharacter,
     gainExp, enterLuyenKhi, cultivate, autoCultivate, secludedCultivation, rest, doBreakthrough, drainSan, restoreSan, move, locationExits, look, ensureSearchSite, searchStatus, search, collectSearchFindings, investigateSearchFinding, leaveSearchSession, useItem,
     talk, combat, beginCombat, aliveEnemies, firstAliveEnemy, enemyTurn, afterPlayerCombatAction, applyPlayerDamage, endCombat, combatEntity, spawnCombatEntity, maybeSpawnCombatExtras, lootTable, rollEntityLoot, rollDefeatBonus, entityCatalog, getEntity, entityForPlayer, dialogueState, presentEntities, maybeTriggerRandomEncounter, findEntityByName, interactEntity, monsterAction, useTechnique, techniquePreview, learnTechnique, getKnownTechniques, techniqueStatus, techniqueProgress, contextState, moveActions, talkActions, skillActions, parseAction, resolveAction, submitActionId, submitTurn, describeStatus, describeInventory, describeQuests,

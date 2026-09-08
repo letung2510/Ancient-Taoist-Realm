@@ -340,6 +340,13 @@
         renderAfterTurn();
         return;
       }
+      const anchorSelect = event.target.closest("[data-anchor-select]");
+      if (anchorSelect && state) {
+        const result = E.establishHumanAnchor(state, anchorSelect.dataset.anchorSelect);
+        if (!result.success) alert(result.reason);
+        else { saveGame(); UI.openOverlay("Nghi Thức Đột Phá", UI.renderRitualModal(state, "anchor", { disabled_reason: "" })); }
+        return;
+      }
       const ritualConfirm = event.target.closest("[data-ritual-confirm]");
       if (ritualConfirm && state && !ritualConfirm.disabled) { const actionId = "act_ritual_" + ritualConfirm.dataset.ritualConfirm; UI.closeOverlay(); enqueueAction(() => { E.submitActionId(state, actionId); renderAfterTurn(); }); return; }
       const itemAction = event.target.closest("[data-item-action]");

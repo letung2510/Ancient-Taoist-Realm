@@ -170,7 +170,10 @@ function main() {
     }
   }
 
-const outPath = path.join(__dirname, "..", "data", "fate_data.js");
+// Legacy generator output is staging-only. Never overwrite the Phase 3 runtime catalog.
+const generatedDir = path.join(__dirname, "..", "fate_system_update", "generated");
+fs.mkdirSync(generatedDir, { recursive: true });
+const outPath = path.join(generatedDir, "fate_data.generated.js");
   const json = JSON.stringify(fates);
   const content = "/* CỔ DỊ DIỆN — 2000+ Mệnh Số (tự sinh từ cách cục Tử Vi) */\nwindow.FATE_DATA = " + json + ";\n";
   fs.writeFileSync(outPath, content, "utf8");

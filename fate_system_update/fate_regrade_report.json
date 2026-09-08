@@ -1,0 +1,27 @@
+{
+  "migrationRunId": "phase3-20260908",
+  "before": {
+    "phan": 8000,
+    "linh": 1500,
+    "hoang": 250,
+    "huyen": 120,
+    "dia": 70,
+    "thien": 50,
+    "thanh": 9,
+    "tien": 1
+  },
+  "after": {
+    "phan": 5000,
+    "linh": 2500,
+    "hoang": 1200,
+    "huyen": 700,
+    "dia": 400,
+    "thien": 150,
+    "thanh": 49,
+    "tien": 1
+  },
+  "changed": 3000,
+  "protectedOwned": 7,
+  "stagingTagsMerged": 10000,
+  "resonanceMerged": 130
+}

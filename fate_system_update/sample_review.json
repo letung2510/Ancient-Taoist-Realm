@@ -1,0 +1,122 @@
+[
+  {
+    "name": "Thần Vực Trận",
+    "desc": "Thần thánh, tinh thần, siêu nhiên kết hợp với vùng đất, không gian kiểm soát dưới dạng trận pháp, đại trận bủa vây.",
+    "tags": [
+      "trận",
+      "vực",
+      "tinh"
+    ],
+    "element": "tho"
+  },
+  {
+    "name": "Phong Hà Cách",
+    "desc": "Gió, tốc độ, tự do kết hợp với sông, dòng chảy dưới dạng cách cục, cấu trúc số phận.",
+    "tags": [
+      "phong"
+    ],
+    "element": "vo_he"
+  },
+  {
+    "name": "Tử Hà Cách",
+    "desc": "Màu tím (cao quý) hoặc Cái chết / Con cái kết hợp với sông, dòng chảy dưới dạng cách cục, cấu trúc số phận.",
+    "tags": [
+      "tử"
+    ],
+    "element": "vo_he"
+  },
+  {
+    "name": "Long Mệnh",
+    "desc": "Rồng, uy quyền tối cao kết hợp với số mệnh, mạng sống, lệnh",
+    "tags": [
+      "long",
+      "mệnh"
+    ],
+    "element": "vo_he"
+  },
+  {
+    "name": "Băng Quyết Trận",
+    "desc": "Băng giá, lạnh lùng, ngưng kết kết hợp với bí kíp ngắn gọn, cốt lõi dưới dạng trận pháp, đại trận bủa vây.",
+    "tags": [
+      "trận",
+      "cốt"
+    ],
+    "element": "vo_he"
+  },
+  {
+    "name": "Nghịch Lâu Cách",
+    "desc": "Ngược lại, chống đối kết hợp với nhà tầng, lầu cao dưới dạng cách cục, cấu trúc số phận.",
+    "tags": [],
+    "element": "vo_he"
+  },
+  {
+    "name": "Vĩnh Hà",
+    "desc": "Lâu dài, mãi mãi kết hợp với sông, dòng chảy",
+    "tags": [],
+    "element": "vo_he"
+  },
+  {
+    "name": "Bất Cung Thể",
+    "desc": "Không, chẳng (phủ định) kết hợp với cung điện, nơi trang nghiêm dưới dạng thể chất, cơ thể bẩm sinh.",
+    "tags": [
+      "sinh",
+      "cơ",
+      "thể"
+    ],
+    "element": "vo_he"
+  },
+  {
+    "name": "Thái Tông Trận",
+    "desc": "Quá, cực hạn, to lớn kết hợp với tông môn, tổ tiên, gốc rễ dưới dạng trận pháp, đại trận bủa vây.",
+    "tags": [
+      "trận"
+    ],
+    "element": "vo_he"
+  },
+  {
+    "name": "Thái Phủ",
+    "desc": "Quá, cực hạn, to lớn kết hợp với dinh thự, nơi ở của đại năng",
+    "tags": [],
+    "element": "vo_he"
+  },
+  {
+    "name": "Kim Hải Cách",
+    "desc": "Vàng, kim loại, kiên cố kết hợp với biển, sự rộng lớn dưới dạng cách cục, cấu trúc số phận.",
+    "tags": [
+      "kim"
+    ],
+    "element": "kim"
+  },
+  {
+    "name": "Đại Cung",
+    "desc": "To lớn, vĩ đại, cao cấp kết hợp với cung điện, nơi trang nghiêm",
+    "tags": [],
+    "element": "vo_he"
+  },
+  {
+    "name": "Mộc Pháp Cách",
+    "desc": "Cây, gỗ, sinh sôi kết hợp với phương pháp, phép thuật, quy tắc dưới dạng cách cục, cấu trúc số phận.",
+    "tags": [
+      "sinh",
+      "mộc"
+    ],
+    "element": "moc"
+  },
+  {
+    "name": "Băng Tôn Ấn",
+    "desc": "Băng giá, lạnh lùng, ngưng kết kết hợp với kính trọng, bậc bề trên, cao quý dưới dạng phong ấn, ấn ký tối cao.",
+    "tags": [
+      "phong",
+      "ấn"
+    ],
+    "element": "vo_he"
+  },
+  {
+    "name": "Tiên Tông",
+    "desc": "Thoát tục, trường sinh, cõi tiên kết hợp với tông môn, tổ tiên, gốc rễ",
+    "tags": [
+      "sinh"
+    ],
+    "element": "vo_he"
+  }
+]
