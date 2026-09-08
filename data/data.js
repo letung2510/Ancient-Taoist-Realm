@@ -358,9 +358,9 @@ window.GameData = (function () {
     chon_dao_lo: {
       id: "chon_dao_lo", title: "Lựa Chọn Đạo Lộ",
       kind: "realm",
-      desc: "Sau khi bước vào Khai Lộ Cảnh, chọn gia nhập một môn phái trong vùng hoặc từ chối để theo con đường Tán Tu/Thế Gia.",
+      desc: "Sau khi bước vào Khai Lộ Cảnh, chọn gia nhập một môn phái trong vùng hoặc tiếp tục hành đạo độc lập. Xuất thân Tán Tu/Thế Gia đã được khóa từ đầu game.",
       objectives: [
-        { id: "quyet_dinh", label: "Chọn Môn Phái, Tán Tu hoặc Thế Gia", check: (st) => Boolean(st.flags.guildDecision) }
+        { id: "quyet_dinh", label: "Xác nhận tổ chức hoặc tiếp tục hành đạo độc lập", check: (st) => Boolean(st.flags.guildDecision) }
       ],
       reward: { exp: 20 }
     },
@@ -436,7 +436,7 @@ window.GameData = (function () {
     "  tìm kiếm — tìm vật phẩm tại nơi hiện tại",
     "  dùng <vật phẩm> — sử dụng vật phẩm",
     "  gia nhập <môn phái> — chọn tông môn sau khi đạt Khai Lộ Cảnh",
-    "  từ chối tán tu / chọn thế gia — từ chối nhập môn và chọn đạo lộ",
+    "  gia nhập <môn phái> — tổ chức là lựa chọn riêng; xuất thân Tán Tu/Thế Gia chỉ chọn một lần ở đầu game",
     "  nói chuyện <tên> — trò chuyện với nhân vật",
     "  tấn công — giao chiến với kẻ thù quanh đây",
     "  trạng thái / hành trang / nhiệm vụ / mệnh — xem thông tin",

@@ -2244,6 +2244,12 @@ window.GameEngine = (function () {
   }
 
   function refuseGuild(state, path) {
+    if (state.player.origin?.confirmed || state.flags?.originLocked) {
+      state.pendingGuildChoice = false;
+      state.flags.guildDecision = state.flags.guildDecision || "origin:" + (state.player.origin?.type || state.player.background || "independent");
+      pushHistory(state, { type: "warn", text: "× Xuất thân đã được định khi bắt đầu game; không thể đổi Tán Tu/Thế Gia. Hãy chọn gia nhập tổ chức nếu muốn." });
+      return false;
+    }
     if (!state.pendingGuildChoice) {
       pushHistory(state, { type: "warn", text: "× Hiện không có lời mời nhập môn nào cần quyết định." });
       return false;
@@ -2301,7 +2307,7 @@ window.GameEngine = (function () {
     return "§ Tổ chức trong vùng:\n" + available.map((guild) =>
       "  · " + guild.name + " [" + guildTierInfo(guild).name + " · " + guild.allegiance + "]"
     ).join("\n") + "\n  Dùng: gia nhập <tên tổ chức>" +
-      (state.pendingGuildChoice ? " | từ chối tán tu | chọn thế gia" : "");
+      (state.pendingGuildChoice ? " | tiếp tục hành đạo độc lập (xuất thân đã khóa)" : "");
   }
 
   /* ---------- EXP / realm ---------- */
@@ -2315,13 +2321,14 @@ window.GameEngine = (function () {
     const lifespanDelta = Math.max(0, upgradedMaxLifespan - previousMaxLifespan);
     if (lifespanDelta) state.player.lifespan = Number(state.player.lifespan || 0) + lifespanDelta;
     state.flags.pathChoicePending = !state.player.pathId;
-    state.pendingGuildChoice = true;
+    const originLocked = Boolean(state.player.origin?.confirmed || state.flags?.originLocked);
+    state.pendingGuildChoice = !originLocked;
     state.flags.enteredKhaiLo = true;
-    state.flags.guildDecision = null;
+    state.flags.guildDecision = originLocked ? "origin:" + (state.player.origin?.type || state.player.background || "independent") : null;
     activateQuest(state, "chon_dao_lo");
     pushMemory(state, "Bước vào Khai Lộ Cảnh nhờ " + source + ".");
     pushHistory(state, { type: "sys", text: "§ KHAI LỘ THÀNH CÔNG — " + next.name + " (" + source + ")." });
-    pushHistory(state, { type: "sys", text: "§ Hãy chọn một Con Đường đủ Mệnh dẫn hoặc trở thành Ngoại Đạo Giả. Lựa chọn môn phái/Tán Tu/Thế Gia là quyết định tổ chức độc lập." });
+    pushHistory(state, { type: "sys", text: "§ Xuất thân đã định từ đầu game: " + (state.player.origin?.name || state.player.background || "độc lập") + ". Từ đây chỉ lựa chọn gia nhập tổ chức; có thể tiếp tục hành đạo độc lập." });
     updateDerived(state);
     return true;
   }
@@ -4556,8 +4563,14 @@ window.GameEngine = (function () {
     state.pendingRewardSummaries = Array.isArray(state.pendingRewardSummaries) ? state.pendingRewardSummaries : [];
     state.market = state.market && Array.isArray(state.market.offers) ? state.market : { generatedAt: 0, refreshIntervalMs: 60000, offers: [], purchased: {} };
     state.pendingGuildChoice = Boolean(state.pendingGuildChoice);
-    if (cultivationTier(state) >= 2 && !state.guildMembership && !state.flags.guildDecision) {
-      state.pendingGuildChoice = true;
+    if (state.player.origin?.confirmed || state.flags.originLocked) {
+      // Save cũ từng tạo lại lựa chọn Tán Tu/Thế Gia sau khi đột phá. Xuất thân
+      // mới chỉ được chọn một lần ở đầu game, vì vậy tự chuẩn hóa trạng thái.
+      state.pendingGuildChoice = false;
+      state.flags.guildDecision = state.flags.guildDecision || "origin:" + (state.player.origin?.type || state.player.background || "independent");
+    } else if (cultivationTier(state) >= 2 && !state.guildMembership && !state.flags.guildDecision) {
+      state.pendingGuildChoice = false;
+      state.flags.guildDecision = "origin:" + (state.player.background || "independent");
       activateQuest(state, "chon_dao_lo");
     }
     recordTaintedMilestones(state);

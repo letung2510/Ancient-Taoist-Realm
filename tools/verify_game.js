@@ -575,7 +575,7 @@ function verifyMapUI(sandbox) {
   E.enterLuyenKhi(guildChoiceState, "kiểm thử UI");
   sandbox.window.GameUI.renderPanel(guildChoiceState);
   assert(elements["tab-content"].innerHTML.includes("data-guild-join") || elements["tab-content"].innerHTML.includes("Chưa đủ tư cách"));
-  assert(elements["tab-content"].innerHTML.includes("data-guild-refuse"));
+  assert(!elements["tab-content"].innerHTML.includes("data-guild-refuse"));
 }
 
 function verifyDomReferences() {

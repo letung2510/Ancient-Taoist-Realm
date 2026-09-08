@@ -498,10 +498,9 @@ window.GameUI = (function () {
     const regional = data.GUILDS.filter((guild) => guild.region_id === regionId);
     const available = regional.filter((guild) => window.GameEngine.guildEligibility(state, guild).visible)
       .sort((a, b) => a.pyramid_tier - b.pyramid_tier || b.reputation - a.reputation);
+    const originName = state.player.origin?.name || state.player.background || "Xuất thân đã định";
     const decision = state.pendingGuildChoice
-      ? '<div class="guild-decision"><b>Nhiệm vụ: Lựa Chọn Đạo Lộ</b><p>Gia nhập một môn phái bên dưới, hoặc từ chối để tự chọn con đường.</p>' +
-        '<button class="guild-action" data-guild-refuse="tan_tu">Chọn Tán Tu</button> ' +
-        '<button class="guild-action" data-guild-refuse="the_gia">Chọn Thế Gia</button></div>'
+      ? '<div class="guild-decision"><b>Đạo lộ tổ chức</b><p>Xuất thân <strong>' + escapeHtml(originName) + '</strong> đã được chọn từ đầu game và không thể đổi tại đây. Ngươi có thể gia nhập một tổ chức bên dưới hoặc tiếp tục hành đạo độc lập.</p></div>'
       : '';
     const hidden = Math.max(0, regional.length - available.length);
     const regionalMinTier = regional.length ? Math.min(...regional.map((guild) => Number(guild.pyramid_tier || 5))) : null;
