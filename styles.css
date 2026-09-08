@@ -377,15 +377,19 @@ html, body {
 .region-node b { display: block; color: var(--ink); font-size: 12px; }
 .region-node small { color: var(--ink-dim); font-size: 9px; }
 .region-node.current { border-color: var(--gold); box-shadow: 0 0 18px rgba(217,185,106,.28); }
-.faction-pin {
+  .faction-pin {
   position: absolute;
   width: 8px;
   height: 8px;
   transform: translate(-50%, -50%);
   border: 1px solid #071016;
   border-radius: 50%;
-  z-index: 2;
-}
+    z-index: 2;
+    padding: 0;
+    cursor: pointer;
+    appearance: none;
+  }
+  .faction-pin:hover, .faction-pin:focus-visible { filter: brightness(1.35); transform: translate(-50%, -50%) scale(1.35); outline: 1px solid var(--gold); }
 .faction-pin span {
   position: absolute;
   left: 9px;
@@ -399,9 +403,14 @@ html, body {
 .faction-pin.evil, .dot.evil { background: var(--danger); }
 .faction-pin.neutral, .dot.neutral { background: #a995c9; }
 .faction-pin.guild-pin { width: 5px; height: 5px; outline: 1px solid rgba(255,255,255,.25); }
-.faction-row { padding: 8px 0; border-bottom: 1px dashed var(--line); }
+  .faction-row { display: block; width: 100%; padding: 8px 0; border: 0; border-bottom: 1px dashed var(--line); background: transparent; text-align: left; cursor: pointer; }
+  .faction-row:hover, .faction-row:focus-visible { background: rgba(217,185,106,.08); }
 .faction-row b { color: var(--ink); }
 .faction-row small { display: block; margin-top: 3px; color: var(--ink-dim); line-height: 1.45; }
+.link-button { border: 0; padding: 0; color: var(--gold); background: transparent; cursor: pointer; text-decoration: underline; }
+.tag { display: inline-block; padding: 3px 7px; border: 1px solid var(--line); border-radius: 999px; font-size: 11px; }
+.tag.success { color: #8bd3a8; border-color: #467d5e; }
+.tag.danger { color: var(--danger); border-color: rgba(224,106,106,.55); }
 .map-node {
   position: absolute;
   width: 112px;

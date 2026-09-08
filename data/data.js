@@ -185,14 +185,14 @@ window.GameData = (function () {
     truyen_phap: {
       id: "truyen_phap", name: "Truyền Pháp Các", corruption: 1,
       desc: "Tàng kinh các chất đầy ngọc giản. Một vài giá sách đã bị khóa chặt vì 'điển tịch cấm kỵ'.",
-      exits: { dong: "son_mon" },
+      exits: { dong: "son_mon", tay: "tay_mac_khoi_diem" },
       npcs: ["dai_su_huynh"],
       searchable: ["co_tich_tan_trang"]
     },
     linh_dien: {
       id: "linh_dien", name: "Linh Dược Viên", corruption: 2,
       desc: "Vườn linh thảo xanh um, nhưng linh khí ở đây có mùi tanh khó tả. Vài gốc linh thảo đã chuyển sang màu đen.",
-      exits: { tay: "son_mon", bac: "hac_lam" },
+      exits: { tay: "son_mon", bac: "hac_lam", nam: "vo_tan_hai_khoi_diem" },
       npcs: ["tieu_su_muoi"],
       searchable: ["linh_thach", "boi_nguyen_dan", "hoan_huyet_dan"]
     },
@@ -215,7 +215,7 @@ window.GameData = (function () {
     abyss: {
       id: "abyss", name: "Vực Sâu Dị Biến", corruption: 5,
       desc: "Khe nứt sâu hun hút, linh khí ở đây đặc quánh như máu. Đáy vực vọng lên tiếng gầm không thuộc về nhân gian.",
-      exits: { tay: "hac_lam" },
+      exits: { tay: "hac_lam", nam: "u_minh_khoi_diem" },
       npcs: [],
       enemies: ["ta_than_phan_than"],
       searchable: ["dai_hoan_dan"]
@@ -223,7 +223,7 @@ window.GameData = (function () {
     cam_dia: {
       id: "cam_dia", name: "Cấm Địa Ngoại Vi", corruption: 3,
       desc: "Khu vực bị phong tỏa bằng trận pháp. Từng tấm phù lục vàng đã rách nát, linh khí dị biến tràn ra.",
-      exits: { nam: "van_phong" },
+      exits: { nam: "van_phong", bac: "bac_nguyen_khoi_diem", dong: "thien_khong_khoi_diem" },
       npcs: [],
       searchable: ["co_tich_tan_trang"]
     },

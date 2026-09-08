@@ -13,6 +13,12 @@ World data bổ sung `travel_hubs`: `son_mon` và `van_phong` là hub tông môn
 
 Khi không giao chiến, action bar hiển thị **Về [điểm neo]**. Action này đưa nhân vật về hub phù hợp trong vùng; nếu nghi thức đang chờ, engine ưu tiên hub có NPC nhân tộc. Riêng Vô Tận Hải có NPC Tạ Hải Sinh tại Lưu Vân Hải Cảng, giúp người chơi không phải dò từng node để tìm NPC dạng người. Di chuyển nhanh vẫn tốn một lượt game và hủy phiên tìm kiếm chưa thu thập; không thể dùng trong giao chiến.
 
+### 7.1. Kiểm toàn vẹn tuyến và tương tác thế lực
+
+- Mọi cạnh của cụm địa điểm cố định phải có liên kết hai chiều trong `LOCATIONS.exits`, trừ khi được đánh dấu là tuyến một chiều. Các tuyến khởi điểm vùng đã được nối ngược về mạng chính để người chơi có thể đi thông toàn bộ node tĩnh.
+- Ghim Tông Môn/Thế Gia/Hoàng Triều trên bản đồ thế giới là điểm tương tác: bấm ghim hoặc dòng thế lực để mở hồ sơ, xem vùng, quy mô, cảnh giới và tổ chức liên quan.
+- Hồ sơ tổ chức hiển thị điều kiện gia nhập và lý do bị khóa. Gia nhập, nhận nhiệm vụ và giao dịch vẫn chỉ thực thi khi nhân vật đã tới đúng khu vực; ghim bản đồ không tự dịch chuyển hoặc cho gia nhập từ xa.
+
 ## 1. MÔ HÌNH DỮ LIỆU NỀN: NODE-GRAPH + FOG OF WAR
 
 Bản đồ là 1 đồ thị vô hướng: `nodes[]` (địa điểm) + `edges[]` (đường nối giữa 2 node). Node có 2

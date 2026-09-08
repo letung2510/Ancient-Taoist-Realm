@@ -310,6 +310,16 @@
         UI.setMapView(view.dataset.mapView, state);
         return;
       }
+      const factionPin = event.target.closest("[data-map-faction]");
+      if (factionPin && state) {
+        UI.openOverlay("Hồ sơ thế lực", UI.renderMapFactionDetail(state, factionPin.dataset.mapFaction, ""));
+        return;
+      }
+      const guildPin = event.target.closest("[data-map-guild]");
+      if (guildPin && state) {
+        UI.openOverlay("Hồ sơ tổ chức", UI.renderMapFactionDetail(state, "", guildPin.dataset.mapGuild));
+        return;
+      }
       const target = event.target.closest("[data-map-dir]");
       if (!target || !state) return;
       enqueueAction(() => {
@@ -398,6 +408,16 @@
       if (view && state) {
         UI.setMapView(view.dataset.mapView, state);
         UI.openOverlay("Bản Đồ", UI.renderMapDetail(state));
+        return;
+      }
+      const factionPin = event.target.closest("[data-map-faction]");
+      if (factionPin && state) {
+        UI.openOverlay("Hồ sơ thế lực", UI.renderMapFactionDetail(state, factionPin.dataset.mapFaction, ""));
+        return;
+      }
+      const guildPin = event.target.closest("[data-map-guild]");
+      if (guildPin && state) {
+        UI.openOverlay("Hồ sơ tổ chức", UI.renderMapFactionDetail(state, "", guildPin.dataset.mapGuild));
         return;
       }
       const target = event.target.closest("[data-map-dir]");

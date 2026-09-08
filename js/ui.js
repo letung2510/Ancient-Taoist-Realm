@@ -550,29 +550,58 @@ window.GameUI = (function () {
     const factions = (map.factions || []).map((faction) => {
       const alignment = faction.alignment === "Tà" ? " evil" : faction.alignment === "Chính" ? " righteous" : " neutral";
       const label = faction.scale >= 8 ? '<span>' + faction.name + '</span>' : "";
-      return '<div class="faction-pin' + alignment + '" style="left:' + faction.x + '%;top:' + faction.y + '%" title="' +
-        faction.name + ' · ' + faction.type + ' · ' + faction.highest_realm + '">' + label + '</div>';
+      return '<button type="button" class="faction-pin' + alignment + '" data-map-faction="' + escapeHtml(faction.id) + '" style="left:' + faction.x + '%;top:' + faction.y + '%" title="Xem hồ sơ ' +
+        escapeHtml(faction.name) + '">' + label + '</button>';
     }).join("");
 
     const guildPins = (map.guilds || []).filter((guild) => guild.pyramid_tier <= 2).map((guild) => {
       const alignment = guild.alignment === "Tà" ? " evil" : guild.alignment === "Chính" ? " righteous" : " neutral";
-      return '<div class="faction-pin guild-pin' + alignment + '" style="left:' + guild.x + '%;top:' + guild.y + '%" title="' +
-        guild.name + ' · ' + escapeHtml(window.GameEngine.guildTierInfo(guild).name) + ' · ' + guild.highest_realm_text + '"></div>';
+      return '<button type="button" class="faction-pin guild-pin' + alignment + '" data-map-guild="' + escapeHtml(guild.id) + '" style="left:' + guild.x + '%;top:' + guild.y + '%" title="Xem hồ sơ ' +
+        escapeHtml(guild.name) + '"></button>';
     }).join("");
 
     const localFactions = (map.factions || []).filter((faction) => faction.region_id === currentRegionId);
     const factionList = localFactions.map((faction) => {
       const realmKey = faction.highest_realm;
       const realm = data.REALMS.find((item) => item.id === realmKey || (item.legacyIds || []).includes(realmKey));
-      return '<div class="faction-row"><b>' + faction.name + '</b><small>' + faction.type + ' · ' + faction.alignment +
+      return '<button type="button" class="faction-row" data-map-faction="' + escapeHtml(faction.id) + '"><b>' + escapeHtml(faction.name) + '</b><small>' + escapeHtml(faction.type) + ' · ' + escapeHtml(faction.alignment) +
         '<br>Quy mô ' + faction.scale + '/10 · Cường giả: ' + (realm?.name || faction.highest_realm) +
-        '<br>' + faction.traits.join(" · ") + '</small></div>';
+        '<br>' + faction.traits.map(escapeHtml).join(" · ") + '</small></button>';
     }).join("");
 
     return '<div class="map-heading"><b>' + map.name + '</b><small>Bản đồ thế lực theo ' + (window.FACTION_DATA?.world?.era || "Kỷ Nguyên hiện tại") + '</small></div>' +
       '<div class="world-map world-overview"><svg viewBox="0 0 100 100" preserveAspectRatio="none">' + routes + '</svg>' + regions + factions + guildPins + '</div>' +
-      '<p class="map-legend"><span class="dot current"></span> Vùng hiện tại <span class="dot righteous"></span> Chính <span class="dot evil"></span> Tà <span class="dot neutral"></span> Trung lập</p>' +
+      '<p class="map-legend"><span class="dot current"></span> Vùng hiện tại <span class="dot righteous"></span> Chính <span class="dot evil"></span> Tà <span class="dot neutral"></span> Trung lập · Bấm ghim để xem hồ sơ</p>' +
       '<div class="section-title">Thế lực quanh ' + (regionById[currentRegionId]?.name || "khu vực") + '</div>' + factionList;
+  }
+
+  function renderMapFactionDetail(state, factionId, guildId) {
+    const data = window.GameData;
+    const map = data.WORLD_MAP || {};
+    const faction = (map.factions || []).find((item) => item.id === factionId);
+    const guild = (data.GUILDS || []).find((item) => item.id === guildId);
+    if (guild) {
+      const region = (map.regions || []).find((item) => item.id === guild.region_id);
+      const eligibility = window.GameEngine.guildEligibility(state, guild);
+      const status = eligibility.eligible ? '<span class="tag success">Đủ tư cách hiện tại</span>' : '<span class="tag danger">Chưa đủ tư cách</span>';
+      return '<div class="detail-block"><h3>' + escapeHtml(guild.name) + '</h3>' +
+        '<p>' + escapeHtml(guild.type || 'Tông môn') + ' · ' + escapeHtml(guild.allegiance || guild.alignment || 'Trung lập') + '<br>' +
+        'Khu vực: ' + escapeHtml(region?.name || guild.region_id || 'Chưa rõ') + '<br>Cấp tổ chức: ' + escapeHtml(window.GameEngine.guildTierInfo(guild).name) +
+        ' · Cảnh giới cao nhất: ' + escapeHtml(guild.highest_realm_text || guild.highest_realm || 'Chưa rõ') + '</p>' + status +
+        '<p class="muted">Đây là hồ sơ trên bản đồ. Muốn gia nhập hoặc nhận nhiệm vụ, hãy di chuyển tới khu vực này rồi mở mục Tổ chức.</p>' +
+        (eligibility.reasons?.length ? '<p class="muted">Còn thiếu: ' + escapeHtml(eligibility.reasons.join(' · ')) + '</p>' : '') + '</div>';
+    }
+    if (faction) {
+      const region = (map.regions || []).find((item) => item.id === faction.region_id);
+      const localGuilds = (data.GUILDS || []).filter((item) => item.region_id === faction.region_id).slice(0, 12);
+      const realm = (data.REALMS || []).find((item) => item.id === faction.highest_realm || (item.legacyIds || []).includes(faction.highest_realm));
+      return '<div class="detail-block"><h3>' + escapeHtml(faction.name) + '</h3><p>' + escapeHtml(faction.type || 'Thế lực') + ' · ' + escapeHtml(faction.alignment || 'Trung lập') + '<br>' +
+        'Khu vực: ' + escapeHtml(region?.name || faction.region_id || 'Chưa rõ') + '<br>Quy mô: ' + Number(faction.scale || 0) + '/10 · Cảnh giới cao nhất: ' + escapeHtml(realm?.name || faction.highest_realm || 'Chưa rõ') + '</p>' +
+        '<p>' + (faction.traits || []).map(escapeHtml).join(' · ') + '</p>' +
+        (localGuilds.length ? '<h4>Tổ chức trong khu vực</h4><ul>' + localGuilds.map((item) => '<li><button type="button" class="link-button" data-map-guild="' + escapeHtml(item.id) + '">' + escapeHtml(item.name) + '</button></li>').join('') + '</ul>' : '') +
+        '<p class="muted">Bấm vào tổ chức để xem điều kiện. Tương tác trực tiếp chỉ mở khi nhân vật đã tới khu vực tương ứng.</p></div>';
+    }
+    return '<p class="muted">Không tìm thấy dữ liệu thế lực này.</p>';
   }
 
   function renderLocalMap(state, data, map) {
@@ -871,7 +900,7 @@ window.GameUI = (function () {
   return {
     showScreen, addStory, renderStoryWindow, clearStory, renderChoices, clearChoices, actionPresentation, renderActions, renderOriginChoice,
     setLocation, setSaveIndicator, renderPanel, setMapView, setActiveTab,
-    renderFateDetail, renderFateSlotChooser, renderFateReplacementChooser, renderFateUpgradeChooser, renderPendingFateChooser, renderRitualModal, renderRewardSummary, renderTechniqueDetail, renderRealmDetail, renderMapDetail, renderMarket, renderBlackMarket, renderQintian, renderInventoryModal,
+    renderFateDetail, renderFateSlotChooser, renderFateReplacementChooser, renderFateUpgradeChooser, renderPendingFateChooser, renderRitualModal, renderRewardSummary, renderTechniqueDetail, renderRealmDetail, renderMapDetail, renderMapFactionDetail, renderMarket, renderBlackMarket, renderQintian, renderInventoryModal,
     openOverlay, closeOverlay, bindOverlay, escapeHtml, openEquipmentPicker
   };
 })();
