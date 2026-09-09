@@ -1,5 +1,7 @@
 # FATE SYSTEM SPEC
 
+> Bản canonical triển khai hợp nhất hiện tại: `fate_system_update/FATE_SYSTEM_MASTER_2026-09-09.md`. Các trạng thái “Chưa có” bên dưới là snapshot audit cũ; khi đối chiếu runtime hãy ưu tiên master mới nhất.
+
 > Đặc tả canonical cho hệ thống Mệnh Số (Fate System).  
 > Nguồn hợp nhất: `New Text Document.txt`, `FATE_RELATIONSHIP_COMPLETE.md`, `FATE_SYSTEM_COMPLETE.md` · Cập nhật: 2026-09-07.
 
