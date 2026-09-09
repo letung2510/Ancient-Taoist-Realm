@@ -499,10 +499,25 @@ window.GameEngine = (function () {
     const progress = breakthroughRequirements(state); const omen = progress.ready ? "Cửa đột phá đã mở." : "Còn thiếu: " + getBreakthroughBlockers(state).slice(0, 3).join(" · ");
     pushHistory(state, { type: "sys", text: "Thiên Cơ hé lộ: " + omen }); return { success: true, omen, cooldownUntil: state.player.heavenlyOmenCooldownUntil };
   }
-  function transformFate(state, fateId) {
-    const record = fateRelationshipRecord(state.player, fateId);
-    if (record.stage < 4) return { success: false, reason: "Mệnh Đổi yêu cầu Quan hệ Nhân Mệnh Hợp Nhất." };
-    return { success: false, reason: "Chưa có công thức biến thể tương ứng trong catalog canonical.", requiresRecipe: true };
+  function transformFate(state, fateId, branchId = null, options = {}) {
+    const fate = D().FATE_PATTERNS.find((item) => item.id === fateId); const record = fateRelationshipRecord(state.player, fateId);
+    const level = fateEnhancementLevel(state.player, fateId); const rank = FATE_GRADE_RANK?.[fate?.grade] || GRADE_TO_TIER[fate?.grade] || 1;
+    const costs = { essence: 5 + 2 * rank, merit: 10 + 5 * rank, san: 10 };
+    const blockers = [];
+    if (!fate || !(state.player.fates || []).includes(fateId)) blockers.push("Mệnh phải đang kích hoạt.");
+    if (record.stage < 4) blockers.push("Cần Quan hệ Nhân Mệnh Hợp Nhất (bậc 4).");
+    if (level < 5) blockers.push("Cần Cường Hóa Mệnh +5.");
+    if (blockers.length) return { success: false, blockers, costs };
+    if (typeof window === "undefined" || !window.GameExpansion?.fateEvolutionPreview) return { success: false, reason: "Chưa nạp nhánh biến thể canonical." };
+    if (!branchId) {
+      const candidates = window.GameExpansion.fateEvolutionCandidates(state, fateId) || [];
+      return { success: true, preview: true, candidates, costs, formula: "cost = essence 5 + 2×gradeTier; merit 10 + 5×gradeTier; SAN 10" };
+    }
+    const preview = window.GameExpansion.fateEvolutionPreview(state, fateId, branchId);
+    if (!preview?.success) return { success: false, reason: "Nhánh biến thể không hợp lệ.", costs };
+    const result = window.GameExpansion.evolveFate(state, fateId, branchId, { confirmed: Boolean(options.confirmed) });
+    if (result?.success) pushHistory(state, { type: "sys", text: "Mệnh Đổi hoàn tất: " + fate.name + " · nhánh " + (preview.branch.name || branchId) + "." });
+    return { ...result, costs: preview.costs, preview };
   }
 
   function computeFate(character) {

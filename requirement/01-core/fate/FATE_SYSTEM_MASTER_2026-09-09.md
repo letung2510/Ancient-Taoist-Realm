@@ -29,7 +29,7 @@ Quan hệ nhân vật–Mệnh dùng stage 0–4: Sơ Ngộ, Đồng Hành, Tư�
 - `defyFate`: Hung active, tốn 15 SAN, ghi số lần Nghịch Mệnh.
 - `suppressFate`: Hung/active, tốn 8 SAN, tạm bỏ hiệu lực stat đến `untilTurn`; không xóa dữ liệu.
 - `heavenlyOmen`: tốn 5 SAN, cooldown 12 turn, trả dự báo blocker đột phá từ state thật.
-- `transformFate`: chỉ mở ở stage 4; nếu catalog chưa có recipe thì trả blocker rõ ràng, không tự sinh biến thể ngoài nguồn canonical.
+- `transformFate`: chỉ mở ở stage 4 và Cường Hóa +5. Công thức canonical hiện tại tái sử dụng nhánh Fate Evolution: `essence = 5 + 2×gradeTier`, `merit = 10 + 5×gradeTier`, `SAN = 10`; preview trả candidate branches và thay đổi trước/sau, commit gọi `GameExpansion.evolveFate` có xác nhận cho nhánh nguy hiểm. Không tự sinh biến thể ngoài catalog; nếu chưa có branch hợp lệ thì trả blocker.
 
 Các action đều phải kiểm tra blocker trước khi trừ tài nguyên và chỉ ghi history sau commit thành công. Narrative không quyết định gameplay.
 
