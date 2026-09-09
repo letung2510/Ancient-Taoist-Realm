@@ -666,6 +666,7 @@
 
   function showFateOverlay() {
     UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state));
+    decorateFateAdvancedActions();
   }
   function showInventoryOverlay() { UI.openOverlay("Hành Trang", UI.renderInventoryModal(state)); }
 
