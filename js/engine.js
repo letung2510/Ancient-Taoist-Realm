@@ -411,11 +411,26 @@ window.GameEngine = (function () {
     const day = typeof gameDayIndex === "function" ? gameDayIndex(ensureGameClock(state)) : Number(state.meta?.turn || 0);
     if (record.lastNurtureDay === day) return { success: false, reason: "Mỗi Mệnh chỉ được Dưỡng một lần mỗi ngày game.", cooldown: true };
     if (Number(state.inventory?.linh_thach || 0) < cost) return { success: false, reason: "Thiếu Linh Thạch để Dưỡng Mệnh.", cost };
-    removeItem(state, "linh_thach", cost); record.points += 1; record.lastNurtureTurn = Number(state.meta?.turn || 0); record.lastNurtureDay = day;
+    removeItem(state, "linh_thach", cost); record.points += 1; record.lastNurtureTurn = Number(state.meta?.turn || 0); record.lastNurtureDay = day; record.stagnantDays = 0;
     if (record.stage === 0 && record.points >= 1) record.stage = 1;
     if (record.stage === 1 && record.points >= 4) record.stage = 2;
     pushHistory(state, { type: "sys", text: "Dưỡng Mệnh " + (D().FATE_PATTERNS.find((f) => f.id === fateId)?.name || fateId) + " · " + fateRelationshipStatus(character, fateId).label + "." });
     updateDerived(state); return { success: true, cost, status: fateRelationshipStatus(character, fateId) };
+  }
+  function recordFateBehavior(state, fateId, behavior = {}) {
+    if (!(state.player.fates || []).includes(fateId)) return { changed: false, reason: "Mệnh chưa kích hoạt." };
+    const fate = D().FATE_PATTERNS.find((item) => item.id === fateId); const record = fateRelationshipRecord(state.player, fateId);
+    const aligned = behavior.aligned === undefined ? true : Boolean(behavior.aligned);
+    const kind = String(behavior.kind || "action");
+    record.behaviorCount = Number(record.behaviorCount || 0) + 1;
+    if (kind === "elite" || kind === "boss") record.eliteTrials = Number(record.eliteTrials || 0) + 1;
+    if (kind === "choice" && aligned) record.alignedChoices = Number(record.alignedChoices || 0) + 1;
+    record.points = Math.max(0, Number(record.points || 0) + (aligned ? 1 : 0.25));
+    const beforeStage = record.stage;
+    if (record.stage === 0 && (record.eliteTrials >= 1 || Number(record.activeDays || 0) >= 7)) record.stage = 1;
+    if (record.stage === 1 && record.alignedChoices >= 3) record.stage = 2;
+    if (record.stage !== beforeStage) pushHistory(state, { type: "sys", text: "Quan hệ Mệnh " + (fate?.name || fateId) + " tăng lên " + fateRelationshipStatus(state.player, fateId).label + "." });
+    return { changed: true, stageChanged: record.stage !== beforeStage, status: fateRelationshipStatus(state.player, fateId) };
   }
   function resonateFate(state, fateId) {
     const character = state.player; const record = fateRelationshipRecord(character, fateId);
@@ -3121,6 +3136,7 @@ window.GameEngine = (function () {
     getKnownTechniques(state).forEach((technique) => {
       masteryTotal += updateTechniqueMastery(state, technique, state.player.techniques[technique.id], "cultivation");
     });
+    (state.player.fates || []).forEach((fateId) => recordFateBehavior(state, fateId, { kind: "cultivation", aligned: true }));
 
     // corruption SAN risk
     const loc = D().LOCATIONS[state.locationId];
@@ -4045,6 +4061,7 @@ window.GameEngine = (function () {
     if (!attack.success) dmg = Math.max(0, Math.round(dmg * 0.5));
     pushHistory(state, { type: "sys", text: "Ngươi tấn công " + enemy.name + " gây " + dmg + " sát thương.", portrait: enemy.portrait });
     applyPlayerDamage(state, enemyId, dmg);
+    (state.player.fates || []).forEach((fateId) => recordFateBehavior(state, fateId, { kind: enemy.diff >= 70 ? "boss" : "combat", aligned: true }));
     afterPlayerCombatAction(state);
   }
 
@@ -4132,6 +4149,12 @@ window.GameEngine = (function () {
         }
       }
       // Tính sau khi chuẩn hóa ngày/tháng để reward luôn gắn đúng clock label đang hiển thị.
+      (state.player?.fates || []).forEach((fateId) => {
+        const rel = fateRelationshipRecord(state.player, fateId);
+        rel.activeDays = Number(rel.activeDays || 0) + 1;
+        rel.stagnantDays = Number(rel.stagnantDays || 0) + 1;
+        if (rel.stage === 0 && rel.activeDays >= 7) { rel.stage = 1; rel.stagnantDays = 0; }
+      });
       processOnlineFateReward(state);
     }
     return c;

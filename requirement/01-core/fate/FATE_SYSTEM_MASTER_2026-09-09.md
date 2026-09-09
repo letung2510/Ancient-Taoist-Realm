@@ -1,6 +1,6 @@
 # FATE SYSTEM MASTER — Canonical Implementation Contract
 
-Tài liệu này hợp nhất các rule trong `FATE_UPDATE_SYSTEM_RULE.md`, `FATE_SYSTEM_COMPLETE.md`, `FATE_RELATIONSHIP_COMPLETE.md`, `FATE_NEW_LOGIC_ADDENDUM.md`, `FATE_GRADE_WEIGHT_BY_LEVEL.md` và `requirement/01-core/FATE_SYSTEM_SPEC.md`. Đây là bản dùng để đối chiếu runtime; các file nguồn cũ giữ lại để audit lịch sử.
+Tài liệu này hợp nhất các rule trong cùng thư mục (`FATE_UPDATE_SYSTEM_RULE.md`, `FATE_SYSTEM_COMPLETE.md`, `FATE_RELATIONSHIP_COMPLETE.md`, `FATE_NEW_LOGIC_ADDENDUM.md`, `FATE_GRADE_WEIGHT_BY_LEVEL.md`) và `requirement/01-core/FATE_SYSTEM_SPEC.md`. Đây là bản dùng để đối chiếu runtime; các file nguồn cũ giữ lại để audit lịch sử.
 
 ## 1. Nguồn dữ liệu và bất biến
 
