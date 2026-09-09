@@ -228,7 +228,9 @@ window.GameUI = (function () {
   function renderProfessionSection(state) {
     const base = Object.values(window.EXPANSION_DATA?.professionDefinitions || {});
     const hidden = Object.values(window.EXPANSION_DATA?.hiddenProfessions || {}).filter((definition) => window.GameEngine.professionAvailability?.(state, definition.id)?.visible);
-    const defs = base.concat(hidden);
+    let defs = base.concat(hidden);
+    const lockedIds = new Set([state.professionState?.primaryId, state.professionState?.secondaryId].filter(Boolean));
+    if (state.professionState?.selectionLocked) defs = defs.filter((definition) => lockedIds.has(definition.id));
     const items = Object.values({ ...(window.EXPANSION_DATA?.professionItems || {}), ...(window.PROFESSION_ITEMS || {}) });
     const selectionLabel = state.professionState?.selectionLocked ? "Bộ nghề đã khóa vĩnh viễn" : state.professionState?.primaryId ? "Còn 1 lượt chọn nghề phụ" : "Chưa chọn nghề chính";
     const rows = defs.map((definition) => {

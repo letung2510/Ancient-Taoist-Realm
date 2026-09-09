@@ -158,6 +158,7 @@ window.GameData = (function () {
     dien_tho_dan_ha: { id: "dien_tho_dan_ha", name: "Diên Thọ Đan · Hạ Phẩm", kind: "consumable", lifespanBonus: 50, grade: "Hạ Phẩm", desc: "Kéo dài Thọ Nguyên, hiệu quả giảm nếu dùng liên tiếp trong cùng cảnh giới." },
     dien_tho_dan_trung: { id: "dien_tho_dan_trung", name: "Diên Thọ Đan · Trung Phẩm", kind: "consumable", lifespanBonus: 150, grade: "Trung Phẩm", desc: "Bổ sung Thọ Nguyên đáng kể, thường tìm thấy từ tinh anh hoặc Tông Môn." },
     dien_tho_dan_thuong: { id: "dien_tho_dan_thuong", name: "Diên Thọ Đan · Thượng Phẩm", kind: "consumable", lifespanBonus: 500, grade: "Thượng Phẩm", desc: "Cực hiếm, đổi bằng cái giá lớn hoặc thành tựu ẩn." },
+    linh_thao: { id: "linh_thao", name: "Linh Thảo", kind: "material", desc: "Dược liệu linh khí dùng làm nguyên liệu luyện đan." },
     linh_thach: { id: "linh_thach", name: "Linh Thạch Hạ Phẩm", kind: "currency", exp: 10,
       desc: "Đá linh chứa linh khí loãng." },
     co_tich_tan_trang: { id: "co_tich_tan_trang", name: "Cổ Tịch Tàn Trang", kind: "key",
@@ -195,7 +196,7 @@ window.GameData = (function () {
       desc: "Vườn linh thảo xanh um, nhưng linh khí ở đây có mùi tanh khó tả. Vài gốc linh thảo đã chuyển sang màu đen.",
       exits: { tay: "son_mon", bac: "hac_lam", nam: "vo_tan_hai_khoi_diem" },
       npcs: ["tieu_su_muoi"],
-      searchable: ["linh_thach", "boi_nguyen_dan", "hoan_huyet_dan"]
+      searchable: ["linh_thao", "linh_thach", "boi_nguyen_dan", "hoan_huyet_dan"]
     },
     hac_lam: {
       id: "hac_lam", name: "Hắc Lâm", corruption: 3,

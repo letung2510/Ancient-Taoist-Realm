@@ -153,6 +153,18 @@
     state.pendingContestedOpportunity = state.pendingContestedOpportunity || null;
     state.activeHiddenRealm = state.activeHiddenRealm || null;
     state.codexState = state.codexState || {};
+    // Migrate legacy saves: a codex fragment is valid only in its assigned
+    // major region, and one fragment may be collected at most once per region.
+    const codexByRegion = {};
+    (X.codexDefinitions || []).forEach((definition) => {
+      const record = state.codexState[definition.id];
+      if (!record) return;
+      record.regionId = record.regionId || definition.mapId;
+      if (record.status === "collected") {
+        if (codexByRegion[record.regionId]) record.status = "unknown";
+        else codexByRegion[record.regionId] = definition.id;
+      }
+    });
     state.collectionRegistry = state.collectionRegistry || { beasts: {}, npcs: {}, entities: {}, rareNpcs: {} };
     state.achievements = state.achievements || {};
     state.professionState.secondaryId = state.professionState.secondaryId || null;
@@ -227,8 +239,10 @@
   }
   function inspectCodex(state, codexId, action = "investigate") {
     ensure(state); const def = (X.codexDefinitions || []).find((item) => item.id === codexId); if (!def) return { success: false, reason: "Không tìm thấy Cổ Tịch." };
-    const record = state.codexState[codexId] ||= { id: codexId, status: "unknown", clues: [], firstSeenDay: null, collectedDay: null };
+    const record = state.codexState[codexId] ||= { id: codexId, status: "unknown", clues: [], firstSeenDay: null, collectedDay: null, regionId: def.mapId };
+    record.regionId = def.mapId;
     const day = absoluteDay(state.gameClock);
+    if (currentRegion(state) !== def.mapId) return { success: false, reason: "Mảnh Cổ Tịch này không thuộc đại vực hiện tại." };
     if (action === "investigate") {
       record.status = record.status === "unknown" ? "revealed" : record.status; record.firstSeenDay ||= day; record.clues = Array.from(new Set(record.clues.concat(["clue:" + codexId])));
       state.discoveries.codexClues["trace:" + codexId] ||= { id: "trace:" + codexId, codexId, source: "địa điểm " + def.mapId, day, confidence: 0.45, verified: false };
@@ -242,7 +256,7 @@
       record.status = "verified"; const clue = state.discoveries.codexClues["lore:" + codexId]; if (clue) { clue.verified = true; clue.confidence = 1; clue.verifiedDay = day; }
       history(state, "sys", "◇ Đã giải mật và đối chiếu " + def.name + "."); return { success: true, record };
     }
-    if (action === "collect" && record.status === "verified") { record.status = "collected"; record.collectedDay = day; history(state, "sys", "✦ Thu thập " + def.name + "."); if (codexProgress(state) >= 7) { state.hiddenProfessionChoices = Object.keys(X.hiddenProfessions || {}); history(state, "sys", "✦ Bảy Cổ Tịch đã quy tụ; các nghề ẩn mở lựa chọn."); } return { success: true, record }; }
+    if (action === "collect" && record.status === "verified") { record.status = "collected"; record.collectedDay = day; history(state, "sys", "✦ Thu thập " + def.name + " tại " + currentRegion(state) + "."); if (codexProgress(state) >= 7) { state.hiddenProfessionChoices = Object.keys(X.hiddenProfessions || {}); history(state, "sys", "✦ Bảy Cổ Tịch đã quy tụ; các nghề ẩn mở lựa chọn."); } return { success: true, record }; }
     return { success: false, reason: "Cần điều tra và đọc manh mối trước khi thu thập." };
   }
   function registerCollection(state, type, id, rarity = "thường") {
@@ -840,6 +854,12 @@
     const record = professionRecord(state, id); if (!record) return { success: false, reason: "Nghề không hợp lệ." };
     const slot = availability.slot;
     state.professionState[slot] = id;
+    if (X.hiddenProfessions?.[id]) {
+      state.professionState.hiddenIds = Array.isArray(state.professionState.hiddenIds) ? state.professionState.hiddenIds : [];
+      if (!state.professionState.hiddenIds.includes(id)) state.professionState.hiddenIds.push(id);
+      state.player.hiddenProfession = id;
+      state.player.hiddenProfessionCandidate = id;
+    }
     state.professionState.selectionLocked = Boolean(state.professionState.primaryId && state.professionState.secondaryId);
     const starter = Object.values(professionCatalog()).find((item) => item.professionId === id); if (starter) addItem(state, starter.id, 1);
     history(state, "sys", "§ Chọn nghề " + (slot === "primaryId" ? "chính" : "phụ") + ": " + professionDefinition(id).name + "." + (state.professionState.selectionLocked ? " Bộ nghề đã khóa vĩnh viễn." : "")); return { success: true, record, slot, selectionLocked: state.professionState.selectionLocked };
@@ -900,10 +920,12 @@
   function brewPill(state, recipeId = "tu_khi_dan") {
     ensure(state); if (!hasProfession(state, "luyen_dan")) return { success: false, reason: "Cần cố định nghề Luyện Đan Sư." };
     const record = professionRecord(state, "luyen_dan"); if (!record) return { success: false };
-    const cost = 3; if (Number(state.inventory?.linh_thach || 0) < cost) return { success: false, reason: "Cần 3 Linh Thạch làm dược liệu." };
+    const recipeCosts = { tu_khi_dan: { linh_thao: 2 }, hoan_huyet_dan: { linh_thao: 3 }, dien_tho_dan_ha: { linh_thao: 5 } };
+    const recipe = recipeCosts[recipeId] || recipeCosts.tu_khi_dan;
+    for (const [materialId, quantity] of Object.entries(recipe)) if (Number(state.inventory?.[materialId] || 0) < quantity) return { success: false, reason: "Thiếu " + itemName(materialId) + " (cần " + quantity + ")." };
     if (Number(state.player.stamina || 0) < 5) return { success: false, reason: "Cần 5 Thể Lực để luyện đan." };
     const toolBonus = Number(state.professionItemState?.ghi_nho_cong_thuc?.effects?.alchemyChance || 0);
-    removeItem(state, "linh_thach", cost); const chance = clamp(0.45 + state.player.aptitude / 250 + record.masteryStage * 0.08 + toolBonus, 0.1, 0.95);
+    Object.entries(recipe).forEach(([materialId, quantity]) => removeItem(state, materialId, quantity)); const chance = clamp(0.45 + state.player.aptitude / 250 + record.masteryStage * 0.08 + toolBonus, 0.1, 0.95);
     const roll = seeded(state, "alchemy:" + state.meta.turn, absoluteDay(state.gameClock));
     practiceProfession(state, "luyen_dan");
     if (roll > chance) { history(state, "warn", "× Luyện đan thất bại, dược liệu hóa tro."); return { success: false, consumed: true }; }
