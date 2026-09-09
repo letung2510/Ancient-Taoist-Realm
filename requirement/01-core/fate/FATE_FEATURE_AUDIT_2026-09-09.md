@@ -10,9 +10,9 @@
 - Cộng Minh, Giác Ngộ, Buông Mệnh Nguội, Nghịch Mệnh, Trấn Mệnh, Thiên Cơ.
 - Fate Evolution đã là hệ thống nhánh biến thể; `transformFate` cung cấp contract và công thức chi phí, ủy quyền commit cho expansion transaction.
 
-## Đã có code nhưng chưa có nút UI riêng
+## UI/action wiring
 
-`revealFateInsight`, `releaseStagnantFate`, `defyFate`, `suppressFate`, `heavenlyOmen` và `transformFate` hiện đã public trong `GameEngine`, nhưng một số action chưa có nút riêng trong card Mệnh. Chúng vẫn có thể gọi qua action/console tích hợp; việc bổ sung UI button là task presentation, không thay đổi gameplay contract.
+Các card Mệnh active được decorate động với nút `Giác Ngộ`, `Buông Mệnh`, `Nghịch Mệnh`, `Trấn Mệnh` và `Mệnh Đổi` khi đủ điều kiện. `Thiên Cơ` được expose qua expansion command `fate_omen`; luồng nghi thức có thể gọi command này mà không bypass engine.
 
 ## Giới hạn còn lại
 

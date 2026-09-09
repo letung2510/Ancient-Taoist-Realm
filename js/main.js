@@ -278,6 +278,16 @@
       if (fateNurture && state) { const result = E.nurtureFate(state, fateNurture.dataset.fateNurture); if (!result.success) alert(result.reason || (result.blockers || []).join("\n")); else { saveGame(); UI.renderPanel(state); } return; }
       const fateResonate = event.target.closest("[data-fate-resonate]");
       if (fateResonate && state) { const result = E.resonateFate(state, fateResonate.dataset.fateResonate); if (!result.success) alert((result.blockers || [result.reason]).join("\n")); else { saveGame(); UI.renderPanel(state); } return; }
+      const fateTransform = event.target.closest("[data-fate-transform]");
+      if (fateTransform && state) { const id = fateTransform.dataset.fateTransform; const preview = E.transformFate(state, id); if (!preview.success) { alert((preview.blockers || [preview.reason]).join("\n")); return; } const candidates = preview.candidates || []; if (!candidates.length) { alert("Chưa có nhánh biến thể phù hợp."); return; } const branch = candidates[0]; if (!confirm("Xác nhận Mệnh Đổi theo nhánh " + (branch.name || branch.id) + "? Chi phí: " + preview.costs.essence + " Tinh Hoa, " + preview.costs.merit + " Công Đức, " + preview.costs.san + " SAN.")) return; const result = E.transformFate(state, id, branch.id, { confirmed: true }); if (!result.success) alert(result.reason || (result.blockers || []).join("\n")); else { saveGame(); UI.renderPanel(state); } return; }
+      const fateInsight = event.target.closest("[data-fate-insight]");
+      if (fateInsight && state) { const result = E.revealFateInsight(state, fateInsight.dataset.fateInsight); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
+      const fateRelease = event.target.closest("[data-fate-release]");
+      if (fateRelease && state) { const result = E.releaseStagnantFate(state, fateRelease.dataset.fateRelease); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
+      const fateDefy = event.target.closest("[data-fate-defy]");
+      if (fateDefy && state) { const result = E.defyFate(state, fateDefy.dataset.fateDefy); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
+      const fateSuppress = event.target.closest("[data-fate-suppress]");
+      if (fateSuppress && state) { const result = E.suppressFate(state, fateSuppress.dataset.fateSuppress); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
       const fateMerge = event.target.closest("[data-fate-merge-submit]");
       if (fateMerge && state) { const ids = [...document.querySelectorAll("[data-fate-merge]:checked")].map((el) => el.dataset.fateMerge); const result = E.mergeFates(state, ids); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
       const market = event.target.closest("[data-market-fate]");
@@ -520,6 +530,7 @@
     flashSave("Đã lưu");
     UI.setLocation(D.LOCATIONS[state.locationId].name);
     UI.renderPanel(state);
+    decorateFateAdvancedActions();
     renderActionButtons();
     updateClockDisplay();
     updateAtmosphereClass();
@@ -533,6 +544,20 @@
     UI.renderStoryWindow(history, storyWindowSize, () => {
       storyWindowSize = Math.min(history.length, storyWindowSize + 20);
       renderStoryWindow();
+    });
+  }
+  function decorateFateAdvancedActions() {
+    if (!state) return;
+    document.querySelectorAll("[data-fate-nurture]").forEach((nurture) => {
+      const card = nurture.closest(".fate-card"); if (!card || card.querySelector("[data-fate-transform]")) return;
+      const id = nurture.dataset.fateNurture; const relation = state.player?.fateRelationships?.[id] || {};
+      const level = E.fateEnhancementLevel(state.player, id);
+      const actions = card.querySelector(".fate-actions"); if (!actions) return;
+      const add = (key, label) => { const button = document.createElement("button"); button.className = "guild-action"; button.dataset[key] = id; button.textContent = label; actions.appendChild(button); };
+      if (!relation.insightRevealed) add("fate-insight", "Giác Ngộ");
+      if (Number(relation.stagnantDays || 0) >= 60) add("fate-release", "Buông Mệnh");
+      const fate = window.GameData.FATE_PATTERNS.find((item) => item.id === id); if (fate?.sign === "hung") { add("fate-defy", "Nghịch Mệnh"); add("fate-suppress", "Trấn Mệnh"); }
+      if (Number(relation.stage || 0) >= 4 && level >= 5) add("fate-transform", "Mệnh Đổi");
     });
   }
 
@@ -551,6 +576,7 @@
     renderStoryWindow();
     window._renderedTurn = state.history.length;
     UI.renderPanel(state);
+    decorateFateAdvancedActions();
     renderActionButtons();
     flushRewardSummaries();
     if (state.pendingEnding) showEnding(state.pendingEnding);
@@ -595,7 +621,6 @@
       if (INFO_TAB_ACTIONS[action.id]) {
         if (action.id === "act_hanh_trang") { showInventoryOverlay(); return; }
         UI.setActiveTab(INFO_TAB_ACTIONS[action.id]);
-        UI.renderPanel(state);
         return;
       }
       if (action.id === "act_menh") {
