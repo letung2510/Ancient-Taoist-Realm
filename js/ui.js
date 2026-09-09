@@ -176,7 +176,7 @@ window.GameUI = (function () {
         const modifiers = { ...profile.baseModifiers };
         Object.entries(specialization.modifiers || {}).forEach(([key, value]) => { modifiers[key] = Number(modifiers[key] || 0) + Number(value || 0); });
         const modifierLabels = { combatDamagePct: "Sát thương", maxStaminaPct: "Thể lực", cultivationSpeedPct: "Tu luyện", maxQiPct: "Linh Khí", qiRecoveryPct: "Hồi Linh Khí", searchDiscoveryPct: "Khám phá", searchRarePct: "Cơ duyên hiếm", searchRiskReductionPct: "Giảm rủi ro", fortuneFlat: "Khí Vận" };
-        const modifierText = Object.entries(modifiers).map(([key, value]) => (modifierLabels[key] || key) + " " + (Number(value) > 0 ? "+" : "") + value + (key === "fortuneFlat" ? "" : "%")).join(" · ");
+        const modifierText = Object.entries(modifiers).map(([key, value]) => (modifierLabels[key] || "Hiệu ứng xuất thân") + " " + (Number(value) > 0 ? "+" : "") + value + (key === "fortuneFlat" ? "" : "%")).join(" · ");
         return '<label class="origin-specialization"><input type="radio" name="origin-specialization" value="' + escapeHtml(type + ":" + id) + '"' + (type === "tan_tu" && index === 0 ? " checked" : "") + '><span><b>' + escapeHtml(specialization.name) + '</b><small>' + escapeHtml(modifierText) + '</small></span></label>';
       }).join("");
       return '<section class="origin-choice-card origin-' + escapeHtml(type) + '"><h3>' + escapeHtml(profile.name) + '</h3><p>' + escapeHtml(profile.description) + '</p><div class="origin-specializations">' + specializations + '</div></section>';
@@ -202,19 +202,103 @@ window.GameUI = (function () {
     else if (active === "guilds") html = renderGuilds(state);
     else if (active === "map") html = renderMap(state);
     else if (active === "memory") html = renderMemory(state);
+    else if (active === "world") html = renderWorld(state);
+    else if (active === "oddities") html = renderOddities(state);
+    else if (active === "expansion") html = renderExpansion(state);
     else if (active === "market") html = renderMarket(state);
     else if (active === "qintian") html = renderQintian(state);
     else if (active === "cauldron") html = renderCauldron(state);
     document.getElementById("tab-content").innerHTML = html;
   }
 
+  function expansionButton(command, label, arg = "", extra = "") {
+    return '<button class="guild-action" data-expansion-command="' + escapeHtml(command) + '" data-expansion-arg="' + escapeHtml(arg) + '" ' + extra + '>' + escapeHtml(label) + '</button>';
+  }
+
+  function renderWorld(state) {
+    const E = window.GameEngine, s = E.expansionSummary ? E.expansionSummary(state) : null;
+    if (!s) return '<p class="muted">Chưa nạp dữ liệu Thế Giới.</p>';
+    const event = s.event ? '<div class="detail-block"><b>☄ ' + escapeHtml(s.event.name || "Dị Triều") + '</b><br>Pha hiện tại: ' + escapeHtml(s.event.phase || "đang diễn ra") + ' · kết thúc ngày ' + s.event.phaseEndsDay + '</div>' : '<p class="muted">Khu vực hiện không có Dị Triều.</p>';
+      const weatherLabel = window.GameI18n?.weather ? window.GameI18n.weather(s.weather) : s.weather;
+      const preview = window.GameEngine.worldModifierPreview?.(state) || {};
+      const professionId = state.professionState?.primaryId; const professionName = window.EXPANSION_DATA?.professionDefinitions?.[professionId]?.name || window.EXPANSION_DATA?.hiddenProfessions?.[professionId]?.name || "Chưa chọn"; const professionStage = Number(state.professionState?.professions?.[professionId]?.masteryStage || 0);
+      const contracts = (s.contracts || []).map((contract) => '<div class="item-row"><b>' + escapeHtml(window.GameI18n?.formatContract(contract) || "Khế Ước") + '</b><small> · ' + escapeHtml(window.GameI18n?.formatTarget(contract, state) || "Mục tiêu theo dấu") + ' · hết hạn ngày ' + Number(contract.expiresDay || 0) + '</small>' + expansionButton("contract_accept", "Nhận khế ước", contract.id) + '</div>').join("") || '<p class="muted">Chưa có khế ước mới.</p>';
+      return '<div class="section-title">Thế Sự · Ngày ' + s.day + '</div><div class="detail-block"><div class="kv"><span>Mùa</span><b>' + escapeHtml(s.season.name) + '</b></div><div class="kv"><span>Thời tiết</span><b>' + escapeHtml(weatherLabel) + '</b></div><small>Ảnh hưởng hiện tại: Tu luyện ×' + Number(preview.cultivationMult || 1).toFixed(2) + ' · Nguy cơ di chuyển ' + (Number(preview.travelRiskDelta || 0) * 100).toFixed(0) + '% · Tìm kiếm ' + (Number(preview.searchRewardMult || 1) * 100).toFixed(0) + '% thưởng</small></div>' + event + '<div class="section-title">Khế Ước Khu Vực</div>' + contracts + '<div class="section-title">Chiến Sự & Đại Hội</div><p>Chiến sự đang hoạt động: ' + s.wars.length + '</p><div class="detail-block"><b>Nghề chính: ' + escapeHtml(professionName) + '</b><small> · Bậc ' + professionStage + ' · mở hồ sơ tại panel Nhân Vật</small></div><div class="item-actions"><button class="guild-action" data-expansion-modal="guild-project">Công Trình Tông Môn</button><button class="guild-action" data-expansion-modal="opportunity">Xem Cơ Duyên</button></div>';
+  }
+  function renderProfessionSection(state) {
+    const base = Object.values(window.EXPANSION_DATA?.professionDefinitions || {});
+    const hidden = Object.values(window.EXPANSION_DATA?.hiddenProfessions || {}).filter((definition) => window.GameEngine.professionAvailability?.(state, definition.id)?.visible);
+    const defs = base.concat(hidden);
+    const items = Object.values({ ...(window.EXPANSION_DATA?.professionItems || {}), ...(window.PROFESSION_ITEMS || {}) });
+    const selectionLabel = state.professionState?.selectionLocked ? "Bộ nghề đã khóa vĩnh viễn" : state.professionState?.primaryId ? "Còn 1 lượt chọn nghề phụ" : "Chưa chọn nghề chính";
+    const rows = defs.map((definition) => {
+      const availability = window.GameEngine.professionAvailability?.(state, definition.id) || { visible: true, selectable: false, reason: "Chưa sẵn sàng." };
+      const record = state.professionState?.professions?.[definition.id];
+      const role = state.professionState?.primaryId === definition.id ? "Nghề chính" : state.professionState?.secondaryId === definition.id ? "Nghề phụ" : "Chưa chọn";
+      const choose = availability.selectable ? expansionButton("profession_choose", availability.slot === "primaryId" ? "Chọn nghề chính" : "Chọn nghề phụ", definition.id) : '<button class="guild-action" disabled title="' + escapeHtml(availability.reason) + '">' + escapeHtml(role) + '</button>';
+      const practice = availability.selected ? expansionButton("profession_practice", "Rèn luyện", definition.id) : "";
+      const localNpc = (window.GameData.LOCATIONS?.[state.locationId]?.npcs || [])[0];
+      const signature = !availability.selected ? "" : definition.id === "luyen_dan" ? expansionButton("brew", "Luyện Đan · 3 Linh Thạch", "tu_khi_dan") : definition.id === "luyen_khi" ? expansionButton("craft", "Luyện Pháp Khí · 8 Linh Thạch") : definition.id === "tran_phap" ? expansionButton("formation", "Đặt Tụ Linh Trận · 5 Linh Thạch", "gather") : definition.id === "tuong_su" && localNpc ? expansionButton("read_npc", "Xem Tướng", localNpc) : "";
+      const hiddenAction = availability.selected && definition.actionName ? expansionButton("hidden_profession_action", definition.actionName, definition.id) : "";
+      return '<div class="item-row"><b>' + escapeHtml(definition.name) + '</b><small> · ' + escapeHtml(role) + ' · Thục luyện bậc ' + Number(record?.masteryStage || 0) + (definition.description ? '<br>' + escapeHtml(definition.description) : '') + '</small><div class="item-actions">' + choose + practice + signature + hiddenAction + '</div></div>';
+    }).join("");
+    const itemRows = items.map((item) => {
+      const quantity = Number(state.inventory?.[item.id] || 0); const record = state.professionItemState?.[item.action || item.id];
+      const chargeText = record ? Number(record.charges || 0) + '/' + Number(item.charges || 1) : Number(item.charges || 1) + '/' + Number(item.charges || 1);
+      return '<div class="item-row"><b>' + escapeHtml(item.name) + '</b><small> · ' + escapeHtml(item.desc) + ' · Sở hữu: ' + quantity + ' · Linh lực: ' + chargeText + '</small>' + (quantity ? '<div class="item-actions">' + expansionButton("profession_item_use", "Sử dụng", item.id) + expansionButton("profession_item_recharge", "Bổ sung linh lực", item.id) + '</div>' : '') + '</div>';
+    }).join("");
+    return '<div class="section-title">Nghề Nghiệp</div><p class="muted">' + selectionLabel + '</p>' + rows + '<div class="section-title">Vật phẩm chuyên nghề</div>' + itemRows;
+  }
+  function renderTechniqueEvolutionSection(state) { const techniques = window.GameEngine.getKnownTechniques(state) || []; return '<div class="section-title">Công Pháp Tiến Hóa</div>' + techniques.map((t) => { const info = window.GameEngine.techniqueDisplayInfo?.(state, t.id); return '<div class="item-row"><b>' + escapeHtml(info?.name || t.name) + '</b><small> · ' + escapeHtml(info?.statusLabel || 'Chưa mở thí luyện') + ' · ' + escapeHtml(info?.progressLabel || 'Chưa học') + '</small></div>'; }).join(''); }
+  function renderFateEvolutionModal(state, fateId) {
+    const id = fateId || state.player?.fates?.[0]; const evolution = state.player?.fateEvolutions?.[id];
+    const candidates = evolution?.status === "ready" ? (evolution.candidateBranchIds || []).map((branchId) => { const preview = window.GameEngine.fateEvolutionPreview?.(state, id, branchId); if (!preview?.success) return ""; const branch = preview.branch; return '<div class="item-row"><b>' + escapeHtml(branch.name) + '</b><small> · ' + escapeHtml(branch.description) + '<br>Giá: ' + preview.costs.essence + ' Mệnh Tinh Hoa · ' + preview.costs.merit + ' Công Đức · ' + preview.costs.san + ' Thanh Tỉnh</small><div class="item-actions">' + expansionButton("fate_evolve", branch.dangerous ? "Xác nhận Nghịch Diễn" : "Chọn nhánh", id, 'data-expansion-arg2="' + escapeHtml(branchId) + '"') + '</div></div>'; }).join("") : "";
+    return '<div class="section-title">Mệnh Số Tiến Hóa</div><p>Trạng thái: <b>' + escapeHtml(window.GameI18n?.formatStatus(evolution?.status || "locked") || "Chưa mở") + '</b></p><p>Tiến độ: ' + Number(evolution?.progress || 0) + '</p>' + candidates + renderFateDetail(state);
+  }
+  function renderGuildProjectModal(state) {
+    const project = state.guildProject; const templates = window.EXPANSION_DATA?.guildProjects || []; const template = project && templates.find((item) => item.id === project.templateId);
+    const suspended = Boolean(project?.status === "active" && (!state.guildMembership || state.guildMembership.guildId !== project.guildId));
+    const choices = templates.map((item) => '<div class="item-row"><b>' + escapeHtml(item.name || "Công trình") + '</b><small> · Mục tiêu ' + Number(item.target || 0) + ' đóng góp · thời hạn ' + Number(item.durationDays || 0) + ' ngày</small><div class="item-actions">' + expansionButton('guild_start', 'Khởi công', item.id) + '</div></div>').join('');
+    const recent = (state.guildProjectHistory || []).slice(0, 3).map((entry) => { const oldTemplate = templates.find((item) => item.id === entry.templateId); return '<div class="item-row"><b>' + escapeHtml(oldTemplate?.name || "Công trình cũ") + '</b><small> · ' + escapeHtml(window.GameI18n?.formatStatus(entry.status) || "Đã lưu") + ' · tiến độ ' + Number(entry.progress || 0) + '/' + Number(oldTemplate?.target || 0) + '</small></div>'; }).join("");
+    return '<div class="section-title">Công Trình Tông Môn</div>' + (project ? '<div class="detail-block"><b>' + escapeHtml(template?.name || "Công trình đang xây dựng") + '</b><p>Tiến độ: ' + Number(project.progress || 0) + '/' + Number(template?.target || 0) + '</p><p>Đóng góp cá nhân: ' + Number(project.playerContributions?.linh_thach || 0) + ' Linh Thạch</p><p>Hạn ngày: ' + Number(project.endDay || 0) + '</p><p>Trạng thái: ' + escapeHtml(suspended ? "Dự án bị đình chỉ" : window.GameI18n?.formatStatus(project.status) || "Đang chờ") + '</p><p>Phần thưởng: ' + escapeHtml(template?.reward?.cultivationMult ? "Gia trì tu luyện" : template?.reward?.sanDrainMult ? "Hộ tâm giảm hao Thanh Tỉnh" : "Thí luyện truyền thừa") + '</p><div class="item-actions">' + (project.status === "active" && !suspended ? expansionButton("guild_contribute", "Đóng góp 5 Linh Thạch", "5") : "") + '</div></div>' : '<p class="muted">Chưa có công trình đang hoạt động.</p><div class="detail-block">' + choices + '</div>') + (recent ? '<div class="section-title">Lịch sử gần nhất</div>' + recent : '');
+  }
+  function renderContestedOpportunityModal(state) {
+    const opportunity = state.pendingContestedOpportunity; const rival = opportunity && (window.GameData.NPCS?.[opportunity.rivalId]?.name || window.GameI18n?.formatTarget(opportunity.rivalId, state) || "đối thủ ẩn danh"); const location = opportunity && (window.GameData.LOCATIONS?.[opportunity.nodeId]?.name || window.GameI18n?.formatTarget(opportunity.nodeId, state) || "địa điểm chưa rõ");
+    if (!opportunity) return '<div class="section-title">Cơ Duyên Tranh Đoạt</div><p class="muted">Hiện không có cơ duyên tranh đoạt.</p>';
+    const fallbackChoices = { fight: { label: "Cường Đoạt", reward: opportunity.reward, consequence: "Thất bại sẽ bị thương." }, scheme: { label: "Dùng Mưu", reward: opportunity.reward, consequence: "Thành bại dựa trên Ngộ tính." }, share: { label: "Chia Sẻ", reward: Math.ceil(Number(opportunity.reward || 0) / 2), consequence: "Giảm thưởng, tăng thiện duyên." } };
+    const choices = Object.entries(opportunity.choices || fallbackChoices).map(([id, choice]) => '<div class="item-row"><b>' + escapeHtml(choice.label) + '</b><small> · Thưởng ' + Number(choice.reward || 0) + ' Linh Thạch · ' + escapeHtml(choice.consequence) + '</small>' + expansionButton("opportunity", choice.label, id) + '</div>').join("");
+    return '<div class="section-title">Cơ Duyên Tranh Đoạt</div><div class="detail-block"><p>Địa điểm: <b>' + escapeHtml(location) + '</b></p><p>Đối thủ: <b>' + escapeHtml(rival) + '</b></p><p>Hết hạn ngày: ' + Number(opportunity.expiresDay || 0) + '</p>' + choices + '</div>';
+  }
+  function renderOddities(state) {
+    const E = window.GameEngine, s = E.expansionSummary ? E.expansionSummary(state) : null, defs = window.EXPANSION_DATA?.codexDefinitions || [];
+    if (!s) return '<p class="muted">Chưa nạp dữ liệu Dị Chí.</p>';
+    const codex = defs.map((definition) => {
+      const record = s.codex?.[definition.id]; const status = record?.status || "unknown"; let actions = "";
+      if (status === "unknown") actions = expansionButton("codex", "Điều Tra", definition.id, 'data-expansion-arg2="investigate"');
+      else if (status === "revealed" && !(record?.clues || []).includes("lore:" + definition.id)) actions = expansionButton("codex", "Đọc Cổ Tịch", definition.id, 'data-expansion-arg2="read"');
+      else if (status === "revealed") actions = expansionButton("codex", "Giải Mật · Đối Chiếu", definition.id, 'data-expansion-arg2="decrypt"');
+      else if (status === "verified") actions = expansionButton("codex", "Thu Thập", definition.id, 'data-expansion-arg2="collect"');
+      return '<div class="item-row"><b>' + escapeHtml(definition.name) + '</b><small> · ' + escapeHtml(window.GameI18n?.formatStatus(status) || "Chưa biết") + ' · Manh mối ' + Number(record?.clues?.length || 0) + '</small><div class="item-actions">' + actions + '</div></div>';
+    }).join('');
+    const collectionCount = Object.values(s.collections || {}).reduce((n, b) => n + Object.keys(b || {}).length, 0);
+    const hidden = Object.entries(window.EXPANSION_DATA?.hiddenProfessions || {}).map(([id, def]) => { const progress = state.hiddenProfessionState?.branches?.[id] || 0; const unlocked = state.hiddenProfessionState?.unlocked?.[id]; return '<div class="item-row"><b>' + escapeHtml(def.name) + '</b><small> · Nhánh manh mối: ' + progress + '/3 · ' + (unlocked ? "Đã mở con đường" : "Chưa giải xong") + '</small>' + (s.codexProgress >= Number(def.requiresCodex || 7) && !unlocked ? '<div class="item-actions">' + expansionButton('hidden_clue', 'Điều Tra', id, 'data-expansion-arg2="lead"') + expansionButton('hidden_clue', 'Đối Chiếu', id, 'data-expansion-arg2="crosscheck"') + expansionButton('hidden_clue', 'Giải Mật · Mở Con Đường', id, 'data-expansion-arg2="unlock"') + '</div>' : '') + '</div>'; }).join('');
+    const collectionLabels = { beasts: "Dị Thú", npcs: "NPC", entities: "Thực Thể", rareNpcs: "NPC Hiếm" };
+    const collections = Object.entries(collectionLabels).map(([type, label]) => { const entries = Object.values(s.collections?.[type] || {}); return '<div class="section-title">' + label + '</div>' + (entries.map((entry) => '<div class="item-row"><b>' + escapeHtml(entry.name || "Chưa định danh") + '</b><small> · ' + escapeHtml(entry.rarity || "thường") + ' · gặp ngày ' + Number(entry.firstSeenDay || 0) + ' tại ' + escapeHtml(window.GameI18n?.formatTarget(entry.firstRegionId, state) || "khu vực chưa rõ") + ' · ' + (entry.rewardClaimed ? "Đã nhận thưởng" : "Không có thưởng hiếm") + '</small></div>').join("") || '<p class="muted">Chưa ghi nhận.</p>'); }).join("");
+    return '<div class="section-title">Dị Chí · Khám phá</div><p class="muted">Cổ Tịch đã thu thập: ' + s.codexProgress + '/7 · Mục sưu tầm: ' + collectionCount + '</p><div class="detail-block">' + codex + '</div><div class="section-title">Con đường nghề ẩn</div>' + hidden + '<div class="section-title">Sưu Tầm</div>' + collections + '<div class="section-title">Thành tựu</div><p>' + (Object.values(s.achievements || {}).map((a) => '✦ ' + escapeHtml(a.name)).join('<br>') || "Chưa mở thành tựu.") + '</p>';
+  }
+  function renderExpansion(state) {
+    // Cầu nối tương thích duy nhất: nội dung chi tiết nằm ở các tab chuyên biệt.
+    return renderWorld(state) + '<div class="detail-block"><b>Dị Chí và Nhân Duyên đã được tách riêng</b><br><small>Mở đúng tab để xem manh mối, sưu tầm hoặc quan hệ.</small></div>';
+  }
   function renderMarket(state) {
     const offers = window.GameEngine.marketOffers(state);
+    const expansionSummary = window.GameEngine.expansionSummary ? window.GameEngine.expansionSummary(state) : { auctionLots: [] };
+    const auctionLots = (expansionSummary.auctionLots || []).map((lot) => '<article class="market-card"><b>' + escapeHtml(window.GameData.ITEMS[lot.itemId]?.name || "Vật phẩm đấu giá") + '</b><small>Giá hiện tại ' + lot.currentBid + ' · đóng ngày ' + lot.endDay + '</small>' + (lot.status === 'active' ? expansionButton('auction_bid', 'Trả ' + (lot.currentBid + 5), lot.id, 'data-expansion-arg2="' + (lot.currentBid + 5) + '"') : '<small>Đã đóng</small>') + '</article>').join('') || '<p class="muted">Chưa có lô đấu giá.</p>';
     const meritOffers = window.GameEngine.meritFateOffers(state);
     const latest = state.flags?.lastMarketResult ? '<p class="reward-banner">Giao dịch gần nhất: ' + escapeHtml(state.flags.lastMarketResult) + '</p>' : '';
     const meritLatest = state.flags?.lastMeritFateResult ? '<p class="reward-banner">' + escapeHtml(state.flags.lastMeritFateResult) + '</p>' : '';
     const meritSection = '<div class="section-title">Đổi Công Đức lấy Mệnh Số</div><p class="muted">Công Đức hiện có: <b>' + Number(state.player.merit || 0) + '</b> · Mệnh nhận được đưa vào Mệnh Kho hoặc chờ xử lý nếu kho đầy.</p>' + meritLatest + '<div class="market-grid">' + meritOffers.map((offer) => '<article class="market-card fate-card grade-' + escapeHtml(offer.fate.grade) + '"><b>' + escapeHtml(offer.fate.name) + '</b><small>' + escapeHtml(offer.fate.gradeLabel || offer.fate.grade) + ' · Cát · ' + offer.fate.score + ' điểm</small><button class="guild-action" data-merit-fate="' + escapeHtml(offer.fate.id) + '">Đổi · ' + offer.merit + ' Công Đức</button></article>').join("") + '</div>';
-    return '<div class="section-title">Phường thị · Mệnh Số, Đan dược, Trang bị</div><p class="muted">Hàng hóa tự đổi mỗi 60 giây · mua bằng Linh thạch.</p>' + latest + '<div class="market-grid">' + offers.map((offer) => { const item = offer.kind === "fate" ? window.GameData.FATE_PATTERNS.find((f) => f.id === offer.id) : window.GameData.ITEMS[offer.id]; return '<article class="market-card"><b>' + escapeHtml(item?.name || offer.id) + '</b><small>' + escapeHtml(item?.gradeLabel || item?.desc || offer.kind) + '</small><button class="guild-action" data-market-offer="' + escapeHtml(offer.id) + '" data-market-kind="' + offer.kind + '">Mua · ' + offer.price.linhThach + ' Linh thạch</button></article>'; }).join("") + '</div>' + meritSection;
+    return '<div class="section-title">Phường thị · Mệnh Số, Đan dược, Trang bị</div><p class="muted">Hàng hóa tự đổi mỗi 60 giây · mua bằng Linh thạch.</p>' + latest + '<div class="market-grid">' + offers.map((offer) => { const item = offer.kind === "fate" ? window.GameData.FATE_PATTERNS.find((f) => f.id === offer.id) : window.GameData.ITEMS[offer.id]; return '<article class="market-card"><b>' + escapeHtml(item?.name || "Vật phẩm chưa định danh") + '</b><small>' + escapeHtml(item?.gradeLabel || item?.desc || "Hàng hóa đặc biệt") + '</small><button class="guild-action" data-market-offer="' + escapeHtml(offer.id) + '" data-market-kind="' + offer.kind + '">Mua · ' + offer.price.linhThach + ' Linh thạch</button></article>'; }).join("") + '</div>' + meritSection + '<div class="section-title">Đấu Giá</div><div class="market-grid">' + auctionLots + '</div>';
   }
 
   function renderQintian(state) {
@@ -269,7 +353,7 @@ window.GameUI = (function () {
   function renderEffects(effects) {
     const entries = Object.entries(effects || {}).filter(([, value]) => value !== 0 && value !== false && value != null);
     if (!entries.length) return '<span class="stat-tag neutral">Không cộng chỉ số trực tiếp</span>';
-    return entries.map(([key, value]) => '<span class="stat-tag">' + helpLabel(escapeHtml(EFFECT_LABELS[key] || key), EFFECT_HELP[key] || "Chỉ số hiệu dụng của hiệu ứng này.") + ' ' + escapeHtml(effectValue(key, value)) + '</span>').join(" ");
+    return entries.map(([key, value]) => '<span class="stat-tag">' + helpLabel(escapeHtml(EFFECT_LABELS[key] || "Hiệu ứng đặc biệt"), EFFECT_HELP[key] || "Chỉ số hiệu dụng của hiệu ứng này.") + ' ' + escapeHtml(effectValue(key, value)) + '</span>').join(" ");
   }
 
   function helpLabel(label, help) {
@@ -304,7 +388,7 @@ window.GameUI = (function () {
     const activeGate = ritual?.remaining?.[0];
     const visibleBlockers = blockers.filter((item) => !item.startsWith('Nghi thức'));
     const quickHint = activeGate ? (visibleBlockers.length ? 'Gợi Ý Nhanh: ' + escapeHtml(visibleBlockers.slice(0, 2).join(' · ')) : 'Gợi Ý Nhanh: cổng đã sẵn sàng, hãy thực hiện hành động trên Action Bar.') : '';
-    const ritualGuide = ritual && Number(progress.current.level) > 1 ? '<div class="ritual-guide"><b>Nghi thức đột phá · tiến trình</b><ol>' + ritual.plan.map((step) => '<li class="ritual-step ' + (ritual.completed.includes(step) ? 'done' : (ritual.remaining[0] === step ? 'current' : '')) + '">' + escapeHtml(ritualNames[step] || step) + '</li>').join('') + '</ol>' + (activeGate ? '<p><b>Cổng đang active:</b> ' + escapeHtml(ritualNames[activeGate] || activeGate) + '<br>' + quickHint + '</p>' : '') + '<small>Thực hiện lần lượt hành động nghi thức trên thanh hành động.</small></div>' : '';
+    const ritualGuide = ritual && Number(progress.current.level) > 1 ? '<div class="ritual-guide"><b>Nghi thức đột phá · tiến trình</b><ol>' + ritual.plan.map((step) => '<li class="ritual-step ' + (ritual.completed.includes(step) ? 'done' : (ritual.remaining[0] === step ? 'current' : '')) + '">' + escapeHtml(ritualNames[step] || "Bước nghi thức") + '</li>').join('') + '</ol>' + (activeGate ? '<p><b>Cổng hiện tại:</b> ' + escapeHtml(ritualNames[activeGate] || "Bước nghi thức") + '<br>' + quickHint + '</p>' : '') + '<small>Thực hiện lần lượt hành động nghi thức trên thanh hành động.</small></div>' : '';
     return '<div class="realm-guide ' + (progress.ready ? "ready" : "") + '" title="' + escapeHtml(blockers.join("; ")) + '"><div class="realm-route"><b>' + escapeHtml(currentTitle) + '</b><span>→</span><b>' + escapeHtml(nextTitle) + '</b></div>' +
       '<p>Cách thăng cấp: ' + (Number(progress.current.level) === 1 ? 'tu luyện đủ 100 Tu vi rồi chọn <b>Đột Phá</b>, hoặc dùng Thông Mạch Đan/Tụ Khí Đan/Hoán Huyết Đan để khai lộ sớm.' : 'hoàn thành mọi điều kiện bên dưới, sau đó chọn <b>Đột Phá</b>.') + '</p><div class="requirement-grid">' +
       progress.requirements.map((item) => { const guide = breakthroughRequirementGuide(item.label); return '<div class="requirement ' + (item.met ? "met" : "missing") + '"><span>' + (item.met ? "✓" : "○") + ' ' + helpLabel(escapeHtml(item.label), guide) + '</span><b>' + escapeHtml(item.current) + ' / ' + escapeHtml(item.target) + '</b>' + ((!item.met) ? '<button class="help-button" data-breakthrough-help="' + escapeHtml(item.label) + '" data-breakthrough-guide="' + escapeHtml(guide) + '" data-breakthrough-current="' + escapeHtml(item.current) + '" data-breakthrough-target="' + escapeHtml(item.target) + '" title="Xem cách hoàn thành điều kiện">?</button>' : '') + '</div>'; }).join("") +
@@ -314,11 +398,12 @@ window.GameUI = (function () {
   function renderStatus(state) {
     const p = state.player;
     const s = p.stats;
+    const originProfile = p.origin?.type ? window.GameEngine.originOptions?.()[p.origin.type] : null;
     const rootProfile = p.spiritualRootProfile || window.GameEngine.spiritualRootProfile(p);
     const rootGrade = rootProfile.label || p.spiritualRootGrade || window.GameEngine.spiritualRootGrade(p.spiritualRoots);
     const roots = (rootProfile.elements || []);
     const equipment = window.GameEngine.equipmentSummary(state);
-    const itemName = (id) => id ? (window.GameData.ITEMS[id]?.name || id) : "Chưa trang bị";
+    const itemName = (id) => id ? (window.GameData.ITEMS[id]?.name || "Vật phẩm chưa định danh") : "Chưa trang bị";
     const equipmentSlots = [
       { label: "Pháp khí", count: equipment.artifacts.length, max: 2, items: equipment.artifacts, category: "artifact", slot: "", help: "Bảo vật chiến đấu hoặc phụ trợ; mọi chỉ số trên vật phẩm được cộng khi trang bị đúng ô." },
       { label: "Hộ thân · Giáp", count: equipment.protection.armor ? 1 : 0, max: 1, items: equipment.protection.armor ? [equipment.protection.armor] : [], category: "protection", slot: "armor", help: "Vị trí Hộ thân Pháp khí — Giáp; chỉ vật phẩm đang trang bị mới gắn chỉ số vào nhân vật." },
@@ -364,7 +449,8 @@ window.GameUI = (function () {
       '<div class="kv root-row">' + helpLabel("Linh căn", "Mỗi Linh căn là một thuộc tính hấp thu linh khí độc lập; phẩm chất và số lượng quyết định tốc độ cùng độ tinh thuần khi tu luyện.") + '<b>' + (roots.length ? escapeHtml(roots.join(" · ")) : "Chưa rõ") + (rootGrade ? ' <span class="root-grade">' + escapeHtml(rootGrade) + '</span>' : '') + '</b></div>' +
       (rootProfile.cachCucName ? '<div class="kv root-row root-cach-cuc root-cach-cuc--' + escapeHtml(rootProfile.cachCucAlignment || "trung") + '">' + helpLabel("Cách cục Linh căn", "Cách cục được suy ra từ quan hệ Tương Sinh/Tương Khắc nội tại giữa các nguyên tố trong bộ linh căn.") + '<b>' + escapeHtml(rootProfile.cachCucName) + '</b></div>' : '') +
       '<div class="kv">' + helpLabel("Tính cách", "Khuynh hướng hành xử bẩm sinh, được dùng trong đối thoại, lựa chọn và một số kiểm tra ẩn.") + '<b>' + ((p.personalityTraits || []).join(" · ") || "Chưa rõ") + "</b></div>" +
-      '<div class="kv">' + helpLabel("Xuất thân", "Thân phận khởi đầu được khóa vĩnh viễn; passive và trait tiếp tục ảnh hưởng suốt hành trình.") + '<b>' + escapeHtml(p.origin ? p.origin.name + " · " + p.origin.specializationName : (p.background || "Vô Danh")) + "</b></div>" +
+      '<div class="kv">' + helpLabel("Xuất thân · " + (p.origin?.name || p.background || "Vô Danh"), "Thân phận khởi đầu được khóa vĩnh viễn; passive và trait tiếp tục ảnh hưởng suốt hành trình.") + '<b>' + escapeHtml(p.origin ? p.origin.name + " · " + p.origin.specializationName : (p.background || "Vô Danh")) + "</b></div>" +
+      (originProfile?.description ? '<p class="origin-lore"><b>Ảnh hưởng xuất thân:</b> ' + escapeHtml(originProfile.description) + '</p>' : '') +
       '<div class="kv">' + helpLabel("Mục tiêu ẩn", "Chấp niệm sâu nhất của nhân vật, có thể mở khóa lựa chọn và kết cục riêng.") + '<b>' + (p.hiddenGoal || "Trường sinh") + "</b></div>" +
       '<div class="kv">' + helpLabel("Công pháp chủ tu", "Pháp môn đang định hình cách vận hành linh khí; chi tiết và cấp thông thạo nằm trong modal Công Pháp.") + '<b>' + (p.cultivationMethod || "Dẫn Khí Nhập Môn") + "</b></div>" +
       '<div class="kv">' + helpLabel("Thể phách", "Sức mạnh thân thể; tăng sát thương vật lý, khí huyết tối đa và thể lực.") + '<b>' + s.phy + "</b></div>" +
@@ -374,6 +460,7 @@ window.GameUI = (function () {
       '<div class="kv">' + helpLabel("Tu Vi", "Tích lũy qua tu luyện và trải nghiệm. Đủ Tu vi cùng các điều kiện cảnh giới mới có thể Đột Phá.") + '<b>' + p.exp + (next ? " / " + (r.breakExp * (p.pathId === "ngoai_dao_gia" ? 5 : 1)) : "") + "</b></div>" +
       '<div class="kv">' + helpLabel("Công Đức", "Thiện nghiệp và uy tín đạo nghĩa; dùng để hóa giải nhân quả, giao dịch đặc thù và trả giá khi thoát ly tông môn.") + '<b>' + Number(p.merit || 0) + "</b></div>" +
       '<div class="kv">' + helpLabel("Mệnh Trạng Thái", "Tình trạng vận hành tổng thể của Mệnh Số, bao gồm trưởng thành, phản phệ, tà thần can thiệp hoặc siêu thoát.") + '<b>' + window.GameEngine.fateStatusLabel(state) + "</b></div>" +
+      renderProfessionSection(state) +
       equipmentTable +
       '<div class="section-title">Cảnh Giới · ' + escapeHtml(window.GameEngine.pathTitle(state)) + '</div><p class="realm-lore-compact">' + escapeHtml(window.GameEngine.realmLore(state, r).text) + "</p>" +
       renderBreakthrough(state);
@@ -412,13 +499,14 @@ window.GameUI = (function () {
     if (!ids.length) return '<div class="section-title">Hành trang</div><p class="muted">Trống rỗng.</p>';
     return '<div class="section-title">Hành trang</div>' + ids.map((id) => {
       const it = window.GameData.ITEMS[id];
-      if (!it) return '<div class="item-row quest-failed">Vật phẩm không xác định: ' + id + "</div>";
+      if (!it) return '<div class="item-row quest-failed">Vật phẩm chưa xác định</div>';
       const equipped = equippedIds.has(id) ? " · Đang trang bị" : "";
-      const generated = it.generated ? " · Procedural" : "";
+      const generated = it.generated ? " · Vật phẩm tạo tác" : "";
       const cursed = it.cursed ? " · Nguyền rủa" : "";
-      const actions = window.GameEngine.inventoryActions(state, id).map((action) =>
-        '<button class="item-action" data-item-action="' + action.id + '" data-item-id="' + id + '">' + action.label + '</button>'
-      ).join(" ");
+        const actions = window.GameEngine.inventoryActions(state, id).map((action) =>
+          '<button class="item-action" data-item-action="' + action.id + '" data-item-id="' + id + '">' + action.label + '</button>'
+        ).join(" ");
+        const professionAction = it.kind === "profession_item" ? expansionButton("profession_item_use", "Sử dụng", id) : "";
       const categoryLabel = window.GameEngine.equipmentCategoryLabel(it);
       const itemEffects = Object.fromEntries(["phy", "mag", "sanResist", "phyDef", "heal", "exp", "san"].filter((key) => it[key] != null).map((key) => [key, it[key]]));
       const freeQty = window.GameEngine.freeItemQuantity(state, id);
@@ -426,7 +514,7 @@ window.GameUI = (function () {
       const safeForQuick = Boolean(safety.quickSafe);
       const selector = options.selectable && safety.selectable && freeQty > 0 ? '<label class="cauldron-quantity' + (safeForQuick ? ' quick-safe' : ' protected') + '">Chọn thủ công <input type="number" min="0" max="' + Math.min(9, freeQty) + '" value="0" data-cauldron-item="' + escapeHtml(id) + '" data-cauldron-name="' + escapeHtml(it.name) + '" data-cauldron-safe="' + (safeForQuick ? 'true' : 'false') + '"> / ' + freeQty + '</label>' : '';
       return '<div class="item-row inspectable" title="' + escapeHtml(it.desc || "Không rõ lai lịch.") + '"><b>' + it.name + '</b> ×' + state.inventory[id] + selector + '<br><small>' +
-        categoryLabel + equipped + generated + cursed + '<br>' + (it.desc || "Không rõ lai lịch.") + '</small><div class="stat-tags">' + renderEffects(itemEffects) + '</div><div class="item-actions">' + actions + '</div></div>';
+          categoryLabel + equipped + generated + cursed + '<br>' + (it.desc || "Không rõ lai lịch.") + '</small><div class="stat-tags">' + renderEffects(itemEffects) + '</div><div class="item-actions">' + actions + professionAction + '</div></div>';
     }).join("");
   }
   function renderInventoryModal(state) {
@@ -448,16 +536,22 @@ window.GameUI = (function () {
 
   function renderRelations(state) {
     const ids = Object.keys(state.relationships);
-    if (!ids.length) return '<div class="section-title">Nhân duyên</div><p class="muted">Chưa kết giao ai.</p>';
-    return '<div class="section-title">Nhân duyên</div>' + ids.map((id) => {
+    const relations = ids.map((id) => {
       const npc = window.GameData.NPCS[id];
       const r = state.relationships[id];
-      return '<div class="rel-row">' + (npc ? npc.name : id) + '<br><small>' +
+      return '<div class="rel-row">' + escapeHtml(npc?.name || window.GameI18n?.formatTarget(id, state) || "Nhân vật chưa định danh") + '<br><small>' +
         helpLabel("Tín", "Mức độ nhân vật tin cậy mệnh nhân.") + ': ' + r.trust + ' · ' +
         helpLabel("Sợ", "Mức độ nhân vật sợ hãi uy thế của mệnh nhân.") + ': ' + r.fear + ' · ' +
         helpLabel("Kính", "Mức độ kính trọng danh vọng và hành vi của mệnh nhân.") + ': ' + r.respect + ' · ' +
         helpLabel("Nghi", "Mức độ hoài nghi; quá cao có thể khóa đối thoại hoặc dẫn tới phản bội.") + ': ' + r.suspicion + "</small></div>";
-    }).join("");
+    }).join("") || '<p class="muted">Chưa kết giao ai.</p>';
+    const prisoners = Object.values(state.prisoners || {}).filter((p) => p.status === "held").map((p) => '<div class="item-row"><b>Tù binh · ' + escapeHtml(window.GameData.ENTITIES?.[p.entityId]?.name || window.GameI18n?.formatTarget(p.entityId, state) || "Thực thể chưa định danh") + '</b><div class="item-actions">' + expansionButton("interrogate", "Thuyết phục", p.id, 'data-expansion-arg2="persuade"') + expansionButton("prisoner_resolve", "Phóng thích", p.id, 'data-expansion-arg2="released"') + '</div></div>').join("") || '<p class="muted">Không có tù binh đang giữ.</p>';
+    const contracts = Object.values(state.contractBoard?.accepted || {}).filter((c) => c.status === "accepted").map((c) => '<div class="item-row"><b>' + escapeHtml(window.GameI18n?.formatContract(c) || "Khế Ước") + '</b><small> · Hết hạn ngày ' + Number(c.expiresDay || 0) + '</small></div>').join("") || '<p class="muted">Không có khế ước đang thực hiện.</p>';
+    const localNpcIds = window.GameData.LOCATIONS?.[state.locationId]?.npcs || [];
+    const correspondence = localNpcIds.map((npcId) => '<div class="item-row"><b>' + escapeHtml(window.GameData.NPCS?.[npcId]?.name || window.GameI18n?.formatTarget(npcId, state) || "Nhân vật chưa định danh") + '</b><div class="item-actions">' + expansionButton("mail", "Gửi Truyền Thư", npcId, 'data-expansion-arg2="Bình an, hữu duyên tái ngộ."') + expansionButton("bounty", "Treo Thưởng · 10", npcId, 'data-expansion-arg2="10"') + '</div></div>').join("") || '<p class="muted">Không có đối tượng liên hệ trong khu vực.</p>';
+    const bounties = (state.worldSimulation?.scheduledTasks || []).filter((task) => task.type === "bounty" && task.status === "pending").map((task) => '<div class="item-row"><b>Truy nã · ' + escapeHtml(window.GameI18n?.formatTarget(task.entityId, state) || "Mục tiêu được chỉ định") + '</b><small> · dự kiến hồi báo ngày ' + Number(task.dueDay || 0) + '</small></div>').join("");
+    const intelCount = Object.keys(state.intel || {}).length; const cover = state.coverIdentity ? "Đang dùng thân phận bí mật" : "Chưa lập thân phận bí mật";
+    return '<div class="section-title">Nhân duyên</div>' + relations + '<div class="section-title">Tù Binh & Dị Thú</div>' + prisoners + (state.companion ? '<div class="item-row"><b>Dị Thú đồng hành · ' + escapeHtml(state.companion.customName || window.GameI18n?.formatTarget(state.companion.entityId, state) || "Dị Thú") + '</b><small> · Trung thành ' + Number(state.companion.loyalty || 0) + '/100</small></div>' : '<p class="muted">Chưa có Dị Thú đồng hành.</p>') + '<div class="section-title">Truyền Thư</div>' + correspondence + '<div class="section-title">Truy Nã</div>' + (bounties || '<p class="muted">Không có truy nã đang chờ.</p>') + '<div class="section-title">Tình Báo / Thân Phận</div><p>' + escapeHtml(cover) + ' · ' + intelCount + ' đầu mối.</p>' + expansionButton("intel_buy", "Mua tin tức · 5 Linh Thạch") + '<div class="section-title">Khế Ước</div>' + contracts;
   }
 
   function renderMemory(state) {
@@ -485,7 +579,7 @@ window.GameUI = (function () {
         '<div class="kv">' + helpLabel("Hộ đạo", "Mức giảm nguy cơ tiêu cực từ môi trường khi tu luyện trong phạm vi thế lực.") + '<b>' + benefits.cityPenaltyReductionPct + '%</b></div>' +
         '<p class="guild-traits">' + guild.traits.join(' · ') + '</p>' +
         '<p class="guild-exit-cost">Thoát ly cần ' + exitCost.contribution + ' Cống Hiến + ' + exitCost.merit + ' Công Đức. Thiếu sẽ bị truy sát tới đại cảnh kế.</p>' +
-        '<button class="guild-action danger" data-guild-leave="true">Thoát ly tông môn</button></div>';
+        '<div class="item-actions"><button class="guild-action" data-expansion-modal="guild-project">Công Trình Tông Môn</button><button class="guild-action danger" data-guild-leave="true">Thoát ly tông môn</button></div></div>';
     }
 
     if (window.GameEngine.cultivationTier(state) === 1) {
@@ -528,7 +622,10 @@ window.GameUI = (function () {
       '<button class="' + (activeMapView === "world" ? "active" : "") + '" data-map-view="world">Vạn Giới Lộ</button>' +
       '<button class="' + (activeMapView === "local" ? "active" : "") + '" data-map-view="local">Khu vực hiện tại</button>' +
       '</div>';
-    return controls + (activeMapView === "world" ? renderWorldMap(state, data, map) : renderLocalMap(state, data, map));
+    const regionId = map.locations[state.locationId]?.region || data.LOCATIONS?.[state.locationId]?.region;
+    const preview = window.GameEngine.worldModifierPreview?.(state, { regionId, activity: "travel" });
+    const climate = preview ? '<div class="detail-block"><b>Thiên tượng tuyến đường: ' + escapeHtml(preview.weatherLabel) + '</b><small> · Nguy cơ di chuyển ' + (Number(preview.travelRiskDelta || 0) * 100).toFixed(0) + '% · tìm kiếm ×' + Number(preview.searchRewardMult || 1).toFixed(2) + '</small></div>' : '';
+    return climate + controls + (activeMapView === "world" ? renderWorldMap(state, data, map) : renderLocalMap(state, data, map));
   }
 
   function setMapView(view, state) {
@@ -549,8 +646,11 @@ window.GameUI = (function () {
 
     const regions = map.regions.map((region) => {
       const current = region.id === currentRegionId ? " current" : "";
-      return '<div class="region-node' + current + '" style="left:' + region.x + '%;top:' + region.y + '%" title="' + region.description + '">' +
-        '<b>' + region.name + '</b><small>' + region.type + '<br>Linh khí ' + region.qi + ' · Nguy hiểm ' + region.danger + '</small></div>';
+      const runtime = state.worldSimulation?.regionState?.[region.id];
+      const event = runtime?.activeEventId && state.worldSimulation?.events?.[runtime.activeEventId];
+      const eventName = event ? (window.EXPANSION_DATA?.worldEvents || []).find((entry) => entry.id === event.templateId)?.name : null;
+      return '<div class="region-node' + current + (event ? ' event-active' : '') + '" style="left:' + region.x + '%;top:' + region.y + '%" title="' + escapeHtml(region.description + (eventName ? ' · ' + eventName : '')) + '">' +
+        '<b>' + region.name + (eventName ? ' ☄' : '') + '</b><small>' + region.type + '<br>Linh khí ' + region.qi + ' · Nguy hiểm ' + region.danger + (runtime?.weather ? '<br>Thời tiết: ' + escapeHtml(runtime.weather) : '') + (eventName ? '<br>Biến cố: ' + escapeHtml(eventName) : '') + '</small></div>';
     }).join("");
 
     const factions = (map.factions || []).map((faction) => {
@@ -592,7 +692,7 @@ window.GameUI = (function () {
       const status = eligibility.eligible ? '<span class="tag success">Đủ tư cách hiện tại</span>' : '<span class="tag danger">Chưa đủ tư cách</span>';
       return '<div class="detail-block"><h3>' + escapeHtml(guild.name) + '</h3>' +
         '<p>' + escapeHtml(guild.type || 'Tông môn') + ' · ' + escapeHtml(guild.allegiance || guild.alignment || 'Trung lập') + '<br>' +
-        'Khu vực: ' + escapeHtml(region?.name || guild.region_id || 'Chưa rõ') + '<br>Cấp tổ chức: ' + escapeHtml(window.GameEngine.guildTierInfo(guild).name) +
+        'Khu vực: ' + escapeHtml(region?.name || window.GameI18n?.formatTarget(guild.region_id, state) || 'Chưa rõ') + '<br>Cấp tổ chức: ' + escapeHtml(window.GameEngine.guildTierInfo(guild).name) +
         ' · Cảnh giới cao nhất: ' + escapeHtml(guild.highest_realm_text || guild.highest_realm || 'Chưa rõ') + '</p>' + status +
         '<p class="muted">Đây là hồ sơ trên bản đồ. Muốn gia nhập hoặc nhận nhiệm vụ, hãy di chuyển tới khu vực này rồi mở mục Tổ chức.</p>' +
         (eligibility.reasons?.length ? '<p class="muted">Còn thiếu: ' + escapeHtml(eligibility.reasons.join(' · ')) + '</p>' : '') + '</div>';
@@ -602,7 +702,7 @@ window.GameUI = (function () {
       const localGuilds = (data.GUILDS || []).filter((item) => item.region_id === faction.region_id).slice(0, 12);
       const realm = (data.REALMS || []).find((item) => item.id === faction.highest_realm || (item.legacyIds || []).includes(faction.highest_realm));
       return '<div class="detail-block"><h3>' + escapeHtml(faction.name) + '</h3><p>' + escapeHtml(faction.type || 'Thế lực') + ' · ' + escapeHtml(faction.alignment || 'Trung lập') + '<br>' +
-        'Khu vực: ' + escapeHtml(region?.name || faction.region_id || 'Chưa rõ') + '<br>Quy mô: ' + Number(faction.scale || 0) + '/10 · Cảnh giới cao nhất: ' + escapeHtml(realm?.name || faction.highest_realm || 'Chưa rõ') + '</p>' +
+        'Khu vực: ' + escapeHtml(region?.name || window.GameI18n?.formatTarget(faction.region_id, state) || 'Chưa rõ') + '<br>Quy mô: ' + Number(faction.scale || 0) + '/10 · Cảnh giới cao nhất: ' + escapeHtml(realm?.name || 'Chưa rõ') + '</p>' +
         '<p>' + (faction.traits || []).map(escapeHtml).join(' · ') + '</p>' +
         (localGuilds.length ? '<h4>Tổ chức trong khu vực</h4><ul>' + localGuilds.map((item) => '<li><button type="button" class="link-button" data-map-guild="' + escapeHtml(item.id) + '">' + escapeHtml(item.name) + '</button></li>').join('') + '</ul>' : '') +
         '<p class="muted">Bấm vào tổ chức để xem điều kiện. Tương tác trực tiếp chỉ mở khi nhân vật đã tới khu vực tương ứng.</p></div>';
@@ -655,13 +755,17 @@ window.GameUI = (function () {
       const isVisited = visited.has(id);
       const isReachable = Boolean(direction);
       const classes = ["map-node"];
+      const notableCount = Object.values(state.worldSimulation?.npcState || {}).filter((npc) => npc.status === "alive" && npc.currentNodeId === id).length;
+      const hiddenOpen = Object.entries(state.worldSimulation?.hiddenRealms || {}).some(([realmId, runtime]) => runtime.status === "open" && (window.EXPANSION_DATA?.hiddenRealms || []).find((entry) => entry.id === realmId)?.parentNodeId === id);
+      if (notableCount) classes.push("has-notable-npc");
+      if (hiddenOpen) classes.push("hidden-realm-open");
       if (isCurrent) classes.push("current");
       else if (isReachable) classes.push("reachable");
       else if (isVisited) classes.push("visited");
       else classes.push("unknown");
       if (location.openWorld) classes.push("procedural");
       if (location.enemies?.length) classes.push("dangerous");
-      const label = isVisited || isReachable ? location.name : "Chưa khám phá";
+      const label = (isVisited || isReachable ? location.name : "Chưa khám phá") + (notableCount ? " · NPC " + notableCount : "") + (hiddenOpen ? " · Bí Cảnh" : "");
       const action = direction ? ' data-map-dir="' + direction + '" title="Đi tới ' + location.name + '"' : "";
       return '<button class="' + classes.join(" ") + '" style="left:' + point.x + '%;top:' + point.y + '%"' + action + '>' + label + '</button>';
     }).join("");
@@ -700,7 +804,9 @@ window.GameUI = (function () {
       const relationship = window.GameEngine.fateRelationshipStatus(p, id);
       const instance = state.fateInstances?.[id] || p.fateInstances?.[id];
       const sourceLabel = instance?.source ? ' · Nguồn: ' + escapeHtml(instance.source) : '';
-      const actions = '<div class="fate-actions">' + (inVault ? '<button class="guild-action" data-fate-equip="' + escapeHtml(id) + '">' + equipLabel + '</button>' : '<button class="guild-action" data-fate-unequip="' + escapeHtml(id) + '">Tháo xuống Mệnh Kho</button><button class="guild-action" data-fate-nurture="' + escapeHtml(id) + '">Dưỡng Mệnh</button><button class="guild-action" data-fate-resonate="' + escapeHtml(id) + '"' + (relationship.stage !== 2 ? ' disabled title="Cần đạt Tương Ứng trước"' : '') + '>Cộng Minh</button>') + '<button class="guild-action" data-fate-upgrade-target="' + escapeHtml(id) + '"' + (enhancement >= 5 ? ' disabled title="Đã đạt tối đa +5"' : '') + '>Nâng cấp</button>' + (inVault ? '<label class="fate-select"><input type="checkbox" data-fate-merge="' + escapeHtml(id) + '"> Chọn dung hợp</label>' : '') + '</div>';
+      const evolution = state.player?.fateEvolutions?.[id]; const eligibility = window.GameEngine.fateEvolutionEligibility?.(state, id);
+      const evolutionAction = !inVault ? (evolution ? '<button class="guild-action" data-fate-evolution="' + escapeHtml(id) + '">Tiến hóa · ' + escapeHtml(window.GameI18n?.formatStatus(evolution.status) || "Xem tiến độ") + '</button>' : eligibility?.eligible ? expansionButton("fate_trial", "Mở Mệnh Kiếp", id) : '<button class="guild-action" disabled title="' + escapeHtml((eligibility?.blockers || ["Chưa đủ điều kiện"]).join(" · ")) + '">Tiến hóa chưa mở</button>') : "";
+      const actions = '<div class="fate-actions">' + (inVault ? '<button class="guild-action" data-fate-equip="' + escapeHtml(id) + '">' + equipLabel + '</button>' : '<button class="guild-action" data-fate-unequip="' + escapeHtml(id) + '">Tháo xuống Mệnh Kho</button><button class="guild-action" data-fate-nurture="' + escapeHtml(id) + '">Dưỡng Mệnh</button><button class="guild-action" data-fate-resonate="' + escapeHtml(id) + '"' + (relationship.stage !== 2 ? ' disabled title="Cần đạt Tương Ứng trước"' : '') + '>Cộng Minh</button>') + '<button class="guild-action" data-fate-upgrade-target="' + escapeHtml(id) + '"' + (enhancement >= 5 ? ' disabled title="Đã đạt tối đa +5"' : '') + '>Nâng cấp</button>' + evolutionAction + (inVault ? '<label class="fate-select"><input type="checkbox" data-fate-merge="' + escapeHtml(id) + '"> Chọn dung hợp</label>' : '') + '</div>';
       return '<article class="fate-card ' + (fate.sign || "binh") + ' grade-' + escapeHtml(fate.grade || "phan") + '" title="' + escapeHtml(narrative) + '"><div><b>' + escapeHtml(fate.name) + (enhancement ? ' <span class="fate-enhancement">+' + enhancement + '</span>' : '') + '</b><small><span class="fate-grade-badge">' + escapeHtml(fate.gradeLabel || fate.grade || "") + '</span> · ' + sign + ' · Quan hệ: ' + escapeHtml(relationship.label) + sourceLabel + ' · ' + helpLabel("Mệnh Điểm", "Giá trị đang đóng góp vào Tổng Mệnh, đã gồm Cường Hóa.") + ' ' + effectiveScore + (compatibility == null ? "" : ' · ' + helpLabel("Tương hợp", "Điểm tư vấn build; không phải điều kiện khóa trang bị.") + ' ' + compatibility + '/10') + '</small></div><p>' + escapeHtml(narrative) + '</p><div class="stat-tags">' + renderEffects(window.GameEngine.enhancedFateEffects(p, fate)) + '</div>' + (inVault ? '<span class="vault-mark">Mệnh Kho · Không kích hoạt · Không cộng chỉ số</span>' : '<span class="vault-mark active-mark">Đang kích hoạt</span>') + actions + '</article>';
     };
     const relations = relation.activePairs.map((pair) => '<div class="relation-edge ' + (pair.type === "TUONG_SINH" ? "positive" : "negative") + '"><b>' + (pair.type === "TUONG_SINH" ? "↔ Tương Sinh" : "⚡ Tương Khắc") + '</b><span>' + escapeHtml(pair.label || (pair.from + " ↔ " + pair.to)) + '</span></div>').join("") +
@@ -753,15 +859,18 @@ window.GameUI = (function () {
     const cardFor = (technique) => {
       const progress = window.GameEngine.techniqueProgress(state, technique.id);
       const visible = technique.visibleStats || {};
+      const runtimePreview = window.GameEngine.techniquePreview(state, technique.id);
       const pct = progress.nextThreshold == null ? 100 : Math.min(100, Math.round(progress.masteryExp / progress.nextThreshold * 100));
-      return '<article class="technique-card category-' + escapeHtml(technique.category) + '" title="' + escapeHtml(visible.baseEffect || technique.name) + '"><div class="technique-head"><b>' + escapeHtml(technique.name) + '</b><small>' + escapeHtml(technique.element) + (technique.isCore ? ' · Cốt Lõi' : '') + '</small></div><p>' + escapeHtml(visible.baseEffect || "Chưa rõ hiệu quả.") + '</p><div class="stat-tags">' + renderEffects({ manaCost: visible.manaCost || 0, staminaCost: visible.staminaCost || 0, sanCost: visible.sanCost || 0, lifespanCost: visible.lifespanCost || 0, corruptionCost: visible.corruptionCost || 0, allStatMult: visible.allStatMultiplier || 0 }) + '</div><div class="mastery"><div>' + helpLabel(progress.stageName, "Tầng thông thạo hiện tại; tăng bằng vận dụng đúng hoàn cảnh và Ngộ tính.") + '<b>' + helpLabel("Thông Thạo", "EXP riêng của Công pháp, không phải Tu vi cảnh giới.") + ' ' + progress.masteryExp + (progress.nextThreshold == null ? ' · Tối đa' : '/' + progress.nextThreshold) + '</b></div><div class="mastery-bar"><span style="width:' + pct + '%"></span></div><small>' + escapeHtml(progress.nextStageName ? ('Còn ' + progress.remaining + ' EXP tới ' + progress.nextStageName + '. ' + progress.guide) : 'Đã đạt Đại Viên Mãn.') + '</small></div></article>';
+      const evolution = state.player.techniques?.[technique.id]?.evolution; const choices = window.EXPANSION_DATA?.techniqueEvolutions?.[technique.id] || [];
+      const evolutionControls = evolution?.status === "ready" ? choices.map((choice) => expansionButton("technique_evolve", choice.name, technique.id, 'data-expansion-arg2="' + escapeHtml(choice.id) + '"')).join("") : choices.length ? '<small>Tiến hóa: ' + escapeHtml(window.GameI18n?.formatStatus(evolution?.status || "locked") || "Chưa mở") + (evolution?.status === "trial" ? ' · tiến độ ' + Number(evolution.progress || 0) : '') + '</small>' : "";
+      return '<article class="technique-card category-' + escapeHtml(technique.category) + '" title="' + escapeHtml(visible.baseEffect || technique.name) + '"><div class="technique-head"><b>' + escapeHtml(technique.name) + '</b><small>' + escapeHtml(window.GameI18n?.element(technique.element) || technique.element) + (technique.isCore ? ' · Cốt Lõi' : '') + '</small></div><p>' + escapeHtml(visible.baseEffect || "Chưa rõ hiệu quả.") + '</p>' + (runtimePreview.success ? '<small>Thiên tượng hiện tại: uy lực ×' + Number(runtimePreview.powerMultiplier || 1).toFixed(2) + '</small>' : '') + '<div class="stat-tags">' + renderEffects({ manaCost: visible.manaCost || 0, staminaCost: visible.staminaCost || 0, sanCost: visible.sanCost || 0, lifespanCost: visible.lifespanCost || 0, corruptionCost: visible.corruptionCost || 0, allStatMult: visible.allStatMultiplier || 0 }) + '</div><div class="mastery"><div>' + helpLabel(progress.stageName, "Tầng thông thạo hiện tại; tăng bằng vận dụng đúng hoàn cảnh và Ngộ tính.") + '<b>' + helpLabel("Thông Thạo", "EXP riêng của Công pháp, không phải Tu vi cảnh giới.") + ' ' + progress.masteryExp + (progress.nextThreshold == null ? ' · Tối đa' : '/' + progress.nextThreshold) + '</b></div><div class="mastery-bar"><span style="width:' + pct + '%"></span></div><small>' + escapeHtml(progress.nextStageName ? ('Còn ' + progress.remaining + ' EXP tới ' + progress.nextStageName + '. ' + progress.guide) : 'Đã đạt Đại Viên Mãn.') + '</small></div><div class="item-actions">' + evolutionControls + '</div></article>';
     };
     const order = ["tam_phap", "chieu_thuc", "than_phap", "phu_tro", "tran_phap", "cam_thuat", "dan_phu_phap"];
     const allCategories = order.concat([...new Set(techniques.map((technique) => technique.category))].filter((category) => !order.includes(category)));
     const groups = allCategories.map((category) => {
       const items = techniques.filter((technique) => technique.category === category);
       if (!items.length) return "";
-      const meta = categories[category] || { label: "Dị Pháp · " + category, desc: "Truyền thừa đặc biệt, tuân theo quy tắc Thông Thạo riêng của engine." };
+      const meta = categories[category] || { label: window.GameI18n?.category(category) || "Dị Pháp", desc: "Truyền thừa đặc biệt, tuân theo quy tắc Thông Thạo riêng của engine." };
       return '<section class="technique-category group-' + category + '"><header><h3>' + meta.label + '</h3><p>' + meta.desc + '</p></header><div class="technique-grid">' + items.map(cardFor).join("") + '</div></section>';
     }).join("");
     return '<img class="modal-illustration" src="assets/ui/technique-illustration.webp" alt="Bí điển Công Pháp">' +
@@ -912,7 +1021,7 @@ window.GameUI = (function () {
   return {
     showScreen, addStory, renderStoryWindow, clearStory, renderChoices, clearChoices, actionPresentation, renderActions, renderOriginChoice,
     setLocation, setSaveIndicator, renderPanel, setMapView, setActiveTab,
-    renderFateDetail, renderFateSlotChooser, renderFateReplacementChooser, renderFateUpgradeChooser, renderPendingFateChooser, renderRitualModal, renderRewardSummary, renderTechniqueDetail, renderRealmDetail, renderMapDetail, renderMapFactionDetail, renderMarket, renderBlackMarket, renderQintian, renderInventoryModal,
+    renderFateDetail, renderFateSlotChooser, renderFateReplacementChooser, renderFateUpgradeChooser, renderPendingFateChooser, renderRitualModal, renderRewardSummary, renderTechniqueDetail, renderRealmDetail, renderMapDetail, renderMapFactionDetail, renderMarket, renderBlackMarket, renderQintian, renderInventoryModal, renderExpansion, renderWorld, renderOddities, renderProfessionSection, renderTechniqueEvolutionSection, renderFateEvolutionModal, renderGuildProjectModal, renderContestedOpportunityModal,
     openOverlay, closeOverlay, bindOverlay, escapeHtml, openEquipmentPicker
   };
 })();

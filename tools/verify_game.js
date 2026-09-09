@@ -15,7 +15,7 @@ function read(relativePath) {
 function loadBrowserGame() {
   const sandbox = { window: {} };
   vm.createContext(sandbox);
-  ["gemini-code-1788430656294.js", "data/world_data.js", "data/fate_data.js", "data/fate_relationships.js", "data/cong_phap.js", "data/npc_monsters.js", "data/path_fate_relations.js", "data/data.js", "js/engine.js"].forEach((file) => {
+  ["gemini-code-1788430656294.js", "data/world_data.js", "data/fate_data.js", "data/fate_relationships.js", "data/cong_phap.js", "data/npc_monsters.js", "data/path_fate_relations.js", "data/profession_items.js", "data/expansion_data.js", "data/data.js", "js/i18n.js", "js/engine.js", "js/expansion.js"].forEach((file) => {
     vm.runInContext(read(file), sandbox, { filename: file });
   });
   return sandbox;
@@ -123,6 +123,153 @@ function verifyTechniquesAndActions(sandbox) {
     assert(Number.isFinite(technique.visibleStats.castTimeSeconds));
     assert(technique.mastery && Number.isFinite(technique.mastery.stage));
   });
+}
+
+function verifyExpansionSystems(sandbox) {
+  const E = sandbox.window.GameEngine;
+  const character = E.createCharacter({ name: "Expansion Test", archetypeId: "kiem_tong", fates: E.drawInitialFates() });
+  const state = E.createState({ character });
+  ["hiddenProfessionClue", "useHiddenProfessionAction", "useProfessionItem", "rechargeProfessionItem", "professionAvailability", "chooseProfessionLocked", "runExpansionCommand", "ensureWorldSimulation", "scheduleWorldTask", "cancelWorldTask", "processScheduledWorldTasks", "worldSimulationSummary", "getWorldModifiers", "worldModifierPreview", "setWeather", "npcWorldContext", "resolveNpcWorldReaction"].forEach((name) => assert.strictEqual(typeof E[name], "function"));
+  assert.strictEqual(E.chooseProfession, undefined);
+  assert(E.I18n && E.I18n.formatHistory);
+  assert(sandbox.window.PROFESSION_ITEMS?.phuong_thuoc);
+  assert(state.worldSimulation && state.meta.featureVersions.fateEvolution === 1);
+  assert(Object.values(state.worldSimulation.factionState).every((faction) => Number.isFinite(faction.power) && faction.power > 0));
+  assert.strictEqual(E.worldRandom(state, "stable", 10, 2), E.worldRandom(state, "stable", 10, 2));
+  const regionId = sandbox.window.GameData.WORLD_MAP.locations[state.locationId]?.region || "trung_vuc";
+  assert(E.setWeather(state, regionId, "mua", 2, "qa").success);
+  assert.strictEqual(E.worldModifierPreview(state, { regionId }).weatherLabel, "Mưa");
+  const taskDay = E.gameDayOrdinal(state.gameClock) + 2;
+  assert(E.scheduleWorldTask(state, { id: "qa-task", type: "formation", dueDay: taskDay }).success);
+  assert(E.scheduleWorldTask(state, { id: "qa-task", type: "formation", dueDay: taskDay }).duplicate);
+  assert(E.cancelWorldTask(state, "qa-task").success);
+  assert.strictEqual(E.worldSimulationSummary(state).pendingTasks, 0);
+  const offlineState = E.createState({ character: E.createCharacter({ name: "Offline QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  const offlineStart = Date.now(); offlineState.gameClock.lastRealTimestamp = offlineStart - 30 * 1000;
+  const oneDay = E.applyOfflineProgress(offlineState, offlineStart); assert.strictEqual(oneDay.gameDays, 1);
+  assert.strictEqual(offlineState.worldSimulation.lastProcessedDay, E.gameDayOrdinal(offlineState.gameClock));
+  offlineState.gameClock.lastRealTimestamp = offlineStart - 30 * 1000 * 30;
+  const thirtyDays = E.applyOfflineProgress(offlineState, offlineStart); assert(thirtyDays.gameDays >= 29);
+  offlineState.gameClock.lastRealTimestamp = offlineStart - 30 * 1000 * 1000;
+  const longOffline = E.applyOfflineProgress(offlineState, offlineStart); assert(longOffline.gameDays >= 999);
+  assert.strictEqual(offlineState.worldSimulation.lastProcessedDay, E.gameDayOrdinal(offlineState.gameClock));
+  assert.strictEqual(Object.keys(offlineState.worldSimulation.events).length, 0);
+  const started = E.startWorldEvent(state, "huyet_nguyet", regionId, E.gameDayOrdinal(state.gameClock));
+  assert(started.success);
+  assert(E.activeRegionEvent(state, regionId));
+  assert(E.getWorldModifiers(state, { regionId }).encounterChanceMult >= 1);
+
+  const relation = E.recordRelationshipEvent(state, "su_phu", "saved", { uniqueKey: "qa-save" });
+  assert(relation.success && state.relationships.su_phu.trust >= 12);
+  assert(E.recordRelationshipEvent(state, "su_phu", "saved", { uniqueKey: "qa-save" }).duplicate);
+
+  state.player.techniques.kiem_khi_so_cap.masteryStage = 2;
+  E.ensureTechniqueTrials(state);
+  assert.strictEqual(state.player.techniques.kiem_khi_so_cap.evolution.status, "trial");
+  state.player.techniques.kiem_khi_so_cap.evolution.status = "ready";
+  assert(E.chooseTechniqueEvolution(state, "kiem_khi_so_cap", "doan_niem").success);
+  assert(E.techniqueEvolutionModifiers(state, "kiem_khi_so_cap").powerMult > 1);
+
+  const codexState = E.createState({ character: E.createCharacter({ name: "Codex Test", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  const codexId = sandbox.window.EXPANSION_DATA.codexDefinitions[0].id;
+  assert(E.inspectCodex(codexState, codexId, "investigate").success);
+  assert(E.inspectCodex(codexState, codexId, "read").success);
+  assert(E.inspectCodex(codexState, codexId, "decrypt").success);
+  assert(E.inspectCodex(codexState, codexId, "collect").success);
+  assert(codexState.discoveries.codexClues["lore:" + codexId].verified);
+  assert.strictEqual(E.inspectCodex(codexState, codexId, "collect").success, false);
+  const hiddenProfessionId = Object.keys(sandbox.window.EXPANSION_DATA.hiddenProfessions)[0];
+  codexState.hiddenProfessionState.clues[hiddenProfessionId + ":lead"] = { professionId: hiddenProfessionId };
+  codexState.hiddenProfessionState.unlocked[hiddenProfessionId] = { day: E.gameDayOrdinal(codexState.gameClock) };
+  assert(E.chooseProfessionLocked(codexState, hiddenProfessionId).success);
+  codexState.player.san = 100;
+  assert(E.useHiddenProfessionAction(codexState, hiddenProfessionId).success);
+  assert(!E.useHiddenProfessionAction(codexState, hiddenProfessionId).success);
+  assert(E.deserialize(E.serialize(codexState)).hiddenProfessionActions[hiddenProfessionId].uses === 1);
+
+  const fateId = state.player.fates[0];
+  state.player.fateEnhancements[fateId] = 5;
+  state.player.fateRelationships[fateId] = { stage: 3, points: 4, eliteTrials: 0, alignedChoices: 0, resonanceUnlocked: true };
+  state.player.san = 100;
+  state.player.merit = 100;
+  state.fateExcessEssence = 100;
+  assert(E.fateEvolutionEligibility(state, fateId).eligible);
+  assert(E.startFateEvolutionTrial(state, fateId).success);
+  E.recordFateEvolutionProgress(state, "elite", "qa-elite-1");
+  E.recordFateEvolutionProgress(state, "elite", "qa-elite-2");
+  assert.strictEqual(state.player.fateEvolutions[fateId].status, "ready");
+  const branchId = state.player.fateEvolutions[fateId].candidateBranchIds[0];
+  const evolved = E.evolveFate(state, fateId, branchId, { confirmed: true });
+  assert(evolved.success);
+  assert.strictEqual(state.player.fateRelationships[fateId].stage, 4);
+
+  assert(!E.practiceProfession(state, "luyen_dan").success);
+  assert(E.chooseProfessionLocked(state, "luyen_dan").success);
+  assert(state.inventory.phuong_thuoc >= 1);
+  const professionItemQuantity = state.inventory.phuong_thuoc;
+  assert(E.useProfessionItem(state, "phuong_thuoc").success);
+  assert.strictEqual(state.inventory.phuong_thuoc, professionItemQuantity);
+  assert(!E.useProfessionItem(state, "phuong_thuoc").success);
+  state.inventory.linh_thach = Math.max(10, Number(state.inventory.linh_thach || 0));
+  assert(E.rechargeProfessionItem(state, "phuong_thuoc").success);
+  assert(E.chooseProfessionLocked(state, "tuong_su").success);
+  assert(state.professionState.selectionLocked);
+  assert(!E.chooseProfessionLocked(state, "tran_phap").success);
+  state.player.stamina = 100;
+  assert(E.practiceProfession(state, "luyen_dan").success);
+  E.refreshContracts(state, E.gameDayOrdinal(state.gameClock) + 10);
+  assert(Object.keys(state.contractBoard.offers).length > 0);
+
+  state.inventory.linh_thach = 100;
+  state.player.stamina = 100;
+  assert(E.setPlayerMark(state, "QA marker").success);
+  assert(E.divine(state).success);
+  const opportunity = E.createContestedOpportunity(state);
+  assert(opportunity && state.pendingContestedOpportunity);
+  assert(E.resolveContestedOpportunity(state, "share").success);
+  assert.strictEqual(state.pendingContestedOpportunity, null);
+
+  state.companion = { entityId: "qa_beast", customName: "QA Beast", loyalty: 50, corruption: 65, state: "mutated", mutationPending: true };
+  assert(E.resolveCompanionMutation(state, "cure").success);
+  assert.strictEqual(state.companion.state, "active");
+  assert(!state.companion.mutationPending);
+
+  state.counterIntel = { exposedDay: E.gameDayOrdinal(state.gameClock), factionId: "qa", heat: 30, falseLeadPlanted: false };
+  assert(E.counterIntelResponse(state, "false_lead").success);
+  assert.strictEqual(state.counterIntel.heat, 10);
+
+  const tribulation = E.prepareTribulation(state);
+  assert.strictEqual(tribulation.status, "pending");
+  assert(E.chooseTribulation(state, "fate").success);
+  assert.strictEqual(state.pendingTribulation.result.bonus >= 0, true);
+
+  const hiddenDef = sandbox.window.EXPANSION_DATA.hiddenRealms[0];
+  state.locationId = hiddenDef.parentNodeId;
+  state.worldSimulation.hiddenRealms[hiddenDef.id].status = "open";
+  state.worldSimulation.hiddenRealms[hiddenDef.id].cycleIndex = 1;
+  assert(E.hiddenRealmEnter(state, hiddenDef.id).success);
+  assert(state.locationId.startsWith("hidden:" + hiddenDef.id));
+  assert(sandbox.window.GameData.LOCATIONS[state.locationId]);
+  const hiddenSave = E.serialize(state), hiddenLocationId = state.locationId;
+  delete sandbox.window.GameData.LOCATIONS[hiddenLocationId];
+  const hiddenRestored = E.deserialize(hiddenSave);
+  assert(hiddenRestored.locationId.startsWith("hidden:" + hiddenDef.id));
+  assert(sandbox.window.GameData.LOCATIONS[hiddenRestored.locationId]);
+  assert(E.exitHiddenRealm(hiddenRestored).success);
+  assert(E.exitHiddenRealm(state).success);
+  assert.strictEqual(state.locationId, hiddenDef.parentNodeId);
+
+  const restored = E.deserialize(E.serialize(state));
+  assert(restored.worldSimulation);
+  assert.strictEqual(restored.player.fateEvolutions[fateId].status, "evolved");
+  assert.strictEqual(restored.player.fateRelationships[fateId].stage, 4);
+  const farDay = E.gameDayOrdinal(restored.gameClock) + 10000;
+  const catchup = E.simulateWorldUntil(restored, farDay);
+  assert.strictEqual(catchup.processed, 10000);
+  assert(catchup.detailed <= 30);
+  const stableWorld = JSON.stringify(restored.worldSimulation);
+  assert.strictEqual(E.simulateWorldUntil(restored, farDay).processed, 0);
+  assert.strictEqual(JSON.stringify(restored.worldSimulation), stableWorld);
 }
 
 function assertUnique(items, getKey, label) {
@@ -450,7 +597,7 @@ function verifyBrowserEngine(sandbox) {
   assert.deepStrictEqual(Array.from(migrated.visitedLocations), ["van_phong"]);
 
   const canonicalSave = JSON.parse(E.serialize(state));
-  assert.strictEqual(canonicalSave.version, 12);
+  assert.strictEqual(canonicalSave.version, 13);
   assert.strictEqual(canonicalSave.state.player.realm.id, "khai_lo");
   assert(!Object.prototype.hasOwnProperty.call(canonicalSave.state, "fateInventory"));
   assert.strictEqual(E.deserialize(JSON.stringify(canonicalSave)).player.realmId, "khai_lo");
@@ -576,6 +723,23 @@ function verifyMapUI(sandbox) {
   sandbox.window.GameUI.renderPanel(guildChoiceState);
   assert(elements["tab-content"].innerHTML.includes("data-guild-join") || elements["tab-content"].innerHTML.includes("Chưa đủ tư cách"));
   assert(!elements["tab-content"].innerHTML.includes("data-guild-refuse"));
+  sandbox.activeTestTab = "world";
+  const expansionUiState = E.createState({ character: E.createCharacter({ name: "Expansion UI", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  sandbox.window.GameUI.renderPanel(expansionUiState);
+  const worldHtml = elements["tab-content"].innerHTML;
+  ["Thế Sự", "Khế Ước", "Chiến Sự", "Công Trình Tông Môn", "Cơ Duyên"]
+    .forEach((label) => assert(worldHtml.includes(label), `missing world UI: ${label}`));
+  ["Cổ Tịch Tà Thần", "Tù Binh & Dị Thú", "Mệnh Số Tiến Hóa", "Đấu Giá"]
+    .forEach((label) => assert(!worldHtml.includes(label), `misplaced world UI: ${label}`));
+  sandbox.activeTestTab = "oddities";
+  sandbox.window.GameUI.renderPanel(expansionUiState);
+  const odditiesHtml = elements["tab-content"].innerHTML;
+  ["Dị Chí", "Cổ Tịch", "Con đường nghề ẩn", "Sưu Tầm", "Dị Thú", "NPC Hiếm"]
+    .forEach((label) => assert(odditiesHtml.includes(label), `missing oddities UI: ${label}`));
+  sandbox.activeTestTab = "status";
+  sandbox.window.GameUI.renderPanel(expansionUiState);
+  assert(elements["tab-content"].innerHTML.includes("Nghề Nghiệp"));
+  assert(elements["tab-content"].innerHTML.includes("Chọn nghề chính"));
 }
 
 function verifyDomReferences() {
@@ -634,7 +798,7 @@ function verifyCreationUI(sandbox) {
   elements["btn-new"].listeners.click();
   assert.strictEqual(elements["start-region-list"].children.length, sandbox.window.GameEngine.availableStartRegions(1).length);
   elements["start-region-list"].children[0].listeners.click();
-  const saved = JSON.parse(storage.co_di_dien_save_v12).state;
+  const saved = JSON.parse(storage.co_di_dien_save_v13).state;
   assert(saved.startRegionId);
   assert.strictEqual(saved.guildMembership, null);
   assert(saved.player.origin.race && saved.player.stats.aptitude && saved.player.origin.spiritualRoots.length);
@@ -656,6 +820,7 @@ function main() {
   verifyBrowserEngine(sandbox);
   verifyGeneratedItems(sandbox);
   verifyTechniquesAndActions(sandbox);
+  verifyExpansionSystems(sandbox);
   verifyMapUI(sandbox);
   verifyDomReferences();
   verifyCreationUI(sandbox);

@@ -8,8 +8,8 @@
   const E = window.GameEngine;
   const UI = window.GameUI;
 
-  const SAVE_KEY = "co_di_dien_save_v12";
-  const LEGACY_SAVE_KEYS = ["co_di_dien_save_v11"];
+  const SAVE_KEY = "co_di_dien_save_v13";
+  const LEGACY_SAVE_KEYS = ["co_di_dien_save_v12", "co_di_dien_save_v11"];
   let state = null;
 
   // Serialize game-changing actions. Rapid clicks used to mutate state while
@@ -72,7 +72,7 @@
         clock.lastRealTimestamp = now;
         if (elapsed > 0 && E.advanceGameTime) {
           const historyLength = state.history?.length || 0;
-          E.advanceGameTime(state, elapsed * Number(clock.realTimeToGameTimeRatio || (1 / Number(E.GAME_TIME_CONFIG?.realSecondsPerGameDay || 120))));
+          E.advanceGameTime(state, elapsed * Number(clock.realTimeToGameTimeRatio || (1 / Number(E.GAME_TIME_CONFIG?.realSecondsPerGameDay || 30))));
           if ((state.history?.length || 0) !== historyLength) { renderStoryWindow(); flushRewardSummaries(); saveGame(); }
           updateClockDisplay();
           updateAtmosphereClass();
@@ -222,6 +222,37 @@
     };
     $("tab-content").addEventListener("input", (event) => { if (event.target.matches("[data-cauldron-item]")) updateCauldronSelectionUI(); });
     $("tab-content").addEventListener("click", (event) => {
+      const modalButton = event.target.closest("[data-expansion-modal]");
+      if (modalButton && state) {
+        const type = modalButton.dataset.expansionModal;
+        if (type === "guild-project") UI.openOverlay("Công Trình Tông Môn", UI.renderGuildProjectModal(state));
+        if (type === "opportunity") UI.openOverlay("Cơ Duyên Tranh Đoạt", UI.renderContestedOpportunityModal(state));
+        return;
+      }
+      const expansionCommand = event.target.closest("[data-expansion-command]");
+      if (expansionCommand && state && E.runExpansionCommand) {
+        const command = expansionCommand.dataset.expansionCommand;
+        let arg = expansionCommand.dataset.expansionArg || "";
+        const arg2 = expansionCommand.dataset.expansionArg2 || "";
+        if (command === "mark") {
+          const note = prompt("Khắc lại dấu vết tại node này (tối đa 120 ký tự):", state.playerMarks?.[state.locationId]?.text || "");
+          if (note === null) return;
+          arg = note;
+        }
+        let result = E.runExpansionCommand(state, command, arg, arg2);
+        if (result?.requiresConfirmation && confirm(result.reason + "\nXác nhận tiếp tục?")) result = E.runExpansionCommand(state, command, arg, arg2, { confirmed: true });
+        if (!result?.success) alert(result?.reason || "Không thể thực hiện hành động này.");
+        saveGame(); UI.renderPanel(state); renderStoryWindow(); updateClockDisplay();
+        const overlay = document.getElementById("overlay");
+        const overlayContent = document.getElementById("overlay-content");
+        if (overlay && !overlay.classList.contains("hidden") && overlayContent) {
+          if (command.startsWith("guild_")) overlayContent.innerHTML = UI.renderGuildProjectModal(state);
+          else if (command === "opportunity") { if (result?.success) UI.closeOverlay(); else overlayContent.innerHTML = UI.renderContestedOpportunityModal(state); }
+          else if (command === "fate_trial" || command === "fate_evolve") overlayContent.innerHTML = UI.renderFateEvolutionModal(state, arg);
+          else if (command === "technique_evolve") overlayContent.innerHTML = UI.renderTechniqueDetail(state);
+        }
+        return;
+      }
       const autoCauldron = event.target.closest("[data-cauldron-auto]");
       if (autoCauldron && state) {
         const boxes = [...document.querySelectorAll("[data-cauldron-item]")];
@@ -241,6 +272,8 @@
       if (fateEquip && state) { const result = E.equipFateFromVault(state, fateEquip.dataset.fateEquip); if (result.requiresReplacement) UI.openOverlay("Thay thế Ấn Ký Mệnh Số", UI.renderFateReplacementChooser(state, fateEquip.dataset.fateEquip)); else if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
       const fateUpgrade = event.target.closest("[data-fate-upgrade-target]");
       if (fateUpgrade && state) { UI.openOverlay("Cường Hóa Mệnh Số", UI.renderFateUpgradeChooser(state, fateUpgrade.dataset.fateUpgradeTarget)); return; }
+      const fateEvolution = event.target.closest("[data-fate-evolution]");
+      if (fateEvolution && state) { UI.openOverlay("Mệnh Số Tiến Hóa", UI.renderFateEvolutionModal(state, fateEvolution.dataset.fateEvolution)); return; }
       const fateNurture = event.target.closest("[data-fate-nurture]");
       if (fateNurture && state) { const result = E.nurtureFate(state, fateNurture.dataset.fateNurture); if (!result.success) alert(result.reason || (result.blockers || []).join("\n")); else { saveGame(); UI.renderPanel(state); } return; }
       const fateResonate = event.target.closest("[data-fate-resonate]");
@@ -529,7 +562,7 @@
 
   function updateClockDisplay() {
     const el = $("game-clock");
-    if (el && state && E.clockLabel) { el.textContent = E.clockLabel(state); el.title = "Thời gian trong thế giới tu tiên · 1 ngày game = " + Number(E.GAME_TIME_CONFIG?.realSecondsPerGameDay || 120) + " giây thực · 1 năm = " + (Number(E.GAME_TIME_CONFIG?.realSecondsPerGameDay || 120) * 360 / 3600).toFixed(1) + " giờ thực"; }
+      if (el && state && E.clockLabel) { el.textContent = E.clockLabel(state); el.title = "Thời gian trong thế giới tu tiên · 1 ngày game = " + Number(E.GAME_TIME_CONFIG?.realSecondsPerGameDay || 30) + " giây thực · 1 năm = " + (Number(E.GAME_TIME_CONFIG?.realSecondsPerGameDay || 30) * 360 / 3600).toFixed(1) + " giờ thực"; const summary = E.expansionSummary?.(state); let weather = $("game-weather"); if (!weather && el.parentNode) { weather = document.createElement("span"); weather.id = "game-weather"; weather.className = "game-weather"; weather.title = "Thời tiết hiện tại"; el.parentNode.insertBefore(weather, el.nextSibling); } if (weather) { const labels = { quang: "Quang đãng", mua: "Mưa", suong: "Sương", loi_vu: "Lôi Vũ", linh_phong: "Linh Phong" }; weather.hidden = false; weather.textContent = "☁ " + (labels[summary?.weather] || "Quang đãng"); } }
   }
   function updateAtmosphereClass() {
     const screen = $("screen-game");

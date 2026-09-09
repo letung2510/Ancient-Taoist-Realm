@@ -4,13 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cổ Dị Diện — Tiên Hiệp Text RPG</title>
-  <link rel="stylesheet" href="styles.css?v=20260907-fateux" />
+  <link rel="stylesheet" href="styles.css?v=20260908-expansion1" />
 </head>
 <body>
   <div id="app">
     <header id="topbar">
       <div class="brand">Cổ Dị Diện <span class="brand-sub">Tiên Hiệp · Eldritch Text RPG</span></div>
       <div class="topbar-actions"><span id="game-clock" class="game-clock" title="Thời gian trong thế giới tu tiên">—</span><div id="save-indicator" class="save-indicator">—</div><button id="btn-save-file" class="btn btn-ghost" type="button" title="Tải bản lưu xuống thành tệp JSON">Lưu tệp</button><button id="btn-load-file" class="btn btn-ghost" type="button" title="Nạp bản lưu JSON từ máy">Nạp tệp</button><input id="save-file-input" type="file" accept="application/json,.json" hidden></div>
+      <span id="game-weather" class="game-weather" title="Thời tiết hiện tại" hidden>—</span>
     </header>
 
     <!-- ============ HOME ============ -->
@@ -68,7 +69,7 @@
               <button class="tab modal-tab" data-modal="map">Bản đồ</button><button class="tab" data-tab="guilds">Tổ chức</button><button class="tab" data-tab="quests">Nhiệm vụ</button><button class="tab" data-tab="relations">Nhân duyên</button>
             </div></details>
             <details class="tab-group"><summary>Đặc Biệt</summary><div class="tab-group-menu">
-              <button class="tab" data-tab="memory">Ký ức</button><button class="tab" data-tab="market">Phường thị</button><button class="tab" data-tab="qintian">Khâm Thiên Giám</button><button class="tab" data-tab="cauldron">Hư Thiên Đỉnh</button>
+              <button class="tab" data-tab="memory">Ký ức</button><button class="tab" data-tab="world">Thế Sự</button><button class="tab" data-tab="oddities">Dị Chí</button><button class="tab" data-tab="market">Phường thị</button><button class="tab" data-tab="qintian">Khâm Thiên Giám</button><button class="tab" data-tab="cauldron">Hư Thiên Đỉnh</button>
             </div></details>
           </div>
           <div id="tab-content" class="tab-content"></div>
@@ -115,9 +116,13 @@
   <script src="data/cong_phap.js?v=20260905-gameplay2"></script>
   <script src="data/npc_monsters.js?v=20260905-gameplay2"></script>
   <script src="data/path_fate_relations.js?v=20260908-originfix"></script>
+  <script src="data/profession_items.js?v=20260908-profession1"></script>
+  <script src="data/expansion_data.js?v=20260908-expansion1"></script>
   <script src="data/data.js?v=20260908-originfix"></script>
-  <script src="js/engine.js?v=20260908-originfix"></script>
-  <script src="js/ui.js?v=20260908-originfix"></script>
-  <script src="js/main.js?v=20260908-originfix"></script>
+  <script src="js/i18n.js?v=20260908-i18n1"></script>
+  <script src="js/engine.js?v=20260908-expansion1"></script>
+  <script src="js/expansion.js?v=20260908-expansion1"></script>
+  <script src="js/ui.js?v=20260908-expansion1"></script>
+  <script src="js/main.js?v=20260908-expansion1"></script>
 </body>
 </html>
