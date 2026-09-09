@@ -61,7 +61,11 @@ window.GameUI = (function () {
       older.addEventListener("click", onLoadMore);
       log.appendChild(older);
     }
-    list.slice(start).forEach((entry) => addStory(entry.type || "narr", entry.text, entry.portrait, entry.clock));
+    list.slice(start).forEach((entry) => {
+      const rawType = String(entry.uiType || entry.type || "narr").toLowerCase();
+      const cls = rawType === "system" ? (entry.severity === "warning" ? "warn" : "sys") : rawType;
+      addStory(cls, entry.text || entry.narrative?.text || "", entry.portrait, entry.clock);
+    });
     log.scrollTop = log.scrollHeight;
     return true;
   }

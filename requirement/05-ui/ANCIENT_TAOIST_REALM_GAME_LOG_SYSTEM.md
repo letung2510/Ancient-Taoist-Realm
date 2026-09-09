@@ -1582,3 +1582,14 @@ Còn khi có chuyện đặc biệt:
 Như vậy người chơi sẽ cảm nhận được **“mình vừa làm một hành động trong thế giới”**, chứ không phải **“mình vừa gọi một function tăng stat.”**
 
 Nếu triển khai đúng kiến trúc này, sau này có thể dùng **cùng một Event System cho Action Bar, Story Panel, Combat, NPC, World Event và AI-generated storyline**, thay vì mỗi hệ thống tự sinh text riêng.
+## 16. Trạng thái triển khai
+
+Lớp log đã được tích hợp trong `js/engine.js` và là điểm ghi log duy nhất cho engine.
+
+- `createGameEvent(state, input)` chuẩn hóa event theo contract (`id`, `type`, `timestamp`, `action`, `context`, `result`, `changes`, `event_flags`, `importance`, `severity`, `narrative`).
+- `emitGameEvent`/`pushHistory` giữ tương thích với lệnh cũ (`type/text`), đồng thời chuyển chúng thành structured event.
+- `renderGameEvent` sinh narrative từ template và chống lặp ngắn hạn; gameplay state không phụ thuộc narrative.
+- `getGameLog` hỗ trợ lọc theo type, severity và importance; `formatEventChanges` chuẩn hóa stat delta; `detectMilestones` phát hiện chuyển cảnh giới và mốc chỉ số.
+- Save migration tự bổ sung `logState` và chuyển history legacy sang event an toàn; UI vẫn dùng `event.text` nên không vỡ giao diện cũ.
+
+Kiểm tra: `node --check js/engine.js` và `node tools/verify_game.js` đều pass.

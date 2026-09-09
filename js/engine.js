@@ -1441,6 +1441,7 @@ window.GameEngine = (function () {
       flags: { originChoicePending: Boolean(character.originSituation), originSituation: character.originSituation || null, originChoice: null },
       memory: { shortTerm: [], longTerm: [], worldFacts: [] },
       history: [],
+      logState: { sequence: 0, recentNarratives: [], groups: {}, lastEventId: null },
       enemies: {},
       pendingEnding: null,
       pendingRewardSummaries: [],
@@ -4071,14 +4072,79 @@ window.GameEngine = (function () {
     }
     return c;
   }
-  function pushHistory(state, entry) {
-    if (state._suppressHistory) return;
-    const normalized = { ...entry };
-    if (typeof normalized.text === "string" && typeof window !== "undefined" && window.GameI18n?.formatHistory) {
-      normalized.text = window.GameI18n.formatHistory(normalized.text, state);
-    }
-    state.history.push({ turn: state.meta.turn, clock: clockLabel(state), ...normalized });
-    if (state.history.length > 200) state.history.shift();
+  const LOG_TYPE_ALIASES = { warn: "SYSTEM", sys: "SYSTEM", narr: "SYSTEM", combat: "COMBAT", loot: "LOOT", explore: "EXPLORE", travel: "TRAVEL", talk: "TALK", rest: "REST", cultivate: "CULTIVATION" };
+  const LOG_IMPORTANCE = { TRACE: 0, NORMAL: 1, IMPORTANT: 2, RARE: 3, EPIC: 4, LEGENDARY: 5, MYTHIC: 6 };
+  const LOG_TEMPLATES = {
+    CULTIVATION: ["Ngươi vận công tu luyện, tu vi +{cultivation} · Thông Thạo Công pháp +{mastery}.", "Linh khí quy nguyên; tu vi tăng {cultivation}, công pháp tiến {mastery}."] ,
+    REST: ["Ngươi tĩnh tọa nghỉ ngơi, Khí Huyết +{hp} · Linh Khí +{qi} · Thanh Tỉnh +{san}."] ,
+    BREAKTHROUGH: ["Cảnh giới rung chuyển: {fromRealm} → {toRealm}.", "Thiên địa cộng minh, ngươi bước vào {toRealm}."] ,
+    DISCOVERY: ["Một dấu vết mới được phát hiện tại {location}."] ,
+    COMBAT: ["Giao chiến kết thúc: {result}."] ,
+    SYSTEM: ["{text}"]
+  };
+  function canonicalLogType(type) {
+    const raw = String(type || "SYSTEM").toUpperCase();
+    return LOG_TYPE_ALIASES[String(type || "").toLowerCase()] || raw;
+  }
+  function logValue(value, fallback = "—") { return value === undefined || value === null || value === "" ? fallback : String(value); }
+  function formatEventChanges(changes) {
+    if (!Array.isArray(changes)) return "";
+    return changes.map((change) => {
+      const label = change.label || change.stat || change.key || "Giá trị";
+      const delta = Number(change.delta);
+      if (!Number.isFinite(delta)) return label + ": " + logValue(change.value);
+      return label + (delta >= 0 ? " +" : " ") + delta;
+    }).join(" · ");
+  }
+  function renderGameEvent(state, event) {
+    if (event.narrative?.text) return String(event.narrative.text);
+    const pool = LOG_TEMPLATES[event.type] || LOG_TEMPLATES.SYSTEM;
+    const recent = state.logState?.recentNarratives || [];
+    let template = pool.find((item) => !recent.includes(item)) || pool[0];
+    const vars = { ...(event.context || {}), ...(event.result || {}) };
+    let text = template.replace(/\{(\w+)\}/g, (_, key) => logValue(vars[key], key === "text" ? event.text : "—"));
+    const deltaText = formatEventChanges(event.changes);
+    if (deltaText && !text.includes(deltaText)) text += " · " + deltaText;
+    return text;
+  }
+  function createGameEvent(state, input = {}) {
+    state.logState = state.logState || { sequence: 0, recentNarratives: [], groups: {}, lastEventId: null };
+    state.logState.sequence = Number(state.logState.sequence || 0) + 1;
+    const type = canonicalLogType(input.type || input.eventType);
+    const event = {
+      id: input.id || "evt_" + Date.now().toString(36) + "_" + state.logState.sequence.toString(36),
+      type, uiType: input.uiType || (typeof input.type === "string" ? input.type.toLowerCase() : type.toLowerCase()), subtype: input.subtype || null, timestamp: input.timestamp || new Date().toISOString(),
+      turn: state.meta?.turn || 0, clock: clockLabel(state), action: input.action || null,
+      context: input.context || {}, result: input.result || {}, changes: Array.isArray(input.changes) ? input.changes : [],
+      event_flags: input.event_flags || input.flags || {}, importance: input.importance || "NORMAL",
+      severity: input.severity || (type === "SYSTEM" && input.type === "warn" ? "WARNING" : "INFO"),
+      narrative: input.narrative || null, text: input.text || ""
+    };
+    event.text = renderGameEvent(state, event);
+    if (typeof window !== "undefined" && window.GameI18n?.formatHistory) event.text = window.GameI18n.formatHistory(event.text, state);
+    const recent = state.logState.recentNarratives || [];
+    state.logState.recentNarratives = recent.concat([event.text]).slice(-8);
+    state.logState.lastEventId = event.id;
+    return event;
+  }
+  function emitGameEvent(state, input) { return pushHistory(state, input); }
+  function pushHistory(state, entry = {}) {
+    if (state._suppressHistory) return null;
+    const event = entry.id && entry.timestamp && entry.context && entry.result ? { ...entry } : createGameEvent(state, entry);
+    state.history = Array.isArray(state.history) ? state.history : [];
+    state.history.push(event);
+    if (state.history.length > 300) state.history.splice(0, state.history.length - 300);
+    return event;
+  }
+  function getGameLog(state, filter = {}) {
+    const list = Array.isArray(state?.history) ? state.history : [];
+    return list.filter((event) => (!filter.type || event.type === canonicalLogType(filter.type)) && (!filter.severity || event.severity === filter.severity) && (!filter.importance || (LOG_IMPORTANCE[event.importance] || 0) >= (LOG_IMPORTANCE[filter.importance] || 0)));
+  }
+  function detectMilestones(before = {}, after = {}, context = {}) {
+    const hits = [];
+    if (before.realmId && after.realmId && before.realmId !== after.realmId) hits.push({ id: "realm_change", importance: "IMPORTANT" });
+    ["aptitude", "comprehension", "daoTam"].forEach((key) => { if (Number(before[key]) < 80 && Number(after[key]) >= 80) hits.push({ id: key + "_80", importance: "RARE" }); });
+    return hits.map((item) => ({ ...item, context }));
   }
 
   /* ---------- Turn resolution ---------- */
@@ -4601,6 +4667,18 @@ window.GameEngine = (function () {
   function deserialize(json) {
     const data = JSON.parse(json);
     const state = data.state;
+    if (state) {
+      state.logState = { sequence: 0, recentNarratives: [], groups: {}, lastEventId: null, ...(state.logState || {}) };
+      state.history = Array.isArray(state.history) ? state.history : [];
+      state.history = state.history.map((entry) => {
+        if (entry && entry.id && entry.timestamp && entry.context && entry.result) return entry;
+        return { id: "legacy_" + Math.random().toString(36).slice(2), type: canonicalLogType(entry?.type), subtype: null,
+          timestamp: data.savedAt || new Date().toISOString(), turn: entry?.turn || 0, clock: entry?.clock || "",
+          action: null, context: {}, result: {}, changes: [], event_flags: { legacy: true }, importance: "NORMAL",
+          severity: entry?.type === "warn" ? "WARNING" : "INFO", narrative: null, text: entry?.text || "" };
+      });
+      state.logState.sequence = Math.max(Number(state.logState.sequence || 0), state.history.length);
+    }
     // Save cũ chỉ lưu timestamp ở metadata ngoài; đưa nó vào gameClock để
     // khoảng thời gian người chơi offline vẫn được mô phỏng khi đăng nhập lại.
     const savedAtMs = Date.parse(data.savedAt || "");
@@ -4759,6 +4837,6 @@ window.GameEngine = (function () {
     elementRelation, familyMatchup, toCanonicalCharacter, fromCanonicalCharacter,
     gainExp, recordCultivationGain, cultivationVelocityStatus, adjustDaoTam, cultivationJournalPush, enterLuyenKhi, cultivate, autoCultivate, secludedCultivation, rest, doBreakthrough, drainSan, restoreSan, move, locationExits, look, ensureSearchSite, searchStatus, search, collectSearchFindings, investigateSearchFinding, leaveSearchSession, useItem,
     talk, combat, beginCombat, aliveEnemies, firstAliveEnemy, enemyTurn, afterPlayerCombatAction, applyPlayerDamage, endCombat, combatEntity, spawnCombatEntity, maybeSpawnCombatExtras, lootTable, rollEntityLoot, rollDefeatBonus, entityCatalog, getEntity, entityForPlayer, dialogueState, presentEntities, maybeTriggerRandomEncounter, findEntityByName, interactEntity, monsterAction, useTechnique, techniquePreview, learnTechnique, getKnownTechniques, techniqueStatus, techniqueProgress, contextState, moveActions, talkActions, skillActions, parseAction, resolveAction, submitActionId, submitTurn, describeStatus, describeInventory, describeQuests,
-    describeFate, describeMap, serialize, deserialize, pushMemory, pushHistory, ensureGameClock, clockLabel, advanceGameTime, processOnlineFateReward, applyOfflineProgress, GAME_TIME_CONFIG
+    describeFate, describeMap, serialize, deserialize, pushMemory, pushHistory, createGameEvent, emitGameEvent, renderGameEvent, getGameLog, detectMilestones, formatEventChanges, ensureGameClock, clockLabel, advanceGameTime, processOnlineFateReward, applyOfflineProgress, GAME_TIME_CONFIG
   };
 })();
