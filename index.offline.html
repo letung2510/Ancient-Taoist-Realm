@@ -463,6 +463,10 @@ html, body {
 .map-node.procedural { border-style:dashed; color:#b09ac7; }
 .map-node.dangerous { border-color:rgba(224,106,106,.62); }
 .map-node.unknown { width:38px; min-height:38px; border-radius:50%; opacity: .52; color:#9ca8b4; font-size:18px; }
+.map-node.fog-0 { opacity:.18; color:#6f7890; border-color:#30384c; }
+.map-node.fog-1 { opacity:.55; color:#a7b9d8; border-style:dotted; }
+.map-node.fog-2 { opacity:.88; }
+.map-node.fog-3 { opacity:1; box-shadow:0 0 0 2px rgba(217,185,106,.12),0 0 18px rgba(217,185,106,.32); }
 .map-legend { color: var(--ink-dim); font-size: 11px; line-height: 1.8; }
 .dot { display: inline-block; width: 8px; height: 8px; margin-left: 5px; border-radius: 50%; background: var(--ink-dim); }
 .dot.current { background: var(--gold); }
@@ -727,6 +731,24 @@ html, body {
 
 .ritual-guide{margin-top:12px;padding:12px;border:1px solid var(--line,#444);background:rgba(30,20,45,.45);border-radius:8px}.ritual-guide ol{display:flex;gap:8px;flex-wrap:wrap;padding-left:20px}.ritual-step{opacity:.55}.ritual-step.current{opacity:1;color:#f7d774;font-weight:700}.ritual-step.done{opacity:1;color:#83d39b;text-decoration:line-through}
 .tab-groups{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}.tab-group{position:relative;min-width:120px}.tab-group>summary{cursor:pointer;list-style:none;padding:8px 12px;border:1px solid var(--line,#444);border-radius:7px;background:rgba(44,35,58,.8);color:#eadbb2;font-weight:700}.tab-group>summary::-webkit-details-marker{display:none}.tab-group[open]>summary{border-color:#b89b52}.tab-group-menu{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;padding:5px;border:1px solid var(--line,#444);border-radius:7px;background:rgba(18,15,27,.96);z-index:5}.tab-group-menu .tab{white-space:nowrap}.cauldron-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.fate-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}.fate-actions button{font-size:.78rem}
+.map-camera-controls { display:flex; align-items:center; justify-content:flex-end; gap:6px; margin:6px 0 10px; color:var(--ink-dim); font-size:11px; }
+.map-camera-controls button { min-width:28px; height:26px; border:1px solid #536277; border-radius:50%; background:rgba(11,18,31,.85); color:var(--gold); cursor:pointer; }
+.map-camera-controls button:hover { border-color:var(--gold); box-shadow:0 0 12px rgba(217,185,106,.35); }
+.world-map { --map-zoom:1; --map-pan-x:0px; --map-pan-y:0px; cursor:grab; background:radial-gradient(circle at 50% 45%,rgba(51,73,118,.28),transparent 34%),radial-gradient(circle at 20% 25%,rgba(82,42,107,.22),transparent 28%),#070d1d; }
+.world-map:active { cursor:grabbing; }
+.world-map > svg, .world-map > .region-node, .world-map > .faction-pin { transition:transform .35s ease; }
+.world-map > svg { transform:translate(var(--map-pan-x),var(--map-pan-y)) scale(var(--map-zoom)); transform-origin:50% 50%; }
+.world-map > .region-node, .world-map > .faction-pin, .world-map > .guild-pin { transform:translate(-50%,-50%) scale(var(--map-zoom)); transform-origin:center; }
+.region-node { width:22px; height:22px; padding:0; border:1px solid rgba(151,184,236,.8); border-radius:50%; background:radial-gradient(circle,#d8e8ff 0 8%,#7da4e8 20%,rgba(72,99,176,.35) 48%,transparent 72%); box-shadow:0 0 10px rgba(125,164,232,.75),0 0 28px rgba(88,118,220,.3); overflow:visible; }
+.region-node b { display:none; position:absolute; left:18px; top:-7px; white-space:nowrap; color:#d8e8ff; text-shadow:0 1px 4px #000; font-size:12px; }
+.region-node small { display:none; }
+.region-node:hover b, .region-node.current b, .region-node.event-active b { display:block; }
+.region-node.current { width:30px; height:30px; border-color:var(--gold); background:radial-gradient(circle,#fff6c7 0 8%,#e0b95d 22%,rgba(217,185,106,.35) 48%,transparent 74%); box-shadow:0 0 0 8px rgba(217,185,106,.08),0 0 30px rgba(217,185,106,.85); animation:cosmicPulse 2.4s ease-in-out infinite; }
+.region-node.event-active { border-color:#d9738c; box-shadow:0 0 18px rgba(217,83,113,.75); }
+.world-route { stroke:#8098c4; stroke-width:.32; stroke-dasharray:1 2; opacity:.34; filter:drop-shadow(0 0 2px rgba(125,164,232,.5)); }
+.faction-pin { box-shadow:0 0 12px currentColor; }
+.map-legend { color:#a8b8d8; }
+@keyframes cosmicPulse { 0%,100% { box-shadow:0 0 0 5px rgba(217,185,106,.08),0 0 20px rgba(217,185,106,.65); } 50% { box-shadow:0 0 0 13px rgba(217,185,106,.02),0 0 36px rgba(217,185,106,.95); } }
 
 </style>
 </head>
@@ -8986,6 +9008,7 @@ window.GameUI = (function () {
   "use strict";
 
   let activeMapView = "world";
+  let mapCamera = { zoom: 1, x: 0, y: 0 };
 
   const screens = {
     home: document.getElementById("screen-home"),
@@ -9649,6 +9672,28 @@ window.GameUI = (function () {
     renderPanel(state);
   }
 
+  function adjustMapCamera(command) {
+    if (command === "zoom-in") mapCamera.zoom = Math.min(2.4, mapCamera.zoom + 0.2);
+    if (command === "zoom-out") mapCamera.zoom = Math.max(0.7, mapCamera.zoom - 0.2);
+    if (command === "reset") mapCamera = { zoom: 1, x: 0, y: 0 };
+    document.querySelectorAll(".world-map").forEach((map) => {
+      map.style.setProperty("--map-zoom", String(mapCamera.zoom));
+      map.style.setProperty("--map-pan-x", mapCamera.x + "px");
+      map.style.setProperty("--map-pan-y", mapCamera.y + "px");
+    });
+    return { ...mapCamera };
+  }
+
+  function panMapCamera(dx, dy) {
+    mapCamera.x = Math.max(-260, Math.min(260, mapCamera.x + Number(dx || 0)));
+    mapCamera.y = Math.max(-180, Math.min(180, mapCamera.y + Number(dy || 0)));
+    document.querySelectorAll(".world-map").forEach((map) => {
+      map.style.setProperty("--map-pan-x", mapCamera.x + "px");
+      map.style.setProperty("--map-pan-y", mapCamera.y + "px");
+    });
+    return { ...mapCamera };
+  }
+
   function renderWorldMap(state, data, map) {
     const currentRegionId = map.locations[state.locationId]?.region || "trung_vuc";
     const regionById = Object.fromEntries(map.regions.map((region) => [region.id, region]));
@@ -9690,7 +9735,8 @@ window.GameUI = (function () {
         '<br>' + faction.traits.map(escapeHtml).join(" · ") + '</small></button>';
     }).join("");
 
-    return '<div class="map-heading"><b>' + map.name + '</b><small>Bản đồ thế lực theo ' + (window.FACTION_DATA?.world?.era || "Kỷ Nguyên hiện tại") + '</small></div>' +
+    const cameraControls = '<div class="map-camera-controls"><button type="button" data-map-camera="zoom-out" title="Thu nhỏ">−</button><span>Thiên Đồ · ' + (mapCamera.zoom >= 1.8 ? "Cận cảnh" : mapCamera.zoom > 1 ? "Vùng" : "Vũ Trụ") + '</span><button type="button" data-map-camera="zoom-in" title="Phóng to">+</button><button type="button" data-map-camera="reset" title="Đặt lại góc nhìn">◎</button></div>';
+    return '<div class="map-heading"><b>' + map.name + '</b><small>Bản đồ thế lực theo ' + (window.FACTION_DATA?.world?.era || "Kỷ Nguyên hiện tại") + ' · Không gian mở, bấm sao để xem thông tin</small></div>' + cameraControls +
       '<div class="world-map world-overview"><svg viewBox="0 0 100 100" preserveAspectRatio="none">' + routes + '</svg>' + regions + factions + guildPins + '</div>' +
       '<p class="map-legend"><span class="dot current"></span> Vùng hiện tại <span class="dot righteous"></span> Chính <span class="dot evil"></span> Tà <span class="dot neutral"></span> Trung lập · Bấm ghim để xem hồ sơ</p>' +
       '<div class="section-title">Thế lực quanh ' + (regionById[currentRegionId]?.name || "khu vực") + '</div>' + factionList;
@@ -9769,6 +9815,7 @@ window.GameUI = (function () {
       const isCurrent = id === state.locationId;
       const isVisited = visited.has(id);
       const isReachable = Boolean(direction);
+      const fogLevel = window.GameEngine.mapFogState?.(state, id)?.level ?? (isCurrent ? 3 : isVisited ? 2 : isReachable ? 1 : 0);
       const classes = ["map-node"];
       const notableCount = Object.values(state.worldSimulation?.npcState || {}).filter((npc) => npc.status === "alive" && npc.currentNodeId === id).length;
       const hiddenOpen = Object.entries(state.worldSimulation?.hiddenRealms || {}).some(([realmId, runtime]) => runtime.status === "open" && (window.EXPANSION_DATA?.hiddenRealms || []).find((entry) => entry.id === realmId)?.parentNodeId === id);
@@ -9778,9 +9825,10 @@ window.GameUI = (function () {
       else if (isReachable) classes.push("reachable");
       else if (isVisited) classes.push("visited");
       else classes.push("unknown");
+      classes.push("fog-" + fogLevel);
       if (location.openWorld) classes.push("procedural");
       if (location.enemies?.length) classes.push("dangerous");
-      const label = (isVisited || isReachable ? location.name : "Chưa khám phá") + (notableCount ? " · NPC " + notableCount : "") + (hiddenOpen ? " · Bí Cảnh" : "");
+      const label = (fogLevel >= 2 ? location.name : fogLevel === 1 ? "Nghe đồn · " + location.name : "·") + (notableCount ? " · NPC " + notableCount : "") + (hiddenOpen ? " · Bí Cảnh" : "");
       const action = direction ? ' data-map-dir="' + direction + '" title="Đi tới ' + location.name + '"' : "";
       return '<button class="' + classes.join(" ") + '" style="left:' + point.x + '%;top:' + point.y + '%"' + action + '>' + label + '</button>';
     }).join("");
@@ -10035,7 +10083,7 @@ window.GameUI = (function () {
 
   return {
     showScreen, addStory, renderStoryWindow, clearStory, renderChoices, clearChoices, actionPresentation, renderActions, renderOriginChoice,
-    setLocation, setSaveIndicator, renderPanel, setMapView, setActiveTab,
+    setLocation, setSaveIndicator, renderPanel, setMapView, adjustMapCamera, panMapCamera, setActiveTab,
     renderFateDetail, renderFateSlotChooser, renderFateReplacementChooser, renderFateUpgradeChooser, renderPendingFateChooser, renderRitualModal, renderRewardSummary, renderTechniqueDetail, renderRealmDetail, renderMapDetail, renderMapFactionDetail, renderMarket, renderBlackMarket, renderQintian, renderInventoryModal, renderExpansion, renderWorld, renderOddities, renderProfessionSection, renderTechniqueEvolutionSection, renderFateEvolutionModal, renderGuildProjectModal, renderContestedOpportunityModal,
     openOverlay, closeOverlay, bindOverlay, escapeHtml, openEquipmentPicker
   };
@@ -10130,6 +10178,7 @@ window.GameUI = (function () {
     bindHome();
     bindCreate();
     bindGame();
+    bindCosmicMapCamera();
     if (UI.bindOverlay) UI.bindOverlay();
     UI.showScreen("home");
     refreshContinue();
@@ -10150,6 +10199,29 @@ window.GameUI = (function () {
       }
       if (document.querySelector('.tab.active')?.dataset.tab === 'market') { E.refreshMarket(state); UI.renderPanel(state); saveGame(); }
     }, 1000);
+  }
+
+  function bindCosmicMapCamera() {
+    if (!document || typeof document.addEventListener !== "function") return;
+    let drag = null;
+    document.addEventListener("pointerdown", (event) => {
+      const map = event.target.closest(".world-map");
+      if (!map) return;
+      if (event.target.closest("button")) return;
+      drag = { x: event.clientX, y: event.clientY };
+      map.setPointerCapture?.(event.pointerId);
+    });
+    document.addEventListener("pointermove", (event) => {
+      if (!drag) return;
+      UI.panMapCamera(event.clientX - drag.x, event.clientY - drag.y);
+      drag = { x: event.clientX, y: event.clientY };
+    });
+    document.addEventListener("pointerup", () => { drag = null; });
+    document.addEventListener("wheel", (event) => {
+      if (!event.target.closest(".world-map")) return;
+      event.preventDefault();
+      UI.adjustMapCamera(event.deltaY < 0 ? "zoom-in" : "zoom-out");
+    }, { passive: false });
   }
 
   function bindHome() {
@@ -10423,6 +10495,11 @@ window.GameUI = (function () {
         saveGame();
         UI.renderPanel(state);
         flushRewardSummaries();
+        return;
+      }
+      const camera = event.target.closest("[data-map-camera]");
+      if (camera) {
+        UI.adjustMapCamera(camera.dataset.mapCamera);
         return;
       }
       const view = event.target.closest("[data-map-view]");

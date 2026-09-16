@@ -5,6 +5,7 @@ window.GameUI = (function () {
   "use strict";
 
   let activeMapView = "world";
+  let mapCamera = { zoom: 1, x: 0, y: 0 };
 
   const screens = {
     home: document.getElementById("screen-home"),
@@ -668,6 +669,28 @@ window.GameUI = (function () {
     renderPanel(state);
   }
 
+  function adjustMapCamera(command) {
+    if (command === "zoom-in") mapCamera.zoom = Math.min(2.4, mapCamera.zoom + 0.2);
+    if (command === "zoom-out") mapCamera.zoom = Math.max(0.7, mapCamera.zoom - 0.2);
+    if (command === "reset") mapCamera = { zoom: 1, x: 0, y: 0 };
+    document.querySelectorAll(".world-map").forEach((map) => {
+      map.style.setProperty("--map-zoom", String(mapCamera.zoom));
+      map.style.setProperty("--map-pan-x", mapCamera.x + "px");
+      map.style.setProperty("--map-pan-y", mapCamera.y + "px");
+    });
+    return { ...mapCamera };
+  }
+
+  function panMapCamera(dx, dy) {
+    mapCamera.x = Math.max(-260, Math.min(260, mapCamera.x + Number(dx || 0)));
+    mapCamera.y = Math.max(-180, Math.min(180, mapCamera.y + Number(dy || 0)));
+    document.querySelectorAll(".world-map").forEach((map) => {
+      map.style.setProperty("--map-pan-x", mapCamera.x + "px");
+      map.style.setProperty("--map-pan-y", mapCamera.y + "px");
+    });
+    return { ...mapCamera };
+  }
+
   function renderWorldMap(state, data, map) {
     const currentRegionId = map.locations[state.locationId]?.region || "trung_vuc";
     const regionById = Object.fromEntries(map.regions.map((region) => [region.id, region]));
@@ -709,7 +732,8 @@ window.GameUI = (function () {
         '<br>' + faction.traits.map(escapeHtml).join(" · ") + '</small></button>';
     }).join("");
 
-    return '<div class="map-heading"><b>' + map.name + '</b><small>Bản đồ thế lực theo ' + (window.FACTION_DATA?.world?.era || "Kỷ Nguyên hiện tại") + '</small></div>' +
+    const cameraControls = '<div class="map-camera-controls"><button type="button" data-map-camera="zoom-out" title="Thu nhỏ">−</button><span>Thiên Đồ · ' + (mapCamera.zoom >= 1.8 ? "Cận cảnh" : mapCamera.zoom > 1 ? "Vùng" : "Vũ Trụ") + '</span><button type="button" data-map-camera="zoom-in" title="Phóng to">+</button><button type="button" data-map-camera="reset" title="Đặt lại góc nhìn">◎</button></div>';
+    return '<div class="map-heading"><b>' + map.name + '</b><small>Bản đồ thế lực theo ' + (window.FACTION_DATA?.world?.era || "Kỷ Nguyên hiện tại") + ' · Không gian mở, bấm sao để xem thông tin</small></div>' + cameraControls +
       '<div class="world-map world-overview"><svg viewBox="0 0 100 100" preserveAspectRatio="none">' + routes + '</svg>' + regions + factions + guildPins + '</div>' +
       '<p class="map-legend"><span class="dot current"></span> Vùng hiện tại <span class="dot righteous"></span> Chính <span class="dot evil"></span> Tà <span class="dot neutral"></span> Trung lập · Bấm ghim để xem hồ sơ</p>' +
       '<div class="section-title">Thế lực quanh ' + (regionById[currentRegionId]?.name || "khu vực") + '</div>' + factionList;
@@ -788,6 +812,7 @@ window.GameUI = (function () {
       const isCurrent = id === state.locationId;
       const isVisited = visited.has(id);
       const isReachable = Boolean(direction);
+      const fogLevel = window.GameEngine.mapFogState?.(state, id)?.level ?? (isCurrent ? 3 : isVisited ? 2 : isReachable ? 1 : 0);
       const classes = ["map-node"];
       const notableCount = Object.values(state.worldSimulation?.npcState || {}).filter((npc) => npc.status === "alive" && npc.currentNodeId === id).length;
       const hiddenOpen = Object.entries(state.worldSimulation?.hiddenRealms || {}).some(([realmId, runtime]) => runtime.status === "open" && (window.EXPANSION_DATA?.hiddenRealms || []).find((entry) => entry.id === realmId)?.parentNodeId === id);
@@ -797,9 +822,10 @@ window.GameUI = (function () {
       else if (isReachable) classes.push("reachable");
       else if (isVisited) classes.push("visited");
       else classes.push("unknown");
+      classes.push("fog-" + fogLevel);
       if (location.openWorld) classes.push("procedural");
       if (location.enemies?.length) classes.push("dangerous");
-      const label = (isVisited || isReachable ? location.name : "Chưa khám phá") + (notableCount ? " · NPC " + notableCount : "") + (hiddenOpen ? " · Bí Cảnh" : "");
+      const label = (fogLevel >= 2 ? location.name : fogLevel === 1 ? "Nghe đồn · " + location.name : "·") + (notableCount ? " · NPC " + notableCount : "") + (hiddenOpen ? " · Bí Cảnh" : "");
       const action = direction ? ' data-map-dir="' + direction + '" title="Đi tới ' + location.name + '"' : "";
       return '<button class="' + classes.join(" ") + '" style="left:' + point.x + '%;top:' + point.y + '%"' + action + '>' + label + '</button>';
     }).join("");
@@ -1054,7 +1080,7 @@ window.GameUI = (function () {
 
   return {
     showScreen, addStory, renderStoryWindow, clearStory, renderChoices, clearChoices, actionPresentation, renderActions, renderOriginChoice,
-    setLocation, setSaveIndicator, renderPanel, setMapView, setActiveTab,
+    setLocation, setSaveIndicator, renderPanel, setMapView, adjustMapCamera, panMapCamera, setActiveTab,
     renderFateDetail, renderFateSlotChooser, renderFateReplacementChooser, renderFateUpgradeChooser, renderPendingFateChooser, renderRitualModal, renderRewardSummary, renderTechniqueDetail, renderRealmDetail, renderMapDetail, renderMapFactionDetail, renderMarket, renderBlackMarket, renderQintian, renderInventoryModal, renderExpansion, renderWorld, renderOddities, renderProfessionSection, renderTechniqueEvolutionSection, renderFateEvolutionModal, renderGuildProjectModal, renderContestedOpportunityModal,
     openOverlay, closeOverlay, bindOverlay, escapeHtml, openEquipmentPicker
   };
