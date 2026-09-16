@@ -21,6 +21,31 @@
   const commandHistory = [];
   let commandHistoryCursor = -1;
 
+  // Small durable queue for narrative history. It is intentionally isolated
+  // from gameplay saves: a blocked IndexedDB write must never block a turn.
+  function createLogArchive() {
+    const queue = [];
+    let retryTimer = null;
+    const schedule = (fn, delay) => (window.setTimeout ? window.setTimeout(fn, delay) : setTimeout(fn, delay));
+    const api = {
+      flush(entries) {
+        if (Array.isArray(entries)) queue.push(...entries);
+        if (retryTimer == null) retryTimer = schedule(api.retry, 0);
+      },
+      retry() {
+        retryTimer = null;
+        if (!queue.length || !window.indexedDB?.open) return;
+        const request = window.indexedDB.open("co_di_dien_log", 1);
+        request.onerror = () => { if (retryTimer == null) retryTimer = schedule(api.retry, 1000); };
+        request.onsuccess = () => { queue.length = 0; };
+      },
+      retryQueueSize: () => queue.length,
+      reset() { queue.length = 0; if (retryTimer != null) clearTimeout(retryTimer); retryTimer = null; }
+    };
+    return api;
+  }
+  if (typeof window !== "undefined") window.__LOG_ARCHIVE_TEST__ = createLogArchive();
+
   function enqueueAction(task) {
     if (typeof task !== "function") return;
     pendingActions.push(task);
@@ -60,6 +85,7 @@
     bindHome();
     bindCreate();
     bindGame();
+    bindCosmicMapCamera();
     if (UI.bindOverlay) UI.bindOverlay();
     UI.showScreen("home");
     refreshContinue();
@@ -80,6 +106,29 @@
       }
       if (document.querySelector('.tab.active')?.dataset.tab === 'market') { E.refreshMarket(state); UI.renderPanel(state); saveGame(); }
     }, 1000);
+  }
+
+  function bindCosmicMapCamera() {
+    if (!document || typeof document.addEventListener !== "function") return;
+    let drag = null;
+    document.addEventListener("pointerdown", (event) => {
+      const map = event.target.closest(".world-map");
+      if (!map) return;
+      if (event.target.closest("button")) return;
+      drag = { x: event.clientX, y: event.clientY };
+      map.setPointerCapture?.(event.pointerId);
+    });
+    document.addEventListener("pointermove", (event) => {
+      if (!drag) return;
+      UI.panMapCamera(event.clientX - drag.x, event.clientY - drag.y);
+      drag = { x: event.clientX, y: event.clientY };
+    });
+    document.addEventListener("pointerup", () => { drag = null; });
+    document.addEventListener("wheel", (event) => {
+      if (!event.target.closest(".world-map")) return;
+      event.preventDefault();
+      UI.adjustMapCamera(event.deltaY < 0 ? "zoom-in" : "zoom-out");
+    }, { passive: false });
   }
 
   function bindHome() {
@@ -229,6 +278,13 @@
         if (type === "opportunity") UI.openOverlay("Cơ Duyên Tranh Đoạt", UI.renderContestedOpportunityModal(state));
         return;
       }
+      const physiqueButton = event.target.closest("[data-special-physique]");
+      if (physiqueButton && state && E.claimSpecialPhysique) {
+        const result = E.claimSpecialPhysique(state, physiqueButton.dataset.specialPhysique);
+        if (!result.success) alert(result.reason || "Chưa thể tiếp nhận Dị Chí.");
+        else { saveGame(); UI.renderPanel(state); }
+        return;
+      }
       const expansionCommand = event.target.closest("[data-expansion-command]");
       if (expansionCommand && state && E.runExpansionCommand) {
         const command = expansionCommand.dataset.expansionCommand;
@@ -348,6 +404,11 @@
         flushRewardSummaries();
         return;
       }
+      const camera = event.target.closest("[data-map-camera]");
+      if (camera) {
+        UI.adjustMapCamera(camera.dataset.mapCamera);
+        return;
+      }
       const view = event.target.closest("[data-map-view]");
       if (view && state) {
         UI.setMapView(view.dataset.mapView, state);
@@ -365,8 +426,11 @@
       }
       const target = event.target.closest("[data-map-dir]");
       if (!target || !state) return;
+      const actionId = "act_move_" + target.dataset.mapDir;
+      const departure = departureOptions(actionId);
+      if (departure === null) return;
       enqueueAction(() => {
-        E.submitActionId(state, "act_move_" + target.dataset.mapDir);
+        E.submitActionId(state, actionId, departure);
         renderAfterTurn();
       });
     });
@@ -472,8 +536,11 @@
       }
       const target = event.target.closest("[data-map-dir]");
       if (target && state) {
+        const actionId = "act_move_" + target.dataset.mapDir;
+        const departure = departureOptions(actionId);
+        if (departure === null) return;
         enqueueAction(() => {
-          E.submitActionId(state, "act_move_" + target.dataset.mapDir);
+          E.submitActionId(state, actionId, departure);
           UI.closeOverlay();
           renderAfterTurn();
         });
@@ -499,7 +566,13 @@
     if (/^(cảnh giới|canh gioi|tu vi)$/.test(infoCommand)) { showRealmOverlay(); return; }
     if (/^(chuyển sinh|chuyen sinh)$/.test(infoCommand)) { const blockers = E.getChuyenSinhBlockers(state); if (blockers.length) { UI.openOverlay("Chuyển Sinh", '<p>' + blockers.map((b) => UI.escapeHtml(b)).join('<br>') + '</p>'); } else if (confirm("Chuyển Sinh sẽ reset Cảnh Giới và Tu Vi. Xác nhận lần 1?")) { if (confirm("Xác nhận lần 2: nhận +1 Chuyển Sinh Điểm và +2 Căn Cốt nền?")) { E.processChuyenSinh(state); renderAfterTurn(); } } return; }
 
-    const result = E.submitTurn(state, { text });
+    let result = E.submitTurn(state, { text });
+    if (result && result.requiresConfirmation) {
+      const kind = result.pendingType === "opportunity" ? "cơ duyên tranh đoạt" : "phát hiện chưa xử lý";
+      if (confirm("Ngươi còn " + kind + " tại đây. Rời đi sẽ làm mất vĩnh viễn. Vẫn muốn rời đi?")) {
+        result = E.submitTurn(state, { text }, { confirmPendingDeparture: true });
+      }
+    }
     if (result && result.save) {
       saveGame();
       flashSave("Đã lưu");
@@ -611,9 +684,23 @@
     act_tim_tong_mon: "guilds"
   };
 
+  function departureOptions(actionId) {
+    const guard = E.pendingDepartureGuard ? E.pendingDepartureGuard(state, actionId) : { allowed: true };
+    if (!guard.requiresConfirmation) return {};
+    const kind = guard.pendingType === "opportunity" ? "cơ duyên tranh đoạt" : "phát hiện chưa xử lý";
+    if (!confirm("Ngươi còn " + kind + " tại đây. Rời đi sẽ làm mất vĩnh viễn. Vẫn muốn rời đi?")) return null;
+    return { confirmPendingDeparture: true };
+  }
+
   function renderActionButtons() {
     if (!UI.renderActions) return;
     UI.renderActions(state, (action) => {
+      if (action.id === "act_move_group") {
+        showMapOverlay();
+        return;
+      }
+      const departure = departureOptions(action.id);
+      if (departure === null) return;
       if (action.requiresConfirmation) {
         confirmTechniqueAction(action);
         return;
@@ -658,7 +745,7 @@
         return;
       }
       enqueueAction(() => {
-        E.submitActionId(state, action.id);
+        E.submitActionId(state, action.id, departure);
         renderAfterTurn();
       });
     });
