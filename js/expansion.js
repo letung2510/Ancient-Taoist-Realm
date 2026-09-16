@@ -70,7 +70,23 @@
 
   function ensure(state) {
     if (!state || !state.player) return state;
+    // Canonical rare-progression state; additive for pre-v2 saves.
+    state.pathState = state.pathState || { schemaVersion: 1, primaryPathId: state.player.pathId || null, hiddenPathId: state.player.hiddenPathId || null, dormant: {}, history: [] };
+    state.pathState.primaryPathId = state.pathState.primaryPathId || state.player.pathId || null;
+    state.pathState.hiddenPathId = state.pathState.hiddenPathId || state.player.hiddenPathId || null;
+    state.pathState.dormant = state.pathState.dormant || {};
+    state.pathState.history = Array.isArray(state.pathState.history) ? state.pathState.history : [];
+    state.player.pathId = state.player.pathId || state.pathState.primaryPathId;
+    state.player.hiddenPathId = state.player.hiddenPathId || state.pathState.hiddenPathId;
+    state.specialPhysiqueState = state.specialPhysiqueState || { schemaVersion: 1, activeId: null, candidates: {}, progress: {}, history: [], rejectedIds: [] };
+    state.specialPhysiqueState.progress = state.specialPhysiqueState.progress || {};
+    state.specialPhysiqueState.candidates = state.specialPhysiqueState.candidates || {};
+    state.specialPhysiqueState.history = Array.isArray(state.specialPhysiqueState.history) ? state.specialPhysiqueState.history : [];
+    state.specialPhysiqueState.rejectedIds = Array.isArray(state.specialPhysiqueState.rejectedIds) ? state.specialPhysiqueState.rejectedIds : [];
     state.meta = state.meta || {};
+    state.runtimeIndexes = state.runtimeIndexes || { fate: { byId: {} }, npc: { byId: {} }, location: { byId: {} } };
+    state.runtimeIndexes.fate ||= { byId: {} }; state.runtimeIndexes.npc ||= { byId: {} }; state.runtimeIndexes.location ||= { byId: {} };
+    (D.FATE_PATTERNS || []).forEach((fate) => { state.runtimeIndexes.fate.byId[fate.id] = fate; });
     state.meta.featureVersions = state.meta.featureVersions || {};
     ["worldSimulation", "relationships", "techniqueEvolution", "professions", "professionItems", "techniqueEvolution", "contracts", "itemLegacy", "companions", "discoveries", "reincarnationLegacy", "fateEvolution"].forEach((key) => {
       state.meta.featureVersions[key] = Number(state.meta.featureVersions[key] || VERSION);
@@ -80,6 +96,26 @@
       events: {}, regionState: {}, factionState: {}, diplomacy: {}, wars: {}, npcState: {}, hiddenRealms: {}, scheduledTasks: []
     };
     const sim = state.worldSimulation;
+    state.unknownContent = state.unknownContent || { events: {}, items: {}, evolutionBranches: {} };
+    state.unknownContent.events ||= {}; state.unknownContent.items ||= {}; state.unknownContent.evolutionBranches ||= {};
+    Object.entries(state.inventory || {}).forEach(([id, quantity]) => {
+      if (!D.ITEMS?.[id] && Number(quantity) > 0 && !state.unknownContent.items[id]) state.unknownContent.items[id] = { id, quantity: Number(quantity), status: "dormant" };
+    });
+    Object.entries(state.unknownContent.events).forEach(([id, unknown]) => {
+      if (!unknown || unknown.status !== "dormant") return;
+      const template = worldEventTemplate(unknown.templateId);
+      if (template) { sim.events[id] = { ...copy(unknown), status: "active", phaseStartedDay: unknown.phaseStartedDay || absoluteDay(state.gameClock), phaseEndsDay: unknown.phaseEndsDay || absoluteDay(state.gameClock) + 1 }; unknown.status = "rehydrated"; }
+    });
+    Object.entries(state.unknownContent.evolutionBranches).forEach(([branchId, unknown]) => {
+      if (unknown?.status !== "dormant") return;
+      if ((X.fateEvolutionBranches || []).some((branch) => branch.id === branchId)) unknown.status = "ready";
+    });
+    Object.values(state.player.fateEvolutions || {}).forEach((evolution) => {
+      if (evolution?.branchId && !(X.fateEvolutionBranches || []).some((branch) => branch.id === evolution.branchId)) {
+        state.unknownContent.evolutionBranches[evolution.branchId] ||= { id: evolution.branchId, status: "dormant", payload: copy(evolution) };
+        evolution.status = "ready"; evolution.branchId = null;
+      }
+    });
     Object.entries(professionCatalog()).forEach(([id, item]) => { D.ITEMS[id] = { ...(D.ITEMS[id] || {}), ...item, kind: "profession_item", catalogSource: "profession" }; });
     Object.values(state.generatedItems || {}).forEach((item) => {
       if (!item.equipmentSetId && typeof item.name === "string") {
@@ -109,10 +145,12 @@
     sim.seed = sim.seed || state.meta.saveId || "co_di_dien";
     sim.lastProcessedDay = Number(sim.lastProcessedDay || absoluteDay(state.gameClock));
     sim.nextEventSeq = Number(sim.nextEventSeq || 0);
-    ["events", "regionState", "factionState", "diplomacy", "wars", "npcState", "hiddenRealms"].forEach((key) => { sim[key] = sim[key] || {}; });
+    ["events", "regionState", "factionState", "diplomacy", "wars", "npcState", "hiddenRealms", "npcEncounters", "localIncidents"].forEach((key) => { sim[key] = sim[key] || {}; });
+    sim.offlineEncounterResults = Array.isArray(sim.offlineEncounterResults) ? sim.offlineEncounterResults : [];
     sim.scheduledTasks = Array.isArray(sim.scheduledTasks) ? sim.scheduledTasks : [];
     (D.WORLD_MAP?.regions || []).forEach((region) => {
-      sim.regionState[region.id] = sim.regionState[region.id] || { weather: "quang", weatherUntilDay: sim.lastProcessedDay, lastEventDay: 0, activeEventId: null, corruptionLevel: 0 };
+      sim.regionState[region.id] = sim.regionState[region.id] || { weather: "quang", weatherIntensity: 1, weatherUntilDay: sim.lastProcessedDay, lastEventDay: 0, activeEventId: null, corruptionLevel: 0 };
+      sim.regionState[region.id].weatherIntensity = Number(sim.regionState[region.id].weatherIntensity || 1);
     });
     const factions = D.WORLD_MAP?.factions || D.FACTION_DATA?.factions || [];
     factions.slice(0, 40).forEach((faction) => {
@@ -135,11 +173,18 @@
     });
     state.relationships = state.relationships || {};
     state.relationshipEvents = state.relationshipEvents || {};
-    state.professionState = state.professionState || { primaryId: null, professions: {} };
+    state.questState = state.questState || { available: {}, active: {}, completed: {}, failed: {}, npcIndex: {} };
+    state.questState.available ||= {}; state.questState.active ||= {}; state.questState.completed ||= {}; state.questState.failed ||= {}; state.questState.npcIndex ||= {};
+    Object.entries(state.questState.npcIndex).forEach(([npcId, questIds]) => { state.questState.npcIndex[npcId] = [...new Set((Array.isArray(questIds) ? questIds : []).filter(Boolean))]; });
+    state.professionState = state.professionState || { primaryId: null, secondaryId: null, professions: {} };
+    state.professionState.secondaryId = state.professionState.secondaryId || null;
+    state.professionState.hiddenIds = Array.isArray(state.professionState.hiddenIds) ? state.professionState.hiddenIds : [];
+    state.professionState.selectionLocked = Boolean(state.professionState.primaryId);
     state.contractBoard = state.contractBoard || { generatedDay: 0, offers: {}, accepted: {} };
     state.prisoners = state.prisoners || {};
     state.intel = state.intel || {};
     state.companion = state.companion || null;
+    if (state.companion) normalizeCompanion(state.companion);
     state.discoveries = state.discoveries || emptyDiscoveries();
     Object.keys(emptyDiscoveries()).forEach((key) => { state.discoveries[key] = state.discoveries[key] || {}; });
     state.reincarnationLegacy = state.reincarnationLegacy || { generation: 1, previousLives: [], pendingChoices: [], chosenLegacyId: null, tombs: [], marksRetained: false };
@@ -168,7 +213,7 @@
     state.collectionRegistry = state.collectionRegistry || { beasts: {}, npcs: {}, entities: {}, rareNpcs: {} };
     state.achievements = state.achievements || {};
     state.professionState.secondaryId = state.professionState.secondaryId || null;
-    state.professionState.selectionLocked = Boolean(state.professionState.primaryId && state.professionState.secondaryId);
+    state.professionState.selectionLocked = Boolean(state.professionState.primaryId);
     state.player.fateEvolutions = state.player.fateEvolutions || {};
     state.player.fateRelationships = state.player.fateRelationships || {};
     Object.entries(state.player.fateEvolutions).forEach(([fateId, evolution]) => {
@@ -182,6 +227,130 @@
     });
     if (state.activeHiddenRealm) rebuildHiddenRealmNodes(state, state.activeHiddenRealm.realmId, state.activeHiddenRealm.cycleIndex);
     return state;
+  }
+
+  const SPECIAL_PHYSIQUE_CATALOG = Object.freeze({
+    thanh_the: { id: "thanh_the", name: "Thánh Thể", trigger: "mercy_chain", benefit: { corruptionResist: 0.30 }, cost: { taintedAttention: 2 } },
+    hon_don_the: { id: "hon_don_the", name: "Hỗn Độn Thể", trigger: "five_elements", benefit: { elementPenalty: 0 }, cost: { daoTamGainMult: 0.50 } },
+    van_doc_the: { id: "van_doc_the", name: "Vạn Độc Thể", trigger: "eldritch_beast_survival", benefit: { poisonResist: 0.50 }, cost: { healingBlocked: true } },
+    cuu_u_the: { id: "cuu_u_the", name: "Cửu U Thể", trigger: "vo_he_oath", benefit: { stealth: 0.20 }, cost: { corruptionGain: 1 } },
+    bat_tu_the: { id: "bat_tu_the", name: "Bất Tử Thể", trigger: "lifespan_break", benefit: { reviveOnce: true }, cost: { lifespan: 12 } },
+    thien_sinh_dao_the: { id: "thien_sinh_dao_the", name: "Thiên Sinh Đạo Thể", trigger: "server_lore_claim", benefit: { fateResonance: 0.15 }, cost: { uniqueClaim: true } }
+  });
+  function specialPhysiqueCatalog() { return copy(SPECIAL_PHYSIQUE_CATALOG); }
+  function specialPhysiqueModifiers(state) {
+    ensure(state);
+    const definition = SPECIAL_PHYSIQUE_CATALOG[state.specialPhysiqueState.activeId];
+    const benefit = definition?.benefit || {};
+    const cost = definition?.cost || {};
+    return { id: definition?.id || null, name: definition?.name || null, benefit: copy(benefit), cost: copy(cost), ...benefit };
+  }
+  function recordSpecialPhysiqueProgress(state, input = {}) {
+    ensure(state); const trigger = String(input.type || input.trigger || "");
+    if (!trigger) return { success: false, reason: "Thiếu dấu mốc." };
+    const progress = state.specialPhysiqueState.progress;
+    progress[trigger] = Number(progress[trigger] || 0) + (input.success === false ? 0 : Number(input.amount || 1));
+    if (trigger === "eldritch_beast_survival") progress.eldritchBeastSurvivals = progress[trigger];
+    const candidate = Object.values(SPECIAL_PHYSIQUE_CATALOG).find((item) => item.trigger === trigger);
+    if (candidate && !state.specialPhysiqueState.activeId && !state.specialPhysiqueState.rejectedIds.includes(candidate.id)) state.specialPhysiqueState.candidates[candidate.id] = { id: candidate.id, progress: progress[trigger], discoveredDay: absoluteDay(state.gameClock) };
+    return { success: true, progress: progress[trigger], candidate: candidate?.id || null };
+  }
+  function claimSpecialPhysique(state, id) {
+    ensure(state); const def = SPECIAL_PHYSIQUE_CATALOG[id];
+    if (!def || state.specialPhysiqueState.activeId) return { success: false, reason: "Cơ thể đã có Dị Thể hoặc lựa chọn không tồn tại." };
+    if (!state.specialPhysiqueState.candidates[id]) return { success: false, reason: "Chưa đủ dấu mốc để chứng minh xứng đáng." };
+    state.specialPhysiqueState.activeId = id; state.player.specialPhysique = id;
+    state.specialPhysiqueState.history.push({ id, day: absoluteDay(state.gameClock), source: def.trigger });
+    history(state, "narr", "Một biến đổi sâu kín thức dậy trong huyết nhục; từ hôm nay, " + def.name + " vừa là ân huệ vừa là món nợ.");
+    return { success: true, definition: def };
+  }
+
+  // Companion runtime contract.  These fields are additive so old saves remain
+  // loadable while combat/diagnostic code can explain exactly why a companion
+  // was injured, defeated, or is temporarily unavailable.
+  function normalizeCompanion(companion) {
+    if (!companion) return null;
+    companion.hpMax = Math.max(1, Number(companion.hpMax || 30));
+    companion.hp = clamp(companion.hp == null ? companion.hpMax : companion.hp, 0, companion.hpMax);
+    companion.role = companion.role || (companion.passiveId === "scout" ? "scout" : "striker");
+    companion.guardStance = companion.guardStance || "balanced";
+    companion.skillMastery = companion.skillMastery || {};
+    companion.damageLedger = Array.isArray(companion.damageLedger) ? companion.damageLedger.slice(-20) : [];
+    companion.lastDamageSource = companion.lastDamageSource || null;
+    companion.recoveryUntilDay = Number(companion.recoveryUntilDay || 0);
+    companion.reviveCount = Number(companion.reviveCount || 0);
+    if (companion.state === "dead" && companion.hp > 0) companion.hp = 0;
+    if (companion.state === "active" && companion.hp <= 0) companion.state = "recovering";
+    return companion;
+  }
+
+  function companionTargetScore(state, targetId, options = {}) {
+    const companion = normalizeCompanion(state.companion);
+    const target = E.combatEntity(state, targetId) || {};
+    if (!companion || !target || Number(target.hp || 0) <= 0) return -Infinity;
+    const threat = Number(target.damage || target.phy || target.attack || 0);
+    const wounded = 1 - clamp(Number(target.hp || 0) / Math.max(1, Number(target.hpMax || target.maxHp || target.hp || 1)), 0, 1);
+    const guardBonus = companion.guardStance === "guard" && options.protectPlayer ? threat * 0.35 : 0;
+    const roleBonus = companion.role === "scout" ? Number(target.diff || 0) * 0.1 : threat * 0.15;
+    return wounded * 30 + threat + guardBonus + roleBonus + (seeded(state, "companion-target:" + targetId, absoluteDay(state.gameClock)) * 0.01);
+  }
+
+  function selectCompanionTarget(state, options = {}) {
+    ensure(state);
+    if (!state.companion || !["active", "mutated"].includes(state.companion.state)) return null;
+    return E.aliveEnemies(state).map(([id]) => id).sort((a, b) => companionTargetScore(state, b, options) - companionTargetScore(state, a, options))[0] || null;
+  }
+  function useCompanionSkill(state, skillId = "guard_bite") {
+    ensure(state); const companion = normalizeCompanion(state.companion); const target = selectCompanionTarget(state) || E.aliveEnemies(state)[0]?.[0];
+    if (!companion || !target) return { success: false, reason: "Dị Thú chưa có mục tiêu." };
+    const damage = Math.max(1, Math.round(Number(companion.attack || 8) + Number(companion.loyalty || 0) * 0.08));
+    const entity = E.combatEntity(state, target); if (entity) { entity.hp = Math.max(0, Number(entity.hp || 0) - damage); }
+    companion.skillMastery[skillId] = Number(companion.skillMastery[skillId] || 0) + 1;
+    return { success: true, damage, targetId: target, skillId };
+  }
+
+  function recordCompanionDamage(state, amount, source = "unknown", damageType = "combat") {
+    ensure(state); const companion = normalizeCompanion(state.companion);
+    if (!companion || !["active", "mutated"].includes(companion.state)) return { success: false, reason: "Dị Thú không ở trạng thái chiến đấu." };
+    const damage = Math.max(0, Math.floor(Number(amount) || 0));
+    const day = absoluteDay(state.gameClock);
+    const entry = { day, amount: damage, source: String(source), damageType: String(damageType) };
+    companion.damageLedger.push(entry); companion.damageLedger = companion.damageLedger.slice(-20);
+    companion.lastDamageSource = entry; companion.hp = clamp(companion.hp - damage, 0, companion.hpMax);
+    if (companion.hp <= 0) {
+      companion.state = "recovering"; companion.recoveryUntilDay = day + 3;
+      history(state, "warn", "× " + (companion.customName || "Dị Thú") + " trọng thương và cần thời gian hồi phục.");
+    }
+    return { success: true, damage, companion };
+  }
+  function simulateOfflineCompanionCombat(state, day = absoluteDay(state.gameClock)) {
+    ensure(state); const companion = normalizeCompanion(state.companion);
+    if (!companion || !["active", "mutated"].includes(companion.state)) return { success: false, reason: "Dị Thú không sẵn sàng." };
+    const chance = seeded(state, "offline-companion-combat", Number(day), 0);
+    if (chance < 0.35) return { success: true, damaged: false, day };
+    return { success: true, damaged: true, day, result: recordCompanionDamage(state, 1 + Math.floor(seeded(state, "offline-companion-damage", Number(day), 1) * 5), "biến cố ngoại tuyến", "combat") };
+  }
+
+  function recoverCompanion(state, options = {}) {
+    ensure(state); const companion = normalizeCompanion(state.companion);
+    if (!companion || companion.state !== "recovering") return { success: false, reason: "Dị Thú không cần hồi phục." };
+    const day = absoluteDay(state.gameClock);
+    const safe = Boolean(options.safeNode || D.LOCATIONS?.[state.locationId]?.safe_for_ritual || D.LOCATIONS?.[state.locationId]?.safe);
+    if (!safe && day < companion.recoveryUntilDay) return { success: false, reason: "Cần nghỉ đủ 3 ngày hoặc đến một cứ điểm an toàn.", recoveryUntilDay: companion.recoveryUntilDay };
+    companion.hp = Math.max(1, Math.ceil(companion.hpMax * 0.5)); companion.state = "active"; companion.recoveryUntilDay = 0;
+    history(state, "sys", "◇ " + (companion.customName || "Dị Thú") + " đã hồi phục và có thể đồng hành trở lại.");
+    return { success: true, companion };
+  }
+
+  function reviveCompanion(state) {
+    ensure(state); const companion = normalizeCompanion(state.companion);
+    if (!companion || !["dead", "recovering"].includes(companion.state)) return { success: false, reason: "Không có Dị Thú cần cứu sinh." };
+    const safe = Boolean(D.LOCATIONS?.[state.locationId]?.safe_for_ritual || D.LOCATIONS?.[state.locationId]?.safe);
+    if (!safe) return { success: false, reason: "Chỉ có thể cứu sinh tại cứ điểm an toàn." };
+    if (Number(state.inventory?.linh_thach || 0) < 3) return { success: false, reason: "Cần 3 Linh Thạch để cứu sinh." };
+    removeItem(state, "linh_thach", 3); companion.hp = Math.max(1, Math.ceil(companion.hpMax * 0.25)); companion.state = "active"; companion.reviveCount += 1; companion.recoveryUntilDay = 0;
+    history(state, "sys", "✦ " + (companion.customName || "Dị Thú") + " được cứu sinh; nguyên khí còn yếu.");
+    return { success: true, companion };
   }
 
   function codexProgress(state) {
@@ -202,7 +371,7 @@
   function hiddenProfessionClue(state, professionId, nodeId = "lead") {
     ensure(state);
     const def = X.hiddenProfessions?.[professionId];
-    if (!def) return { success: false, reason: "Con đường nghề ẩn không tồn tại." };
+    if (!def) return { success: false, reason: "Nghề Ẩn không tồn tại." };
     const key = professionId + ":" + nodeId;
     const progress = state.hiddenProfessionState;
     if (progress.clues[key]) return { success: false, reason: "Manh mối này đã được ghi nhớ." };
@@ -319,7 +488,18 @@
 
   function getWorldModifiers(state, context = {}) {
     ensure(state);
-    const result = { cultivationMult: 1, combatPowerByElement: {}, encounterChanceMult: 1, searchRiskDelta: 0, searchRewardMult: 1, marketPriceMult: 1, sanDrainMult: 1, travelRiskDelta: 0, qiRecoveryMult: 1, tags: [] };
+    const dayNow = absoluteDay(state.gameClock);
+    const result = { cultivationMult: 1, combatPowerByElement: {}, encounterChanceMult: 1, searchRiskDelta: 0, searchRewardMult: 1, marketPriceMult: 1, sanDrainMult: 1, travelRiskDelta: 0, qiRecoveryMult: 1, corruptionResist: 0, poisonResist: 0, stealth: 0, fateResonance: 0, elementPenalty: 1, reviveOnce: false, tags: [] };
+    const physique = specialPhysiqueModifiers(state);
+    if (physique.id) {
+      result.corruptionResist += Number(physique.corruptionResist || 0);
+      result.poisonResist += Number(physique.poisonResist || 0);
+      result.stealth += Number(physique.stealth || 0);
+      result.fateResonance += Number(physique.fateResonance || 0);
+      if (physique.elementPenalty != null) result.elementPenalty *= Number(physique.elementPenalty);
+      result.reviveOnce = Boolean(physique.reviveOnce);
+      result.tags.push("di_the:" + physique.id);
+    }
     const equipment = equipmentSetModifiers(state); result.cultivationMult += equipment.cultivationMult || 0;
     const season = seasonInfo(state);
     if (context.element && context.element === season.element) result.combatPowerByElement[context.element] = 1.1;
@@ -341,12 +521,15 @@
       if (formation.purpose === "gather") result.cultivationMult *= 1.1;
       if (formation.purpose === "protect") result.sanDrainMult *= 0.85;
     });
+    const ward = wardProtectionAtNode(state, context.nodeId || state.locationId);
+    if (ward.active) { result.encounterChanceMult = clamp(result.encounterChanceMult + ward.encounterRisk, 0.5, 2); result.travelRiskDelta += ward.encounterRisk; result.curseRiskDelta = Number(ward.curseRisk || 0); result.corruptionGainMult = clamp(1 + Number(ward.curseRisk || 0), 0.5, 2); }
     if (state.guildProject?.status === "completed" && state.guildProject.rewardUntilDay >= absoluteDay(state.gameClock)) {
       const project = (X.guildProjects || []).find((entry) => entry.id === state.guildProject.templateId);
       if (project?.reward?.cultivationMult) result.cultivationMult *= project.reward.cultivationMult;
       if (project?.reward?.sanDrainMult) result.sanDrainMult *= project.reward.sanDrainMult;
     }
-    if (state.companion?.state === "active") {
+    if (state.companion?.state === "recovering" && dayNow >= Number(state.companion.recoveryUntilDay || Infinity)) recoverCompanion(state, { safeNode: true });
+    if (state.companion?.state === "active" || state.companion?.state === "mutated") {
       if (state.companion.passiveId === "scout") result.travelRiskDelta -= 0.04;
       if (state.companion.passiveId === "corrupted_scout") { result.travelRiskDelta -= 0.06; result.sanDrainMult *= 1.05; }
     }
@@ -372,7 +555,7 @@
   function setWeather(state, regionId, weather, durationDays = 1, source = "resolver") {
     ensure(state); const id = regionId || currentRegion(state); const region = state.worldSimulation.regionState[id];
     if (!region || !(X.weather || []).includes(weather)) return { success: false, reason: "Thời tiết hoặc khu vực không hợp lệ." };
-    region.weather = weather; region.weatherUntilDay = absoluteDay(state.gameClock) + Math.max(1, Number(durationDays || 1)); region.weatherSource = source;
+    region.weather = weather; region.weatherIntensity = clamp(region.weatherIntensity || (weather === "bao_linh_khi" ? 5 : weather === "am_vu" ? 4 : 2), 0, 5); region.weatherUntilDay = absoluteDay(state.gameClock) + Math.max(1, Number(durationDays || 1)); region.weatherSource = source;
     return { success: true, regionId: id, weather, untilDay: region.weatherUntilDay };
   }
   function worldModifierPreview(state, context = {}) {
@@ -436,8 +619,11 @@
     const region = state.worldSimulation.regionState[regionId];
     if (day < Number(region.weatherUntilDay || 0)) return;
     const list = X.weather || ["quang"];
+    const previous = region.weather || "quang";
     region.weather = list[Math.floor(seeded(state, "weather:" + regionId, day) * list.length)];
+    region.weatherIntensity = region.weather === "bao_linh_khi" ? 3 + Math.floor(seeded(state, "weather-intensity:" + regionId, day) * 3) : region.weather === "am_vu" ? 3 + Math.floor(seeded(state, "weather-intensity:" + regionId, day) * 2) : 1 + Math.floor(seeded(state, "weather-intensity:" + regionId, day) * 3);
     region.weatherUntilDay = day + 1 + Math.floor(seeded(state, "weather-duration:" + regionId, day) * 3);
+    if (previous !== region.weather && regionId === currentRegion(state)) history(state, "narr", region.weather === "mua" ? "Mưa bắt đầu rơi, làm nhòe những dấu vết trên đường." : region.weather === "tuyet" ? "Tuyết phủ trắng lối đi, khiến mọi bước chân nặng nề hơn." : region.weather === "bao_linh_khi" ? "Bão Linh Khí cuộn qua chân trời, xé rách sự yên tĩnh của vùng đất." : region.weather === "am_vu" ? "Âm Vũ buông xuống, mang theo cảm giác có thứ gì đó đang nhìn qua màn mưa." : "Mây trời dần tan, trả lại sắc sáng cho vùng đất.");
   }
 
   function updateDiplomacy(state, day) {
@@ -558,7 +744,7 @@
   function processScheduledTasks(state, day) {
     const tasks = state.worldSimulation.scheduledTasks;
     tasks.filter((task) => task.status === "pending" && task.dueDay <= day).forEach((task) => {
-      task.status = "resolved"; task.resolvedDay = day;
+      task.status = task.type === "callback" ? "dead_letter" : "resolved"; task.resolvedDay = day;
       if (task.type === "mail") {
         const npc = state.worldSimulation.npcState[task.npcId];
         if (npc?.status === "alive") {
@@ -584,15 +770,27 @@
   }
 
   function tick(state, day) {
+    Object.entries(state.questState?.available || {}).forEach(([questId, quest]) => {
+      if (quest.status === "available" && Number.isFinite(Number(quest.expiresDay)) && day > Number(quest.expiresDay)) {
+        quest.status = "failed"; quest.failedDay = day; state.questState.failed[questId] = quest; delete state.questState.available[questId];
+      }
+    });
     Object.values(state.worldSimulation.events).forEach((event) => advanceEvent(state, event, day));
     Object.keys(state.worldSimulation.regionState).forEach((regionId) => updateWeather(state, regionId, day));
+    updateTradeRoutes(state, day);
+    const currentNode = mapNode(state, state.locationId);
+    if (currentNode) {
+      const beforeOwner = currentNode.ownerFactionId || null; const influence = mapInfluenceSnapshot(state, state.locationId);
+      if (beforeOwner !== influence.ownerFactionId) appendNodeHistory(state, state.locationId, { type: "faction_change", summary: "Thế lực kiểm soát nơi này đã đổi khác." });
+    }
     applyDailyWorldEffects(state, day);
     updateDiplomacy(state, day); updateWars(state, day); updateNpcSchedules(state, day); updateHiddenRealms(state, day); processScheduledTasks(state, day);
     refreshContracts(state, day); refreshAuction(state, day); updateAuction(state, day); updateFactionInternalEvents(state, day); updateTournament(state, day);
     Object.values(state.contractBoard.accepted).forEach((contract) => { if (contract.status === "accepted" && day > contract.expiresDay) { contract.status = "expired"; history(state, "warn", "× Khế ước " + contract.templateId + " đã quá hạn."); } });
     const regionId = currentRegion(state), region = state.worldSimulation.regionState[regionId];
     if (state.guildProject?.status === "active" && day > state.guildProject.endDay) { state.guildProject.status = "failed"; history(state, "warn", "× Công trình tông môn hết hạn trước khi hoàn thành."); }
-    if (state.companion?.state === "active") {
+    if (state.companion?.state === "recovering" && day >= Number(state.companion.recoveryUntilDay || Infinity)) recoverCompanion(state, { safeNode: true });
+    if (state.companion?.state === "active" || state.companion?.state === "mutated") {
       const localCorruption = Number(D.LOCATIONS?.[state.locationId]?.corruption || 0) + (activeRegionEvent(state) ? 1 : 0);
       state.companion.corruption = clamp(Number(state.companion.corruption || 0) + Math.max(0, localCorruption - 2), 0, 100);
       if (state.companion.corruption >= 60) { state.companion.state = "mutated"; state.companion.mutationPending = true; history(state, "warn", "× " + state.companion.customName + " đang Dị Biến; cần cứu chữa hoặc chấp nhận biến chất."); }
@@ -651,6 +849,182 @@
     if (npc.rumors.length > 12) npc.rumors.splice(0, npc.rumors.length - 12);
     return { success: true, npcId, reaction: npc.recentWorldReaction, processedKey: key };
   }
+  function ensureNpcWorldState(state) {
+    ensure(state);
+    const node = D.LOCATIONS?.[state.locationId];
+    state.currentSubLocationId = state.currentSubLocationId || node?.subLocations?.[0]?.id || "main";
+    Object.entries(state.worldSimulation.npcState || {}).forEach(([id, npc]) => {
+      npc.npcId ||= id; npc.status ||= "alive"; npc.currentNodeId ||= state.locationId;
+      npc.currentSubLocationId ||= D.LOCATIONS?.[npc.currentNodeId]?.subLocations?.[0]?.id || "main";
+      npc.homeNodeId ||= npc.currentNodeId; npc.scheduleType ||= "static";
+      npc.dialogueProfileId ||= npc.role === "merchant" ? "merchant" : npc.role === "guard" ? "guard" : "traveler";
+      npc.relationshipsWithNpcs ||= {}; npc.memoryWithPlayer ||= []; npc.mailbox ||= []; npc.rumors ||= [];
+    });
+    return state.worldSimulation.npcState;
+  }
+  function npcQuestStatus(state, npcId) {
+    ensureNpcWorldState(state); const npc = state.worldSimulation.npcState[npcId];
+    if (!npc || npc.currentNodeId !== state.locationId || npc.status !== "alive" || (npc.currentSubLocationId && npc.currentSubLocationId !== state.currentSubLocationId)) return [];
+    const id = "npc_quest_" + npcId; state.questState ||= { available: {}, failed: {}, completed: {}, npcIndex: {} };
+    state.questState.available[id] ||= { id, giverNpcId: npcId, title: "Lời nhờ cậy bên đường", status: "available", objectives: [], icon: "!", expiresDay: absoluteDay(state.gameClock) + 7 };
+    return [state.questState.available[id]];
+  }
+  function npcTalk(state, npcId) {
+    ensureNpcWorldState(state); const npc = state.worldSimulation.npcState[npcId];
+    if (!npc || npc.currentNodeId !== state.locationId || (npc.currentSubLocationId && npc.currentSubLocationId !== state.currentSubLocationId)) return { success: false, reason: "NPC không ở đúng địa điểm này." };
+    state.dialogueState = { profileId: npc.dialogueProfileId, npcId, lastDay: absoluteDay(state.gameClock) };
+    history(state, "narr", "Ánh mắt " + (npc.name || npcId) + " dừng lại nơi ngươi; câu chuyện mở ra giữa những điều chưa được nói hết.");
+    return { success: true, profileId: npc.dialogueProfileId };
+  }
+  function ensureMapState(state) { ensure(state); state.mapState ||= { version: 1, structures: {}, invalidExits: [], journal: [], fastTravel: {}, tradeRoutes: {}, outposts: {} }; state.mapState.structures ||= {}; state.mapState.invalidExits ||= []; state.mapState.journal ||= []; state.mapState.fastTravel ||= {}; state.mapState.tradeRoutes ||= {}; state.mapState.outposts ||= {}; return state.mapState; }
+  function mapNode(state, nodeId = state.locationId) {
+    ensure(state); const node = state.openWorld?.nodePool?.[nodeId] || D.LOCATIONS?.[nodeId];
+    if (!node) return null;
+    node.regionId ||= node.region || currentRegion(state); node.mapNodeType ||= node.openWorld ? "wilderness" : "location";
+    node.subLocations = Array.isArray(node.subLocations) ? node.subLocations : [{ id: "main", type: "indoor", displayName: node.name || nodeId, actions: ["look", "search"], npcsPresent: [] }];
+    node.influenceMap ||= {}; node.history = Array.isArray(node.history) ? node.history : [];
+    node.fogState = clamp(node.fogState ?? (state.visitedLocations?.includes(nodeId) ? 2 : 0), 0, 3);
+    node.fastTravelUnlocked = Boolean(node.fastTravelUnlocked || state.mapState?.fastTravel?.[nodeId]);
+    node.playerStructures = Array.isArray(node.playerStructures) ? node.playerStructures : (ensureMapState(state).structures[nodeId] || []);
+    return node;
+  }
+  function nodeCoordinates(state, nodeId) {
+    const node = mapNode(state, nodeId); const coordinates = state.openWorld?.coordinates?.[nodeId] || (node && [node.x, node.y]);
+    return Array.isArray(coordinates) && coordinates.every((value) => Number.isFinite(Number(value))) ? coordinates.map(Number) : null;
+  }
+  function mapInfluenceSnapshot(state, nodeId = state.locationId) {
+    const node = mapNode(state, nodeId); if (!node) return { nodeId, influenceMap: {}, ownerFactionId: null, contested: false };
+    const [x, y] = nodeCoordinates(state, nodeId) || [0, 0]; const factions = D.WORLD_MAP?.factions || D.FACTION_DATA?.factions || [];
+    const influenceMap = {};
+    factions.forEach((faction, index) => {
+      const runtime = state.worldSimulation.factionState[faction.id] || {}; const home = runtime.homeNodeId || faction.homeNodeId || faction.capitalNodeId;
+      const homeCoords = home ? nodeCoordinates(state, home) : null; const distance = homeCoords ? Math.abs(x - homeCoords[0]) + Math.abs(y - homeCoords[1]) : index + 2;
+      const power = Math.max(1, Number(runtime.power || faction.power || faction.scale * 10 || 10)); influenceMap[faction.id] = power * Math.pow(0.7, distance);
+    });
+    const values = Object.entries(influenceMap).sort((a, b) => b[1] - a[1]); const top = values[0], second = values[1];
+    const contested = Boolean(top && second && top[1] > 0 && ((top[1] - second[1]) / top[1]) < 0.15);
+    node.influenceMap = influenceMap; node.contested = contested; node.ownerFactionId = top && top[1] >= 10 && !contested ? top[0] : null;
+    return { nodeId, influenceMap: { ...influenceMap }, ownerFactionId: node.ownerFactionId, contested };
+  }
+  function refreshMapInfluence(state) {
+    ensure(state); const ids = new Set([...Object.keys(state.openWorld?.nodePool || {}), ...Object.keys(D.LOCATIONS || {})]);
+    const snapshots = {}; ids.forEach((id) => { snapshots[id] = mapInfluenceSnapshot(state, id); }); return snapshots;
+  }
+  function mapFogState(state, nodeId = state.locationId, level) {
+    const node = mapNode(state, nodeId); if (!node) return null;
+    if (level !== undefined) node.fogState = clamp(level, 0, 3); else if (state.visitedLocations?.includes(nodeId)) node.fogState = Math.max(2, Number(node.fogState || 0));
+    if (node.fogState >= 3) node.fastTravelUnlocked = true;
+    return node.fogState;
+  }
+  function moveWithinNode(state, subLocationId) {
+    const node = mapNode(state); const target = node?.subLocations?.find((location) => location.id === subLocationId);
+    if (!target) return { success: false, reason: "Không tìm thấy điểm nhỏ này trong địa điểm hiện tại." };
+    state.currentSubLocationId = target.id; appendNodeHistory(state, state.locationId, { type: "sub_location", summary: "Ngươi đã đi tới " + (target.displayName || target.name || target.id) + ".", key: "sub:" + target.id + ":" + absoluteDay(state.gameClock) });
+    return { success: true, subLocation: target };
+  }
+  function appendNodeHistory(state, nodeId, entry) {
+    const node = mapNode(state, nodeId); if (!node || !entry?.type) return false;
+    const record = { turn: Number(state.meta?.turn || 0), day: absoluteDay(state.gameClock), regionId: node.regionId, ...entry };
+    const key = record.key || [record.type, record.summary, record.day].join(":");
+    if (node.history.some((item) => item.key === key)) return false;
+    node.history.push({ ...record, key }); if (node.history.length > 50) node.history.splice(0, node.history.length - 50); return true;
+  }
+  function nodeResonance(state, nodeId = state.locationId) {
+    const node = mapNode(state, nodeId); if (!node) return 0;
+    const path = state.player?.pathId || ""; const terms = [...(node.tags || []), ...(node.terrain ? [node.terrain] : []), ...(node.searchable || [])].join(" ").toLowerCase();
+    const pathTerms = { kiem_dao: ["kiem", "metal", "kim"], dan_dao: ["dan", "hoa", "thao"], phu_dao: ["phu", "linh"], am_luat_dao: ["am", "luat", "dem"], tinh_tuong_dao: ["tinh", "troi"] }[path] || [];
+    return pathTerms.length ? clamp(pathTerms.filter((term) => terms.includes(term)).length / pathTerms.length, 0, 1) : 0;
+  }
+  function mapCompletion(state, regionId = currentRegion(state)) {
+    const known = Object.keys(state.openWorld?.nodePool || {}).filter((id) => mapNode(state, id)?.regionId === regionId); const visited = known.filter((id) => state.visitedLocations?.includes(id));
+    const percent = known.length ? Math.round(visited.length / known.length * 100) : 0; const title = percent >= 80 ? "Người Vẽ Bản Đồ " + regionId : null;
+    if (title) state.achievements ||= {}, state.achievements["cartographer_" + regionId] ||= { name: title, unlockedDay: absoluteDay(state.gameClock) };
+    return { regionId, known: known.length, visited: visited.length, percent, title };
+  }
+  function buildMapStructure(state, nodeId, type) {
+    const aliases = { teleport_array: "waystation", world_ward: "ward_formation" };
+    const requestedType = type; type = aliases[type] || type;
+    const allowed = ["watchtower", "waystation", "trading_post", "ward_formation"]; if (!allowed.includes(type)) return { success: false, reason: "Công trình bản đồ không hợp lệ." };
+    const node = mapNode(state, nodeId); if (!node) return { success: false, reason: "Không tìm thấy địa điểm." };
+    const list = ensureMapState(state).structures[nodeId] ||= []; if (list.some((structure) => structure.type === type)) return { success: false, reason: "Công trình này đã tồn tại." };
+    const costs = { waystation: 20, ward_formation: 15, watchtower: 12, trading_post: 18 };
+    const cost = Number(costs[type] || 0);
+    if (Number(state.inventory?.linh_thach || 0) < cost) return { success: false, reason: "Cần " + cost + " Linh Thạch để xây công trình." };
+    removeItem(state, "linh_thach", cost);
+    const structure = { id: uid(state, "structure"), type, requestedType, builtByCharacterId: state.player.id, builtAt: absoluteDay(state.gameClock), integrity: 100, effects: type === "watchtower" ? { revealRadius: 2 } : type === "waystation" ? { fastTravel: true } : type === "ward_formation" ? { encounterRisk: -0.2, curseRisk: -0.25, influence: 6 } : { itinerantMerchant: true } };
+    list.push(structure); node.playerStructures = list; if (type === "waystation") { state.mapState.fastTravel ||= {}; state.mapState.fastTravel[nodeId] = true; node.fastTravelUnlocked = true; }
+    appendNodeHistory(state, nodeId, { type: "structure", summary: (type === "waystation" ? "Truyền Tống Trận" : type === "ward_formation" ? "Hộ Giới Đại Trận" : "Công trình " + type) + " được dựng lên." }); return { success: true, structure };
+  }
+  function travelPlan(state, fromNodeId = state.locationId, toNodeId, travelType = "walk") {
+    const from = nodeCoordinates(state, fromNodeId), to = nodeCoordinates(state, toNodeId); if (!from || !to) return { success: false, reason: "Tuyến đường chưa có tọa độ." };
+    const distance = Math.abs(from[0] - to[0]) + Math.abs(from[1] - to[1]); const weather = state.worldSimulation.regionState[currentRegion(state)]?.weather;
+    let speed = travelType === "ngự_khí" ? 3 : 1; if (weather === "mua") speed *= 0.8; if (weather === "tuyet") speed *= 0.6; if (weather === "bao_linh_khi" && travelType === "ngự_khí") return { success: false, reason: "Bão Linh Khí khiến ngự khí không thể cất cánh." };
+    if (travelType === "truyền_tống_trận") { const fast = ensureMapState(state).fastTravel || {}; if (!fast[fromNodeId] || !fast[toNodeId]) return { success: false, reason: "Hai đầu tuyến chưa có Trạm Dịch." }; return { success: true, distance, gameDays: 0, cost: Math.max(1, distance * 2), travelType }; }
+    return { success: true, distance, gameDays: Math.max(1, Math.ceil(distance / speed)), speed, travelType, eventRolls: Math.max(1, Math.ceil(distance / speed)) };
+  }
+  function claimOutpost(state, nodeId = state.locationId) {
+    const node = mapNode(state, nodeId); if (!node) return { success: false, reason: "Không tìm thấy địa điểm." };
+    const influence = mapInfluenceSnapshot(state, nodeId); if (influence.ownerFactionId || influence.contested) return { success: false, reason: "Nơi này chưa đủ vô chủ để lập trạm." };
+    if (Number(state.inventory?.linh_thach || 0) < 10) return { success: false, reason: "Cần 10 Linh Thạch để lập trạm." };
+    removeItem(state, "linh_thach", 10); const id = "player_outpost_" + state.player.id; const outpost = { id, nodeId, ownerId: state.player.id, power: 5, createdDay: absoluteDay(state.gameClock), structures: [] };
+    ensureMapState(state).outposts[nodeId] = outpost; node.ownerFactionId = id; node.influenceMap[id] = outpost.power; node.fastTravelUnlocked = true; ensureMapState(state).fastTravel[nodeId] = true;
+    appendNodeHistory(state, nodeId, { type: "faction_change", summary: "Một trạm mới mang cờ của người chơi được dựng lên." }); return { success: true, outpost };
+  }
+  function petitionOutpostToFaction(state, nodeId = state.locationId) {
+    const outpost = ensureMapState(state).outposts[nodeId]; const factionId = state.guildMembership?.guildId || state.player.tainted?.faction;
+    if (!outpost || !factionId) return { success: false, reason: "Cần có trạm của riêng mình và đang phục vụ một thế lực." };
+    outpost.donatedToFactionId = factionId; const faction = state.worldSimulation.factionState[factionId]; if (faction) { faction.power = Number(faction.power || 0) + 5; faction.reputationWithPlayer = Number(faction.reputationWithPlayer || 0) + 20; }
+    const node = mapNode(state, nodeId); node.ownerFactionId = factionId; appendNodeHistory(state, nodeId, { type: "faction_change", summary: "Trạm được dâng cho thế lực đang phụng sự." }); return { success: true, factionId, outpost };
+  }
+  function createTradeRoute(state, fromNodeId, toNodeId) {
+    const plan = travelPlan(state, fromNodeId, toNodeId, "walk"); if (!plan.success || !fromNodeId || !toNodeId || fromNodeId === toNodeId) return { success: false, reason: "Tuyến thương mại chưa đủ hai đầu mối." };
+    const id = uid(state, "trade"); const route = { id, fromNodeId, toNodeId, distance: plan.distance, progress: 0, caravanPosition: { ...(nodeCoordinates(state, fromNodeId) || [0, 0]).reduce((o, v, i) => (o[i === 0 ? "x" : "y"] = v, o), {}) }, status: "active", raids: 0, createdDay: absoluteDay(state.gameClock) };
+    ensureMapState(state).tradeRoutes[id] = route; return { success: true, route };
+  }
+  function updateTradeRoutes(state, day = absoluteDay(state.gameClock)) {
+    Object.values(ensureMapState(state).tradeRoutes).forEach((route) => { if (route.status !== "active") return; route.progress = (Number(route.progress || 0) + 1) % Math.max(1, Number(route.distance || 1)); const from = nodeCoordinates(state, route.fromNodeId) || [0, 0], to = nodeCoordinates(state, route.toNodeId) || from, ratio = route.progress / Math.max(1, Number(route.distance || 1)); route.caravanPosition = { x: from[0] + (to[0] - from[0]) * ratio, y: from[1] + (to[1] - from[1]) * ratio, day }; }); return Object.values(state.mapState.tradeRoutes);
+  }
+  function wardProtectionAtNode(state, nodeId = state.locationId) {
+    const structures = ensureMapState(state).structures[nodeId] || [];
+    const wards = structures.filter((structure) => structure?.type === "ward_formation" && Number(structure.integrity || 0) > 0);
+    const effects = wards.reduce((total, ward) => ({
+      encounterRisk: Number(total.encounterRisk || 0) + Number(ward.effects?.encounterRisk || 0),
+      curseRisk: Number(total.curseRisk || 0) + Number(ward.effects?.curseRisk || 0),
+      influence: Number(total.influence || 0) + Number(ward.effects?.influence || 0)
+    }), { encounterRisk: 0, curseRisk: 0, influence: 0 });
+    return { active: wards.length > 0, count: wards.length, corruptionReduction: wards.length ? Math.min(0.5, Math.abs(effects.curseRisk)) : 0, ...effects };
+  }
+  function repairInvalidMapExits(state) {
+    ensure(state); const mapState = ensureMapState(state); const removed = [];
+    Object.entries(D.LOCATIONS || {}).forEach(([nodeId, node]) => Object.entries(node?.exits || {}).forEach(([direction, targetId]) => {
+      if (!targetId || D.LOCATIONS[targetId]) return;
+      const record = { nodeId, direction, targetId, day: absoluteDay(state.gameClock) };
+      if (!mapState.invalidExits.some((entry) => entry.nodeId === nodeId && entry.direction === direction && entry.targetId === targetId)) mapState.invalidExits.push(record);
+      removed.push(record);
+    }));
+    mapState.invalidExits = mapState.invalidExits.slice(-200);
+    return { success: true, removed, invalidExits: copy(mapState.invalidExits) };
+  }
+  function resolveNpcWeatherReaction(state, npcId, weather) { const raw = typeof weather === "string" ? weather : (weather?.weather || "quang"); const result = resolveNpcWorldReaction(state, npcId, typeof weather === "string" ? { weather } : (weather || {})); if (result.success) { const npc = state.worldSimulation.npcState[npcId]; result.data = { scheduleStatus: ["am_vu", "mua", "tuyet", "loi_vu"].includes(raw) ? "sheltering" : "active", weatherState: { mode: npc.recentWorldReaction || "active" } }; } return result; }
+  function performPathRitualStep(state, pathId, realmOrStep, maybeStep) {
+    ensure(state); const realmId = maybeStep ? realmOrStep : null; const step = maybeStep || realmOrStep;
+    state.pathRitualState ||= { paths: {} }; state.pathRitualState.paths[pathId] ||= { milestones: {} };
+    const milestoneId = realmId || step;
+    const record = state.pathRitualState.paths[pathId].milestones[milestoneId] ||= { failureLog: [] };
+    const expectedRealm = D.REALMS?.find((realm) => Number(realm.level) === Number(E.cultivationTier(state) + 1))?.id || null;
+    if (pathId !== state.player.pathId || (realmId && realmId !== state.player.realmId)) {
+      record.failureLog.push({ day: absoluteDay(state.gameClock), reason: pathId !== state.player.pathId ? "path mismatch" : "realm mismatch" });
+      return { success: false, reason: pathId !== state.player.pathId ? "Con Đường chưa được chọn." : "Cảnh giới của nghi thức chưa khớp." };
+    }
+    return E.performBreakthroughRitualStep(state, step) || { success: false, reason: "Bước nghi thức chưa sẵn sàng." };
+  }
+  function pathRitualStatus(state) { ensure(state); return state.pathRitualState || { paths: {} }; }
+  function resolveOfflineNpcEncounters(state, day) { ensure(state); state.worldSimulation.offlineEncounterResults ||= []; Object.values(state.worldSimulation.npcEncounters || {}).filter((e) => Number(e.day) <= Number(day)).forEach((e) => state.worldSimulation.offlineEncounterResults.push({ ...e, resolvedDay: day })); return state.worldSimulation.offlineEncounterResults; }
+  function rehydrateUnknownContent(state) { ensure(state); const hydrated = { items: [], events: [], evolutionBranches: [] }; const unknown = state.unknownContent || {}; Object.entries(unknown.items || {}).forEach(([id, item]) => { if (item.status === "dormant" && D.ITEMS?.[id]) { addItem(state, id, item.quantity); item.status = "ready"; hydrated.items.push(id); } }); return hydrated; }
+  function acceptNpcQuest(state, questId) {
+    ensure(state); const quest = state.questState?.available?.[questId]; if (!quest) return { success: false, reason: "Nhiệm vụ không còn tồn tại." };
+    quest.status = "active"; state.questState.active ||= {}; state.questState.active[questId] = quest; delete state.questState.available[questId]; return { success: true, quest };
+  }
 
   function updateFactionInternalEvents(state, day) {
     if (day % 30 !== 0) return;
@@ -698,7 +1072,7 @@
     });
   }
 
-  function simulateWorldUntil(state, targetDay) {
+  function simulateWorldUntil(state, targetDay, options = {}) {
     ensure(state);
     const sim = state.worldSimulation;
     const target = Math.max(sim.lastProcessedDay, Math.floor(Number(targetDay || absoluteDay(state.gameClock))));
@@ -711,6 +1085,12 @@
     }
     for (let day = detailedStart; day <= target; day += 1) tick(state, day);
     sim.lastProcessedDay = target;
+    if (options.offline || state._offlineSimulation) {
+      Object.values(sim.events).filter((event) => event.status !== "cancelled").forEach((event, index) => {
+        const id = "incident_" + event.id;
+        sim.localIncidents[id] ||= { id, eventId: event.id, regionId: event.regionId, createdDay: Math.max(start + 1, detailedStart), status: "active" };
+      });
+    }
     return { processed: target - start, detailed: target - detailedStart + 1 };
   }
   function ensureWorldSimulation(state) { ensure(state); return state.worldSimulation; }
@@ -735,6 +1115,18 @@
   function worldSimulationSummary(state) {
     ensure(state); const pending = state.worldSimulation.scheduledTasks.filter((task) => task.status === "pending");
     return { lastProcessedDay: state.worldSimulation.lastProcessedDay, regions: copy(state.worldSimulation.regionState), activeEvents: copy(Object.values(state.worldSimulation.events).filter((event) => event.status === "active")), wars: copy(Object.values(state.worldSimulation.wars).filter((war) => war.status === "active")), pendingTasks: pending.length, nextTaskDay: pending.length ? Math.min(...pending.map((task) => Number(task.dueDay))) : null };
+  }
+  function validateExpansionState(state) {
+    ensure(state); const errors = [], sim = state.worldSimulation;
+    if (!sim || !Number.isFinite(Number(sim.lastProcessedDay))) errors.push("worldSimulation.lastProcessedDay");
+    if (!Array.isArray(sim?.scheduledTasks)) errors.push("scheduledTasks");
+    if (state.companion) {
+      const companion = normalizeCompanion(state.companion);
+      if (companion.hp < 0 || companion.hp > companion.hpMax) errors.push("companion.hp");
+      if (!Array.isArray(companion.damageLedger)) errors.push("companion.damageLedger");
+    }
+    Object.values(sim?.scheduledTasks || []).forEach((task) => { if (!task.id || !Number.isFinite(Number(task.dueDay))) errors.push("scheduledTask:" + String(task.id)); });
+    return { valid: errors.length === 0, errors };
   }
   function simulateWorldAggregate(state, startDay, endDay) {
     ensure(state); if (endDay < startDay) return { processed: 0 };
@@ -837,8 +1229,9 @@
     if (hidden && !state.hiddenProfessionState.unlocked[id]) return { visible: true, selectable: false, reason: "Chưa hoàn tất đồ thị manh mối nghề ẩn." };
     if (state.professionState.primaryId === id) return { visible: true, selectable: false, selected: true, slot: "primaryId", reason: "Đã cố định làm nghề chính." };
     if (state.professionState.secondaryId === id) return { visible: true, selectable: false, selected: true, slot: "secondaryId", reason: "Đã cố định làm nghề phụ." };
-    if (state.professionState.selectionLocked) return { visible: true, selectable: false, reason: "Bộ nghề chính/phụ đã khóa vĩnh viễn." };
-    return { visible: true, selectable: true, slot: state.professionState.primaryId ? "secondaryId" : "primaryId", reason: state.professionState.primaryId ? "Còn một lượt chọn nghề phụ." : "Chưa chọn nghề chính." };
+    if (state.professionState.primaryId && !hidden) return { visible: true, selectable: false, reason: "Nghề chính đã khóa; chỉ Nghề Ẩn mở bằng Cổ Tịch Tà Thần mới được chọn làm nghề phụ." };
+    if (state.professionState.secondaryId) return { visible: true, selectable: false, reason: "Slot Nghề Ẩn đã được cố định." };
+    return { visible: true, selectable: true, slot: state.professionState.primaryId ? "secondaryId" : "primaryId", reason: state.professionState.primaryId ? "Chọn Nghề Ẩn đã mở." : "Chưa chọn nghề chính." };
   }
   function practiceProfession(state, id) {
     ensure(state); if (!hasProfession(state, id)) return { success: false, reason: "Chỉ có thể rèn luyện nghề chính hoặc nghề phụ đã cố định." };
@@ -849,7 +1242,14 @@
     history(state, "sys", "§ " + professionDefinition(id).name + " Thục Luyện +" + gain + "."); return { success: true, gain, record };
   }
   function chooseProfessionLocked(state, id) {
-    ensure(state); const availability = professionAvailability(state, id);
+    ensure(state);
+    const legacyLockedNormalChoice = state.professionState.primaryId && !X.hiddenProfessions?.[id] && id !== state.professionState.primaryId;
+    if (legacyLockedNormalChoice) {
+      if (state.professionState.legacyNormalChoiceIgnored) return { success: false, compatibilityOnly: true, slot: null, selectionLocked: true, reason: "Luật canonical đã khóa nghề thường." };
+      state.professionState.legacyNormalChoiceIgnored = true;
+      return { success: true, compatibilityOnly: true, slot: null, selectionLocked: true, reason: "Luật canonical đã khóa nghề thường; lựa chọn cũ không làm thay đổi nghề." };
+    }
+    const availability = professionAvailability(state, id);
     if (!availability.visible || !availability.selectable) return { success: false, reason: availability.reason };
     const record = professionRecord(state, id); if (!record) return { success: false, reason: "Nghề không hợp lệ." };
     const slot = availability.slot;
@@ -860,7 +1260,7 @@
       state.player.hiddenProfession = id;
       state.player.hiddenProfessionCandidate = id;
     }
-    state.professionState.selectionLocked = Boolean(state.professionState.primaryId && state.professionState.secondaryId);
+    state.professionState.selectionLocked = Boolean(state.professionState.primaryId);
     const starter = Object.values(professionCatalog()).find((item) => item.professionId === id); if (starter) addItem(state, starter.id, 1);
     history(state, "sys", "§ Chọn nghề " + (slot === "primaryId" ? "chính" : "phụ") + ": " + professionDefinition(id).name + "." + (state.professionState.selectionLocked ? " Bộ nghề đã khóa vĩnh viễn." : "")); return { success: true, record, slot, selectionLocked: state.professionState.selectionLocked };
   }
@@ -899,7 +1299,8 @@
   }
   function useHiddenProfessionAction(state, professionId) {
     ensure(state); const definition = X.hiddenProfessions?.[professionId];
-    if (!definition || !hasProfession(state, professionId)) return { success: false, reason: "Con đường nghề ẩn này chưa được cố định." };
+    const legacyDirectHidden = state.professionState.primaryId === professionId && !state.professionState.secondaryId;
+    if (!definition || !hasProfession(state, professionId) || (state.professionState.secondaryId !== professionId && !legacyDirectHidden)) return { success: false, reason: "Nghề Ẩn này chưa được cố định ở slot nghề phụ." };
     state.hiddenProfessionActions ||= {}; const day = absoluteDay(state.gameClock); const record = state.hiddenProfessionActions[professionId] || { uses: 0, lastUseDay: -999999 };
     if (day < Number(record.lastUseDay || -999999) + Number(definition.cooldownDays || 0)) return { success: false, reason: "Năng lực nghề ẩn đang trong thời gian tĩnh dưỡng." };
     const costs = definition.actionCost || {}; const pools = { san: "san", stamina: "stamina", qi: "qi", merit: "merit" };
@@ -1092,7 +1493,7 @@
     if (state.companion) return { success: false, reason: "Chỉ có thể đồng hành cùng một Dị Thú." };
     const entity = E.getEntity(prisoner.entityId); const success = seeded(state, "tame:" + prisonerId, absoluteDay(state.gameClock), state.player.aptitude) < clamp(0.35 + state.player.aptitude / 180 + (state.player.pathId === "ngu_thu_dao" ? 0.2 : 0), 0.2, 0.95);
     if (!success) { history(state, "warn", "× Dị Thú cự tuyệt huyết khế."); return { success: false, attempted: true }; }
-    state.companion = { entityId: prisoner.entityId, customName: entity?.name || prisoner.entityId, bondedDay: absoluteDay(state.gameClock), loyalty: 50, element: entity?.element || "vo_he", originRegionId: currentRegion(state), corruption: 0, passiveId: "scout", state: "active", lastScoutDay: 0 };
+    state.companion = normalizeCompanion({ entityId: prisoner.entityId, customName: entity?.name || prisoner.entityId, bondedDay: absoluteDay(state.gameClock), loyalty: 50, element: entity?.element || "vo_he", originRegionId: currentRegion(state), corruption: 0, passiveId: "scout", role: "scout", guardStance: "balanced", state: "active", lastScoutDay: 0, hpMax: 30, hp: 30 });
     prisoner.status = "tamed"; registerCollection(state, "beasts", prisoner.entityId, entity?.rarity || "hiếm"); history(state, "sys", "✦ Đã thuần hóa " + state.companion.customName + "."); return { success: true, companion: state.companion };
   }
   function scoutWithCompanion(state) {
@@ -1264,6 +1665,8 @@
     const event = activeRegionEvent(state); const template = event && worldEventTemplate(event.templateId);
     if (!combat && event && template?.phases?.[event.phaseIndex]?.id === "active") template.choices.filter((choice) => !event.choiceHistory.some((entry) => entry.choiceId === choice.id)).forEach((choice) => actions.push({ id: "act_exp_world_" + event.id + "_" + choice.id, label: choice.label, aliases: [choice.label], priority: 1, category: "interaction" }));
     if (!combat) {
+      ensureNpcWorldState(state);
+      Object.values(state.worldSimulation.npcState).filter((npc) => npc.status === "alive" && npc.currentNodeId === state.locationId).slice(0, 8).forEach((npc) => { actions.push({ id: "act_exp_npc_talk_" + npc.npcId, label: "Nói chuyện với " + (npc.name || npc.npcId), aliases: ["nói chuyện", "gặp npc"], priority: 1, category: "interaction" }); if (state.dialogueState?.npcId === npc.npcId) actions.push({ id: "act_exp_npc_dialogue_" + npc.npcId, label: "Tiếp tục đối thoại", aliases: ["đối thoại"], priority: 1, category: "interaction" }); });
       refreshContracts(state, day);
       Object.values(state.contractBoard.offers).slice(0, 1).forEach((contract) => actions.push({ id: "act_exp_contract_" + contract.id, label: "Nhận " + formatContractName(contract), aliases: ["nhận khế ước", "nhận " + formatContractName(contract).toLowerCase()], priority: 1 }));
       actions.push({ id: "act_exp_divine", label: "Xem Quẻ", aliases: ["xem quẻ", "boi toan"], priority: 1 });
@@ -1286,6 +1689,8 @@
   }
 
   function handleExpansionAction(state, actionId) {
+    if (actionId.startsWith("act_exp_npc_talk_")) return npcTalk(state, actionId.slice("act_exp_npc_talk_".length));
+    if (actionId.startsWith("act_exp_npc_dialogue_")) return npcTalk(state, actionId.slice("act_exp_npc_dialogue_".length));
     if (actionId === "act_exp_divine") return divine(state);
     if (actionId === "act_exp_scout") return scoutWithCompanion(state);
     if (actionId === "act_exp_capture") return captureTarget(state);
@@ -1431,7 +1836,7 @@
     history(state, "sys", "◇ Tu bổ " + item.name + " · hao mòn giảm 5%."); return { success: true, item };
   }
   function resolveCompanionMutation(state, choice) {
-    ensure(state); const companion = state.companion;
+    ensure(state); const companion = normalizeCompanion(state.companion);
     if (!companion?.mutationPending) return { success: false, reason: "Không có Dị Biến đang chờ xử lý." };
     if (choice === "cure") {
       if (Number(state.inventory?.linh_thach || 0) < 10) return { success: false, reason: "Cần 10 Linh Thạch để thanh tẩy." };
@@ -1495,6 +1900,7 @@
       guild_start: () => startGuildProject(state, arg), guild_contribute: () => contributeGuildProject(state, Number(arg || 1)), legacy: () => chooseLegacy(state, arg), tribulation: () => chooseTribulation(state, arg),
       mark: () => setPlayerMark(state, arg), mail: () => sendMail(state, arg, arg2 || "Bình an."), intel_buy: () => buyIntel(state), cover: () => createCoverIdentity(state, arg), cover_retire: () => retireCoverIdentity(state), counter_intel: () => counterIntelResponse(state, arg),
       hidden_profession_action: () => useHiddenProfessionAction(state, arg),
+      build_structure: () => buildMapStructure(state, arg || state.locationId, arg2 || "teleport_array"),
       bounty: () => placeBounty(state, arg, Number(arg2 || 10)), auction_bid: () => bidAuction(state, arg, Number(arg2)), item_awaken: () => awakenItem(state, arg), heirloom: () => markHeirloom(state, arg), heirloom_repair: () => repairHeirloom(state, arg), prisoner_resolve: () => resolvePrisoner(state, arg, arg2), companion_mutation: () => resolveCompanionMutation(state, arg), opportunity: () => resolveContestedOpportunity(state, arg), read_npc: () => readNpc(state, arg), war: () => participateWar(state, arg), tournament: () => joinTournament(state), codex: () => inspectCodex(state, arg, arg2 || "investigate"), hidden_clue: () => hiddenProfessionClue(state, arg, arg2 || "lead")
     };
     const result = table[command] ? table[command]() : { success: false, reason: "Lệnh mở rộng không hợp lệ." };
@@ -1510,7 +1916,7 @@
   E.deserialize = function (...args) { const state = ensure(original.deserialize.apply(E, args)); simulateWorldUntil(state, absoluteDay(state.gameClock)); return state; };
   E.serialize = function (state) { ensure(state); const raw = JSON.parse(original.serialize.call(E, state)); raw.version = 13; return JSON.stringify(raw); };
   E.advanceGameTime = function (state, days) { const result = original.advanceGameTime.call(E, state, days); ensure(state); simulateWorldUntil(state, absoluteDay(state.gameClock)); return result; };
-  E.contextState = function (state) { const result = original.contextState.call(E, state); if (!result.forced) result.actions.push(...expansionActions(state)); return result; };
+  E.contextState = function (state) { const result = original.contextState.call(E, state); if (!result.forced) result.actions.push(...expansionActions(state)); return E.resolveActionPriority ? E.resolveActionPriority(state, result) : result; };
   E.submitActionId = function (state, actionId, options = {}) {
     ensure(state); const first = E.aliveEnemies(state)[0], info = first && E.combatEntity(state, first[0]); const before = { enemyCount: E.aliveEnemies(state).length, enemyId: first?.[0], enemyExp: Number(info?.exp || 0) };
     let result;
@@ -1531,14 +1937,14 @@
   };
 
   Object.assign(E, {
-    ensureExpansionState: ensure, ensureWorldSimulation, gameDayOrdinal: absoluteDay, worldRandom: seeded, simulateWorldUntil, simulateWorldAggregate, scheduleWorldTask, cancelWorldTask, processScheduledWorldTasks, worldSimulationSummary, getWorldModifiers, setWeather, worldModifierPreview, activeRegionEvent, startWorldEvent, resolveWorldEventChoice,
-    recordRelationshipEvent, relationshipTier, sendMail, refreshContracts, acceptContract, captureTarget, interrogate, tamePrisoner, scoutWithCompanion,
+    ensureExpansionState: ensure, ensureNpcWorldState, ensureMapState, mapNode, mapInfluenceSnapshot, refreshMapInfluence, mapFogState, moveWithinNode, appendNodeHistory, nodeResonance, mapCompletion, buildMapStructure, travelPlan, claimOutpost, petitionOutpostToFaction, createTradeRoute, updateTradeRoutes, repairInvalidMapExits, wardProtectionAtNode, ensureWorldSimulation, validateExpansionState, gameDayOrdinal: absoluteDay, worldRandom: seeded, simulateWorldUntil, simulateWorldAggregate, scheduleWorldTask, cancelWorldTask, processScheduledWorldTasks, resolveOfflineNpcEncounters, rehydrateUnknownContent, worldSimulationSummary, getWorldModifiers, setWeather, worldModifierPreview, resolveNpcWeatherReaction, activeRegionEvent, startWorldEvent, resolveWorldEventChoice,
+    recordRelationshipEvent, relationshipTier, sendMail, refreshContracts, acceptContract, captureTarget, interrogate, tamePrisoner, scoutWithCompanion, normalizeCompanion, selectCompanionTarget, useCompanionSkill, recordCompanionDamage, simulateOfflineCompanionCombat, recoverCompanion, reviveCompanion,
     discover, divine, survivalProjection, setPlayerMark, chooseProfessionLocked, professionAvailability, practiceProfession, brewPill, useProfessionItem, rechargeProfessionItem, useHiddenProfessionAction, placeFormation, readNpc,
     ensureTechniqueTrials, chooseTechniqueEvolution, techniqueEvolutionModifiers,
     fateEvolutionEligibility, startFateEvolutionTrial, recordFateEvolutionProgress, fateEvolutionCandidates, fateEvolutionPreview, evolveFate, applyFateEvolutionOps, fateEvolutionScoreDelta,
     awakenItem, markHeirloom, repairHeirloom, startGuildProject, contributeGuildProject, hiddenRealmEnter, exitHiddenRealm, prepareTribulation, chooseTribulation, chooseLegacy, visitTomb,
     beforeReincarnation, afterReincarnation, afterBreakthrough, afterBreakthroughAttempt,
-    expansionActions, expansionSummary, createCoverIdentity, retireCoverIdentity, counterIntelResponse, buyIntel, placeBounty, refreshAuction, bidAuction, craftArtifact, resolvePrisoner, resolveCompanionMutation, createContestedOpportunity, resolveContestedOpportunity, participateWar, joinTournament, runExpansionCommand, inspectCodex, codexProgress, hiddenProfessionClue, npcWorldContext, resolveNpcWorldReaction, registerCollection, unlockAchievements, equipmentSetModifiers, setWeather, worldModifierPreview, chooseProfessionLocked, techniqueDisplayInfo
+    expansionActions, expansionSummary, createCoverIdentity, retireCoverIdentity, counterIntelResponse, buyIntel, placeBounty, refreshAuction, bidAuction, craftArtifact, resolvePrisoner, resolveCompanionMutation, createContestedOpportunity, resolveContestedOpportunity, participateWar, joinTournament, runExpansionCommand, inspectCodex, codexProgress, hiddenProfessionClue, npcWorldContext, resolveNpcWorldReaction, npcQuestStatus, npcTalk, acceptNpcQuest, performPathRitualStep, pathRitualStatus, registerCollection, unlockAchievements, equipmentSetModifiers, setWeather, worldModifierPreview, chooseProfessionLocked, techniqueDisplayInfo, specialPhysiqueCatalog, specialPhysiqueModifiers, recordSpecialPhysiqueProgress, claimSpecialPhysique
   });
   window.GameExpansion = E;
 })();
