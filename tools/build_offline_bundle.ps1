@@ -54,7 +54,7 @@ $html = [regex]::Replace($html, '<link\s+rel="stylesheet"\s+href="styles\.css"\s
 
 foreach ($relativePath in $scriptFiles) {
   $escaped = [regex]::Escape($relativePath)
-  $script = '<script[^>]+src="' + $escaped + '"[^>]*></script>'
+  $script = '<script[^>]+src="' + $escaped + '(?:\?[^\"]*)?"[^>]*></script>'
   $inline = "<script>" + $newline + (Read-Utf8 $relativePath) + $newline + "</script>"
   $html = [regex]::Replace($html, $script, [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $inline }, 1)
 }
