@@ -739,6 +739,8 @@ html, body {
 .region-node.current { width:30px; height:30px; border-color:var(--gold); background:radial-gradient(circle,#fff6c7 0 8%,#e0b95d 22%,rgba(217,185,106,.35) 48%,transparent 74%); box-shadow:0 0 0 8px rgba(217,185,106,.08),0 0 30px rgba(217,185,106,.85); animation:cosmicPulse 2.4s ease-in-out infinite; }
 .region-node.event-active { border-color:#d9738c; box-shadow:0 0 18px rgba(217,83,113,.75); }
 .world-route { stroke:#8098c4; stroke-width:.32; stroke-dasharray:1 2; opacity:.34; filter:drop-shadow(0 0 2px rgba(125,164,232,.5)); }
+.star-orbit { fill:none; stroke:rgba(126,164,232,.2); stroke-width:.22; stroke-dasharray:.8 1.8; }
+.star-core { fill:#fff4b0; filter:drop-shadow(0 0 5px rgba(255,225,128,.95)); }
 .faction-pin { box-shadow:0 0 12px currentColor; }
 .map-legend { color:#a8b8d8; }
 @keyframes cosmicPulse { 0%,100% { box-shadow:0 0 0 5px rgba(217,185,106,.08),0 0 20px rgba(217,185,106,.65); } 50% { box-shadow:0 0 0 13px rgba(217,185,106,.02),0 0 36px rgba(217,185,106,.95); } }
