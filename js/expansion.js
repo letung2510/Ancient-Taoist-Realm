@@ -17,7 +17,14 @@
   const clamp = (value, min, max) => Math.max(min, Math.min(max, Number(value) || 0));
   const copy = (value) => JSON.parse(JSON.stringify(value));
   const currentRegion = (state) => D.WORLD_MAP?.locations?.[state.locationId]?.region || D.LOCATIONS?.[state.locationId]?.region || "trung_vuc";
-  const absoluteDay = (clock) => Math.max(1, (Number(clock?.currentYear || 1) - 1) * 360 + (Number(clock?.currentMonth || 1) - 1) * 30 + Number(clock?.currentDay || 1));
+  const absoluteDay = (clock) => {
+    const playerDay = (Number(clock?.currentYear || 1) - 1) * 360 + (Number(clock?.currentMonth || 1) - 1) * 30 + Number(clock?.currentDay || 1);
+    const mirroredWorldDay = Number(clock?.worldAbsoluteDay || 0);
+    if (!mirroredWorldDay) return Math.max(1, playerDay);
+    const syncedPlayerDay = Number(clock?.worldSyncedPlayerDay || playerDay);
+    return Math.max(1, mirroredWorldDay + playerDay - syncedPlayerDay);
+  };
+  const gameDayOrdinal = (stateOrClock) => absoluteDay(stateOrClock?.gameClock || stateOrClock);
   const pairKey = (a, b) => [String(a), String(b)].sort().join("::");
   const itemName = (id) => D.ITEMS?.[id]?.name || E.I18n?.formatTarget(id) || "vật phẩm chưa định danh";
   const professionCatalog = () => ({ ...(X.professionItems || {}), ...(window.PROFESSION_ITEMS || {}) });
@@ -258,6 +265,8 @@
     }));
     sim.seed = sim.seed || state.meta.saveId || "co_di_dien";
     sim.lastProcessedDay = Number(sim.lastProcessedDay || absoluteDay(state.gameClock));
+    const worldEpoch = Number(state.worldClock?.absoluteDay || state.gameClock?.worldAbsoluteDay || absoluteDay(state.gameClock));
+    if (sim.lastProcessedDay > 0 && sim.lastProcessedDay < worldEpoch / 2) sim.lastProcessedDay = worldEpoch + sim.lastProcessedDay - 1;
     sim.nextEventSeq = Number(sim.nextEventSeq || 0);
     ["events", "regionState", "factionState", "diplomacy", "wars", "npcState", "hiddenRealms", "npcEncounters", "localIncidents"].forEach((key) => { sim[key] = sim[key] || {}; });
     sim.offlineEncounterResults = Array.isArray(sim.offlineEncounterResults) ? sim.offlineEncounterResults : [];
@@ -3027,6 +3036,7 @@
     beforeReincarnation, afterReincarnation, afterBreakthrough, afterBreakthroughAttempt,
     expansionActions, expansionSummary, createCoverIdentity, retireCoverIdentity, counterIntelResponse, buyIntel, placeBounty, refreshAuction, bidAuction, craftArtifact, resolvePrisoner, resolveCompanionMutation, createContestedOpportunity, resolveContestedOpportunity, participateWar, joinTournament, runExpansionCommand, inspectCodex, codexProgress, hiddenProfessionClue, npcWorldContext, factionBulletin, warFrontSnapshot, validateWarState, rumorBulletinSnapshot, resolveNpcWorldReaction, npcQuestStatus, npcTalk, acceptNpcQuest, performPathRitualStep, pathRitualStatus, registerCollection, unlockAchievements, equipmentSetModifiers, setWeather, worldModifierPreview, chooseProfessionLocked, validateProfessionNamespace, techniqueDisplayInfo, specialPhysiqueCatalog, specialPhysiqueModifiers, specialPhysiqueOutcome, recordSpecialPhysiqueProgress, claimSpecialPhysique
   });
+  E.gameDayOrdinal = gameDayOrdinal;
   E.validateSpecialPhysiqueCatalog = validateSpecialPhysiqueCatalog;
   E.validateSpecialPhysiqueState = validateSpecialPhysiqueState;
   E.designPolicySnapshot = designPolicySnapshot;

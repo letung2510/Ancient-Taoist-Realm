@@ -1667,6 +1667,8 @@ window.GameEngine = (function () {
         currentMonth: 1,
         currentDay: 1,
         dayProgress: 0,
+        worldAbsoluteDay: 2190961,
+        worldSyncedPlayerDay: 1,
         realTimeToGameTimeRatio: 1 / 30,
         timeScaleVersion: 3,
         eraIndex: 1,
@@ -1675,7 +1677,11 @@ window.GameEngine = (function () {
       worldClock: {
         currentYear: 6087,
         currentEra: "Kỷ Nguyên Linh Khí Dị Biến",
-        absoluteDay: 0,
+        currentMonth: 1,
+        currentDay: 1,
+        dayProgress: 0,
+        realTimeToGameTimeRatio: 1 / 30,
+        absoluteDay: 2190961,
         lastSyncedPlayerDay: 1
       },
       player: character,
@@ -3529,9 +3535,7 @@ window.GameEngine = (function () {
       // (instead of through the expansion deserialize wrapper), keep the world
       // simulation on the exact same day as the canonical game clock.
       if (typeof window !== "undefined" && window.GameExpansion?.simulateWorldUntil) {
-        const ordinal = (Number(clock.currentYear || 1) - 1) * GAME_TIME_CONFIG.gameDaysPerYear
-          + (Number(clock.currentMonth || 1) - 1) * GAME_TIME_CONFIG.gameDaysPerMonth
-          + Number(clock.currentDay || 1);
+        const ordinal = Number(state.worldClock?.absoluteDay || state.gameClock.worldAbsoluteDay || 1);
         window.GameExpansion.simulateWorldUntil(state, ordinal);
       }
     } finally {
@@ -4393,31 +4397,53 @@ window.GameEngine = (function () {
     if (!Number.isFinite(Number(clock.nextOnlineFateDay))) clock.nextOnlineFateDay = dayIndex + GAME_TIME_CONFIG.onlineFateIntervalDays;
     return clock;
   }
+  const WORLD_CLOCK_EPOCH_DAY = (6087 - 1) * GAME_TIME_CONFIG.gameDaysPerYear + 1;
   function worldClockFromDay(day, previous = {}) {
-    const absolute = Math.max(0, Math.floor(Number(day) || 0));
-    return { ...previous, currentYear: 6087, absoluteDay: absolute, currentEra: "Kỷ Nguyên Linh Khí Dị Biến" };
+    const absolute = Math.max(1, Math.floor(Number(day) || WORLD_CLOCK_EPOCH_DAY));
+    const year = Math.floor((absolute - 1) / GAME_TIME_CONFIG.gameDaysPerYear) + 1;
+    const dayOfYear = (absolute - 1) % GAME_TIME_CONFIG.gameDaysPerYear;
+    return { ...previous, currentYear: year, currentMonth: Math.floor(dayOfYear / GAME_TIME_CONFIG.gameDaysPerMonth) + 1, currentDay: (dayOfYear % GAME_TIME_CONFIG.gameDaysPerMonth) + 1, absoluteDay: absolute, currentEra: "Kỷ Nguyên Linh Khí Dị Biến" };
   }
   function ensureWorldClock(state) {
     state.worldClock = state.worldClock || {};
+    if (!Number.isFinite(Number(state.worldClock.realTimeToGameTimeRatio))) state.worldClock.realTimeToGameTimeRatio = 1 / GAME_TIME_CONFIG.realSecondsPerGameDay;
     const playerClock = ensureGameClock(state);
     const playerDay = gameDayIndex(playerClock);
     const simulationDay = Number(state.worldSimulation?.lastProcessedDay || 0);
     const storedDay = Number(state.worldClock.absoluteDay || 0);
-    const sourceDay = Math.max(0, simulationDay || storedDay || playerDay);
+    const legacyDay = simulationDay > 0 && simulationDay < WORLD_CLOCK_EPOCH_DAY ? WORLD_CLOCK_EPOCH_DAY + simulationDay - 1 : simulationDay;
+    const sourceDay = Math.max(WORLD_CLOCK_EPOCH_DAY, legacyDay || storedDay || WORLD_CLOCK_EPOCH_DAY + playerDay - 1);
     state.worldClock = worldClockFromDay(sourceDay, state.worldClock);
+    playerClock.worldAbsoluteDay = state.worldClock.absoluteDay;
+    playerClock.worldSyncedPlayerDay = playerDay;
     state.worldClock.lastSyncedPlayerDay = playerDay;
     return state.worldClock;
   }
+  function advanceWorldClock(state, gameDays = 0) {
+    const world = ensureWorldClock(state);
+    world.dayProgress = Number(world.dayProgress || 0) + Math.max(0, Number(gameDays) || 0);
+    while (world.dayProgress >= 1) {
+      world.dayProgress -= 1;
+      world.absoluteDay += 1;
+    }
+    state.worldClock = worldClockFromDay(world.absoluteDay, world);
+    ensureGameClock(state).worldAbsoluteDay = world.absoluteDay;
+    ensureGameClock(state).worldSyncedPlayerDay = gameDayIndex(ensureGameClock(state));
+    world.lastSyncedPlayerDay = gameDayIndex(ensureGameClock(state));
+    return world;
+  }
   function syncWorldClock(state, day) {
-    const playerDay = gameDayIndex(ensureGameClock(state));
-    const sourceDay = Number(day || state.worldSimulation?.lastProcessedDay || playerDay);
-    state.worldClock = worldClockFromDay(Math.max(1, sourceDay), ensureWorldClock(state));
-    state.worldClock.lastSyncedPlayerDay = playerDay;
-    return state.worldClock;
+    const world = ensureWorldClock(state);
+    if (Number.isFinite(Number(day)) && Number(day) >= WORLD_CLOCK_EPOCH_DAY) world.absoluteDay = Math.floor(Number(day));
+    state.worldClock = worldClockFromDay(world.absoluteDay, world);
+    ensureGameClock(state).worldAbsoluteDay = world.absoluteDay;
+    ensureGameClock(state).worldSyncedPlayerDay = gameDayIndex(ensureGameClock(state));
+    world.lastSyncedPlayerDay = gameDayIndex(ensureGameClock(state));
+    return world;
   }
   function processOnlineFateReward(state) {
     const clock = ensureGameClock(state);
-    const dayIndex = gameDayIndex(clock);
+    const dayIndex = Math.max(gameDayIndex(clock), Number(state.worldClock?.absoluteDay || clock.worldAbsoluteDay || 0));
     if (dayIndex < Number(clock.nextOnlineFateDay || 0)) return null;
     const dominant = dominantFateGrade(state); const maxRank = Math.min(8, Number(dominant.rank || 1) + 1);
     const fate = rollFateByProgression(state, { source: "online", level: cultivationTier(state), gradeCap: maxRank });
@@ -4488,7 +4514,7 @@ window.GameEngine = (function () {
       });
       processOnlineFateReward(state);
     }
-    syncWorldClock(state, state.worldSimulation?.lastProcessedDay || gameDayIndex(c));
+    advanceWorldClock(state, days);
     return c;
   }
   const LOG_TYPE_ALIASES = { warn: "SYSTEM", sys: "SYSTEM", narr: "SYSTEM", combat: "COMBAT", loot: "LOOT", explore: "EXPLORE", travel: "TRAVEL", talk: "TALK", rest: "REST", cultivate: "CULTIVATION" };

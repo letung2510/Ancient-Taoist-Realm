@@ -64,7 +64,11 @@ Schema tối thiểu:
 worldClock: {
   currentYear: 6087,
   currentEra: "Kỷ Nguyên Linh Khí Dị Biến",
-  absoluteDay: 0,
+  currentMonth: 1,
+  currentDay: 1,
+  dayProgress: 0,
+  absoluteDay: 2190961,
+  realTimeToGameTimeRatio: 1 / 30,
   lastSyncedPlayerDay: 1
 }
 ```
@@ -72,8 +76,9 @@ worldClock: {
 ### Quy tắc đồng bộ
 
 - Player clock là nguồn kích hoạt khi một action của nhân vật tiêu tốn ngày.
-- World clock luôn hiển thị Năm 6087 của Kỷ Nguyên Linh Khí Dị Biến; `worldSimulation.lastProcessedDay` chỉ là ordinal nội bộ để mô phỏng, không được dùng làm tháng/ngày hiển thị.
-- Ngày/tháng/năm hiển thị cụ thể chỉ thuộc Player clock.
+- World clock vẫn tính đủ `currentMonth`, `currentDay`, `absoluteDay` và `dayProgress` nội bộ; UI chỉ ẩn tháng/ngày và hiển thị Năm 6087 của Kỷ Nguyên Linh Khí Dị Biến.
+- World clock dùng cùng tỷ lệ thời gian thực/game-day với player clock (`1/30`), nhưng world simulation lấy `worldClock.absoluteDay` làm nguồn ngày chuẩn.
+- Ngày/tháng/năm hiển thị cụ thể của nhân vật chỉ thuộc Player clock.
 - Không dùng chung một DOM element: `#game-clock` dành cho nhân vật, `#world-clock` dành cho thế giới.
 - Save cũ phải hydrate world clock an toàn, không làm mất tiến trình nhân vật.
 
