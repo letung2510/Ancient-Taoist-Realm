@@ -6387,7 +6387,7 @@ window.GameEngine = (function () {
   }
   function worldClockLabel(state) {
     const c = ensureWorldClock(state);
-    return "Thế giới · Năm " + c.currentYear + " · " + c.currentEra;
+    return "Thái Thanh đại lục · Năm " + c.currentYear + " · " + c.currentEra;
   }
   function onGameYearPass(state) {
     const p = state.player;
@@ -12421,7 +12421,7 @@ window.GameUI = (function () {
 
   function updateClockDisplay() {
     const el = $("game-clock");
-      if (el && state && E.clockLabel) { el.textContent = E.clockLabel(state); el.title = "Thời gian của nhân vật · 1 ngày game = " + Number(E.GAME_TIME_CONFIG?.realSecondsPerGameDay || 30) + " giây thực"; const world = $("world-clock"); if (world && E.worldClockLabel) { world.textContent = E.worldClockLabel(state); world.title = "Thời gian của thế giới · dùng cho thiên tượng, NPC, chiến sự và biến cố."; } const summary = E.expansionSummary?.(state); let weather = $("game-weather"); if (!weather && el.parentNode) { weather = document.createElement("span"); weather.id = "game-weather"; weather.className = "game-weather"; weather.title = "Thời tiết hiện tại"; el.parentNode.insertBefore(weather, el.nextSibling); } if (weather) { const labels = { quang: "Quang đãng", mua: "Mưa", suong: "Sương", loi_vu: "Lôi Vũ", linh_phong: "Linh Phong" }; weather.hidden = false; weather.textContent = "☁ " + (labels[summary?.weather] || "Quang đãng"); } }
+      if (el && state && E.clockLabel) { el.textContent = E.clockLabel(state); el.title = "Thời gian của nhân vật · 1 ngày game = " + Number(E.GAME_TIME_CONFIG?.realSecondsPerGameDay || 30) + " giây thực"; const world = $("world-clock"); if (world && E.worldClockLabel) { world.textContent = E.worldClockLabel(state); world.title = "Thời gian của Thái Thanh đại lục · dùng cho thiên tượng, NPC, chiến sự và biến cố."; } const summary = E.expansionSummary?.(state); let weather = $("game-weather"); if (!weather && el.parentNode) { weather = document.createElement("span"); weather.id = "game-weather"; weather.className = "game-weather"; weather.title = "Thời tiết hiện tại"; el.parentNode.insertBefore(weather, el.nextSibling); } if (weather) { const labels = { quang: "Quang đãng", mua: "Mưa", suong: "Sương", loi_vu: "Lôi Vũ", linh_phong: "Linh Phong" }; weather.hidden = false; weather.textContent = "☁ " + (labels[summary?.weather] || "Quang đãng"); } }
   }
   function updateAtmosphereClass() {
     const screen = $("screen-game");
