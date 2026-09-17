@@ -4477,7 +4477,7 @@ window.GameEngine = (function () {
   }
   function worldClockLabel(state) {
     const c = ensureWorldClock(state);
-    return "Thế giới · Năm " + c.currentYear + " · " + c.currentEra;
+    return "Thái Thanh đại lục · Năm " + c.currentYear + " · " + c.currentEra;
   }
   function onGameYearPass(state) {
     const p = state.player;
