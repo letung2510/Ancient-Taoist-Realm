@@ -230,3 +230,13 @@ renderScene(events[]):  // events[] = danh sách event CÙNG timestamp, CÙNG lo
 ## AMENDMENT 2026-09-16 — GỘP NHẬT KÝ THEO NGÀY
 
 Mọi log người chơi nhìn thấy phải đi qua narrative renderer; không render `COMMAND_ECHO`, mã lỗi, tên field hoặc câu lệnh debug. Các entry liên tiếp có cùng **Năm/Tháng/Ngày** và cùng bối cảnh node/sub-location được gộp thành một đoạn văn liền mạch, chỉ giữ một timestamp ở đầu. Stat summary nếu có đặt ở cuối đoạn, không chen giữa các câu kể. Entry khác ngày hoặc khác scene bắt đầu đoạn mới.
+
+## IMPLEMENTATION STATUS 2026-09-16
+
+`createGameEvent()` hiện tách `changes` thành `statDisplay`; `renderGameEvent()` chỉ trả narrative, còn `renderScene()` và UI nối stat summary ở cuối cảnh. Luồng Tìm Kiếm, Thu Thập, Điều Tra và NPC/weather đã được chuyển khỏi format console sang câu kể có bối cảnh. Mọi producer vẫn đi qua `pushHistory()` và boundary `narrativeSafe()`, kể cả log legacy khôi phục từ save.
+## Unmapped internal-code fallback
+
+Every uppercase implementation code reaching `formatPlayerLogText` is either
+resolved through `ERROR_NARRATIVE_MAP` or replaced with a meaningful neutral
+novel sentence. The fallback never leaves an empty fragment or exposes the
+internal code; `verify_log_narrative.js` covers mapped and unmapped examples.

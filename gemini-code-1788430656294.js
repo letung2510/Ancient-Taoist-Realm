@@ -88,14 +88,15 @@ const ATTRIBUTES = [
    ========================================================================== */
 
 // Utility lấy phần tử ngẫu nhiên từ mảng
-const getRandomItem = (arr, rng = Math.random) => arr[Math.floor(rng() * arr.length)];
+const defaultRandom = () => Math.random();
+const getRandomItem = (arr, rng = defaultRandom) => arr[Math.floor(rng() * arr.length)];
 let itemSequence = 0;
 
 /**
  * Sinh 1 item ngẫu nhiên.
  * @param {string} [targetKind] - Trọc lọc loại item muốn sinh (VD: "consumable", "weapon", "armor"). Nếu để trống sẽ random ngẫu nhiên tất cả.
  */
-function createRandomItem(targetKind = null, rng = Math.random) {
+function createRandomItem(targetKind = null, rng = defaultRandom, options = {}) {
   const p = getRandomItem(PREFIXES, rng);
   const s = getRandomItem(SUFFIXES, rng);
   const attr = getRandomItem(ATTRIBUTES, rng);
@@ -110,7 +111,8 @@ function createRandomItem(targetKind = null, rng = Math.random) {
 
   // Timestamp + sequence + random hash giữ ID duy nhất cả khi sinh nhiều item cùng mili-giây.
   itemSequence += 1;
-  const uniqueHash = `${Date.now().toString(36)}_${itemSequence.toString(36)}_${rng().toString(36).substring(2, 7)}`;
+  const identitySeed = options.idSeed == null ? `${Date.now().toString(36)}_${itemSequence.toString(36)}` : String(options.idSeed);
+  const uniqueHash = `${identitySeed}_${rng().toString(36).substring(2, 7)}`;
   const rawId = `${p.name}_${b.baseId}_${s}_${attr}_${uniqueHash}`;
   const id = rawId.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/[^a-z0-9_]+/g, "_").replace(/_+/g, "_");
 
@@ -157,7 +159,7 @@ function createRandomItem(targetKind = null, rng = Math.random) {
 /**
  * Sinh nhanh N item ngẫu nhiên theo nhu cầu.
  */
-function generateBatchItems(quantity = 100, targetKind = null, rng = Math.random) {
+function generateBatchItems(quantity = 100, targetKind = null, rng = defaultRandom) {
   const count = Math.max(0, Math.min(10000, Math.floor(Number(quantity) || 0)));
   const items = {};
   for (let i = 0; i < count; i++) {

@@ -11,6 +11,11 @@
   const SAVE_KEY = "co_di_dien_save_v13";
   const LEGACY_SAVE_KEYS = ["co_di_dien_save_v12", "co_di_dien_save_v11"];
   let state = null;
+  function showPlayerAlert(value, fallback) {
+    const text = E.playerFacingReason ? E.playerFacingReason(value, fallback) : (Array.isArray(value) ? value.filter(Boolean).join("\n") : (value || fallback || "Hành động chưa thể thực hiện lúc này."));
+    window.alert(text);
+  }
+  const alert = showPlayerAlert;
 
   // Serialize game-changing actions. Rapid clicks used to mutate state while
   // the story panel was still rendering, leaving later entries/buttons stuck.
@@ -26,7 +31,18 @@
   function createLogArchive() {
     const queue = [];
     let retryTimer = null;
+    const DB_NAME = "co_di_dien_log";
+    const STORE_NAME = "events";
     const schedule = (fn, delay) => (window.setTimeout ? window.setTimeout(fn, delay) : setTimeout(fn, delay));
+    const openDatabase = () => {
+      if (!window.indexedDB?.open) return null;
+      const request = window.indexedDB.open(DB_NAME, 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (db?.createObjectStore && !db.objectStoreNames?.contains?.(STORE_NAME)) db.createObjectStore(STORE_NAME, { keyPath: "id" });
+      };
+      return request;
+    };
     const api = {
       flush(entries) {
         if (Array.isArray(entries)) queue.push(...entries);
@@ -35,11 +51,41 @@
       retry() {
         retryTimer = null;
         if (!queue.length || !window.indexedDB?.open) return;
-        const request = window.indexedDB.open("co_di_dien_log", 1);
+        const request = openDatabase();
+        if (!request) return;
         request.onerror = () => { if (retryTimer == null) retryTimer = schedule(api.retry, 1000); };
-        request.onsuccess = () => { queue.length = 0; };
+        request.onsuccess = () => {
+          const db = request.result;
+          if (!db?.transaction) { if (retryTimer == null) retryTimer = schedule(api.retry, 1000); return; }
+          const batch = queue.splice(0, queue.length);
+          try {
+            const transaction = db.transaction(STORE_NAME, "readwrite");
+            const store = transaction.objectStore(STORE_NAME);
+            batch.forEach((entry) => store.put({ ...entry, archivedAt: entry.archivedAt || Date.now() }));
+            transaction.onerror = () => { queue.unshift(...batch); if (retryTimer == null) retryTimer = schedule(api.retry, 1000); };
+            transaction.onabort = transaction.onerror;
+          } catch (error) {
+            queue.unshift(...batch);
+            if (retryTimer == null) retryTimer = schedule(api.retry, 1000);
+          }
+        };
       },
       retryQueueSize: () => queue.length,
+      readRecent(limit = 50) {
+        return new Promise((resolve) => {
+          const request = openDatabase();
+          if (!request) return resolve([]);
+          request.onerror = () => resolve([]);
+          request.onsuccess = () => {
+            try {
+              const transaction = request.result.transaction(STORE_NAME, "readonly");
+              const requestAll = transaction.objectStore(STORE_NAME).getAll();
+              requestAll.onsuccess = () => resolve((requestAll.result || []).sort((a, b) => Number(b.archivedAt || 0) - Number(a.archivedAt || 0)).slice(0, Math.max(1, Number(limit) || 50)));
+              requestAll.onerror = () => resolve([]);
+            } catch (error) { resolve([]); }
+          };
+        });
+      },
       reset() { queue.length = 0; if (retryTimer != null) clearTimeout(retryTimer); retryTimer = null; }
     };
     return api;
@@ -281,7 +327,7 @@
       const physiqueButton = event.target.closest("[data-special-physique]");
       if (physiqueButton && state && E.claimSpecialPhysique) {
         const result = E.claimSpecialPhysique(state, physiqueButton.dataset.specialPhysique);
-        if (!result.success) alert(result.reason || "Chưa thể tiếp nhận Dị Chí.");
+        if (!result.success) alert(result.reason || "Chưa thể tiếp nhận Dị Thể.");
         else { saveGame(); UI.renderPanel(state); }
         return;
       }
@@ -613,6 +659,8 @@
 
   function renderStoryWindow() {
     if (!state || !UI.renderStoryWindow) return;
+    const profile = window.GameExpansion?.performanceProfile?.(state);
+    if (profile) document.documentElement.dataset.performanceProfile = profile.id;
     const history = Array.isArray(state.history) ? state.history : [];
     UI.renderStoryWindow(history, storyWindowSize, () => {
       storyWindowSize = Math.min(history.length, storyWindowSize + 20);
@@ -645,7 +693,7 @@
     UI.clearStory();
     window._renderedTurn = 0;
     renderedHistoryEntries = new WeakSet();
-    storyWindowSize = 20;
+    storyWindowSize = Math.min(20, Number(window.GameExpansion?.performanceProfile?.(state)?.historyWindow || 20));
     renderStoryWindow();
     window._renderedTurn = state.history.length;
     UI.renderPanel(state);

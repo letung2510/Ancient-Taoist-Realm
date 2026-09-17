@@ -134,6 +134,12 @@ function verifyExpansionSystems(sandbox) {
   assert(E.I18n && E.I18n.formatHistory);
   assert(sandbox.window.PROFESSION_ITEMS?.phuong_thuoc);
   assert(state.worldSimulation && state.meta.featureVersions.fateEvolution === 1);
+  const rawTechnical = E.createGameEvent(state, { type: "warn", text: "INTERNAL_ROUTE_BLOCKED" });
+  assert(rawTechnical.text && !/[A-Z][A-Z0-9_]{3,}/.test(rawTechnical.text), "technical error code leaked into player log");
+  const sameDayA = E.createGameEvent(state, { type: "narr", text: "Mưa gõ lên mái hiên.", context: { locationId: "son_mon", subLocationId: "gate" } });
+  const sameDayB = E.createGameEvent(state, { type: "narr", text: "Ngươi kéo áo choàng chặt hơn.", context: { locationId: "van_phong", subLocationId: "market" } });
+  const sameDayScene = E.renderScene(state, [sameDayA, sameDayB]);
+  assert.strictEqual((sameDayScene.match(/\n\n/g) || []).length, 1, "same-day events must be one novel paragraph");
   assert(Object.values(state.worldSimulation.factionState).every((faction) => Number.isFinite(faction.power) && faction.power > 0));
   assert.strictEqual(E.worldRandom(state, "stable", 10, 2), E.worldRandom(state, "stable", 10, 2));
   const regionId = sandbox.window.GameData.WORLD_MAP.locations[state.locationId]?.region || "trung_vuc";
@@ -181,6 +187,8 @@ function verifyExpansionSystems(sandbox) {
   const hiddenProfessionId = Object.keys(sandbox.window.EXPANSION_DATA.hiddenProfessions)[0];
   codexState.hiddenProfessionState.clues[hiddenProfessionId + ":lead"] = { professionId: hiddenProfessionId };
   codexState.hiddenProfessionState.unlocked[hiddenProfessionId] = { day: E.gameDayOrdinal(codexState.gameClock) };
+  assert(!E.chooseProfessionLocked(codexState, hiddenProfessionId).success);
+  assert(E.chooseProfessionLocked(codexState, "luyen_dan").success);
   assert(E.chooseProfessionLocked(codexState, hiddenProfessionId).success);
   codexState.player.san = 100;
   assert(E.useHiddenProfessionAction(codexState, hiddenProfessionId).success);
@@ -531,8 +539,13 @@ function verifyBrowserEngine(sandbox) {
   const localGuild = D.GUILDS.find((guild) => guild.region_id === "trung_vuc" && guild.pyramid_tier === 5);
   assert.strictEqual(E.joinGuild(state, localGuild.id), false);
   E.gainExp(state, 100);
+  // This fixture is a breakthrough gate test, not a cultivation-deviation test.
+  // A large single gain may legitimately trigger the deviation system and reduce
+  // current exp; normalize the fixture after observing that separate mechanic.
+  state.player.exp = 100;
   assert.strictEqual(state.player.realmId, "di_menh");
-  assert(E.doBreakthrough(state).changed);
+  const firstBreakthrough = E.doBreakthrough(state);
+  assert(firstBreakthrough.changed, JSON.stringify({ reason: firstBreakthrough.reason, realmId: state.player.realmId, exp: state.player.exp, tier: E.cultivationTier(state), pathId: state.player.pathId }));
   assert.strictEqual(state.player.realmId, "khai_lo");
   assert.strictEqual(state.flags.pathChoicePending, true);
   assert(E.contextState(state).actions.some((action) => action.id === "act_path_ngoai_dao_gia"));
@@ -734,12 +747,25 @@ function verifyMapUI(sandbox) {
   sandbox.activeTestTab = "oddities";
   sandbox.window.GameUI.renderPanel(expansionUiState);
   const odditiesHtml = elements["tab-content"].innerHTML;
-  ["Dị Chí", "Cổ Tịch", "Con đường nghề ẩn", "Sưu Tầm", "Dị Thú", "NPC Hiếm"]
-    .forEach((label) => assert(odditiesHtml.includes(label), `missing oddities UI: ${label}`));
+  const odditiesVisibleHtml = odditiesHtml.replace(/<!--[\s\S]*?-->/g, "");
+  ["Dị Thể", "Cổ Tịch", "Nghề Ẩn", "Sưu Tầm", "Dị Thú", "NPC Hiếm"]
+    .forEach((label) => assert(odditiesVisibleHtml.includes(label), `missing oddities UI: ${label}`));
+  assert(!odditiesVisibleHtml.includes("Dị Chí"), "legacy Dị Chí label must not appear in player UI");
   sandbox.activeTestTab = "status";
   sandbox.window.GameUI.renderPanel(expansionUiState);
   assert(elements["tab-content"].innerHTML.includes("Nghề Nghiệp"));
   assert(elements["tab-content"].innerHTML.includes("Chọn nghề chính"));
+
+  const tabRenderState = E.createState({ character: E.createCharacter({ name: "Tab Render QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  ["status", "inventory", "quests", "relations", "guilds", "map", "memory", "world", "oddities", "expansion", "market", "qintian", "cauldron"].forEach((tab) => {
+    sandbox.activeTestTab = tab;
+    assert.doesNotThrow(() => sandbox.window.GameUI.renderPanel(tabRenderState), `tab render threw: ${tab}`);
+    const rendered = String(elements["tab-content"].innerHTML || "");
+    assert(rendered.length > 0, `tab render empty: ${tab}`);
+    const leaked = rendered.match(/\b(?:undefined|NaN|Cannot read|TypeError)\b/);
+    const leakIndex = leaked ? rendered.indexOf(leaked[0]) : -1;
+    assert(!leaked, `tab render leaked runtime placeholder: ${tab} (${leaked?.[0]}) ${rendered.slice(Math.max(0, leakIndex - 80), leakIndex + 120)}`);
+  });
 }
 
 function verifyDomReferences() {
@@ -788,6 +814,7 @@ function verifyCreationUI(sandbox) {
     removeItem: (key) => { delete storage[key]; }
   };
   sandbox.setTimeout = (handler) => { handler(); return 0; };
+  sandbox.setInterval = () => 0;
   sandbox.alert = () => {};
   sandbox.window.GameUI = {
     showScreen() {}, clearStory() {}, addStory() {}, renderPanel() {}, setLocation() {},
@@ -827,4 +854,6 @@ function main() {
   console.log("OK: characters, procedural items, map, data integrity, save migration, UI and DOM");
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = { loadBrowserGame, main };

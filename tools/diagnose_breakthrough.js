@@ -1,0 +1,16 @@
+"use strict";
+const fs = require("fs");
+const path = require("path");
+const vm = require("vm");
+const root = path.join(__dirname, "..");
+const sandbox = { window: {} }; vm.createContext(sandbox);
+["gemini-code-1788430656294.js", "data/world_data.js", "data/fate_data.js", "data/fate_relationships.js", "data/cong_phap.js", "data/npc_monsters.js", "data/path_fate_relations.js", "data/profession_items.js", "data/expansion_data.js", "data/data.js", "js/i18n.js", "js/engine.js", "js/expansion.js"].forEach((file) => vm.runInContext(fs.readFileSync(path.join(root, file), "utf8"), sandbox, { filename: file }));
+const E = sandbox.window.GameEngine;
+const D = sandbox.window.GameData;
+const state = E.createState({ character: E.createCharacter({ name: "Breakthrough QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+const before = { realmId: state.player.realmId, exp: state.player.exp, tier: E.cultivationTier(state), breakExp: D.REALMS.find((realm) => realm.id === state.player.realmId)?.breakExp, pathId: state.player.pathId, origin: state.player.origin, flags: { ...state.flags } };
+E.submitActionId(state, "act_nhin");
+E.move(state, "bac");
+E.gainExp(state, 100);
+const result = E.doBreakthrough(state);
+console.log(JSON.stringify({ before, after: { realmId: state.player.realmId, exp: state.player.exp, tier: E.cultivationTier(state), flags: state.flags }, result }, null, 2));

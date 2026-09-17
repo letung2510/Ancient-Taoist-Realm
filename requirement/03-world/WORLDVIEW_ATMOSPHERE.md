@@ -335,4 +335,3 @@ rộng tiếp: **(1) luôn có chi tiết giải phẫu/thân thể cụ thể**
 kiểu "đáng sợ"), **(2) luôn có mâu thuẫn giữa BÌNH THƯỜNG và SAI LỆCH** (thứ đáng sợ nhất là thứ gần
 giống bình thường nhưng sai 1 chi tiết nhỏ, không phải quái vật hiển nhiên), **(3) luôn gắn 1 hiệu
 ứng cơ chế nhỏ đi kèm mô tả** (để nội dung không chỉ là văn nếm mà thật sự ảnh hưởng gameplay).
-
