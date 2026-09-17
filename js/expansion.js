@@ -2711,6 +2711,7 @@
 
   function expansionActions(state) {
     ensure(state); const actions = [], combat = E.aliveEnemies(state).length > 0, day = absoluteDay(state.gameClock);
+    if (!combat && state.pendingContestedOpportunity?.status === "pending") actions.push({ id: "act_exp_opportunity", label: "Ứng Biến Cơ Duyên", aliases: ["ứng biến cơ duyên", "ung bien co duyen"], priority: 0, category: "opportunity", blocking: true });
     const event = activeRegionEvent(state); const template = event && worldEventTemplate(event.templateId);
     if (!combat && event && template?.phases?.[event.phaseIndex]?.id === "active") template.choices.filter((choice) => !event.choiceHistory.some((entry) => entry.choiceId === choice.id)).forEach((choice) => actions.push({ id: "act_exp_world_" + event.id + "_" + choice.id, label: choice.label, aliases: [choice.label], priority: 1, category: "interaction" }));
     if (!combat) {

@@ -755,6 +755,10 @@
         showMapOverlay();
         return;
       }
+      if (action.id === "act_exp_opportunity") {
+        UI.openOverlay("Cơ Duyên Tranh Đoạt", UI.renderContestedOpportunityModal(state));
+        return;
+      }
       const departure = departureOptions(action.id);
       if (departure === null) return;
       if (action.requiresConfirmation) {
