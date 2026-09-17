@@ -171,6 +171,13 @@ window.GameData = (function () {
 
   /* ---------- Địa điểm ---------- */
   const LOCATIONS = {
+    trung_vuc_khoi_diem: {
+      id: "trung_vuc_khoi_diem", name: "Vân Đài Ngoại Vi", corruption: 1,
+      desc: "Một bến đá nằm ngoài sơn môn, nơi tán tu và lữ khách bắt đầu hành trình trước khi quyết định bước vào các tông môn.",
+      exits: { nam: "son_mon", tay: "truyen_phap" },
+      npcs: [],
+      searchable: ["linh_thach", "thong_mach_dan"]
+    },
     son_mon: {
       id: "son_mon", name: "Sơn Môn Thiên Huyền Tông", corruption: 1,
       desc: "Cổng đá khắc đầy phù văn đã phai màu. Dưới chân núi, mây mù lượn lờ như có sinh mệnh.",
@@ -270,8 +277,9 @@ window.GameData = (function () {
     factions: window.FACTION_DATA?.factions || [],
     guilds: GUILDS,
     locations: {
+      trung_vuc_khoi_diem: { x: 48, y: 68, region: "trung_vuc" },
       son_mon: { x: 48, y: 78, region: "trung_vuc" },
-      truyen_phap: { x: 17, y: 78, region: "trung_vuc" },
+      truyen_phap: { x: 35, y: 78, region: "trung_vuc" },
       linh_dien: { x: 77, y: 78, region: "nam_chuong" },
       van_phong: { x: 48, y: 54, region: "trung_vuc" },
       cam_dia: { x: 48, y: 20, region: "trung_vuc" },

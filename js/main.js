@@ -209,11 +209,13 @@
     const box = $("start-region-list");
     box.innerHTML = "";
     E.availableStartRegions(1).forEach((region) => {
+      const spawn = Object.entries(D.WORLD_MAP?.locations || {}).find(([id, location]) => location.region === region.id && (id === "trung_vuc_khoi_diem" || id.endsWith("_khoi_diem")));
       const el = document.createElement("button");
       el.type = "button";
       el.className = "start-region-card" + (region.id === creation.startRegionId ? " selected" : "");
       el.innerHTML = '<div class="region-choice-name">' + region.name + '</div>' +
         '<div class="region-choice-meta">' + region.type + ' · Linh khí ' + region.qi + ' · Nguy hiểm ' + region.danger + '</div>' +
+        '<div class="region-choice-spawn">Điểm đản sinh: ' + (spawn?.[1]?.name || "Node biên giới khu vực") + '</div>' +
         '<div class="region-choice-desc">' + region.description + '</div>';
       el.addEventListener("click", () => {
         if (creation.started) return;

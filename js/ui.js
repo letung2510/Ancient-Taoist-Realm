@@ -771,6 +771,7 @@ window.GameUI = (function () {
   function renderWorldMap(state, data, map) {
     const currentRegionId = map.locations[state.locationId]?.region || "trung_vuc";
     const regionById = Object.fromEntries(map.regions.map((region) => [region.id, region]));
+    const starField = '<circle class="star-core" cx="50" cy="48" r="2.2"></circle><circle class="star-orbit" cx="50" cy="48" r="18"></circle><circle class="star-orbit" cx="50" cy="48" r="31"></circle><circle class="star-orbit" cx="50" cy="48" r="44"></circle>';
     const routes = (map.routes || []).map(([from, to]) => {
       const a = regionById[from];
       const b = regionById[to];
@@ -811,7 +812,7 @@ window.GameUI = (function () {
 
     const cameraControls = '<div class="map-camera-controls"><button type="button" data-map-camera="zoom-out" title="Thu nhỏ">−</button><span>Thiên Đồ · ' + (mapCamera.zoom >= 1.8 ? "Cận cảnh" : mapCamera.zoom > 1 ? "Vùng" : "Vũ Trụ") + '</span><button type="button" data-map-camera="zoom-in" title="Phóng to">+</button><button type="button" data-map-camera="reset" title="Đặt lại góc nhìn">◎</button></div>';
     return '<div class="map-heading"><b>' + map.name + '</b><small>Bản đồ thế lực theo ' + (window.FACTION_DATA?.world?.era || "Kỷ Nguyên hiện tại") + ' · Không gian mở, bấm sao để xem thông tin</small></div>' + cameraControls +
-      '<div class="world-map world-overview"><svg viewBox="0 0 100 100" preserveAspectRatio="none">' + routes + '</svg>' + regions + factions + guildPins + '</div>' +
+      '<div class="world-map world-overview star-chart"><svg viewBox="0 0 100 100" preserveAspectRatio="none">' + starField + routes + '</svg>' + regions + factions + guildPins + '</div>' +
       '<p class="map-legend"><span class="dot current"></span> Vùng hiện tại <span class="dot righteous"></span> Chính <span class="dot evil"></span> Tà <span class="dot neutral"></span> Trung lập · Bấm ghim để xem hồ sơ</p>' +
       '<div class="section-title">Thế lực quanh ' + (regionById[currentRegionId]?.name || "khu vực") + '</div>' + factionList;
   }

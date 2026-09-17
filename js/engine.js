@@ -48,7 +48,7 @@ window.GameEngine = (function () {
     u_minh_gioi: [["Ma Tộc", 50], ["Cổ Tộc", 20], ["Yêu Tộc", 15], ["Linh Tộc", 10], ["Nhân Tộc", 5]]
   };
   const START_LOCATIONS = {
-    trung_vuc: "son_mon", dong_hoang: "hac_lam", tay_mac: "tay_mac_khoi_diem",
+    trung_vuc: "trung_vuc_khoi_diem", dong_hoang: "hac_lam", tay_mac: "tay_mac_khoi_diem",
     nam_chuong: "linh_dien", bac_nguyen: "bac_nguyen_khoi_diem", vo_tan_hai: "vo_tan_hai_khoi_diem",
     thien_khong_vuc: "thien_khong_khoi_diem", u_minh_gioi: "u_minh_khoi_diem"
   };
@@ -70,6 +70,9 @@ window.GameEngine = (function () {
   function rollOriginSituation(regionId, rng = entropyRandom) {
     const pool = ORIGIN_SITUATIONS[regionId] || [{ id: "tan_tu_luu_lac", title: "Tán Tu Lưu Lạc", startLocationId: START_LOCATIONS[regionId], questSeed: "thu_linh_thao" }];
     return { ...pool[randomInt(rng, 0, pool.length - 1)] };
+  }
+  function startLocationForRegion(regionId) {
+    return START_LOCATIONS[regionId] || null;
   }
   const START_REGION_RULES = {
     thien_khong_vuc: { minRealm: 7, reason: "Thiên Không Vực nằm ngoài cương phong; chỉ tu sĩ từ Hư Giới Cảnh mới đủ sức vượt tầng mây." },
@@ -739,6 +742,7 @@ window.GameEngine = (function () {
     const spiritualRootBranch = rootRoll.branch;
     const archetypeId = archetypeForRoots(spiritualRoots);
     const originSituation = rollOriginSituation(regionId, rng);
+    const startLocationId = regionId === "trung_vuc" ? START_LOCATIONS[regionId] : (originSituation.startLocationId || START_LOCATIONS[regionId]);
     const cultivationMethods = {
       kiem_tong: "Dẫn Khí Kiếm Quyết (Nhập môn)",
       huyen_co: "Huyền Cơ Nạp Khí Pháp (Nhập môn)",
@@ -749,7 +753,7 @@ window.GameEngine = (function () {
     const hiddenFates = rng() < hiddenRate / 100 ? ["luan_hoi_tien"] : [];
     return {
       startRegionId: regionId,
-      startLocationId: originSituation.startLocationId || START_LOCATIONS[regionId],
+      startLocationId,
       originSituation,
       race: weightedValue(REGION_RACE_WEIGHTS[regionId], rng),
       realmId: "di_menh",
@@ -3550,7 +3554,7 @@ window.GameEngine = (function () {
   }
 
   /* ---------- Movement ---------- */
-  const OPEN_WORLD_DELTAS = { bac: [0, 1], nam: [0, -1], dong: [1, 0], tay: [-1, 0] };
+  const OPEN_WORLD_DELTAS = { bac: [0, -1], nam: [0, 1], dong: [1, 0], tay: [-1, 0] };
   const OPEN_WORLD_OPPOSITE = { bac: "nam", nam: "bac", dong: "tay", tay: "dong" };
   function openWorldHash(x, y) {
     let h = 2166136261;
