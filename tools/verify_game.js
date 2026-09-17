@@ -751,13 +751,24 @@ function verifyMapUI(sandbox) {
   ["Dị Thể", "Cổ Tịch", "Nghề Ẩn", "Sưu Tầm", "Dị Thú", "NPC Hiếm"]
     .forEach((label) => assert(odditiesVisibleHtml.includes(label), `missing oddities UI: ${label}`));
   assert(!odditiesVisibleHtml.includes("Dị Chí"), "legacy Dị Chí label must not appear in player UI");
+  sandbox.activeTestTab = "dithe";
+  sandbox.window.GameUI.renderPanel(expansionUiState);
+  const ditheHtml = elements["tab-content"].innerHTML;
+  ["Dị Thể", "Dấu mốc", "Cái giá", "daoTamGainMult"].forEach((label) => {
+    if (label === "daoTamGainMult") assert(!ditheHtml.includes(label), "internal cost key must not appear in Dị Thể UI");
+    else assert(ditheHtml.includes(label), `missing Dị Thể UI: ${label}`);
+  });
+  sandbox.activeTestTab = "structures";
+  sandbox.window.GameUI.renderPanel(expansionUiState);
+  const structuresHtml = elements["tab-content"].innerHTML;
+  ["Công Trình", "Truyền Tống Trận", "Hộ Giới Đại Trận"].forEach((label) => assert(structuresHtml.includes(label), `missing structures UI: ${label}`));
   sandbox.activeTestTab = "status";
   sandbox.window.GameUI.renderPanel(expansionUiState);
   assert(elements["tab-content"].innerHTML.includes("Nghề Nghiệp"));
   assert(elements["tab-content"].innerHTML.includes("Chọn nghề chính"));
 
   const tabRenderState = E.createState({ character: E.createCharacter({ name: "Tab Render QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
-  ["status", "inventory", "quests", "relations", "guilds", "map", "memory", "world", "oddities", "expansion", "market", "qintian", "cauldron"].forEach((tab) => {
+  ["status", "inventory", "quests", "relations", "guilds", "map", "memory", "world", "oddities", "dithe", "structures", "expansion", "market", "qintian", "cauldron"].forEach((tab) => {
     sandbox.activeTestTab = tab;
     assert.doesNotThrow(() => sandbox.window.GameUI.renderPanel(tabRenderState), `tab render threw: ${tab}`);
     const rendered = String(elements["tab-content"].innerHTML || "");
