@@ -47,7 +47,7 @@ window.GameUI = (function () {
     return true;
   }
 
-  function renderStoryWindow(entries, visibleCount, onLoadMore) {
+  function renderStoryWindow(entries, visibleCount, onLoadMore, gameState) {
     const log = document.getElementById("story-log");
     if (!log) return false;
     log.innerHTML = "";
@@ -65,8 +65,8 @@ window.GameUI = (function () {
     const visible = list.slice(start).filter((entry) => entry && entry.type !== "COMMAND_ECHO" && !entry.debugOnly);
     // The engine owns the day-grouping contract so every surface (story panel,
     // export and regression) renders the same novel paragraph boundaries.
-    const paragraphs = window.GameEngine.novelLogParagraphs
-      ? window.GameEngine.novelLogParagraphs(state, visible)
+    const paragraphs = window.GameEngine.novelLogParagraphs && gameState
+      ? window.GameEngine.novelLogParagraphs(gameState, visible)
       : visible.map((entry) => ({ dayKey: entry.clock || entry.timestamp || "", clock: entry.clock || entry.timestamp || "", text: entry.text || "", events: [entry], portrait: entry.portrait || null }));
     paragraphs.forEach((paragraph) => {
       const entry = paragraph.events[0] || {};

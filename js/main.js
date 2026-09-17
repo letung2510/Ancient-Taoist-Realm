@@ -258,9 +258,9 @@
     document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === "status"));
     UI.showScreen("game");
     UI.clearStory();
-    UI.addStory("narr", D.WORLDS.co_di_dien.intro);
-    UI.addStory("sys", "§ " + name + " tỉnh giấc tại " + (region?.name || "một vùng đất vô danh") + ".");
-    UI.addStory("sys", E.describeFate(state));
+    E.pushHistory(state, { type: "narr", text: D.WORLDS.co_di_dien.intro });
+    E.pushHistory(state, { type: "sys", text: "§ " + name + " tỉnh giấc tại " + (region?.name || "một vùng đất vô danh") + "." });
+    E.pushHistory(state, { type: "sys", text: E.describeFate(state) });
     renderFull();
     flashSave("Đã lưu nhân vật mới");
   }
@@ -673,7 +673,7 @@
     UI.renderStoryWindow(history, storyWindowSize, () => {
       storyWindowSize = Math.min(history.length, storyWindowSize + 20);
       renderStoryWindow();
-    });
+    }, state);
   }
   function decorateFateAdvancedActions() {
     if (!state) return;
