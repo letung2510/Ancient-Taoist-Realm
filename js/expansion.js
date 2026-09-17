@@ -25,6 +25,7 @@
     return Math.max(1, mirroredWorldDay + playerDay - syncedPlayerDay);
   };
   const gameDayOrdinal = (stateOrClock) => absoluteDay(stateOrClock?.gameClock || stateOrClock);
+  const playerDay = (state) => Math.max(1, (Number(state?.gameClock?.currentYear || 1) - 1) * 360 + (Number(state?.gameClock?.currentMonth || 1) - 1) * 30 + Number(state?.gameClock?.currentDay || 1));
   const pairKey = (a, b) => [String(a), String(b)].sort().join("::");
   const itemName = (id) => D.ITEMS?.[id]?.name || E.I18n?.formatTarget(id) || "vật phẩm chưa định danh";
   const professionCatalog = () => ({ ...(X.professionItems || {}), ...(window.PROFESSION_ITEMS || {}) });
@@ -657,7 +658,7 @@
     state.fateExcessEssence -= cost.essence; state.player.merit -= cost.merit; state.player.san -= cost.san;
     state.pathState.secondaryPathId = id; state.player.secondaryPathId = id;
     state.pathState.fusionAffinity = pathFusionAffinity(primary, id);
-    state.pathState.history.push({ type: "secondary_path", from: primary, to: id, day: absoluteDay(state.gameClock), cost });
+    state.pathState.history.push({ type: "secondary_path", from: primary, to: id, day: playerDay(state), cost });
     history(state, "sys", "✦ Dung Hợp Con Đường hoàn tất: " + primary + " · " + id + ".");
     return { success: true, primaryPathId: primary, secondaryPathId: id, cost, fusionAffinity: copy(state.pathState.fusionAffinity), policy: "explicit_transition_only" };
   }
@@ -673,10 +674,10 @@
     const activeRecord = active && state.specialPhysiqueState.history.slice().reverse().find((entry) => entry.id === activeId);
     if (active && activeRecord && active.trigger === trigger && Number(activeRecord.stage || 1) < Number(active.maxStage || 1) && progress[trigger] >= Number(active.progressThreshold || 1) * (Number(activeRecord.stage || 1) + 1)) {
       activeRecord.stage = Number(activeRecord.stage || 1) + 1;
-      activeRecord.stageDay = absoluteDay(state.gameClock);
+      activeRecord.stageDay = playerDay(state);
       history(state, "narr", "Dị Thể " + active.name + " ăn sâu thêm một tầng vào huyết mạch.");
     }
-    if (candidate && progress[trigger] >= Number(candidate.progressThreshold || 1) && !state.specialPhysiqueState.activeId && !state.specialPhysiqueState.rejectedIds.includes(candidate.id)) state.specialPhysiqueState.candidates[candidate.id] = { id: candidate.id, progress: progress[trigger], discoveredDay: absoluteDay(state.gameClock), stage: 1 };
+    if (candidate && progress[trigger] >= Number(candidate.progressThreshold || 1) && !state.specialPhysiqueState.activeId && !state.specialPhysiqueState.rejectedIds.includes(candidate.id)) state.specialPhysiqueState.candidates[candidate.id] = { id: candidate.id, progress: progress[trigger], discoveredDay: playerDay(state), stage: 1 };
     return { success: true, progress: progress[trigger], candidate: candidate?.id || null };
   }
   function claimSpecialPhysique(state, id) {
@@ -689,7 +690,7 @@
     const activeProfessions = [state.professionState?.primaryId, state.professionState?.secondaryId, state.professionState?.hiddenId].filter(Boolean);
     if (activePaths.some((pathId) => (exclusions.paths || []).includes(pathId)) || activeProfessions.some((professionId) => (exclusions.professions || []).includes(professionId))) return { success: false, reason: "Dithe exclusion conflict." };
     state.specialPhysiqueState.activeId = id; state.player.specialPhysique = id;
-    state.specialPhysiqueState.history.push({ id, day: absoluteDay(state.gameClock), source: def.trigger, stage: 1, branch: def.branch || null });
+    state.specialPhysiqueState.history.push({ id, day: playerDay(state), source: def.trigger, stage: 1, branch: def.branch || null });
     history(state, "narr", "Một biến đổi sâu kín thức dậy trong huyết nhục; từ hôm nay, " + def.name + " vừa là ân huệ vừa là món nợ.");
     return { success: true, definition: def };
   }
@@ -2086,7 +2087,7 @@
 
   function recordRelationshipEvent(state, npcId, tag, options = {}) {
     ensure(state);
-    const uniqueKey = options.uniqueKey || tag + ":" + absoluteDay(state.gameClock);
+    const uniqueKey = options.uniqueKey || tag + ":" + playerDay(state);
     const events = state.relationshipEvents[npcId] ||= [];
     if (events.some((event) => event.uniqueKey === uniqueKey)) return { success: false, duplicate: true };
     const defaults = {
@@ -2096,7 +2097,7 @@
     const relation = state.relationships[npcId] ||= { schemaVersion: 1, trust: 0, fear: 0, respect: 0, suspicion: 0, loyalty: 0, score: 0, decayPolicy: "event_only" };
     Object.entries(deltas).forEach(([key, value]) => { relation[key] = clamp(Number(relation[key] || 0) + Number(value), 0, 100); });
     relation.score = Number(relation.trust || 0) + Number(relation.respect || 0) - (Number(relation.fear || 0) + Number(relation.suspicion || 0)) * 0.5;
-    const event = { id: uid(state, "relation"), tag, day: absoluteDay(state.gameClock), locationId: state.locationId, questId: options.questId || null, outcome: options.outcome || null, deltas, uniqueKey };
+    const event = { id: uid(state, "relation"), tag, day: playerDay(state), locationId: state.locationId, questId: options.questId || null, outcome: options.outcome || null, deltas, uniqueKey };
     events.push(event); if (events.length > 20) events.shift();
     const npcRuntime = state.worldSimulation.npcState[npcId]; if (npcRuntime) { npcRuntime.memoryWithPlayer.push(event); if (npcRuntime.memoryWithPlayer.length > 10) npcRuntime.memoryWithPlayer.shift(); }
     return { success: true, relation, event };
@@ -2270,7 +2271,7 @@
     const record = professionRecord(state, id); if (!record) return { success: false, reason: "Nghề không hợp lệ." };
     if (!options.skipCost && Number(state.player.stamina || 0) < 5) return { success: false, reason: "Cần 5 Thể Lực." };
     if (!options.skipCost) state.player.stamina -= 5; const gain = state.professionState.primaryId === id ? 12 : 3;
-    record.masteryExp += gain; record.masteryStage = record.masteryExp >= 300 ? 3 : record.masteryExp >= 100 ? 2 : record.masteryExp >= 25 ? 1 : 0; record.lastActionDay = absoluteDay(state.gameClock);
+    record.masteryExp += gain; record.masteryStage = record.masteryExp >= 300 ? 3 : record.masteryExp >= 100 ? 2 : record.masteryExp >= 25 ? 1 : 0; record.lastActionDay = playerDay(state);
     history(state, "sys", "§ " + professionDefinition(id).name + " Thục Luyện +" + gain + "."); return { success: true, gain, record };
   }
   function chooseProfessionLocked(state, id) {
@@ -2306,9 +2307,9 @@
     const key = item.action || itemId;
     const record = state.professionItemState[key] || { uses: 0, charges: Number(item.charges || 1), lastUseDay: -999999, effects: {} };
     if (record.charges == null) record.charges = Number(item.charges || 1);
-    if (absoluteDay(state.gameClock) < Number(record.lastUseDay || -999999) + Number(item.cooldownDays || 0)) return { success: false, reason: "Vật phẩm nghề đang hồi phục linh lực." };
+    if (playerDay(state) < Number(record.lastUseDay || -999999) + Number(item.cooldownDays || 0)) return { success: false, reason: "Vật phẩm nghề đang hồi phục linh lực." };
     if (Number(record.charges || 0) <= 0) return { success: false, reason: "Vật phẩm nghề đã dùng hết số lần ghi chép." };
-    record.uses += 1; record.charges -= 1; record.lastUseDay = absoluteDay(state.gameClock);
+    record.uses += 1; record.charges -= 1; record.lastUseDay = playerDay(state);
     Object.assign(record.effects, item.effect || {}); state.professionItemState[key] = record;
     history(state, "sys", "§ Đã sử dụng " + item.name + " · hiệu quả nghề nghiệp được ghi nhận.");
     return { success: true, itemId, action: key, remainingCharges: record.charges, effects: record.effects };
@@ -2389,9 +2390,9 @@
     const record = professionRecord(state, "tuong_su"); if (!record) return { success: false };
     const npc = D.NPCS?.[npcId] || E.getEntity?.(npcId); if (!npc) return { success: false, reason: "Không có mục tiêu." };
     practiceProfession(state, "tuong_su");
-    const success = seeded(state, "physiognomy:" + npcId, absoluteDay(state.gameClock), record.masteryExp) < clamp(0.4 + state.player.comprehension / 200, 0.4, 0.9);
+    const success = seeded(state, "physiognomy:" + npcId, playerDay(state), record.masteryExp) < clamp(0.4 + state.player.comprehension / 200, 0.4, 0.9);
     const clue = success ? "Khí tức: " + (npc.element || npc.alignment || npc.entity_type || "khó phân") : "Tướng mạo bị thiên cơ che lấp.";
-    state.intel["face:" + npcId] = { id: "face:" + npcId, topicType: "npc", targetId: npcId, claim: clue, confidence: success ? 0.8 : 0.3, sourceId: "tuong_su", acquiredDay: absoluteDay(state.gameClock), expiresDay: absoluteDay(state.gameClock) + 30, verified: success };
+    state.intel["face:" + npcId] = { id: "face:" + npcId, topicType: "npc", targetId: npcId, claim: clue, confidence: success ? 0.8 : 0.3, sourceId: "tuong_su", acquiredDay: playerDay(state), expiresDay: playerDay(state) + 30, verified: success };
     history(state, "sys", "◇ Xem tướng " + (npc.name || npcId) + ": " + clue); return { success, clue };
   }
 
@@ -2400,7 +2401,7 @@
     Object.entries(state.player.techniques || {}).forEach(([id, progress]) => {
       const choices = X.techniqueEvolutions?.[id];
       if (!choices?.length || Number(progress.masteryStage || 0) < 2 || progress.evolution?.status !== "locked") return;
-      progress.evolution = { status: "trial", trialType: choices[0].trial || "cultivation", progress: 0, evolutionId: null, startedDay: absoluteDay(state.gameClock) };
+      progress.evolution = { status: "trial", trialType: choices[0].trial || "cultivation", progress: 0, evolutionId: null, startedDay: playerDay(state) };
       history(state, "sys", "✦ Công Pháp " + (E.getKnownTechniques(state).find((entry) => entry.id === id)?.name || id) + " mở Thí Luyện Tiến Hóa.");
     });
   }
@@ -2414,7 +2415,7 @@
   function chooseTechniqueEvolution(state, techniqueId, evolutionId) {
     ensure(state); const progress = state.player.techniques?.[techniqueId], choice = X.techniqueEvolutions?.[techniqueId]?.find((entry) => entry.id === evolutionId);
     if (!progress || progress.evolution?.status !== "ready" || !choice) return { success: false, reason: "Chưa thể chọn tiến hóa này." };
-    progress.evolution.status = "chosen"; progress.evolution.evolutionId = evolutionId; progress.evolution.chosenAtDay = absoluteDay(state.gameClock);
+    progress.evolution.status = "chosen"; progress.evolution.evolutionId = evolutionId; progress.evolution.chosenAtDay = playerDay(state);
     history(state, "sys", "✦ Công Pháp tiến hóa: " + choice.name + "."); return { success: true, choice };
   }
   function techniqueEvolutionModifiers(state, techniqueId) {
@@ -2441,7 +2442,7 @@
     const eligibility = fateEvolutionEligibility(state, fateId); if (!eligibility.eligible) return { success: false, blockers: eligibility.blockers, reason: eligibility.blockers.join("; ") };
     const existing = state.player.fateEvolutions[fateId]; if (existing?.status === "trial" || existing?.status === "ready") return { success: true, evolution: existing };
     const candidates = fateEvolutionCandidates(state, fateId); if (!candidates.length) candidates.push(copy((X.fateEvolutionBranches || [])[2]));
-    const evolution = state.player.fateEvolutions[fateId] = { status: "trial", trialStartedDay: absoluteDay(state.gameClock), seed: hash(state.worldSimulation.seed + fateId), candidateBranchIds: candidates.map((entry) => entry.id), branchId: null, evolvedAtDay: null, sourceEnhancementLevel: 5, version: 1 };
+    const evolution = state.player.fateEvolutions[fateId] = { status: "trial", trialStartedDay: playerDay(state), seed: hash(state.worldSimulation.seed + fateId), candidateBranchIds: candidates.map((entry) => entry.id), branchId: null, evolvedAtDay: null, sourceEnhancementLevel: 5, version: 1 };
     const relation = state.player.fateRelationships[fateId]; relation.eliteTrials = 0; relation.alignedChoices = 0;
     history(state, "sys", "✦ " + fateName(fateId) + " mở Mệnh Kiếp: thắng 2 tinh anh hoặc thực hiện 3 lựa chọn tương ứng."); return { success: true, evolution };
   }
@@ -2477,7 +2478,7 @@
     if (preview.branch.dangerous && !options.confirmed) return { success: false, requiresConfirmation: true, reason: "Nghịch Diễn cần xác nhận phản phệ." };
     if (Number(state.fateExcessEssence || 0) < preview.costs.essence || Number(state.player.merit || 0) < preview.costs.merit || Number(state.player.san || 0) < preview.costs.san) return { success: false, reason: "Không đủ Mệnh Tinh Hoa, Công Đức hoặc Thanh Tỉnh.", costs: preview.costs };
     state.fateExcessEssence -= preview.costs.essence; state.player.merit -= preview.costs.merit; state.player.san -= preview.costs.san;
-    evolution.status = "evolved"; evolution.branchId = branchId; evolution.evolvedAtDay = absoluteDay(state.gameClock);
+    evolution.status = "evolved"; evolution.branchId = branchId; evolution.evolvedAtDay = playerDay(state);
     const relation = state.player.fateRelationships[fateId]; relation.stage = 4;
     if (preview.branch.fateDebt) state.player.fateDebt = Number(state.player.fateDebt || 0) + preview.branch.fateDebt;
     history(state, "sys", "✦ " + fateName(fateId) + " tiến hóa thành " + preview.branch.name + " · Nhân Mệnh Hợp Nhất."); E.updateDerived(state);

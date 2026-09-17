@@ -4443,7 +4443,8 @@ window.GameEngine = (function () {
   }
   function processOnlineFateReward(state) {
     const clock = ensureGameClock(state);
-    const dayIndex = Math.max(gameDayIndex(clock), Number(state.worldClock?.absoluteDay || clock.worldAbsoluteDay || 0));
+    const storedTarget = Number(clock.nextOnlineFateDay || 0);
+    const dayIndex = storedTarget >= WORLD_CLOCK_EPOCH_DAY ? Math.max(gameDayIndex(clock), Number(state.worldClock?.absoluteDay || clock.worldAbsoluteDay || 0)) : gameDayIndex(clock);
     if (dayIndex < Number(clock.nextOnlineFateDay || 0)) return null;
     const dominant = dominantFateGrade(state); const maxRank = Math.min(8, Number(dominant.rank || 1) + 1);
     const fate = rollFateByProgression(state, { source: "online", level: cultivationTier(state), gradeCap: maxRank });
@@ -4470,6 +4471,9 @@ window.GameEngine = (function () {
   function clockLabel(state) {
     const c = ensureGameClock(state);
     return "Nhân vật · Năm " + c.currentYear + ", Tháng " + c.currentMonth + ", Ngày " + c.currentDay;
+  }
+  function playerDayOrdinal(state) {
+    return gameDayIndex(ensureGameClock(state));
   }
   function worldClockLabel(state) {
     const c = ensureWorldClock(state);
