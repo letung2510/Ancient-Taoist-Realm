@@ -27,51 +27,52 @@ const BACKGROUNDS = ["Tông Môn", "Thế Gia", "Tán Tu", "Hắc Đạo", "Vô 
 const GOALS = ["Báo thù", "Tìm cơ duyên", "Bảo vệ môn phái", "Thống nhất vùng", "Trốn tránh quá khứ", "Trường sinh"];
 const COMMON_ROOTS = ["Kim", "Mộc", "Thủy", "Hỏa", "Thổ"];
 const EXOTIC_ROOTS = ["Băng", "Lôi", "Phong", "Âm", "Dương", "Không Gian"];
-const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const defaultRandom = () => Math.random();
+const rand = (min, max, rng = defaultRandom) => Math.floor(rng() * (max - min + 1)) + min;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
-function weightedValue(entries) {
-  let roll = Math.random() * entries.reduce((sum, entry) => sum + entry[1], 0);
+function weightedValue(entries, rng = defaultRandom) {
+  let roll = rng() * entries.reduce((sum, entry) => sum + entry[1], 0);
   for (const entry of entries) { roll -= entry[1]; if (roll < 0) return entry[0]; }
   return entries[entries.length - 1][0];
 }
-function sampleDistinct(pool, count) {
+function sampleDistinct(pool, count, rng = defaultRandom) {
   const source = pool.slice(); const result = [];
-  while (result.length < count && source.length) result.push(source.splice(rand(0, source.length - 1), 1)[0]);
+  while (result.length < count && source.length) result.push(source.splice(rand(0, source.length - 1, rng), 1)[0]);
   return result;
 }
-function gaussianAttribute() {
-  const u1 = Math.max(Number.EPSILON, Math.random()); const u2 = Math.random();
+function gaussianAttribute(rng = defaultRandom) {
+  const u1 = Math.max(Number.EPSILON, rng()); const u2 = rng();
   return clamp(Math.round(50 + Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * 15), 1, 100);
 }
-function rollSpiritualRootBranch() {
-  const roll = Math.random() * 100;
-  if (roll < 50) return { branch: "tap", elements: sampleDistinct(COMMON_ROOTS, rand(4, 5)) };
-  if (roll < 85) return { branch: "song_tam", elements: sampleDistinct(COMMON_ROOTS, rand(2, 3)) };
-  if (roll < 95) return { branch: "don", elements: sampleDistinct(COMMON_ROOTS, 1) };
+function rollSpiritualRootBranch(rng = defaultRandom) {
+  const roll = rng() * 100;
+  if (roll < 50) return { branch: "tap", elements: sampleDistinct(COMMON_ROOTS, rand(4, 5, rng), rng) };
+  if (roll < 85) return { branch: "song_tam", elements: sampleDistinct(COMMON_ROOTS, rand(2, 3, rng), rng) };
+  if (roll < 95) return { branch: "don", elements: sampleDistinct(COMMON_ROOTS, 1, rng) };
   if (roll < 99) {
     const sets = [
       ["Kim", "Thủy"], ["Thủy", "Mộc"], ["Mộc", "Hỏa"], ["Hỏa", "Thổ"], ["Thổ", "Kim"],
       ["Thủy", "Mộc", "Hỏa"]
     ];
-    return { branch: "hiem", elements: sets[rand(0, sets.length - 1)].slice() };
+    return { branch: "hiem", elements: sets[rand(0, sets.length - 1, rng)].slice() };
   }
-  return { branch: "di", elements: sampleDistinct(EXOTIC_ROOTS, 1) };
+  return { branch: "di", elements: sampleDistinct(EXOTIC_ROOTS, 1, rng) };
 }
-function rollSpiritualRoots() {
-  return rollSpiritualRootBranch().elements;
+function rollSpiritualRoots(rng = defaultRandom) {
+  return rollSpiritualRootBranch(rng).elements;
 }
 
-function rollFates() {
+function rollFates(rng = defaultRandom) {
   const gradeRank = { pham: 1, linh: 2, hoang: 3, huyen: 4, dia: 5, thien: 6, thanh: 7, tien: 8 };
   const eligible = fatePool.fates.filter((fate) => (fate.tier || gradeRank[fate.grade] || 99) <= 3);
   for (let attempt = 0; attempt < 500; attempt += 1) {
     const available = eligible.slice(); const selected = [];
     while (selected.length < 5) {
-      const targetTier = weightedValue([[1, 65], [2, 30], [3, 5]]);
+      const targetTier = weightedValue([[1, 65], [2, 30], [3, 5]], rng);
       let pool = available.filter((fate) => (fate.tier || gradeRank[fate.grade]) === targetTier);
       if (!pool.length) pool = available;
-      const picked = pool[rand(0, pool.length - 1)];
+      const picked = pool[rand(0, pool.length - 1, rng)];
       selected.push({ ...picked });
       available.splice(available.findIndex((fate) => fate.id === picked.id), 1);
     }
@@ -81,24 +82,25 @@ function rollFates() {
 }
 
 function generateCharacter(input = {}) {
+  const rng = typeof input.rng === "function" ? input.rng : defaultRandom;
   const regionId = input.startRegionId || "trung_vuc";
   if (!REGION_RACE_WEIGHTS[regionId]) throw new RangeError("Nơi bắt đầu không hợp lệ.");
   if (HIGH_REALM_ORIGINS.has(regionId)) throw new RangeError("Nhân vật Di Mệnh Cảnh không thể chọn vùng cao giai làm nơi xuất thân.");
-  const fates = rollFates();
-  const hiddenFates = Math.random() < pathFateRelations.hidden_fates.luan_hoi_tien.roll_probability_percent / 100 ? ["luan_hoi_tien"] : [];
+  const fates = rollFates(rng);
+  const hiddenFates = rng() < pathFateRelations.hidden_fates.luan_hoi_tien.roll_probability_percent / 100 ? ["luan_hoi_tien"] : [];
   const total = fates.reduce((sum, fate) => sum + Number(fate.score || 0), 0);
   const normal = fates.filter((fate) => fate.sign !== "hung" && !String(fate.type || "").toLowerCase().includes("hung")).reduce((sum, fate) => sum + Number(fate.score || 0), 0);
-  const phy = input.basePhy ?? rand(10, 20); const mag = input.baseMag ?? rand(10, 20);
-  const aptitude = input.aptitude ?? gaussianAttribute(); const comprehension = input.comprehension ?? gaussianAttribute();
+  const phy = input.basePhy ?? rand(10, 20, rng); const mag = input.baseMag ?? rand(10, 20, rng);
+  const aptitude = input.aptitude ?? gaussianAttribute(rng); const comprehension = input.comprehension ?? gaussianAttribute(rng);
   const equippedIds = fates.map((fate) => fate.id);
-  const rootRoll = input.spiritualRoots ? { elements: input.spiritualRoots.slice(), branch: null } : rollSpiritualRootBranch();
+  const rootRoll = input.spiritualRoots ? { elements: input.spiritualRoots.slice(), branch: null } : rollSpiritualRootBranch(rng);
   return {
-    id: input.id || `char_${Date.now()}_${rand(1000, 9999)}`,
+    id: input.id || `char_${Date.now()}_${rand(1000, 9999, rng)}`,
     name: input.name || "Vô Danh",
-    origin: { regionId, locationId: START_LOCATIONS[regionId], race: input.race || weightedValue(REGION_RACE_WEIGHTS[regionId]), background: input.background || BACKGROUNDS[rand(0, BACKGROUNDS.length - 1)], personality: input.personalityTraits || sampleDistinct(TRAITS, 2), hiddenGoal: input.hiddenGoal || GOALS[rand(0, GOALS.length - 1)], spiritualRoots: rootRoll.elements, spiritualRootBranch: rootRoll.branch },
+    origin: { regionId, locationId: START_LOCATIONS[regionId], race: input.race || weightedValue(REGION_RACE_WEIGHTS[regionId], rng), background: input.background || BACKGROUNDS[rand(0, BACKGROUNDS.length - 1, rng)], personality: input.personalityTraits || sampleDistinct(TRAITS, 2, rng), hiddenGoal: input.hiddenGoal || GOALS[rand(0, GOALS.length - 1, rng)], spiritualRoots: rootRoll.elements, spiritualRootBranch: rootRoll.branch },
     realm: { id: "di_menh", level: 1, title: "Di Mệnh Cảnh", exp: 0 },
     path: { primary: null, secondary: null, pathScore: 0, professionStage: null },
-    stats: { phy, mag, aptitude, comprehension, vitality: phy * 8 + 40, staminaCurrent: 100, staminaMax: 100 + phy * 2, san: 100, sanMax: 100, corruption: 0, lifespan: rand(60, 80) },
+    stats: { phy, mag, aptitude, comprehension, vitality: phy * 8 + 40, staminaCurrent: 100, staminaMax: 100 + phy * 2, san: 100, sanMax: 100, corruption: 0, lifespan: rand(60, 80, rng) },
     fate: { equippedIds, vaultIds: [], vaultCapacity: equippedIds.length * 2, total, normal, ratioR: Number((total / Math.max(1, Math.abs(normal))).toFixed(3)), debt: 0, surplus: 0, pacts: [] },
     anchors: [], techniqueIds: ["kiem_khi_so_cap", "tam_phap_dan_dien"],
     hiddenFates, hiddenProfessionCandidate: hiddenFates.includes("luan_hoi_tien") ? "luan_hoi_tien" : null, hiddenProfession: null,

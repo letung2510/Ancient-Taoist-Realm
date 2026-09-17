@@ -188,4 +188,16 @@ niệm quyết hộ thân, lùi sâu vào trong tường viện."
 
 ## AMENDMENT 2026-09-16 — DAILY SCENE GROUPING CONTRACT
 
-`renderScene` và UI story log dùng cùng một date-scene key: Năm + Tháng + Ngày + node/sub-location. Nhiều sự kiện trong cùng key được nối bằng khoảng trắng thành một đoạn văn theo văn phong tiểu thuyết; timestamp chỉ xuất một lần. Đây là contract bắt buộc cho cả log online và log khôi phục từ save.
+`renderScene`, `GameEngine.novelLogParagraphs()` và UI story log dùng cùng một
+date key: Năm + Tháng + Ngày. Mọi sự kiện trong cùng ngày được nối bằng khoảng
+trắng thành một đoạn văn theo văn phong tiểu thuyết, kể cả khi nhân vật đổi
+node/sub-location; timestamp chỉ xuất một lần. Đây là contract bắt buộc cho cả
+log online và log khôi phục từ save.
+
+## IMPLEMENTATION STATUS 2026-09-16
+
+- Đã nối NPC/weather vào cùng narrative boundary; NPC chỉ phát log khi đang ở cùng node/sub-location với người chơi, còn mô phỏng nền không spam nhật ký.
+- Đã có template theo thời tiết và vai trò NPC cho tuyết, mưa/âm vũ, sương, lôi vũ và linh phong; mỗi template có hình ảnh hoặc âm thanh, phản ứng cá nhân và hành động cụ thể.
+- `narrativeSafe()` xử lý fallback cuối cùng, chuyển cấu trúc announcement thành câu kể, loại technical token và cấm dấu `:` trong narrative paragraph. Stat Display là kênh riêng.
+- `novelLogParagraphs()` là grouping API canonical; `renderScene()` và UI story window dùng cùng date grouping, đặt stat summary ở cuối đoạn văn.
+- Regression bắt buộc đã được chạy qua `verify_log_narrative.js`, `verify_expansion_log_matrix.js`, `verify_game.js`, `verify_dichi_deep.js` và `verify_indexeddb_archive.js`.

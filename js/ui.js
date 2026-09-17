@@ -63,25 +63,24 @@ window.GameUI = (function () {
       log.appendChild(older);
     }
     const visible = list.slice(start).filter((entry) => entry && entry.type !== "COMMAND_ECHO" && !entry.debugOnly);
-    const dateKey = (entry) => {
-      const clock = String(entry.clock || entry.timestamp || "");
-      const match = clock.match(/Năm\s*[^,·]+[,·]\s*Tháng\s*[^,·]+[,·]?\s*Ngày\s*[^,·]+/i);
-      return match ? match[0].replace(/\s+/g, " ").trim() : clock.split(/Ngày/i)[0].trim();
-    };
-    const sceneKey = (entry) => dateKey(entry) + "|" + String(entry.nodeId || entry.locationId || entry.context?.locationId || "") + "|" + String(entry.subLocationId || entry.context?.subLocationId || "");
-    const groups = [];
-    visible.forEach((entry) => {
-      const text = entry.text || entry.narrative?.text || "";
-      if (!text) return;
-      const last = groups[groups.length - 1];
-      if (last && last.key === sceneKey(entry)) last.texts.push(text);
-      else groups.push({ key: sceneKey(entry), entry, texts: [text] });
-    });
-    groups.forEach((group) => {
-      const entry = group.entry;
+    // The engine owns the day-grouping contract so every surface (story panel,
+    // export and regression) renders the same novel paragraph boundaries.
+    const paragraphs = window.GameEngine.novelLogParagraphs
+      ? window.GameEngine.novelLogParagraphs(state, visible)
+      : visible.map((entry) => ({ dayKey: entry.clock || entry.timestamp || "", clock: entry.clock || entry.timestamp || "", text: entry.text || "", events: [entry], portrait: entry.portrait || null }));
+    paragraphs.forEach((paragraph) => {
+      const entry = paragraph.events[0] || {};
       const rawType = String(entry.uiType || entry.type || "narr").toLowerCase();
       const cls = rawType === "system" ? (entry.severity === "warning" ? "warn" : "sys") : rawType;
-      addStory(cls, group.texts.join(" "), entry.portrait, entry.clock || entry.timestamp || null);
+      const stats = paragraph.events
+        .flatMap((item) => Array.isArray(item.statDisplay) ? item.statDisplay : (Array.isArray(item.changes) ? item.changes.map((change) => {
+          const label = change.label || change.stat || change.key || "Giá trị";
+          const delta = Number(change.delta);
+          return Number.isFinite(delta) ? label + (delta >= 0 ? " +" : " ") + delta : label + " — " + (change.value ?? "—");
+        }) : []))
+        .filter(Boolean);
+      const statLine = [...new Set(stats)].length ? "\n◇ " + [...new Set(stats)].join(" · ") : "";
+      addStory(cls, paragraph.text + statLine, paragraph.portrait || entry.portrait, paragraph.clock || entry.clock || entry.timestamp || null);
     });
     log.scrollTop = log.scrollHeight;
     return true;
@@ -234,18 +233,46 @@ window.GameUI = (function () {
     return '<button class="guild-action" data-expansion-command="' + escapeHtml(command) + '" data-expansion-arg="' + escapeHtml(arg) + '" ' + extra + '>' + escapeHtml(label) + '</button>';
   }
 
+  function renderNpcWorldSignals(state) {
+    const actors = Object.values(state.worldSimulation?.npcState || {}).filter((npc) => npc.status === "alive" && npc.currentNodeId === state.locationId);
+    if (!actors.length) return '<div class="section-title">NPC tại node</div><p class="muted">Không có nhân vật đang hiện diện tại node này.</p>';
+    const rows = actors.map((npc) => {
+      const rumors = (npc.rumors || []).filter((rumor) => Number(rumor.expiresDay || 0) >= Number(state.worldSimulation?.lastProcessedDay || 0));
+      const queue = npc.aiState === "queued" ? ' · Hàng chờ ' + Number(npc.queueRank || 0) : '';
+      const stateLabel = npc.aiState === "queued" ? "Đang chờ" : npc.aiState === "travel" ? "Đang di chuyển" : npc.aiState === "shelter" ? "Trú ẩn" : npc.aiState === "combat" ? "Giao chiến" : "Hiện diện";
+      return '<div class="item-row"><b>' + escapeHtml(npc.name || window.GameData.NPCS?.[npc.npcId]?.name || npc.npcId) + '</b><small> · ' + escapeHtml(stateLabel) + queue + ' · Tin đồn đã biết: ' + rumors.length + '</small>' + (rumors.length ? '<p class="muted">' + escapeHtml(rumors.slice(-2).map((rumor) => rumor.text || rumor.key).join(' · ')) + '</p>' : '') + '</div>';
+    }).join("");
+    return '<div class="section-title">NPC tại node · trạng thái thế giới</div>' + rows;
+  }
+  function renderFactionBulletin(state) {
+    const factionId = state.guildMembership?.guildId || state.player?.tainted?.faction || null;
+    const rows = window.GameEngine.factionBulletin?.(state, factionId) || [];
+    if (!rows.length) return '<div class="section-title">Bản Tin Thế Lực</div><p class="muted">Chưa có tin đồn đủ độ tin cậy từ mạng lưới thế lực.</p>';
+    return '<div class="section-title">Bản Tin Thế Lực</div>' + rows.map((entry) => '<div class="item-row"><b>' + escapeHtml(entry.text) + '</b><small> · Tin cậy ' + Math.round(Number(entry.confidence || 0) * 100) + '% · Ưu tiên ' + Number(entry.priority || 0) + ' · Hết hạn ngày ' + Number(entry.expiresDay || 0) + ' · Nguồn ' + Number(entry.sourceNpcIds?.length || 0) + '</small></div>').join('');
+  }
+
   function renderWorld(state) {
     const E = window.GameEngine, s = E.expansionSummary ? E.expansionSummary(state) : null;
     if (!s) return '<p class="muted">Chưa nạp dữ liệu Thế Giới.</p>';
+    const node = E.mapNode?.(state, state.locationId);
+    const nodeHistory = (node?.history || []).slice(-6).reverse();
+    const historyLabels = { weather: "Thiên tượng", sub_location: "Điểm nhỏ", structure: "Công trình", structure_transfer: "Chuyển chủ", faction_change: "Thế lực", actor: "Nhân vật", completion: "Khám phá" };
+    const historyHtml = '<div class="section-title">Dấu vết gần đây tại node</div>' + (nodeHistory.length
+      ? '<div class="detail-block node-history">' + nodeHistory.map((entry) => '<div class="item-row"><b>' + escapeHtml(historyLabels[entry.type] || entry.type || "Biến chuyển") + '</b><small> · Ngày ' + Number(entry.day || 0) + ' · ' + escapeHtml(entry.summary || "Một biến chuyển vừa được ghi nhận.") + '</small></div>').join("") + '</div>'
+      : '<p class="muted">Chưa có biến chuyển cục bộ nào được ghi lại.</p>');
     const event = s.event ? '<div class="detail-block"><b>☄ ' + escapeHtml(s.event.name || "Dị Triều") + '</b><br>Pha hiện tại: ' + escapeHtml(s.event.phase || "đang diễn ra") + ' · kết thúc ngày ' + s.event.phaseEndsDay + '</div>' : '<p class="muted">Khu vực hiện không có Dị Triều.</p>';
       const weatherLabel = window.GameI18n?.weather ? window.GameI18n.weather(s.weather) : s.weather;
       const preview = window.GameEngine.worldModifierPreview?.(state) || {};
       const professionId = state.professionState?.primaryId; const professionName = window.EXPANSION_DATA?.professionDefinitions?.[professionId]?.name || window.EXPANSION_DATA?.hiddenProfessions?.[professionId]?.name || "Chưa chọn"; const secondaryId = state.professionState?.secondaryId; const secondaryName = window.EXPANSION_DATA?.hiddenProfessions?.[secondaryId]?.name || ""; const professionStage = Number(state.professionState?.professions?.[professionId]?.masteryStage || 0);
       const mapState = state.mapState || {};
       const structures = (mapState.structures?.[state.locationId] || []).map((item) => item.type === "waystation" ? "Truyền Tống Trận" : item.type === "ward_formation" ? "Hộ Giới Đại Trận" : item.type).join(" · ") || "Chưa có";
-      const construction = '<div class="section-title">Công Trình Bản Đồ</div><div class="detail-block"><p>Node hiện tại: <b>' + escapeHtml(state.locationId || "chưa rõ") + '</b></p><p>Đã dựng: ' + escapeHtml(structures) + '</p><div class="item-actions">' + expansionButton("build_structure", "Dựng Truyền Tống Trận · 20 Linh Thạch", state.locationId, 'data-expansion-arg2="teleport_array"') + expansionButton("build_structure", "Dựng Hộ Giới Đại Trận · 15 Linh Thạch", state.locationId, 'data-expansion-arg2="world_ward"') + '</div></div>';
+      const structureActions = (mapState.structures?.[state.locationId] || []).filter((item) => item.status !== "dismantled").map((item) => '<div class="item-row"><b>' + escapeHtml(item.type === "waystation" ? "Truyền Tống Trận" : item.type === "ward_formation" ? "Hộ Giới Đại Trận" : item.type) + '</b><small> · Cấp ' + Number(item.level || 1) + ' · Độ bền ' + Number(item.integrity || 0) + '% · ' + escapeHtml(item.status || "active") + '</small><div class="item-actions">' + expansionButton("structure_repair", "Sửa chữa", state.locationId, 'data-expansion-arg2="' + escapeHtml(item.id) + '"') + expansionButton("structure_upgrade", "Nâng cấp", state.locationId, 'data-expansion-arg2="' + escapeHtml(item.id) + '"') + expansionButton("structure_dismantle", "Tháo dỡ", state.locationId, 'data-expansion-arg2="' + escapeHtml(item.id) + '"') + '</div></div>').join("");
+      const outpost = mapState.outposts?.[state.locationId];
+      const outpostActions = outpost ? (outpost.ownerType === "player" ? expansionButton("petition_outpost", "Dâng trạm cho thế lực", state.locationId) : '<small> · Thuộc thế lực: ' + escapeHtml(outpost.ownerId || "không rõ") + '</small>') : expansionButton("claim_outpost", "Lập trạm · 10 Linh Thạch", state.locationId);
+      const construction = '<div class="section-title">Công Trình Bản Đồ</div><div class="detail-block"><p>Node hiện tại: <b>' + escapeHtml(state.locationId || "chưa rõ") + '</b></p><p>Đã dựng: ' + escapeHtml(structures) + '</p>' + structureActions + '<div class="item-actions">' + expansionButton("build_structure", "Dựng Truyền Tống Trận · 20 Linh Thạch", state.locationId, 'data-expansion-arg2="teleport_array"') + expansionButton("build_structure", "Dựng Hộ Giới Đại Trận · 15 Linh Thạch", state.locationId, 'data-expansion-arg2="world_ward"') + outpostActions + '</div></div>';
       const contracts = (s.contracts || []).map((contract) => '<div class="item-row"><b>' + escapeHtml(window.GameI18n?.formatContract(contract) || "Khế Ước") + '</b><small> · ' + escapeHtml(window.GameI18n?.formatTarget(contract, state) || "Mục tiêu theo dấu") + ' · hết hạn ngày ' + Number(contract.expiresDay || 0) + '</small>' + expansionButton("contract_accept", "Nhận khế ước", contract.id) + '</div>').join("") || '<p class="muted">Chưa có khế ước mới.</p>';
-      return '<div class="section-title">Thế Sự · Ngày ' + s.day + '</div><div class="detail-block"><div class="kv"><span>Mùa</span><b>' + escapeHtml(s.season.name) + '</b></div><div class="kv"><span>Thời tiết</span><b>' + escapeHtml(weatherLabel) + '</b></div><small>Ảnh hưởng hiện tại: Tu luyện ×' + Number(preview.cultivationMult || 1).toFixed(2) + ' · Nguy cơ di chuyển ' + (Number(preview.travelRiskDelta || 0) * 100).toFixed(0) + '% · Tìm kiếm ' + (Number(preview.searchRewardMult || 1) * 100).toFixed(0) + '% thưởng</small></div>' + event + construction + '<div class="section-title">Khế Ước Khu Vực</div>' + contracts + '<div class="section-title">Chiến Sự & Đại Hội</div><p>Chiến sự đang hoạt động: ' + s.wars.length + '</p><div class="detail-block"><b>Nghề chính: ' + escapeHtml(professionName) + '</b>' + (secondaryName ? '<small> · Nghề Ẩn: ' + escapeHtml(secondaryName) + '</small>' : '') + '<small> · Bậc ' + professionStage + ' · mở hồ sơ tại panel Nhân Vật</small></div><div class="item-actions"><button class="guild-action" data-expansion-modal="guild-project">Công Trình Tông Môn</button><button class="guild-action" data-expansion-modal="opportunity">Xem Cơ Duyên</button></div>';
+      const weatherHistoryHtml = (s.weatherHistory || []).length ? '<small>Chuyển thiên tượng gần đây: ' + s.weatherHistory.slice().reverse().map((item) => escapeHtml((item.from || '—') + ' → ' + (item.to || '—') + ' · ngày ' + (item.day || '—'))).join(' · ') + '</small>' : '';
+      return '<div class="section-title">Thế Sự · Ngày ' + s.day + '</div><div class="detail-block"><div class="kv"><span>Mùa</span><b>' + escapeHtml(s.season.name) + '</b></div><div class="kv"><span>Thời tiết</span><b>' + escapeHtml(weatherLabel) + '</b></div><small>Mức độ ' + Number(s.weatherSeverity || 0) + ' · hiệu lực tới ngày ' + Number(s.weatherUntilDay || 0) + '</small><br>' + weatherHistoryHtml + '<br><small>Ảnh hưởng hiện tại: Tu luyện ×' + Number(preview.cultivationMult || 1).toFixed(2) + ' · Nguy cơ di chuyển ' + (Number(preview.travelRiskDelta || 0) * 100).toFixed(0) + '% · Tìm kiếm ' + (Number(preview.searchRewardMult || 1) * 100).toFixed(0) + '% thưởng</small></div>' + event + construction + '<div class="section-title">Khế Ước Khu Vực</div>' + contracts + '<div class="section-title">Chiến Sự & Đại Hội</div><p>Chiến sự đang hoạt động: ' + s.wars.length + '</p><div class="detail-block"><b>Nghề chính: ' + escapeHtml(professionName) + '</b>' + (secondaryName ? '<small> · Nghề Ẩn: ' + escapeHtml(secondaryName) + '</small>' : '') + '<small> · Bậc ' + professionStage + ' · mở hồ sơ tại panel Nhân Vật</small></div><div class="item-actions"><button class="guild-action" data-expansion-modal="guild-project">Công Trình Tông Môn</button><button class="guild-action" data-expansion-modal="opportunity">Xem Cơ Duyên</button></div>' + historyHtml;
   }
   function renderProfessionSection(state) {
     const base = Object.values(window.EXPANSION_DATA?.professionDefinitions || {});
@@ -300,11 +327,15 @@ window.GameUI = (function () {
     const ps = state.specialPhysiqueState || {};
     const physiqueRows = Object.values(physique).map((def) => {
       const active = ps.activeId === def.id, candidate = ps.candidates?.[def.id];
-      const status = active ? "Đang thức tỉnh" : candidate ? "Đã hé lộ · có thể nhận" : "Chưa hé lộ";
+      const progress = Number(ps.progress?.[def.trigger] || 0), threshold = Number(def.progressThreshold || 1);
+      const status = active ? "Đang thức tỉnh · tầng " + Number(ps.history?.slice().reverse().find((entry) => entry.id === def.id)?.stage || 1) + "/" + Number(def.maxStage || 1) : candidate ? "Đã hé lộ · có thể nhận" : "Chưa hé lộ";
       const action = candidate && !ps.activeId ? '<div class="item-actions"><button class="guild-action" data-special-physique="' + escapeHtml(def.id) + '">Tiếp nhận Dị Thể</button></div>' : '';
-      return '<div class="item-row"><b>' + escapeHtml(def.name) + '</b><small> · ' + status + ' · cái giá: ' + escapeHtml(Object.keys(def.cost || {}).join(', ') || 'chưa định danh') + '</small>' + action + '</div>';
+      const outcome = active ? (window.GameEngine.specialPhysiqueOutcome?.(state) || {}) : {};
+      return '<div class="item-row"><b>' + escapeHtml(def.name) + '</b><small> · ' + status + ' · dấu mốc ' + progress + '/' + threshold + ' · cái giá: ' + escapeHtml(Object.keys(def.cost || {}).join(', ') || 'chưa định danh') + (active && outcome.endingTags?.length ? ' · kết cục: ' + escapeHtml(outcome.endingTags.join(', ')) : '') + (active && Object.keys(outcome.factionAffinity || {}).length ? ' · tương hợp thế lực: ' + Object.entries(outcome.factionAffinity).map(([id, value]) => escapeHtml(id) + ' +' + value).join(', ') : '') + '</small>' + action + '</div>';
     }).join("");
-    const codex = defs.map((definition) => {
+    const discovery = E.discoveryStatusSummary?.(state) || { total: 0, byStatus: {}, byCategory: {} };
+    const discoveryBlock = '<div class="detail-block"><b>Trạng thái khám phá</b><small> · Tổng ' + Number(discovery.total || 0) + ' · Đã phát hiện ' + Number(discovery.byStatus?.discovered || 0) + ' · Đã xác minh ' + Number(discovery.byStatus?.verified || 0) + ' · Đã thu thập ' + Number(discovery.byStatus?.collected || 0) + ' · Đã nhận thưởng ' + Number(discovery.byStatus?.rewarded || 0) + '</small></div>';
+    const codex = discoveryBlock + defs.map((definition) => {
       const record = s.codex?.[definition.id]; const status = record?.status || "unknown"; let actions = "";
       if (status === "unknown") actions = expansionButton("codex", "Điều Tra", definition.id, 'data-expansion-arg2="investigate"');
       else if (status === "revealed" && !(record?.clues || []).includes("lore:" + definition.id)) actions = expansionButton("codex", "Đọc Cổ Tịch", definition.id, 'data-expansion-arg2="read"');
@@ -316,7 +347,7 @@ window.GameUI = (function () {
     const hidden = Object.entries(window.EXPANSION_DATA?.hiddenProfessions || {}).map(([id, def]) => { const progress = state.hiddenProfessionState?.branches?.[id] || 0; const unlocked = state.hiddenProfessionState?.unlocked?.[id]; return '<div class="item-row"><b>' + escapeHtml(def.name) + '</b><small> · Nhánh manh mối: ' + progress + '/3 · ' + (unlocked ? "Đã mở con đường" : "Chưa giải xong") + '</small>' + (s.codexProgress >= Number(def.requiresCodex || 7) && !unlocked ? '<div class="item-actions">' + expansionButton('hidden_clue', 'Điều Tra', id, 'data-expansion-arg2="lead"') + expansionButton('hidden_clue', 'Đối Chiếu', id, 'data-expansion-arg2="crosscheck"') + expansionButton('hidden_clue', 'Giải Mật · Mở Con Đường', id, 'data-expansion-arg2="unlock"') + '</div>' : '') + '</div>'; }).join('');
     const collectionLabels = { beasts: "Dị Thú", npcs: "NPC", entities: "Thực Thể", rareNpcs: "NPC Hiếm" };
     const collections = Object.entries(collectionLabels).map(([type, label]) => { const entries = Object.values(s.collections?.[type] || {}); return '<div class="section-title">' + label + '</div>' + (entries.map((entry) => '<div class="item-row"><b>' + escapeHtml(entry.name || "Chưa định danh") + '</b><small> · ' + escapeHtml(entry.rarity || "thường") + ' · gặp ngày ' + Number(entry.firstSeenDay || 0) + ' tại ' + escapeHtml(window.GameI18n?.formatTarget(entry.firstRegionId, state) || "khu vực chưa rõ") + ' · ' + (entry.rewardClaimed ? "Đã nhận thưởng" : "Không có thưởng hiếm") + '</small></div>').join("") || '<p class="muted">Chưa ghi nhận.</p>'); }).join("");
-    return '<div class="section-title">Cổ Tịch · Khám phá</div><p class="muted">Cổ Tịch đã thu thập: ' + s.codexProgress + '/7 · Mục sưu tầm: ' + collectionCount + '</p><div class="detail-block">' + codex + '</div><div class="section-title">Dị Thể · Dấu mốc thức tỉnh</div><!-- Dị Chí: legacy label retained for save/UI regression compatibility --><div class="detail-block">' + physiqueRows + '</div><div class="section-title">Nghề Ẩn</div><!-- Con đường nghề ẩn: legacy label --><div class="detail-block">' + hidden + '</div><div class="section-title">Sưu Tầm</div>' + collections + '<div class="section-title">Thành tựu</div><p>' + (Object.values(s.achievements || {}).map((a) => '✦ ' + escapeHtml(a.name)).join('<br>') || "Chưa mở thành tựu.") + '</p>';
+    return '<div class="section-title">Cổ Tịch · Khám phá</div><p class="muted">Cổ Tịch đã thu thập: ' + s.codexProgress + '/7 · Mục sưu tầm: ' + collectionCount + '</p><div class="detail-block">' + codex + '</div><div class="section-title">Dị Thể · Dấu mốc thức tỉnh</div><div class="detail-block">' + physiqueRows + '</div><div class="section-title">Nghề Ẩn</div><div class="detail-block">' + hidden + '</div><div class="section-title">Sưu Tầm</div>' + collections + '<div class="section-title">Thành tựu</div><p>' + (Object.values(s.achievements || {}).map((a) => '✦ ' + escapeHtml(a.name)).join('<br>') || "Chưa mở thành tựu.") + '</p>';
   }
   function renderExpansion(state) {
     // Cầu nối tương thích duy nhất: nội dung chi tiết nằm ở các tab chuyên biệt.
@@ -575,7 +606,7 @@ window.GameUI = (function () {
         helpLabel("Tín", "Mức độ nhân vật tin cậy mệnh nhân.") + ': ' + r.trust + ' · ' +
         helpLabel("Sợ", "Mức độ nhân vật sợ hãi uy thế của mệnh nhân.") + ': ' + r.fear + ' · ' +
         helpLabel("Kính", "Mức độ kính trọng danh vọng và hành vi của mệnh nhân.") + ': ' + r.respect + ' · ' +
-        helpLabel("Nghi", "Mức độ hoài nghi; quá cao có thể khóa đối thoại hoặc dẫn tới phản bội.") + ': ' + r.suspicion + "</small></div>";
+        helpLabel("Nghi", "Mức độ hoài nghi; quá cao có thể khóa đối thoại hoặc dẫn tới phản bội.") + ': ' + r.suspicion + ' · ' + helpLabel("Trung thành", "Mức độ sẵn sàng giữ lời, bảo vệ và tiếp tục đứng về phía nhân vật; khác với Tín và Điểm quan hệ.") + ': ' + Number(r.loyalty || 0) + "</small></div>";
     }).join("") || '<p class="muted">Chưa kết giao ai.</p>';
     const prisoners = Object.values(state.prisoners || {}).filter((p) => p.status === "held").map((p) => '<div class="item-row"><b>Tù binh · ' + escapeHtml(window.GameData.ENTITIES?.[p.entityId]?.name || window.GameI18n?.formatTarget(p.entityId, state) || "Thực thể chưa định danh") + '</b><div class="item-actions">' + expansionButton("interrogate", "Thuyết phục", p.id, 'data-expansion-arg2="persuade"') + expansionButton("prisoner_resolve", "Phóng thích", p.id, 'data-expansion-arg2="released"') + '</div></div>').join("") || '<p class="muted">Không có tù binh đang giữ.</p>';
     const contracts = Object.values(state.contractBoard?.accepted || {}).filter((c) => c.status === "accepted").map((c) => '<div class="item-row"><b>' + escapeHtml(window.GameI18n?.formatContract(c) || "Khế Ước") + '</b><small> · Hết hạn ngày ' + Number(c.expiresDay || 0) + '</small></div>').join("") || '<p class="muted">Không có khế ước đang thực hiện.</p>';
@@ -583,7 +614,7 @@ window.GameUI = (function () {
     const correspondence = localNpcIds.map((npcId) => '<div class="item-row"><b>' + escapeHtml(window.GameData.NPCS?.[npcId]?.name || window.GameI18n?.formatTarget(npcId, state) || "Nhân vật chưa định danh") + '</b><div class="item-actions">' + expansionButton("mail", "Gửi Truyền Thư", npcId, 'data-expansion-arg2="Bình an, hữu duyên tái ngộ."') + expansionButton("bounty", "Treo Thưởng · 10", npcId, 'data-expansion-arg2="10"') + '</div></div>').join("") || '<p class="muted">Không có đối tượng liên hệ trong khu vực.</p>';
     const bounties = (state.worldSimulation?.scheduledTasks || []).filter((task) => task.type === "bounty" && task.status === "pending").map((task) => '<div class="item-row"><b>Truy nã · ' + escapeHtml(window.GameI18n?.formatTarget(task.entityId, state) || "Mục tiêu được chỉ định") + '</b><small> · dự kiến hồi báo ngày ' + Number(task.dueDay || 0) + '</small></div>').join("");
     const intelCount = Object.keys(state.intel || {}).length; const cover = state.coverIdentity ? "Đang dùng thân phận bí mật" : "Chưa lập thân phận bí mật";
-    return '<div class="section-title">Nhân duyên</div>' + relations + '<div class="section-title">Tù Binh & Dị Thú</div>' + prisoners + (state.companion ? '<div class="item-row"><b>Dị Thú đồng hành · ' + escapeHtml(state.companion.customName || window.GameI18n?.formatTarget(state.companion.entityId, state) || "Dị Thú") + '</b><small> · Trung thành ' + Number(state.companion.loyalty || 0) + '/100</small></div>' : '<p class="muted">Chưa có Dị Thú đồng hành.</p>') + '<div class="section-title">Truyền Thư</div>' + correspondence + '<div class="section-title">Truy Nã</div>' + (bounties || '<p class="muted">Không có truy nã đang chờ.</p>') + '<div class="section-title">Tình Báo / Thân Phận</div><p>' + escapeHtml(cover) + ' · ' + intelCount + ' đầu mối.</p>' + expansionButton("intel_buy", "Mua tin tức · 5 Linh Thạch") + '<div class="section-title">Khế Ước</div>' + contracts;
+    return '<div class="section-title">Nhân duyên</div>' + relations + renderNpcWorldSignals(state) + renderFactionBulletin(state) + '<div class="section-title">Tù Binh & Dị Thú</div>' + prisoners + (state.companion ? '<div class="item-row"><b>Dị Thú đồng hành · ' + escapeHtml(state.companion.customName || window.GameI18n?.formatTarget(state.companion.entityId, state) || "Dị Thú") + '</b><small> · Trung thành ' + Number(state.companion.loyalty || 0) + '/100</small></div>' : '<p class="muted">Chưa có Dị Thú đồng hành.</p>') + '<div class="section-title">Truyền Thư</div>' + correspondence + '<div class="section-title">Truy Nã</div>' + (bounties || '<p class="muted">Không có truy nã đang chờ.</p>') + '<div class="section-title">Tình Báo / Thân Phận</div><p>' + escapeHtml(cover) + ' · ' + intelCount + ' đầu mối.</p>' + expansionButton("intel_buy", "Mua tin tức · 5 Linh Thạch") + '<div class="section-title">Khế Ước</div>' + contracts;
   }
 
   function renderMemory(state) {
@@ -812,7 +843,9 @@ window.GameUI = (function () {
       const isCurrent = id === state.locationId;
       const isVisited = visited.has(id);
       const isReachable = Boolean(direction);
-      const fogLevel = window.GameEngine.mapFogState?.(state, id)?.level ?? (isCurrent ? 3 : isVisited ? 2 : isReachable ? 1 : 0);
+      const fogValue = window.GameEngine.mapFogState?.(state, id);
+      const fogLevel = (typeof fogValue === "number" ? fogValue : fogValue?.level) ?? (isCurrent ? 3 : isVisited ? 2 : isReachable ? 1 : 0);
+      const influenceSnapshot = window.GameEngine.mapInfluenceSnapshot?.(state, id) || { discovered: false };
       const classes = ["map-node"];
       const notableCount = Object.values(state.worldSimulation?.npcState || {}).filter((npc) => npc.status === "alive" && npc.currentNodeId === id).length;
       const hiddenOpen = Object.entries(state.worldSimulation?.hiddenRealms || {}).some(([realmId, runtime]) => runtime.status === "open" && (window.EXPANSION_DATA?.hiddenRealms || []).find((entry) => entry.id === realmId)?.parentNodeId === id);
@@ -825,8 +858,10 @@ window.GameUI = (function () {
       classes.push("fog-" + fogLevel);
       if (location.openWorld) classes.push("procedural");
       if (location.enemies?.length) classes.push("dangerous");
-      const label = (fogLevel >= 2 ? location.name : fogLevel === 1 ? "Nghe đồn · " + location.name : "·") + (notableCount ? " · NPC " + notableCount : "") + (hiddenOpen ? " · Bí Cảnh" : "");
-      const action = direction ? ' data-map-dir="' + direction + '" title="Đi tới ' + location.name + '"' : "";
+      if (influenceSnapshot.contested) classes.push("contested");
+      const influenceLabel = influenceSnapshot.discovered ? (influenceSnapshot.contested ? " · Tranh chấp" : influenceSnapshot.ownerFactionId ? " · " + influenceSnapshot.ownerFactionId : "") : "";
+      const label = (fogLevel >= 2 ? location.name : fogLevel === 1 ? "Nghe đồn · " + location.name : "·") + influenceLabel + (notableCount ? " · NPC " + notableCount : "") + (hiddenOpen ? " · Bí Cảnh" : "");
+      const action = direction ? ' data-map-dir="' + direction + '" title="Đi tới ' + location.name + (influenceSnapshot.discovered ? ' · Ảnh hưởng ' + Number(influenceSnapshot.pressure || 0).toFixed(1) : '') + '"' : "";
       return '<button class="' + classes.join(" ") + '" style="left:' + point.x + '%;top:' + point.y + '%"' + action + '>' + label + '</button>';
     }).join("");
 
@@ -840,7 +875,7 @@ window.GameUI = (function () {
       return '<button class="map-node reachable unknown-exit" style="left:' + x + '%;top:' + y + '%" data-map-dir="' + direction + '" title="Mở đường về hướng ' + directionLabels[direction] + '">Chưa khám phá · ' + directionLabels[direction] + '</button>';
     }).join("") : "";
     const region = map.regions.find((item) => item.id === currentPoint?.region);
-    return '<div class="map-heading"><b>' + map.name + '</b><small>' + (region ? region.name + " — " + region.desc : "") + '</small></div>' +
+    return '<div class="map-heading"><b>' + map.name + '</b><small>' + (region ? region.name + " — " + (region.desc || "Một vùng đất đang được ghi chép.") : "") + '</small></div>' +
       '<div class="world-map"><svg viewBox="0 0 100 100" preserveAspectRatio="none">' + lines + '</svg>' + nodes + unexploredNodes + '</div>' +
       '<p class="map-legend"><span class="dot current"></span> Hiện tại <span class="dot reachable"></span> Có thể đi <span class="dot visited"></span> Đã khám phá</p>';
   }
@@ -859,15 +894,18 @@ window.GameUI = (function () {
       const effectiveScore = Number(fate.score || 0) + enhancement * 2;
       const activeSlots = Number((window.GameData.REALMS || []).find((r) => r.id === p.realmId)?.activeSlots || (p.fates || []).length);
       const activeFull = (p.fates || []).filter(Boolean).length >= activeSlots;
-      const narrative = fateNarrative(fate);
+      const narrative = fateNarrative(fate) + " | Instance: quan he bac " + Number(window.GameEngine.fateRelationshipStatus(p, id).stage || 0) + ", duong lich su " + Number(window.GameEngine.fateRelationshipStatus(p, id).nurtureHistory?.length || 0) + ", cong minh " + Number(window.GameEngine.fateRelationshipStatus(p, id).resonanceHistory?.length || 0) + ", tien hoa " + (state.player?.fateEvolutions?.[id]?.branchId || state.player?.fateEvolutions?.[id]?.status || "chua mo") + ", advanced uses " + Object.values(state.player?.fateAdvancedActions?.[id] || {}).filter((entry) => entry && typeof entry === "object").reduce((sum, entry) => sum + Number(entry.uses || 0), 0);
       const equipLabel = activeFull ? "Thay thế…" : "Trang bị";
       const relationship = window.GameEngine.fateRelationshipStatus(p, id);
       const instance = state.fateInstances?.[id] || p.fateInstances?.[id];
+      const nurtureHistory = relationship.nurtureHistory || [];
+      const resonanceHistory = relationship.resonanceHistory || [];
+      const relationshipDetail = ' · Điểm quan hệ: ' + Number(relationship.points || 0) + ' · Dưỡng: ' + nurtureHistory.length + ' · Cộng Minh: ' + resonanceHistory.length + (relationship.decayPolicy === "none" ? ' · Không suy giảm' : '');
       const sourceLabel = instance?.source ? ' · Nguồn: ' + escapeHtml(instance.source) : '';
       const evolution = state.player?.fateEvolutions?.[id]; const eligibility = window.GameEngine.fateEvolutionEligibility?.(state, id);
       const evolutionAction = !inVault ? (evolution ? '<button class="guild-action" data-fate-evolution="' + escapeHtml(id) + '">Tiến hóa · ' + escapeHtml(window.GameI18n?.formatStatus(evolution.status) || "Xem tiến độ") + '</button>' : eligibility?.eligible ? expansionButton("fate_trial", "Mở Mệnh Kiếp", id) : '<button class="guild-action" disabled title="' + escapeHtml((eligibility?.blockers || ["Chưa đủ điều kiện"]).join(" · ")) + '">Tiến hóa chưa mở</button>') : "";
       const actions = '<div class="fate-actions">' + (inVault ? '<button class="guild-action" data-fate-equip="' + escapeHtml(id) + '">' + equipLabel + '</button>' : '<button class="guild-action" data-fate-unequip="' + escapeHtml(id) + '">Tháo xuống Mệnh Kho</button><button class="guild-action" data-fate-nurture="' + escapeHtml(id) + '">Dưỡng Mệnh</button><button class="guild-action" data-fate-resonate="' + escapeHtml(id) + '"' + (relationship.stage !== 2 ? ' disabled title="Cần đạt Tương Ứng trước"' : '') + '>Cộng Minh</button>') + '<button class="guild-action" data-fate-upgrade-target="' + escapeHtml(id) + '"' + (enhancement >= 5 ? ' disabled title="Đã đạt tối đa +5"' : '') + '>Nâng cấp</button>' + evolutionAction + (inVault ? '<label class="fate-select"><input type="checkbox" data-fate-merge="' + escapeHtml(id) + '"> Chọn dung hợp</label>' : '') + '</div>';
-      return '<article class="fate-card ' + (fate.sign || "binh") + ' grade-' + escapeHtml(fate.grade || "phan") + '" title="' + escapeHtml(narrative) + '"><div><b>' + escapeHtml(fate.name) + (enhancement ? ' <span class="fate-enhancement">+' + enhancement + '</span>' : '') + '</b><small><span class="fate-grade-badge">' + escapeHtml(fate.gradeLabel || fate.grade || "") + '</span> · ' + sign + ' · Quan hệ: ' + escapeHtml(relationship.label) + sourceLabel + ' · ' + helpLabel("Mệnh Điểm", "Giá trị đang đóng góp vào Tổng Mệnh, đã gồm Cường Hóa.") + ' ' + effectiveScore + (compatibility == null ? "" : ' · ' + helpLabel("Tương hợp", "Điểm tư vấn build; không phải điều kiện khóa trang bị.") + ' ' + compatibility + '/10') + '</small></div><p>' + escapeHtml(narrative) + '</p><div class="stat-tags">' + renderEffects(window.GameEngine.enhancedFateEffects(p, fate)) + '</div>' + (inVault ? '<span class="vault-mark">Mệnh Kho · Không kích hoạt · Không cộng chỉ số</span>' : '<span class="vault-mark active-mark">Đang kích hoạt</span>') + actions + '</article>';
+      return '<article class="fate-card ' + (fate.sign || "binh") + ' grade-' + escapeHtml(fate.grade || "phan") + '" title="' + escapeHtml(narrative) + '"><div><b>' + escapeHtml(fate.name) + (enhancement ? ' <span class="fate-enhancement">+' + enhancement + '</span>' : '') + '</b><small><span class="fate-grade-badge">' + escapeHtml(fate.gradeLabel || fate.grade || "") + '</span> · ' + sign + ' · Quan hệ: ' + escapeHtml(relationship.label) + relationshipDetail + sourceLabel + ' · ' + helpLabel("Mệnh Điểm", "Giá trị đang đóng góp vào Tổng Mệnh, đã gồm Cường Hóa.") + ' ' + effectiveScore + (compatibility == null ? "" : ' · ' + helpLabel("Tương hợp", "Điểm tư vấn build; không phải điều kiện khóa trang bị.") + ' ' + compatibility + '/10') + '</small></div><p>' + escapeHtml(narrative) + '</p><div class="stat-tags">' + renderEffects(window.GameEngine.enhancedFateEffects(p, fate)) + '</div>' + (inVault ? '<span class="vault-mark">Mệnh Kho · Không kích hoạt · Không cộng chỉ số</span>' : '<span class="vault-mark active-mark">Đang kích hoạt</span>') + actions + '</article>';
     };
     const relations = relation.activePairs.map((pair) => '<div class="relation-edge ' + (pair.type === "TUONG_SINH" ? "positive" : "negative") + '"><b>' + (pair.type === "TUONG_SINH" ? "↔ Tương Sinh" : "⚡ Tương Khắc") + '</b><span>' + escapeHtml(pair.label || (pair.from + " ↔ " + pair.to)) + '</span></div>').join("") +
       relation.activeCombos.map((combo) => '<div class="relation-edge combo"><b>★ ' + escapeHtml(combo.name) + '</b><span>' + escapeHtml(combo.effect || "Combo Mệnh Số") + '</span></div>').join("");
@@ -1078,10 +1116,27 @@ window.GameUI = (function () {
     return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
+  function renderStructureOwnershipPolicy(state) {
+    const structures = state.mapState?.structures?.[state.locationId] || [];
+    if (!structures.length) return '<div class="detail-block structure-policy"><small>Quyền công trình: công trình mới sẽ thuộc nhân vật người chơi.</small></div>';
+    const rows = structures.filter((item) => item.status !== "dismantled").map((item) => {
+      const owner = (item.ownerType || "node") + ":" + (item.ownerId || "?");
+      const manager = window.GameExpansion?.structureManagerDecision;
+      const repair = manager ? manager(state, item, "repair").allowed : false;
+      const upgrade = manager ? manager(state, item, "upgrade").allowed : false;
+      const dismantle = manager ? manager(state, item, "dismantle").allowed : false;
+      return '<div class="item-row"><b>' + escapeHtml(owner) + '</b><small> · Sửa chữa: ' + (repair ? 'được phép' : 'không') + ' · Nâng cấp: ' + (upgrade ? 'được phép' : 'không') + ' · Tháo dỡ: ' + (dismantle ? 'được phép' : 'không') + '</small></div>';
+    }).join("");
+    return '<div class="section-title">Quyền quản lý công trình</div><div class="detail-block structure-policy">' + rows + '</div>';
+  }
+
+  const renderWorldBase = renderWorld;
+  renderWorld = function (state) { return renderWorldBase(state) + renderStructureOwnershipPolicy(state); };
+
   return {
     showScreen, addStory, renderStoryWindow, clearStory, renderChoices, clearChoices, actionPresentation, renderActions, renderOriginChoice,
     setLocation, setSaveIndicator, renderPanel, setMapView, adjustMapCamera, panMapCamera, setActiveTab,
-    renderFateDetail, renderFateSlotChooser, renderFateReplacementChooser, renderFateUpgradeChooser, renderPendingFateChooser, renderRitualModal, renderRewardSummary, renderTechniqueDetail, renderRealmDetail, renderMapDetail, renderMapFactionDetail, renderMarket, renderBlackMarket, renderQintian, renderInventoryModal, renderExpansion, renderWorld, renderOddities, renderProfessionSection, renderTechniqueEvolutionSection, renderFateEvolutionModal, renderGuildProjectModal, renderContestedOpportunityModal,
+    renderFateDetail, renderFateSlotChooser, renderFateReplacementChooser, renderFateUpgradeChooser, renderPendingFateChooser, renderRitualModal, renderRewardSummary, renderTechniqueDetail, renderRealmDetail, renderMapDetail, renderMapFactionDetail, renderMarket, renderBlackMarket, renderQintian, renderInventoryModal, renderExpansion, renderWorld, renderStructureOwnershipPolicy, renderOddities, renderProfessionSection, renderTechniqueEvolutionSection, renderFateEvolutionModal, renderGuildProjectModal, renderContestedOpportunityModal,
     openOverlay, closeOverlay, bindOverlay, escapeHtml, openEquipmentPicker
   };
 })();

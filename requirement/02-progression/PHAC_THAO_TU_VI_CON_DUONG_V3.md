@@ -253,4 +253,3 @@ theo bảng cũ với path mới — không viết thêm bảng nào khác.
 | **Cổ Tộc** | Tinh Tướng Đạo | +20% tốc độ tích `daoTam` (căn cơ thượng cổ hiểu thiên tượng/vận mệnh sâu sắc hơn chủng tộc khác) |
 
 Đã hoàn thiện đủ 7/7 — không còn khoảng trống nào trong bảng Thiên Phú Chủng Tộc.
-

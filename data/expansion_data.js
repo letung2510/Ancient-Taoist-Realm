@@ -107,12 +107,12 @@
     name: "Cổ Tịch Tà Thần " + ["I", "II", "III", "IV", "V", "VI", "VII"][index],
     // Exactly one codex fragment per major region. Never duplicate a region.
     mapId: ["trung_vuc", "nam_chuong", "bac_nguyen", "vo_tan_hai", "tay_mac", "thien_khong_vuc", "u_minh_gioi"][index],
-    clue: "Một mảnh ký hiệu tà thần ẩn trong Dị Chí; cần điều tra và đối chiếu trước khi thu thập.",
+    clue: "Một mảnh ký hiệu tà thần ẩn trong Dị Thể; cần điều tra và đối chiếu trước khi thu thập.",
     unlocksHiddenProfession: ["nguoi_giai_mong", "doc_gia_co_tich", "nguoi_dan_duong", "tho_san_di_triều", "nguoi_giu_cua", "thay_tuong_menh", "hanh_gia_vo_danh"][index]
   }));
   const hiddenProfessions = {
     nguoi_giai_mong: { id: "nguoi_giai_mong", name: "Người Giải Mộng", requiresCodex: 1, actionName: "Giải Mộng", actionCost: { san: 2 }, cooldownDays: 3, passive: { sanDrainMult: 0.95 }, description: "Đọc dư âm giấc mộng để hồi phục tâm cảnh và tìm manh mối." },
-    doc_gia_co_tich: { id: "doc_gia_co_tich", name: "Độc Giả Cổ Tịch", requiresCodex: 2, actionName: "Chú Giải Cổ Văn", actionCost: { san: 3 }, cooldownDays: 3, passive: { clueConfidence: 0.15 }, description: "Chú giải một manh mối chưa xác minh trong Dị Chí." },
+    doc_gia_co_tich: { id: "doc_gia_co_tich", name: "Độc Giả Cổ Tịch", requiresCodex: 2, actionName: "Chú Giải Cổ Văn", actionCost: { san: 3 }, cooldownDays: 3, passive: { clueConfidence: 0.15 }, description: "Chú giải một manh mối chưa xác minh trong Dị Thể." },
     nguoi_dan_duong: { id: "nguoi_dan_duong", name: "Người Dẫn Đường Dị Giới", requiresCodex: 3, actionName: "Định Tuyến Dị Lộ", actionCost: { stamina: 5 }, cooldownDays: 2, passive: { travelRiskDelta: -0.05 }, description: "Định tuyến an toàn qua vùng linh khí hỗn loạn." },
     tho_san_di_trieu: { id: "tho_san_di_trieu", name: "Thợ Săn Dị Triều", requiresCodex: 4, actionName: "Truy Dấu Dị Triều", actionCost: { stamina: 8 }, cooldownDays: 2, passive: { searchRewardMult: 1.08 }, description: "Truy dấu mục tiêu hiếm và tăng hiệu quả tìm kiếm." },
     nguoi_giu_cua: { id: "nguoi_giu_cua", name: "Người Giữ Cửa", requiresCodex: 5, actionName: "Niêm Phong Giới Môn", actionCost: { qi: 10 }, cooldownDays: 5, passive: { encounterChanceMult: 0.92 }, description: "Tạm thời ổn định cổng giới và giảm nguy cơ gặp địch." },
