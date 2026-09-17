@@ -79,6 +79,8 @@ worldClock: {
 - World clock vẫn tính đủ `currentMonth`, `currentDay`, `absoluteDay` và `dayProgress` nội bộ; UI chỉ ẩn tháng/ngày và hiển thị Năm 6087 của Kỷ Nguyên Linh Khí Dị Biến.
 - World clock dùng cùng tỷ lệ thời gian thực/game-day với player clock (`1/30`), nhưng world simulation lấy `worldClock.absoluteDay` làm nguồn ngày chuẩn.
 - Ngày/tháng/năm hiển thị cụ thể của nhân vật chỉ thuộc Player clock.
+- Player clock được dùng cho cooldown/action và tiến trình gắn trực tiếp với nhân vật: Dưỡng Mệnh, tu luyện, Nghề, quan hệ cá nhân, tiến hóa Mệnh Số và các trạng thái Dị Thể.
+- World clock được dùng cho weather, faction, chiến tranh, NPC scheduler, world event, hidden realm, map influence, node history và các công trình bản đồ.
 - Không dùng chung một DOM element: `#game-clock` dành cho nhân vật, `#world-clock` dành cho thế giới.
 - Save cũ phải hydrate world clock an toàn, không làm mất tiến trình nhân vật.
 
