@@ -1673,11 +1673,9 @@ window.GameEngine = (function () {
         lastRealTimestamp: Date.now()
       },
       worldClock: {
-        currentYear: 1,
+        currentYear: 6087,
         currentEra: "Kỷ Nguyên Linh Khí Dị Biến",
-        currentMonth: 1,
-        currentDay: 1,
-        absoluteDay: 1,
+        absoluteDay: 0,
         lastSyncedPlayerDay: 1
       },
       player: character,
@@ -4396,10 +4394,8 @@ window.GameEngine = (function () {
     return clock;
   }
   function worldClockFromDay(day, previous = {}) {
-    const absolute = Math.max(1, Math.floor(Number(day) || 1));
-    const year = Math.floor((absolute - 1) / GAME_TIME_CONFIG.gameDaysPerYear) + 1;
-    const dayOfYear = (absolute - 1) % GAME_TIME_CONFIG.gameDaysPerYear;
-    return { ...previous, currentYear: year, currentMonth: Math.floor(dayOfYear / GAME_TIME_CONFIG.gameDaysPerMonth) + 1, currentDay: (dayOfYear % GAME_TIME_CONFIG.gameDaysPerMonth) + 1, absoluteDay: absolute, currentEra: previous.currentEra || "Kỷ Nguyên Linh Khí Dị Biến" };
+    const absolute = Math.max(0, Math.floor(Number(day) || 0));
+    return { ...previous, currentYear: 6087, absoluteDay: absolute, currentEra: "Kỷ Nguyên Linh Khí Dị Biến" };
   }
   function ensureWorldClock(state) {
     state.worldClock = state.worldClock || {};
@@ -4407,7 +4403,7 @@ window.GameEngine = (function () {
     const playerDay = gameDayIndex(playerClock);
     const simulationDay = Number(state.worldSimulation?.lastProcessedDay || 0);
     const storedDay = Number(state.worldClock.absoluteDay || 0);
-    const sourceDay = Math.max(1, simulationDay || storedDay || playerDay);
+    const sourceDay = Math.max(0, simulationDay || storedDay || playerDay);
     state.worldClock = worldClockFromDay(sourceDay, state.worldClock);
     state.worldClock.lastSyncedPlayerDay = playerDay;
     return state.worldClock;
@@ -4447,11 +4443,11 @@ window.GameEngine = (function () {
   }
   function clockLabel(state) {
     const c = ensureGameClock(state);
-    return "Nhân vật · Năm " + c.currentYear + ", Tháng " + c.currentMonth + " ngày " + c.currentDay + " · " + c.currentEra;
+    return "Nhân vật · Năm " + c.currentYear + ", Tháng " + c.currentMonth + ", Ngày " + c.currentDay;
   }
   function worldClockLabel(state) {
     const c = ensureWorldClock(state);
-    return "Thế giới · Năm " + c.currentYear + ", Tháng " + c.currentMonth + " ngày " + c.currentDay + " · " + c.currentEra;
+    return "Thế giới · Năm " + c.currentYear + " · " + c.currentEra;
   }
   function onGameYearPass(state) {
     const p = state.player;
