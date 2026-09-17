@@ -1672,6 +1672,14 @@ window.GameEngine = (function () {
         eraIndex: 1,
         lastRealTimestamp: Date.now()
       },
+      worldClock: {
+        currentYear: 1,
+        currentEra: "Kỷ Nguyên Linh Khí Dị Biến",
+        currentMonth: 1,
+        currentDay: 1,
+        absoluteDay: 1,
+        lastSyncedPlayerDay: 1
+      },
       player: character,
       startRegionId: input.startRegionId || character.startRegionId || "trung_vuc",
       startLocationId: startLocation,
@@ -4387,6 +4395,30 @@ window.GameEngine = (function () {
     if (!Number.isFinite(Number(clock.nextOnlineFateDay))) clock.nextOnlineFateDay = dayIndex + GAME_TIME_CONFIG.onlineFateIntervalDays;
     return clock;
   }
+  function worldClockFromDay(day, previous = {}) {
+    const absolute = Math.max(1, Math.floor(Number(day) || 1));
+    const year = Math.floor((absolute - 1) / GAME_TIME_CONFIG.gameDaysPerYear) + 1;
+    const dayOfYear = (absolute - 1) % GAME_TIME_CONFIG.gameDaysPerYear;
+    return { ...previous, currentYear: year, currentMonth: Math.floor(dayOfYear / GAME_TIME_CONFIG.gameDaysPerMonth) + 1, currentDay: (dayOfYear % GAME_TIME_CONFIG.gameDaysPerMonth) + 1, absoluteDay: absolute, currentEra: previous.currentEra || "Kỷ Nguyên Linh Khí Dị Biến" };
+  }
+  function ensureWorldClock(state) {
+    state.worldClock = state.worldClock || {};
+    const playerClock = ensureGameClock(state);
+    const playerDay = gameDayIndex(playerClock);
+    const simulationDay = Number(state.worldSimulation?.lastProcessedDay || 0);
+    const storedDay = Number(state.worldClock.absoluteDay || 0);
+    const sourceDay = Math.max(1, simulationDay || storedDay || playerDay);
+    state.worldClock = worldClockFromDay(sourceDay, state.worldClock);
+    state.worldClock.lastSyncedPlayerDay = playerDay;
+    return state.worldClock;
+  }
+  function syncWorldClock(state, day) {
+    const playerDay = gameDayIndex(ensureGameClock(state));
+    const sourceDay = Number(day || state.worldSimulation?.lastProcessedDay || playerDay);
+    state.worldClock = worldClockFromDay(Math.max(1, sourceDay), ensureWorldClock(state));
+    state.worldClock.lastSyncedPlayerDay = playerDay;
+    return state.worldClock;
+  }
   function processOnlineFateReward(state) {
     const clock = ensureGameClock(state);
     const dayIndex = gameDayIndex(clock);
@@ -4415,7 +4447,11 @@ window.GameEngine = (function () {
   }
   function clockLabel(state) {
     const c = ensureGameClock(state);
-    return "Năm " + c.currentYear + ", Tháng " + c.currentMonth + " ngày " + c.currentDay + " · " + c.currentEra;
+    return "Nhân vật · Năm " + c.currentYear + ", Tháng " + c.currentMonth + " ngày " + c.currentDay + " · " + c.currentEra;
+  }
+  function worldClockLabel(state) {
+    const c = ensureWorldClock(state);
+    return "Thế giới · Năm " + c.currentYear + ", Tháng " + c.currentMonth + " ngày " + c.currentDay + " · " + c.currentEra;
   }
   function onGameYearPass(state) {
     const p = state.player;
@@ -4456,6 +4492,7 @@ window.GameEngine = (function () {
       });
       processOnlineFateReward(state);
     }
+    syncWorldClock(state, state.worldSimulation?.lastProcessedDay || gameDayIndex(c));
     return c;
   }
   const LOG_TYPE_ALIASES = { warn: "SYSTEM", sys: "SYSTEM", narr: "SYSTEM", combat: "COMBAT", loot: "LOOT", explore: "EXPLORE", travel: "TRAVEL", talk: "TALK", rest: "REST", cultivate: "CULTIVATION" };
@@ -5433,7 +5470,9 @@ window.GameEngine = (function () {
       ensureSearchChainQuest(state, quest.searchLocationId || quest.id.slice("search_chain_".length), quest.requiredSearches || 1);
     });
     ensureGameClock(state);
+    ensureWorldClock(state);
     applyOfflineProgress(state);
+    ensureWorldClock(state);
     ensureOpenWorld(state);
     state.pendingRewardSummaries = Array.isArray(state.pendingRewardSummaries) ? state.pendingRewardSummaries : [];
     state.market = state.market && Array.isArray(state.market.offers) ? state.market : { generatedAt: 0, refreshIntervalMs: 60000, offers: [], purchased: {} };
@@ -5465,6 +5504,6 @@ window.GameEngine = (function () {
     elementRelation, familyMatchup, toCanonicalCharacter, fromCanonicalCharacter,
     gainExp, recordCultivationGain, cultivationVelocityStatus, adjustDaoTam, cultivationJournalPush, enterLuyenKhi, cultivate, autoCultivate, secludedCultivation, rest, doBreakthrough, drainSan, restoreSan, move, locationExits, look, ensureSearchSite, pendingExplorationAt, pendingDepartureGuard, confirmPendingDeparture, searchStatus, search, collectSearchFindings, investigateSearchFinding, leaveSearchSession, useItem,
     talk, combat, beginCombat, aliveEnemies, firstAliveEnemy, enemyTurn, afterPlayerCombatAction, applyPlayerDamage, endCombat, combatEntity, spawnCombatEntity, maybeSpawnCombatExtras, lootTable, rollEntityLoot, rollDefeatBonus, entityCatalog, getEntity, entityForPlayer, dialogueState, presentEntities, maybeTriggerRandomEncounter, findEntityByName, interactEntity, monsterAction, useTechnique, techniquePreview, learnTechnique, getKnownTechniques, techniqueCatalog, validateTechniqueCatalog, techniqueStatus, techniqueProgress, contextState, resolveActionPriority, moveActions, talkActions, skillActions, parseAction, resolveAction, submitActionId, submitTurn, describeStatus, describeInventory, describeQuests,
-    describeFate, describeMap, serialize, deserialize, pushMemory, pushHistory, createGameEvent, emitGameEvent, renderGameEvent, renderScene, lintNarrativeText, narrativeSafe, formatPlayerLogText, getGameLog, novelLogParagraphs, validateLogSurfaceState, detectMilestones, formatEventChanges, ensureGameClock, clockLabel, advanceGameTime, processOnlineFateReward, applyOfflineProgress, GAME_TIME_CONFIG, ERROR_NARRATIVE_MAP, playerFacingReason
+    describeFate, describeMap, serialize, deserialize, pushMemory, pushHistory, createGameEvent, emitGameEvent, renderGameEvent, renderScene, lintNarrativeText, narrativeSafe, formatPlayerLogText, getGameLog, novelLogParagraphs, validateLogSurfaceState, detectMilestones, formatEventChanges, ensureGameClock, ensureWorldClock, syncWorldClock, clockLabel, worldClockLabel, advanceGameTime, processOnlineFateReward, applyOfflineProgress, GAME_TIME_CONFIG, ERROR_NARRATIVE_MAP, playerFacingReason
   };
 })();
