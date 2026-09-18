@@ -65,6 +65,7 @@
     const snapshot = organizationSnapshot(state, organizationId);
     if (!snapshot) return { success: false, reason: "Tổ chức không tồn tại." };
     if (action === "status") return { success: true, data: snapshot };
+    if (!snapshot.address?.nodeId) return { success: false, reason: "Tổ chức chưa có địa chỉ bản đồ hợp lệ." };
     if (snapshot.address?.nodeId && state.locationId !== snapshot.address.nodeId) return { success: false, reason: "Cần có mặt tại node của tổ chức để tương tác." };
     const relation = state.organizationState.relations[organizationId], day = absoluteDay(state.gameClock);
     if (Number(relation.lastInteractionDay || 0) === day) return { success: false, reason: "Tổ chức này chỉ tiếp nhận một tương tác mỗi ngày." };
@@ -108,6 +109,7 @@
   function validateOrganizationState(state) {
     ensureOrganizationState(state);
     const errors = [], known = new Set(organizationDefinitions().map((entry) => entry.id));
+    organizationDefinitions().forEach((organization) => { if (!organizationAddress(organization.id)?.nodeId) errors.push(organization.id + ":missing-address"); });
     Object.entries(state.organizationState.relations || {}).forEach(([id, relation]) => {
       if (!known.has(id) || relation.organizationId !== id) errors.push(id + ":unknown");
       ["reputation", "favor", "trust", "heat"].forEach((field) => { if (!Number.isFinite(Number(relation[field]))) errors.push(id + ":" + field); });
