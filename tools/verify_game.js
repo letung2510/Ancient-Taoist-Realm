@@ -871,6 +871,14 @@ function verifyMapUI(sandbox) {
   assert(E.organizationSnapshot(organizationState, organizationAddress.refId)?.atNode);
   assert(E.organizationInteract(organizationState, organizationAddress.refId, "donate", 10).success);
   assert(!E.organizationInteract(organizationState, organizationAddress.refId, "donate", 1).success, "organization daily interaction limit missing");
+  const savedOrganizationAddresses = sandbox.window.GameData.WORLD_MAP.addresses.organizations;
+  sandbox.window.GameData.WORLD_MAP.addresses.organizations = savedOrganizationAddresses.filter((address) => address.refId !== organizationAddress.refId);
+  const missingAddressState = E.createState({ character: E.createCharacter({ name: "Missing Address QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  E.addItem(missingAddressState, "linh_thach", 20);
+  const missingAddressInventory = Number(missingAddressState.inventory.linh_thach || 0);
+  assert(!E.organizationInteract(missingAddressState, organizationAddress.refId, "donate", 10).success);
+  assert.strictEqual(Number(missingAddressState.inventory.linh_thach || 0), missingAddressInventory);
+  sandbox.window.GameData.WORLD_MAP.addresses.organizations = savedOrganizationAddresses;
   assert(E.validateOrganizationState(organizationState).ok);
   const organizationLog = E.novelLogParagraphs(organizationState).at(-1)?.text || "";
   assert(organizationLog.includes("Tại") && organizationLog.includes("Mối quan hệ") && !organizationLog.includes("organizationInteract"));
