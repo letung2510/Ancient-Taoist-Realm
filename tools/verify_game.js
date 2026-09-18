@@ -110,6 +110,7 @@ function verifyTechniquesAndActions(sandbox) {
   const E = sandbox.window.GameEngine;
   const character = E.createCharacter({ name: "Technique Test", archetypeId: "kiem_tong", fates: E.drawInitialFates() });
   const state = E.createState({ character });
+  assert(E.chooseJourneyIntent(state, "tu_lap").success);
   state.player.realmId = "khai_lo";
   E.updateDerived(state);
   assert(E.getKnownTechniques(state).length >= 1);
@@ -526,6 +527,7 @@ function verifyBrowserEngine(sandbox) {
     fates: E.drawInitialFates()
   });
   const state = E.createState({ character });
+  assert(E.chooseJourneyIntent(state, "tam_su").success);
   assert(E.validateOpenWorldGrid(state).ok);
   ["bac", "nam", "dong", "tay"].forEach((direction) => {
     const probe = E.deserialize(E.serialize(state)), before = probe.locationId;
@@ -540,38 +542,22 @@ function verifyBrowserEngine(sandbox) {
   assert.strictEqual(state.history.length, lookHistory + 2);
 
   const commandState = E.createState({ character });
+  assert(E.chooseJourneyIntent(commandState, "tu_lap").success);
   const commandTurn = commandState.meta.turn;
   E.submitTurn(commandState, { text: "nhìn" });
   assert.strictEqual(commandState.meta.turn, commandTurn + 1);
   assert(commandState.history.some((entry) => entry.text.includes("Quan Sát") || entry.text.includes("Cổng đá")));
 
-  const originState = E.createState({ character: E.createCharacter({ name: "Tán Tu", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
-  originState.flags.originChoicePending = true;
-  const staminaBeforeOrigin = originState.player.maxStamina;
-  const originResult = E.chooseOrigin(originState, "tan_tu", "du_hiep");
-  assert(originResult.success);
-  assert.strictEqual(originState.player.origin.type, "tan_tu");
-  assert(originState.player.origin.traits.includes("spirit_hunter"));
-  assert(originState.player.maxStamina > staminaBeforeOrigin);
-  assert.strictEqual(originState.flags.originChoicePending, false);
-  assert.strictEqual(E.chooseOrigin(originState, "the_gia", "linh_mach").success, false);
-  assert(!E.contextState(originState).actions.some((action) => action.id.startsWith("act_origin_")));
-  const restoredOrigin = E.deserialize(E.serialize(originState));
-  assert.strictEqual(restoredOrigin.player.origin.specialization, "du_hiep");
-
-  const familyState = E.createState({ character: E.createCharacter({ name: "Thế Gia", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
-  familyState.flags.originChoicePending = true;
-  const qiBeforeOrigin = familyState.player.maxQi;
-  assert(E.chooseOrigin(familyState, "the_gia", "linh_mach").success);
-  assert(familyState.player.maxQi > qiBeforeOrigin);
-  assert(familyState.inventory.linh_thach >= 8);
-  familyState.player.realmId = "khai_lo";
-  E.updateDerived(familyState);
-  assert(E.contextState(familyState).actions.some((action) => action.id === "act_tim_tong_mon"));
+  const legacyOriginState = E.createState({ character: E.createCharacter({ name: "Tán Tu", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  assert.strictEqual(legacyOriginState.flags.originChoicePending, false);
+  assert.strictEqual(E.chooseOrigin(legacyOriginState, "tan_tu", "du_hiep").success, false);
+  assert(E.contextState(legacyOriginState).actions.some((action) => action.id === "act_journey_tu_lap"));
+  assert(!E.contextState(legacyOriginState).actions.some((action) => action.id.startsWith("act_origin_")));
 
   const originalRandom = vm.runInContext("Math.random", sandbox);
   vm.runInContext("Math.random = () => 0.5", sandbox);
   const searchState = E.createState({ character: E.createCharacter({ name: "Tầm Bảo", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  assert(E.chooseJourneyIntent(searchState, "tu_lap").success);
   const inventoryBeforeSearch = Object.values(searchState.inventory).reduce((sum, qty) => sum + qty, 0);
   const firstSearch = E.search(searchState);
   assert(firstSearch.success && firstSearch.rolls === 3);
@@ -617,6 +603,7 @@ function verifyBrowserEngine(sandbox) {
   // Every cardinal direction remains traversable. Unknown exits are generated
   // lazily, including immediately after fleeing a combat encounter.
   const openWorldState = E.createState({ character });
+  assert(E.chooseJourneyIntent(openWorldState, "tu_lap").success);
   const oldLocation = openWorldState.locationId;
   assert.deepStrictEqual(Array.from(E.contextState(openWorldState).actions.filter((action) => action.id.startsWith("act_move_")).map((action) => action.id)), ["act_move_bac", "act_move_nam", "act_move_dong", "act_move_tay"]);
   E.move(openWorldState, "nam");
@@ -629,6 +616,7 @@ function verifyBrowserEngine(sandbox) {
   assert.strictEqual(Object.keys(openWorldState.enemies).length, 0);
   assert.strictEqual(E.contextState(openWorldState).actions.filter((action) => action.id.startsWith("act_move_")).length, 4);
   const topologyProbe = E.createState({ character });
+  assert(E.chooseJourneyIntent(topologyProbe, "tu_lap").success);
   const topologyAudit = E.validateOpenWorldGrid(topologyProbe);
   assert(topologyAudit.ok, "open-world topology audit failed: " + topologyAudit.errors.join(", "));
   const cardinalOrigin = E.nodeCoordinates(topologyProbe, topologyProbe.locationId);
@@ -650,6 +638,7 @@ function verifyBrowserEngine(sandbox) {
 
   // Migration for saves written before per-save exit topology was introduced.
   const legacyOpenWorld = E.createState({ character });
+  assert(E.chooseJourneyIntent(legacyOpenWorld, "tu_lap").success);
   E.move(legacyOpenWorld, "nam");
   const legacyGenerated = legacyOpenWorld.locationId;
   legacyOpenWorld.openWorld.nodes[legacyGenerated].exits.bac = oldLocation;
@@ -658,6 +647,8 @@ function verifyBrowserEngine(sandbox) {
   assert.strictEqual(E.locationExits(migratedOpenWorld, oldLocation).nam, legacyGenerated);
 
   const localGuild = D.GUILDS.find((guild) => guild.region_id === "trung_vuc" && guild.pyramid_tier === 5);
+  state.player.openingPlan.targetOrganizationId = localGuild.id;
+  state.flags.openingPlan = state.player.openingPlan;
   assert.strictEqual(E.joinGuild(state, localGuild.id), false);
   E.gainExp(state, 100);
   // This fixture is a breakthrough gate test, not a cultivation-deviation test.
@@ -703,6 +694,10 @@ function verifyBrowserEngine(sandbox) {
   const mindMasteryBefore = autoState.player.techniques.tam_phap_dan_dien.masteryExp;
   assert(E.autoCultivate(autoState, 5).completed > 0);
   assert(autoState.autoCultivation);
+  const autoCultivationLog = autoState.history.at(-1);
+  assert(autoCultivationLog.statDisplay?.some((text) => text.includes("Tự động tu luyện")));
+  assert(!autoCultivationLog.text.includes("Tự động tu luyện:") && autoCultivationLog.text.includes("hơi thở"));
+  assert(E.validateLogSurfaceState(autoState).ok);
   assert(autoState.player.techniques.kiem_khi_so_cap.masteryExp > combatMasteryBefore);
   assert(autoState.player.techniques.tam_phap_dan_dien.masteryExp > mindMasteryBefore);
   assert(autoState.player.techniques.tam_phap_dan_dien.masteryExp > autoState.player.techniques.kiem_khi_so_cap.masteryExp);
@@ -712,6 +707,7 @@ function verifyBrowserEngine(sandbox) {
   ["thong_mach_dan", "tu_khi_dan", "hoan_huyet_dan"].forEach((itemId) => {
     const pillCharacter = E.createCharacter({ name: itemId, archetypeId: "kiem_tong", fates: E.drawInitialFates() });
     const pillState = E.createState({ character: pillCharacter });
+    assert(E.chooseJourneyIntent(pillState, "tam_su").success);
     E.addItem(pillState, itemId, 1);
     E.useItem(pillState, D.ITEMS[itemId].name);
     assert.strictEqual(pillState.player.realmId, "khai_lo");
@@ -721,11 +717,12 @@ function verifyBrowserEngine(sandbox) {
 
   const independentCharacter = E.createCharacter({ name: "Tán Tu", archetypeId: "kiem_tong", fates: E.drawInitialFates() });
   const independentState = E.createState({ character: independentCharacter });
+  assert(E.chooseJourneyIntent(independentState, "tu_lap").success);
   E.enterLuyenKhi(independentState, "kiểm thử");
-  assert(E.refuseGuild(independentState, "thế gia"));
-  assert.strictEqual(independentState.player.background, "Thế Gia");
-  assert.strictEqual(independentState.flags.guildDecision, "the_gia");
-  assert.strictEqual(independentState.quests.chon_dao_lo.status, "completed");
+  assert.strictEqual(E.refuseGuild(independentState, "thế gia"), false);
+  assert.strictEqual(independentState.player.journeyIntent, "tu_lap");
+  assert.strictEqual(independentState.flags.guildDecision, "journey:tu_lap");
+  assert.strictEqual(independentState.quests.chon_dao_lo.status, "active");
 
   const migrated = E.deserialize(JSON.stringify({ state: { ...state, visitedLocations: undefined } }));
   assert.deepStrictEqual(Array.from(migrated.visitedLocations), [state.locationId]);

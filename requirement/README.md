@@ -1,56 +1,46 @@
-# Requirement chức năng — Cổ Dị Diện
+# Requirement Repository
 
-Thư mục này chỉ chứa đặc tả chức năng dùng để triển khai và kiểm thử game.
-Tài liệu lịch sử, audit, master cũ và bản sao được chuyển sang
-`docs/archive-requirements/`.
+## Canonical logic files
 
-## 01 · Core
+Each feature has one canonical requirement-logic file under `SYSTEM_LOGIC_CATALOG/features/`. The feature map is maintained in [`00_README_AND_CROSS_SYSTEM_MAP.md`](SYSTEM_LOGIC_CATALOG/00_README_AND_CROSS_SYSTEM_MAP.md).
 
-- `01-core/HE_THONG_NEN_TANG_NHAN_VAT_TU_VI_CONG_PHAP.md` — luật nền nhân vật,
-  Tu Vi, Mệnh Số, Con Đường, Công Pháp, SAN và nghề ẩn.
-- `01-core/character_creation_system.md` — contract khởi tạo nhân vật.
-- `01-core/FATE_SYSTEM_SPEC.md` — schema và runtime Mệnh Số.
-- `01-core/CONG_PHAP_SYSTEM.md` — học, mastery và tiến hóa Công Pháp.
-- `01-core/NEO_NHAN_TINH_DESIGN.md` — Neo Nhân Tính và quan hệ với đột phá.
+Examples:
 
-## 02 · Progression
+- [`DI_THE_CANONICAL.md`](SYSTEM_LOGIC_CATALOG/features/03-progression/DI_THE_CANONICAL.md) - Di The
+- [`FATE_CANONICAL.md`](SYSTEM_LOGIC_CATALOG/features/01-fate/FATE_CANONICAL.md) - Menh So/Fate
+- [`MAP_CANONICAL.md`](SYSTEM_LOGIC_CATALOG/features/04-world/MAP_CANONICAL.md) - map
+- [`TECHNIQUE_CANONICAL.md`](SYSTEM_LOGIC_CATALOG/features/06-content/TECHNIQUE_CANONICAL.md) - Cong Phap/technique
+- [`UI_ACTION_LOG_CANONICAL.md`](SYSTEM_LOGIC_CATALOG/features/07-ui/UI_ACTION_LOG_CANONICAL.md) - UI, action, game log
 
-- `02-progression/PHAC_THAO_TU_VI_CON_DUONG_V3.md` — mở rộng nguồn Tu Vi và
-  Con Đường.
-- `02-progression/BREAKTHROUGH_RITUAL_DETAIL.md` — flow nghi thức đột phá.
-- `02-progression/TU_VI_CON_DUONG_BREAKTHROUGH_GAP_SPEC.md` — phần gap đã đối
-  chiếu code, dùng làm backlog/implementation trace.
+## Single audit file
 
-## 03 · World
+`AUDIT_CANONICAL.md` is the only audit file. Audit/review/status/QA updates, validators, patches, and schemas belong there. Requirement logic belongs in the canonical feature file and must not be duplicated in the audit file.
 
-- `03-world/MAP_SYSTEM.md` — node graph, di chuyển và action tại bản đồ.
-- `03-world/Xianxin_map.md` — vùng, thế lực và dữ liệu thế giới.
-- `03-world/WORLDVIEW_ATMOSPHERE.md` — lớp không khí/lore có tác động gameplay.
+## Project-wide governing rules
 
-## 04 · Interaction
+The following rules are permanent requirements for the entire project and apply to all future requirement creation, review, audit, and consolidation:
 
-- `04-interaction/NPC_MONSTER_SYSTEM.md` — NPC, quái, encounter và tương tác.
-- `04-interaction/RANDOM_EVENT_SYSTEM.md` — sự kiện ngẫu nhiên.
-- `04-interaction/RELATIONSHIP_SYSTEM.md` — quan hệ Mệnh Số/NPC.
+- All requirement files must be written and saved as UTF-8. ANSI/Windows-1252 and implicit PowerShell encodings are forbidden.
+- Any update must preserve Vietnamese Unicode text and must pass the UTF-8 validation gate before completion.
+- Mojibake markers, replacement characters, or stray C1 control characters are encoding errors and must block the update.
+- Requirement logic is updated only in the canonical file of its feature.
+- Validator, patch, schema, audit, review, status, and QA evidence is updated only in `AUDIT_CANONICAL.md`.
+- Historical files under `archive-requirements/` are read-only reference material and are not a source for new updates.
 
-## 05 · UI & presentation
+## Mandatory consolidation workflow for new Markdown
 
-- `05-ui/ACTION_HYBRID_SYSTEM.md` — Action Bar và free-text.
-- `05-ui/UI_LAYOUT_AND_ACTION_TABLE_REQUIREMENTS.md` — layout/action table.
-- `05-ui/UI_LAYOUT_REQUIREMENT_KEEP_STRUCTURE_ADJUST_WIDTH.md` — quy tắc bố
-  cục responsive.
-- `05-ui/SPEC_FIX_HE_THONG_NGON_NGU_VA_BO_TRI_FEATURE.md` — ngôn ngữ và entry
-  point UI.
-- `05-ui/ANCIENT_TAOIST_REALM_GAME_LOG_SYSTEM.md` — game log/story log.
+Every new Markdown requirement must be processed in this exact order:
 
-## 06 · Expansion
+1. Read the complete source file as UTF-8 and classify each requirement by feature.
+2. Compare each requirement against the current game runtime and the feature canonical file.
+3. Merge the requirement logic into the canonical file of that feature. Never leave new requirement logic only in a prompt, addendum, or audit file.
+4. If runtime logic already exists, record the match and do not create duplicate code. If it does not exist, implement it in the existing runtime module for that feature.
+5. Run the UTF-8 gate, Markdown syntax/link gate, and runtime syntax/tests. A replacement character, mojibake marker, C1 control character, broken link, or failed syntax check blocks completion.
+6. Record only evidence, status, validator output, and unresolved product decisions in `AUDIT_CANONICAL.md`.
+7. After canonical merge and validation succeed, delete the processed root-level source Markdown. Do not delete historical material under `archive-requirements/` unless explicitly requested.
 
-- `06-expansion/SPEC_HE_THONG_TINH_NANG_MOI_TOAN_BO.md` — contract các hệ mở
-  rộng: world simulation, profession, contract, companion, legacy và evolution.
+The completion invariant is: every accepted requirement exists exactly once in its feature canonical file, every implementation exists exactly once in the runtime, and every review result exists only in the single audit file.
 
-## Quy tắc tài liệu
+## History
 
-1. Một luật runtime chỉ có một nguồn canonical.
-2. Không thêm luật mới vào tài liệu archive.
-3. Mọi API mới phải ghi rõ module, state schema, transaction và acceptance test.
-4. Nội dung đã triển khai phải ghi trace file/hàm trong tài liệu gap tương ứng.
+Previous source documents are preserved in `archive-requirements/`. The archive is historical only and is not a source for new logic.

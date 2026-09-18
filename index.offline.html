@@ -4,755 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cổ Dị Diện — Tiên Hiệp Text RPG</title>
-  <style>
-:root {
-  --bg: #0b0f14;
-  --bg-2: #101722;
-  --panel: #131c28;
-  --panel-2: #0f1721;
-  --ink: #dbe7ee;
-  --ink-dim: #8fa3b3;
-  --jade: #4fd1a5;
-  --jade-glow: rgba(79, 209, 165, 0.25);
-  --gold: #d9b96a;
-  --danger: #e06a6a;
-  --line: #23303d;
-  --ui: "Segoe UI Variable", "Segoe UI", "Noto Sans", Arial, sans-serif;
-  --display: "Cambria", "Noto Serif", Georgia, serif;
-  --serif: var(--ui);
-  --mono: "Cascadia Code", "Consolas", "Noto Sans Mono", monospace;
-}
-
-/* Unified expansion states */
-.region-node.event-active {
-  border-color: #b34b66;
-  box-shadow: 0 0 0 2px rgba(179, 75, 102, .22), 0 0 18px rgba(179, 75, 102, .35);
-}
-
-.map-node.has-notable-npc::after {
-  content: "人";
-  position: absolute;
-  right: -5px;
-  top: -7px;
-  color: #e5c77a;
-  font-size: .7rem;
-}
-
-.map-node.hidden-realm-open {
-  border-color: #9f7aea;
-  box-shadow: 0 0 14px rgba(159, 122, 234, .55);
-}
-
-* { box-sizing: border-box; }
-
-html, body {
-  margin: 0;
-  height: 100%;
-  background: radial-gradient(1200px 700px at 50% -10%, #16232f 0%, var(--bg) 60%);
-  color: var(--ink);
-  font-family: var(--ui);
-  line-height: 1.55;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-
-#app {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-#topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 22px;
-  border-bottom: 1px solid var(--line);
-  background: rgba(11, 15, 20, 0.85);
-  backdrop-filter: blur(6px);
-}
-.topbar-actions { display:flex; align-items:center; gap:10px; }
-.topbar-actions .btn { padding:6px 10px; font-size:12px; }
-.guild-roadmap { margin:10px 0; padding:12px; border:1px solid rgba(194,153,74,.35); background:rgba(194,153,74,.08); border-radius:8px; }
-.guild-roadmap p { margin:6px 0 0; color:var(--muted); }
-
-.brand { font-family: var(--display); font-size: 18px; font-weight: 700; letter-spacing: .06em; color: var(--jade); }
-.brand-sub { font-size: 11px; color: var(--ink-dim); letter-spacing: .03em; margin-left: 8px; }
-.save-indicator { font-size: 12px; color: var(--ink-dim); font-family: var(--mono); }
-.game-clock { color: var(--gold); font: 11px var(--mono); white-space: nowrap; }
-
-.screen { display: none; flex: 1; overflow: hidden; }
-.screen.active { display: flex; }
-#screen-game { min-height: 0; height: 100dvh; }
-#screen-game.active { display: grid; grid-template-columns: minmax(320px, 380px) minmax(0, 1fr); }
-
-/* ---------- Home ---------- */
-.home-hero {
-  margin: auto;
-  text-align: center;
-  max-width: 560px;
-  padding: 40px 24px;
-}
-.sigil {
-  font-size: 74px;
-  color: var(--jade);
-  text-shadow: 0 0 32px var(--jade-glow);
-  margin-bottom: 6px;
-}
-.home-hero h1 { font-family: var(--display); font-size: clamp(34px, 7vw, 48px); letter-spacing: .12em; line-height: 1.1; margin: 0 0 12px; color: var(--ink); }
-.tagline { color: var(--ink-dim); font-size: 16px; line-height: 1.7; margin-bottom: 34px; }
-.home-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
-.home-hint { margin-top: 34px; color: var(--ink-dim); font-size: 13px; }
-.home-hint code, .prompt { color: var(--jade); font-family: var(--mono); }
-
-/* ---------- Buttons ---------- */
-.btn {
-  font-family: var(--serif);
-  font-size: 15px;
-  padding: 11px 22px;
-  border-radius: 6px;
-  border: 1px solid var(--line);
-  background: var(--panel-2);
-  color: var(--ink);
-  cursor: pointer;
-  line-height: 1.3;
-  transition: all 0.15s ease;
-}
-.btn:hover { border-color: var(--jade); color: var(--jade); }
-.btn-primary { background: linear-gradient(135deg, #1d3a32, #14302a); border-color: var(--jade); color: #d9f6ec; }
-.btn-primary:hover { box-shadow: 0 0 18px var(--jade-glow); color: #fff; }
-.btn-ghost { background: transparent; }
-.btn-ghost:hover { color: var(--gold); border-color: var(--gold); }
-.btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
-
-/* ---------- Character creation ---------- */
-.create-wrap {
-  margin: auto;
-  width: 100%;
-  max-width: 680px;
-  padding: 34px 26px;
-  max-height: 100%;
-  overflow: auto;
-}
-.create-wrap h2 { font-family: var(--display); letter-spacing: .04em; line-height: 1.25; color: var(--jade); margin: 0 0 6px; }
-.muted { color: var(--ink-dim); margin-top: 0; line-height: 1.65; }
-.field { display: block; margin: 22px 0; }
-.field > span { display: block; margin-bottom: 10px; color: var(--ink-dim); letter-spacing: .03em; font-weight: 600; }
-.field input[type="text"] {
-  width: 100%;
-  padding: 12px 14px;
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  color: var(--ink);
-  font-family: var(--ui);
-  font-size: 16px;
-}
-.field input[type="text"]:focus { outline: none; border-color: var(--jade); box-shadow: 0 0 0 3px var(--jade-glow); }
-
-.required-mark { color: var(--danger); font-size: 11px; }
-.start-region-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
-.start-region-card {
-  padding: 11px 12px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel-2);
-  color: var(--ink);
-  text-align: left;
-  cursor: pointer;
-}
-.start-region-card:hover { border-color: var(--gold); }
-.start-region-card.selected { border-color: var(--jade); background: #12241f; box-shadow: 0 0 14px var(--jade-glow); }
-.region-choice-name { color: var(--gold); font-size: 15px; }
-.region-choice-meta { margin-top: 3px; color: var(--jade); font: 10px var(--mono); }
-.region-choice-desc { margin-top: 5px; color: var(--ink-dim); font-size: 11px; line-height: 1.55; }
-.create-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 26px; }
-.error-text { color: var(--danger); min-height: 18px; font-size: 13px; }
-
-/* ---------- Game layout ---------- */
-.game-layout {
-  flex: 1;
-  display: block;
-  min-height: 0;
-  overflow: hidden;
-}
-.story-panel {
-  display: flex;
-  flex-direction: column;
-  height: clamp(180px, 30vh, 330px);
-  padding: 12px 0;
-  overflow: hidden;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 10px;
-}
-.story-location {
-  color: var(--gold);
-  font-size: 13px;
-  letter-spacing: .06em;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 14px;
-  text-transform: none;
-}
-.story-log {
-  flex: 1;
-  overflow-y: auto;
-  padding-right: 8px;
-  line-height: 1.75;
-  font-size: 16px;
-}
-.story-log p.narr { color: var(--ink); white-space: pre-wrap; margin: 0 0 16px; }
-.story-log p.action { color: var(--jade); font-style: italic; margin: 14px 0 4px; }
-.story-log p.sys { color: var(--gold); font-family: var(--mono); font-size: 13px; margin: 6px 0; white-space: pre-wrap; }
-.story-log p.warn { color: var(--danger); white-space: pre-wrap; }
-.story-entry { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
-.story-entry p { flex: 1; }
-.story-time { display: block; flex: 0 0 150px; color: var(--ink-dim); font: 10px var(--mono); white-space: nowrap; }
-.story-load-more { align-self: center; margin: 0 auto 12px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel-2); color: var(--jade); cursor: pointer; }
-.portrait-thumb {
-  width: 44px; height: 44px;
-  object-fit: cover;
-  border-radius: 50%;
-  border: 1px solid var(--line);
-  flex-shrink: 0;
-  box-shadow: 0 0 10px rgba(0,0,0,0.5);
-}
-.choice-list { padding-top: 14px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
-.choice {
-  text-align: left;
-  padding: 11px 14px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel-2);
-  color: var(--ink);
-  cursor: pointer;
-  font-family: var(--serif);
-  font-size: 15px;
-  transition: all 0.15s;
-}
-.choice:hover { border-color: var(--jade); color: var(--jade); }
-.choice:disabled { opacity: 0.4; cursor: not-allowed; }
-
-/* ---------- Side panel ---------- */
-.side-panel {
-  display: flex;
-  flex-direction: column;
-  background: var(--panel);
-  min-height: 0;
-  height: 100%;
-  min-width: 0;
-}
-.tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
-.tab {
-  flex: 1;
-  padding: 11px 6px;
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--ink-dim);
-  cursor: pointer;
-  font-family: var(--serif);
-  font-size: 13px;
-}
-.tab:hover { color: var(--ink); }
-.tab.active { color: var(--jade); border-bottom-color: var(--jade); }
-.tab-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 20px clamp(18px, 4vw, 56px); font-size: 14px; }
-.kv { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed var(--line); }
-.kv b { color: var(--gold); font-family: var(--mono); }
-.has-help { position: relative; cursor: help; border-bottom: 1px dotted #57706f; }
-.has-help i { display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 5px; border: 1px solid #57706f; border-radius: 50%; color: var(--jade); font: 10px var(--ui); }
-.has-help::after {
-  content: attr(data-help); position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 20;
-  width: min(280px, 65vw); padding: 8px 10px; border: 1px solid var(--jade); border-radius: 6px;
-  background: #09130f; color: var(--ink); font-size: 12px; line-height: 1.45;
-  opacity: 0; pointer-events: none; transform: translateY(4px); transition: .15s;
-}
-.has-help:hover::after, .has-help:focus::after { opacity: 1; transform: none; }
-.equipment-group { align-items: flex-start; gap: 10px; }
-.equipment-group b { max-width: 62%; text-align: right; line-height: 1.45; overflow-wrap: anywhere; }
-.equipment-card { margin: 10px 0 4px; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: rgba(255,255,255,.018); }
-.equipment-card .section-title { margin: 0 0 10px; }
-.equipment-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.equipment-table th { padding: 6px 8px; text-align: left; color: var(--ink-dim); font-size: 11px; letter-spacing: .05em; border-bottom: 1px solid var(--line); }
-.equipment-table td { padding: 8px; border-bottom: 1px dashed var(--line); }
-.equipment-table td:nth-child(2) { text-align: center; white-space: nowrap; font-family: var(--mono); color: var(--gold); }
-.equipment-table td:nth-child(3) { width: 48%; }
-.equipment-table tbody tr:last-child td { border-bottom: none; }
-.equip-row { cursor: pointer; }
-.equip-row:hover { background: rgba(79,209,165,.06); }
-.equip-item { color: var(--gold); font-family: var(--mono); }
-.equip-row .muted { margin: 0; }
-.equip-picker { display: grid; gap: 8px; }
-.equip-pick-actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
-.inline-blocker { color: var(--danger); }
-.cauldron-quantity { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; color: var(--gold); font-size: 12px; }
-.cauldron-quantity input { width: 58px; padding: 5px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: var(--panel-2); }
-.cauldron-summary { flex: 1 1 100%; color: var(--ink-dim); font-size: 12px; }
-.equip-pick-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel-2); }
-.equip-pick-row small { display: block; color: var(--ink-dim); margin-top: 3px; }
-.action-panel-title { margin-bottom: 7px; color: var(--gold); font: 700 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
-.action-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 7px; margin-bottom: 9px; }
-.action-bar{min-width:0;min-height:0;overflow-y:auto;display:flex;flex-direction:column}.action-bar .story-panel{flex:1;min-height:0;height:auto}.action-bar .action-list{flex:0 0 auto}
-.action-chip, .action-more-trigger { min-width: 0; min-height: 38px; width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel-2); color: var(--ink); font: 12px/1.25 var(--mono); text-align: left; cursor: pointer; }
-.action-chip:hover, .action-chip:focus-visible, .action-more-trigger:hover, .action-more-trigger:focus-visible { color: var(--jade); border-color: var(--jade); outline: none; box-shadow: 0 0 0 2px var(--jade-glow); }
-.action-more { position: relative; min-width: 0; }
-.action-more > summary { list-style: none; }
-.action-more > summary::-webkit-details-marker { display: none; }
-.action-more-menu { position: absolute; right: 0; bottom: calc(100% + 7px); z-index: 12; display: grid; grid-template-columns: repeat(2, minmax(145px, 1fr)); gap: 6px; width: min(360px, 78vw); max-height: min(310px, 48vh); padding: 8px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; background: rgba(11, 16, 24, .98); box-shadow: 0 12px 28px rgba(0, 0, 0, .45); }
-.action-more-group-title { grid-column: 1 / -1; padding: 5px 3px 2px; color: var(--gold); font: 700 10px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; border-bottom: 1px solid var(--line); }
-.action-more:not([open]) .action-more-menu { display: none; }
-.item-actions { margin-top: 7px; display: flex; flex-wrap: wrap; gap: 6px; }
-.item-action { border: 1px solid var(--line); border-radius: 5px; background: var(--panel-soft); color: var(--text); padding: 4px 8px; cursor: pointer; font: inherit; }
-.item-action:hover { border-color: var(--accent); color: var(--accent); }
-.hp-bar, .qi-bar, .progress-bar {
-  height: 9px; border-radius: 5px; background: #1a2530; overflow: hidden; margin: 5px 0;
-}
-.hp-bar > span { display: block; height: 100%; background: linear-gradient(90deg, #d05757, #e58a8a); }
-.qi-bar > span { display: block; height: 100%; background: linear-gradient(90deg, #3aa8c4, #6fd6ee); }
-.progress-bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--jade), #a5f0d6); }
-
-.section-title { color: var(--gold); letter-spacing: .04em; margin: 14px 0 6px; font-size: 12px; font-weight: 700; }
-.status-avatar { margin: 0 0 10px; }
-.status-avatar img {
-  width: 100%; max-height: 160px;
-  object-fit: cover;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  box-shadow: 0 0 14px rgba(0,0,0,0.5);
-}
-.item-row, .quest-row, .rel-row { padding: 7px 0; border-bottom: 1px dashed var(--line); }
-.item-row small, .quest-row small, .rel-row small { color: var(--ink-dim); }
-.inspectable { padding: 11px; border: 1px solid transparent; border-bottom-color: var(--line); border-radius: 7px; }
-.inspectable:hover { border-color: #365647; background: rgba(79,209,165,.04); }
-.stat-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
-.stat-tag { display: inline-block; padding: 2px 7px; border: 1px solid #35594d; border-radius: 12px; color: #9ce3cb; font: 11px var(--mono); }
-.stat-tag.neutral { border-color: var(--line); color: var(--ink-dim); }
-.quest-done { color: var(--jade); }
-.quest-failed { color: var(--danger); }
-
-/* ---------- Guilds ---------- */
-.guild-card {
-  position: relative;
-  margin-bottom: 9px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--panel-2);
-}
-.guild-card.member { border-color: var(--gold); box-shadow: 0 0 14px rgba(217,185,106,.12); }
-.guild-decision { margin-bottom: 12px; padding: 11px; border: 1px solid var(--gold); border-radius: 7px; background: rgba(217,185,106,.08); }
-.guild-decision b { color: var(--gold); }
-.guild-decision p { color: var(--ink-dim); font-size: 12px; }
-.guild-card h3 { margin: 0 48px 5px 0; color: var(--ink); font-size: 14px; }
-.guild-card p { margin: 3px 0 8px; color: var(--ink-dim); font-size: 11px; line-height: 1.45; }
-.guild-tier { position: absolute; right: 8px; top: 8px; color: var(--gold); font: 10px var(--mono); }
-.guild-card:not(.member) .guild-tier { position: static; display: block; max-width: 100%; margin-bottom: 5px; white-space: normal; text-align: left; line-height: 1.3; }
-.origin-lore { margin: 3px 0 8px; padding: 8px 10px; border-left: 2px solid var(--gold); color: var(--ink-dim); font-size: 12px; line-height: 1.45; }
-.guild-traits { color: var(--jade) !important; }
-.guild-action {
-  padding: 5px 9px;
-  border: 1px solid var(--jade);
-  border-radius: 4px;
-  background: transparent;
-  color: var(--jade);
-  cursor: pointer;
-  font-family: var(--serif);
-}
-.guild-action.danger { border-color: var(--danger); color: var(--danger); }
-
-/* ---------- World map ---------- */
-.map-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
-.map-switch button {
-  padding: 7px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: transparent;
-  color: var(--ink-dim);
-  cursor: pointer;
-  font-family: var(--serif);
-}
-.map-switch button.active { border-color: var(--jade); color: var(--jade); background: #12241f; }
-.map-heading { display: grid; gap: 3px; margin-bottom: 10px; }
-.map-heading b { color: var(--gold); letter-spacing: 2px; }
-.map-heading small { color: var(--ink-dim); line-height: 1.35; }
-.world-map {
-  position: relative;
-  height: 480px;
-  overflow: hidden;
-  border: 1px solid #2e3945;
-  border-radius: 12px;
-  background:
-    radial-gradient(circle at 50% 45%, rgba(114, 58, 91, .18), transparent 30%),
-    radial-gradient(circle at 80% 20%, rgba(45, 111, 115, .12), transparent 32%),
-    linear-gradient(145deg, #111722, #070a10 80%);
-  box-shadow: inset 0 0 80px rgba(0,0,0,.72), 0 8px 28px rgba(0,0,0,.28);
-}
-.world-map::before { content:""; position:absolute; inset:0; z-index:0; opacity:.18; pointer-events:none; background-image:linear-gradient(rgba(180,190,205,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(180,190,205,.12) 1px,transparent 1px); background-size:28px 28px; mask-image:radial-gradient(ellipse at center,#000 25%,transparent 88%); }
-.world-map::after { content:""; position:absolute; inset:0; z-index:2; pointer-events:none; background:radial-gradient(ellipse at center,transparent 42%,rgba(0,0,0,.58) 100%); }
-.world-map svg { position: absolute; inset: 0; z-index:1; width: 100%; height: 100%; }
-.map-path { stroke: #3e4655; stroke-width: 0.55; stroke-dasharray: 1.5 2.5; opacity:.7; }
-.map-path.explored { stroke: #83a69a; stroke-width: .9; stroke-dasharray: none; filter: drop-shadow(0 0 2px rgba(120,190,164,.35)); }
-.world-route { stroke: #3a5265; stroke-width: 0.8; stroke-dasharray: 2 1; }
-.region-node {
-  position: absolute;
-  width: 94px;
-  padding: 7px;
-  transform: translate(-50%, -50%);
-  border: 1px solid #395064;
-  border-radius: 30%;
-  background: rgba(12, 22, 31, .92);
-  text-align: center;
-  z-index: 3;
-}
-.region-node b { display: block; color: var(--ink); font-size: 12px; }
-.region-node small { color: var(--ink-dim); font-size: 9px; }
-.region-node.current { border-color: var(--gold); box-shadow: 0 0 18px rgba(217,185,106,.28); }
-  .faction-pin {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  transform: translate(-50%, -50%);
-  border: 1px solid #071016;
-  border-radius: 50%;
-    z-index: 2;
-    padding: 0;
-    cursor: pointer;
-    appearance: none;
-  }
-  .faction-pin:hover, .faction-pin:focus-visible { filter: brightness(1.35); transform: translate(-50%, -50%) scale(1.35); outline: 1px solid var(--gold); }
-.faction-pin span {
-  position: absolute;
-  left: 9px;
-  top: -4px;
-  width: 70px;
-  color: var(--ink-dim);
-  font-size: 9px;
-  line-height: 1.1;
-}
-.faction-pin.righteous, .dot.righteous { background: #5aa9e6; }
-.faction-pin.evil, .dot.evil { background: var(--danger); }
-.faction-pin.neutral, .dot.neutral { background: #a995c9; }
-.faction-pin.guild-pin { width: 5px; height: 5px; outline: 1px solid rgba(255,255,255,.25); }
-  .faction-row { display: block; width: 100%; padding: 8px 0; border: 0; border-bottom: 1px dashed var(--line); background: transparent; text-align: left; cursor: pointer; }
-  .faction-row:hover, .faction-row:focus-visible { background: rgba(217,185,106,.08); }
-.faction-row b { color: var(--ink); }
-.faction-row small { display: block; margin-top: 3px; color: var(--ink-dim); line-height: 1.45; }
-.link-button { border: 0; padding: 0; color: var(--gold); background: transparent; cursor: pointer; text-decoration: underline; }
-.tag { display: inline-block; padding: 3px 7px; border: 1px solid var(--line); border-radius: 999px; font-size: 11px; }
-.tag.success { color: #8bd3a8; border-color: #467d5e; }
-.tag.danger { color: var(--danger); border-color: rgba(224,106,106,.55); }
-.map-node {
-  position: absolute;
-  width: 112px;
-  min-height: 40px;
-  padding: 7px 8px;
-  transform: translate(-50%, -50%);
-  border: 1px solid #3a4552;
-  border-radius: 9px;
-  background: rgba(11,16,24,.92);
-  color: var(--ink-dim);
-  font: 11px/1.25 var(--serif);
-  text-shadow: 0 1px 2px #000;
-  transition: transform .16s, box-shadow .16s, border-color .16s;
-  z-index: 1;
-}
-.map-node.current { border-color: var(--gold); color: var(--gold); box-shadow: 0 0 0 2px rgba(217,185,106,.12), 0 0 22px rgba(217,185,106,.38); background:rgba(49,37,17,.9); }
-.map-node.reachable { border-color: var(--jade); color: var(--jade); cursor: pointer; }
-.map-node.reachable:hover { transform:translate(-50%,-50%) scale(1.06); background: #173029; box-shadow: 0 0 18px var(--jade-glow); }
-.map-node.visited { color: var(--ink); }
-.map-node.procedural { border-style:dashed; color:#b09ac7; }
-.map-node.dangerous { border-color:rgba(224,106,106,.62); }
-.map-node.unknown { width:38px; min-height:38px; border-radius:50%; opacity: .52; color:#9ca8b4; font-size:18px; }
-.map-node.fog-0 { opacity:.18; color:#6f7890; border-color:#30384c; }
-.map-node.fog-1 { opacity:.55; color:#a7b9d8; border-style:dotted; }
-.map-node.fog-2 { opacity:.88; }
-.map-node.fog-3 { opacity:1; box-shadow:0 0 0 2px rgba(217,185,106,.12),0 0 18px rgba(217,185,106,.32); }
-.map-legend { color: var(--ink-dim); font-size: 11px; line-height: 1.8; }
-.dot { display: inline-block; width: 8px; height: 8px; margin-left: 5px; border-radius: 50%; background: var(--ink-dim); }
-.dot.current { background: var(--gold); }
-.dot.reachable { background: var(--jade); }
-.dot.visited { background: var(--ink); }
-
-/* ---------- Action bar ---------- */
-.action-bar {
-  border-top: 1px solid var(--line);
-  padding: 12px 22px;
-  background: rgba(11, 15, 20, 0.9);
-  flex: 0 0 auto;
-}
-.free-form { display: flex; gap: 8px; align-items: center; }
-.advanced-command-label { color: var(--ink-dim); font: 10px var(--mono); white-space: nowrap; }
-.free-form .prompt { font-size: 18px; }
-.free-form input {
-  flex: 1;
-  padding: 11px 14px;
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  color: var(--ink);
-  font-family: var(--serif);
-  font-size: 15px;
-}
-.free-form input:focus { outline: none; border-color: var(--jade); box-shadow: 0 0 0 3px var(--jade-glow); }
-.quick-hints { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-.chip {
-  font-family: var(--mono);
-  font-size: 12px;
-  padding: 4px 9px;
-  border-radius: 20px;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--ink-dim);
-  cursor: pointer;
-}
-.chip:hover { color: var(--jade); border-color: var(--jade); }
-.san-low .story-panel { text-shadow: 0 0 5px rgba(224,106,106,.18); }
-.san-critical .story-panel { animation: perception-glitch 2.8s steps(2,end) infinite; }
-@keyframes perception-glitch { 0%,92%,100% { filter:none; } 94% { filter:hue-rotate(12deg) saturate(1.25); } 96% { filter:hue-rotate(-16deg); } }
-.action-chip.danger { color: var(--danger); border-color: var(--danger); }
-.action-chip:disabled { opacity: 0.45; cursor: not-allowed; }
-.overlay-locked .overlay-close { visibility: hidden; }
-.origin-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.origin-choice-card { padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); }
-.origin-choice-card h3 { margin: 0 0 5px; color: var(--gold); }
-.origin-choice-card p { min-height: 42px; color: var(--ink-dim); font-size: 12px; }
-.origin-specializations { display: grid; gap: 7px; }
-.origin-specialization { display: flex; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; }
-.origin-specialization:has(input:checked) { border-color: var(--jade); background: rgba(79,209,165,.08); }
-.origin-specialization input { accent-color: var(--jade); }
-.origin-specialization b, .origin-specialization small { display: block; }
-.origin-specialization small { margin-top: 3px; color: var(--ink-dim); }
-.origin-confirm { width: 100%; margin-top: 12px; }
-
-/* ---------- Overlay / detail ---------- */
-.overlay {
-  position: fixed; inset: 0;
-  background: rgba(5, 8, 12, 0.72);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 50; padding: 20px;
-}
-.overlay.hidden { display: none; }
-.overlay-panel {
-  width: min(1120px, 96vw);
-  max-height: 92vh;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow: 0 18px 50px rgba(0,0,0,0.5);
-  display: flex; flex-direction: column;
-  overflow: hidden;
-}
-.overlay-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 18px; border-bottom: 1px solid var(--line);
-}
-.overlay-head b { font-family: var(--display); font-size: 18px; color: var(--jade); }
-.overlay-close {
-  background: transparent; border: none; color: var(--ink-dim);
-  font-size: 24px; line-height: 1; cursor: pointer;
-}
-.overlay-close:hover { color: var(--ink); }
-.overlay-content {
-  padding: 18px; overflow: auto;
-  font-family: var(--serif); font-size: 14px;
-  white-space: pre-wrap; word-break: break-word;
-  color: var(--ink);
-}
-.overlay-content .detail-block {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 12px 14px;
-  margin-bottom: 12px;
-  background: var(--panel-2);
-}
-.overlay-content .detail-block h4 {
-  margin: 0 0 6px; font-family: var(--display); color: var(--gold);
-  font-size: 15px;
-}
-.overlay-content .detail-kv {
-  display: grid; grid-template-columns: auto 1fr; gap: 4px 12px;
-}
-.overlay-content .detail-kv span { color: var(--ink-dim); }
-
-.fate-paperdoll { position: relative; display: grid; grid-template-columns: minmax(180px, 320px) 1fr; gap: 1rem; align-items: center; margin: 1rem 0; padding: 1rem; border: 1px solid var(--line); background: rgba(20, 24, 38, .55); }
-.fate-paperdoll > img { width: 100%; max-height: 360px; object-fit: contain; }
-.fate-anchor-list { display: grid; gap: .55rem; }
-.fate-anchor { border: 1px solid var(--accent); background: rgba(120, 85, 160, .2); color: inherit; padding: .65rem; text-align: left; cursor: pointer; border-radius: .35rem; }
-.fate-anchor:hover, .fate-anchor:focus { background: rgba(180, 130, 220, .35); }
-.fate-grade-badge { padding: 2px 6px; border-radius: 999px; font-weight: 700; }
-.fate-card.grade-phan .fate-grade-badge { color: #c9c9c9; background: #3a3a42; }
-.fate-card.grade-linh .fate-grade-badge { color: #7de2ff; background: #123d52; }
-.fate-card.grade-hoang .fate-grade-badge { color: #ffe27a; background: #5b4512; }
-.fate-card.grade-huyen .fate-grade-badge { color: #c49bff; background: #3b205d; }
-.fate-card.grade-dia .fate-grade-badge { color: #ff9c66; background: #612b18; }
-.fate-card.grade-thien .fate-grade-badge { color: #8fffc2; background: #164d3c; }
-.fate-card.grade-thanh .fate-grade-badge { color: #fff; background: #315ca0; }
-.fate-card.grade-tien .fate-grade-badge { color: #ffd4ff; background: #712d78; }
-.ending-options { display: grid; gap: 8px; margin-top: 15px; }
-.market-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .7rem; }
-.market-card { display: grid; gap: .45rem; padding: .75rem; border: 1px solid var(--line); background: rgba(20,24,38,.55); }
-.market-card small { color: var(--ink-dim); }
-.fate-view-toggle { display: flex; gap: .5rem; margin: .5rem 0; }
-.fate-owned-count { font-size: .9rem; }
-.help-button { margin-left: .45rem; border-radius: 50%; width: 1.4rem; height: 1.4rem; cursor: pointer; }
-.reward-summary { border: 1px solid var(--line); padding: .75rem; margin: .65rem 0; }
-.reward-summary ul { margin: .4rem 0 0 1.2rem; }
-.reward-banner { padding: 1rem; text-align: center; color: var(--accent); }
-@media (max-width: 700px) { .fate-paperdoll { grid-template-columns: 1fr; } }
-.modal-illustration { display: block; width: 100%; height: clamp(150px, 24vh, 260px); object-fit: cover; border: 1px solid var(--line); border-radius: 9px; margin-bottom: 16px; }
-.detail-summary { display: flex; flex-wrap: wrap; gap: 8px; margin: -36px 14px 18px; position: relative; padding: 10px 12px; border: 1px solid #416658; border-radius: 8px; background: rgba(9,19,15,.94); }
-.detail-summary > * { padding-right: 12px; border-right: 1px solid var(--line); }
-.detail-summary b { color: var(--gold); }
-.detail-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-.detail-columns h3, .technique-grid h3 { color: var(--gold); font-size: 15px; }
-.fate-card, .technique-card { position: relative; margin-bottom: 9px; padding: 12px; border: 1px solid var(--line); border-left: 3px solid var(--jade); border-radius: 8px; background: var(--panel-2); }
-.fate-card.hung { border-left-color: var(--danger); }
-.fate-card.binh { border-left-color: var(--gold); }
-.fate-card small, .technique-head small { display: block; color: var(--ink-dim); }
-.fate-card p, .technique-card p { margin: 6px 0; color: var(--ink-dim); font-size: 12px; }
-.fate-enhancement { color: #8fffc2; text-shadow: 0 0 10px rgba(143,255,194,.35); }
-.active-mark { border-color: #6ed39b; color: #8fffc2; }
-.pending-fate-banner { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; margin: 10px 0; padding: 12px; border: 1px solid var(--gold); border-radius: 9px; background: rgba(172,128,45,.12); }
-.pending-fate-banner span { color: var(--ink-dim); }
-.fate-replace-row { display: grid; gap: 9px; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); }
-.fate-replace-row header { display: flex; justify-content: space-between; gap: 12px; }
-.fate-replace-row header span { color: var(--gold); }
-.fate-delta-grid { display: grid; grid-template-columns: repeat(5,minmax(80px,1fr)); gap: 6px; }
-.fate-delta-grid div { display: grid; gap: 2px; padding: 7px; border-radius: 6px; background: rgba(255,255,255,.035); }
-.fate-delta-grid span { color: var(--ink-dim); font-size: 11px; }
-.fate-vault-replace-list { display: grid; gap: 7px; }
-.fate-vault-replace-button { display: flex; justify-content: space-between; padding: 10px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); background: var(--panel-2); cursor: pointer; }
-.fate-pity { color: var(--gold); }
-.ritual-shell { display: grid; gap: 14px; }
-.ritual-heading small, .ritual-current > span { color: var(--gold); letter-spacing: .14em; font-size: 10px; }
-.ritual-heading h3, .ritual-current h3 { margin: 4px 0; }
-.ritual-stepper { display: grid; grid-template-columns: repeat(auto-fit,minmax(105px,1fr)); gap: 7px; }
-.ritual-step { display: flex; align-items: center; gap: 7px; padding: 8px; border: 1px solid var(--line); border-radius: 7px; opacity: .48; }
-.ritual-step span { display: grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; background: rgba(255,255,255,.08); }
-.ritual-step.current { opacity: 1; border-color: var(--gold); background: rgba(172,128,45,.12); }
-.ritual-step.done { opacity: .82; border-color: #4f9d73; }
-.ritual-step.done span { background: #315f48; }
-.ritual-current, .ritual-outcome { padding: 12px; border-left: 3px solid var(--gold); background: rgba(255,255,255,.035); }
-.ritual-checklist { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.ritual-checklist li { display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; padding: 8px; border-radius: 6px; background: rgba(255,255,255,.035); }
-.ritual-checklist li.met span { color: #8fffc2; }
-.ritual-checklist li.missing span, .ritual-blocker { color: #ff9b88; }
-.ritual-checklist em { color: var(--ink-dim); font-style: normal; }
-.ritual-outcome { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.ritual-outcome div { display: grid; gap: 4px; }
-.ritual-outcome span { color: var(--ink-dim); font-size: 12px; }
-.ritual-ready { color: #8fffc2; }
-.ritual-shortcuts { display: flex; gap: 8px; }
-.ritual-confirm { width: 100%; }
-.vault-mark { position: absolute; right: 10px; top: 10px; color: var(--gold); font: 10px var(--mono); }
-.relation-list { display: grid; gap: 7px; }
-.relation-edge { display: grid; grid-template-columns: 140px 1fr; gap: 10px; padding: 8px 10px; border-left: 3px solid var(--gold); background: rgba(255,255,255,.025); }
-.relation-edge.positive { border-color: var(--jade); }
-.relation-edge.negative { border-color: var(--danger); }
-.technique-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 10px; }
-.technique-head { display: flex; justify-content: space-between; gap: 10px; }
-.mastery { margin-top: 12px; }
-.mastery > div:first-child { display: flex; justify-content: space-between; font-size: 12px; }
-.mastery-bar { height: 7px; margin: 5px 0; overflow: hidden; border-radius: 6px; background: #1a2530; }
-.mastery-bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--jade), var(--gold)); }
-.mastery small { color: var(--ink-dim); }
-.realm-guide { margin: 10px 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); }
-.realm-guide.ready { border-color: var(--jade); }
-.realm-guide p { margin: 6px 0 10px; color: var(--ink-dim); }
-.realm-route { display: flex; align-items: center; gap: 9px; color: var(--gold); }
-.requirement-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 5px 14px; }
-.requirement { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-bottom: 1px dashed var(--line); font-size: 12px; }
-.requirement.met span { color: var(--jade); }
-.requirement.missing span { color: var(--danger); }
-.san-penalty, .san-ending { display: grid; gap: 4px; padding: 12px; border: 1px solid var(--danger); border-radius: 8px; background: rgba(224,106,106,.1); color: #ffb0b0; }
-.san-ending > b { font-size: 22px; letter-spacing: .15em; }
-.empty-state { color: var(--ink-dim); font-style: italic; }
-.race-lore, .realm-lore-compact { margin: 4px 0 10px; padding: 9px 11px; border-left: 2px solid var(--jade); background: rgba(79,209,165,.045); color: var(--ink-dim); font-size: 12px; line-height: 1.55; }
-.root-row, .equipment-sub { padding-left: 10px; background: rgba(255,255,255,.018); }
-.root-grade { color: var(--jade); font-family: var(--mono); font-size: 11px; margin-left: 8px; white-space: nowrap; }
-.root-cach-cuc b { font-family: var(--mono); }
-.root-cach-cuc--cat b { color: var(--jade); }
-.root-cach-cuc--hung b { color: #d05757; }
-.root-cach-cuc--trung b { color: var(--gold); }
-.equipment-heading { margin-top: 10px; }
-.technique-category { margin: 0 0 18px; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: rgba(255,255,255,.018); }
-.technique-category > header { display: flex; justify-content: space-between; gap: 18px; align-items: baseline; margin-bottom: 8px; }
-.technique-category > header h3 { margin: 0; font-family: var(--display); }
-.technique-category > header p { margin: 0; color: var(--ink-dim); font-size: 12px; }
-.group-tam_phap { border-top: 3px solid #68d5ba; }
-.group-tam_phap h3 { color: #68d5ba; }
-.group-chieu_thuc { border-top: 3px solid #e56d6d; }
-.group-chieu_thuc h3 { color: #ff8b83; }
-.group-than_phap { border-top: 3px solid #6aaee8; }
-.group-than_phap h3 { color: #83c6ff; }
-.group-phu_tro { border-top: 3px solid #88c96b; }
-.group-phu_tro h3 { color: #a5df88; }
-.group-tran_phap { border-top: 3px solid #b28ae0; }
-.group-tran_phap h3 { color: #c5a2ed; }
-.group-cam_thuat { border-top: 3px solid #9d3b4d; background: rgba(109,25,43,.08); }
-.group-cam_thuat h3 { color: #ff738c; }
-.group-dan_phu_phap { border-top: 3px solid var(--gold); }
-.group-dan_phu_phap h3 { color: var(--gold); }
-.realm-node.next { border-color: var(--jade); }
-.realm-node.sealed b { letter-spacing: .2em; color: var(--ink-dim); }
-.guild-card.locked { opacity: .72; border-style: dashed; }
-.guild-requirement, .guild-exit-cost { color: var(--gold); font-size: 12px; }
-.realm-path-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; background: rgba(79,209,165,.07); color: var(--gold); }
-.realm-timeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px; margin: 12px 0; }
-.realm-node { display: grid; grid-template-columns: 34px 1fr; gap: 9px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); }
-.realm-node > span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #1a2530; color: var(--ink-dim); font-family: var(--mono); }
-.realm-node b, .realm-node small { display: block; }
-.realm-node small { margin-top: 3px; color: var(--ink-dim); }
-.realm-node.complete { border-color: rgba(79,209,165,.45); }
-.realm-node.complete > span { background: var(--jade); color: #07120f; }
-.realm-node.current { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(217,185,106,.2); }
-.realm-node.current > span { background: var(--gold); color: #171109; }
-.realm-node.locked { opacity: .55; }
-.auto-controls { display: flex; flex-wrap: wrap; gap: 8px; }
-.auto-controls button { border: 1px solid var(--jade); border-radius: 6px; padding: 7px 12px; background: rgba(79,209,165,.08); color: var(--jade); cursor: pointer; }
-.auto-controls button:hover { background: rgba(79,209,165,.18); }
-.auto-result { color: var(--gold); font-size: 12px; }
-
-@media (max-width: 760px) {
-  #screen-game.active { display: flex; flex-direction: column; }
-  .game-layout { flex: 0 0 auto; max-height: 52vh; }
-  .action-bar { flex: 1 1 auto; }
-  .story-panel { height: 220px; }
-  .tab-content { padding: 13px; }
-  .detail-columns { grid-template-columns: 1fr; }
-  .relation-edge { grid-template-columns: 1fr; }
-  .start-region-list { grid-template-columns: 1fr; }
-  .action-list { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
-  .action-more-menu { grid-template-columns: 1fr; width: min(240px, 78vw); }
-  .advanced-command-label { display: none; }
-  .origin-choice-grid { grid-template-columns: 1fr; }
-  .technique-category > header { display: block; }
-}
-
-.ritual-guide{margin-top:12px;padding:12px;border:1px solid var(--line,#444);background:rgba(30,20,45,.45);border-radius:8px}.ritual-guide ol{display:flex;gap:8px;flex-wrap:wrap;padding-left:20px}.ritual-step{opacity:.55}.ritual-step.current{opacity:1;color:#f7d774;font-weight:700}.ritual-step.done{opacity:1;color:#83d39b;text-decoration:line-through}
-.tab-groups{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}.tab-group{position:relative;min-width:120px}.tab-group>summary{cursor:pointer;list-style:none;padding:8px 12px;border:1px solid var(--line,#444);border-radius:7px;background:rgba(44,35,58,.8);color:#eadbb2;font-weight:700}.tab-group>summary::-webkit-details-marker{display:none}.tab-group[open]>summary{border-color:#b89b52}.tab-group-menu{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;padding:5px;border:1px solid var(--line,#444);border-radius:7px;background:rgba(18,15,27,.96);z-index:5}.tab-group-menu .tab{white-space:nowrap}.cauldron-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.fate-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}.fate-actions button{font-size:.78rem}
-.map-camera-controls { display:flex; align-items:center; justify-content:flex-end; gap:6px; margin:6px 0 10px; color:var(--ink-dim); font-size:11px; }
-.map-camera-controls button { min-width:28px; height:26px; border:1px solid #536277; border-radius:50%; background:rgba(11,18,31,.85); color:var(--gold); cursor:pointer; }
-.map-camera-controls button:hover { border-color:var(--gold); box-shadow:0 0 12px rgba(217,185,106,.35); }
-.world-map { --map-zoom:1; --map-pan-x:0px; --map-pan-y:0px; cursor:grab; background:radial-gradient(circle at 50% 45%,rgba(51,73,118,.28),transparent 34%),radial-gradient(circle at 20% 25%,rgba(82,42,107,.22),transparent 28%),#070d1d; }
-.world-map:active { cursor:grabbing; }
-.world-map > svg, .world-map > .region-node, .world-map > .faction-pin { transition:transform .35s ease; }
-.world-map > svg { transform:translate(var(--map-pan-x),var(--map-pan-y)) scale(var(--map-zoom)); transform-origin:50% 50%; }
-.world-map > .region-node, .world-map > .faction-pin, .world-map > .guild-pin { transform:translate(-50%,-50%) scale(var(--map-zoom)); transform-origin:center; }
-.region-node { width:22px; height:22px; padding:0; border:1px solid rgba(151,184,236,.8); border-radius:50%; background:radial-gradient(circle,#d8e8ff 0 8%,#7da4e8 20%,rgba(72,99,176,.35) 48%,transparent 72%); box-shadow:0 0 10px rgba(125,164,232,.75),0 0 28px rgba(88,118,220,.3); overflow:visible; }
-.region-node b { display:none; position:absolute; left:18px; top:-7px; white-space:nowrap; color:#d8e8ff; text-shadow:0 1px 4px #000; font-size:12px; }
-.region-node small { display:none; }
-.region-node:hover b, .region-node.current b, .region-node.event-active b { display:block; }
-.region-node.current { width:30px; height:30px; border-color:var(--gold); background:radial-gradient(circle,#fff6c7 0 8%,#e0b95d 22%,rgba(217,185,106,.35) 48%,transparent 74%); box-shadow:0 0 0 8px rgba(217,185,106,.08),0 0 30px rgba(217,185,106,.85); animation:cosmicPulse 2.4s ease-in-out infinite; }
-.region-node.event-active { border-color:#d9738c; box-shadow:0 0 18px rgba(217,83,113,.75); }
-.world-route { stroke:#8098c4; stroke-width:.32; stroke-dasharray:1 2; opacity:.34; filter:drop-shadow(0 0 2px rgba(125,164,232,.5)); }
-.star-orbit { fill:none; stroke:rgba(126,164,232,.2); stroke-width:.22; stroke-dasharray:.8 1.8; }
-.star-core { fill:#fff4b0; filter:drop-shadow(0 0 5px rgba(255,225,128,.95)); }
-.faction-pin { box-shadow:0 0 12px currentColor; }
-.map-legend { color:#a8b8d8; }
-@keyframes cosmicPulse { 0%,100% { box-shadow:0 0 0 5px rgba(217,185,106,.08),0 0 20px rgba(217,185,106,.65); } 50% { box-shadow:0 0 0 13px rgba(217,185,106,.02),0 0 36px rgba(217,185,106,.95); } }
-
-</style>
+  <link rel="stylesheet" href="styles.css?v=20260917-map-star-spawn" />
 </head>
 <body>
   <div id="app">
@@ -6542,7 +5794,13 @@ window.GameEngine = (function () {
     const source = Array.isArray(events) ? events : getGameLog(state);
     const groups = [];
     const byDay = new Map();
-    source.filter((event) => event && event.type !== "COMMAND_ECHO" && !event.debugOnly).forEach((event) => {
+    let previousText = null;
+    source.filter((event) => event && event.type !== "COMMAND_ECHO" && !event.debugOnly).filter((event) => {
+      const text = String(event.text || event.narrative?.text || "");
+      if (text && text === previousText) return false;
+      previousText = text;
+      return true;
+    }).forEach((event) => {
       const key = gameLogDayKey(event);
       let group = byDay.get(key);
       if (!group) { group = { dayKey: key, entry: event, events: [], texts: [] }; byDay.set(key, group); groups.push(group); }
@@ -6701,11 +5959,11 @@ window.GameEngine = (function () {
     (loc?.npcs || []).forEach((npcId) => {
       const npc = D().NPCS[npcId];
       if (!npc) return;
-      actions.push({ id: "act_talk_" + npcId, label: "Nói Chuyện " + npc.name, aliases: ["nói chuyện " + npc.name, "noi chuyen " + npc.name], priority: 1 });
+      actions.push({ id: "act_talk_" + npcId, label: "Nói chuyện với " + npc.name, aliases: ["nói chuyện " + npc.name, "noi chuyen " + npc.name], priority: 1 });
     });
     presentEntities(state).forEach((entity) => {
       if (loc?.npcs?.includes(entity.id)) return;
-      actions.push({ id: "act_talk_" + entity.id, label: "Gặp " + entity.name, aliases: ["gặp " + entity.name, "gap " + entity.name, "nói chuyện " + entity.name], priority: 1 });
+      actions.push({ id: "act_talk_" + entity.id, label: "Nói chuyện với " + entity.name, aliases: ["gặp " + entity.name, "gap " + entity.name, "nói chuyện " + entity.name], priority: 1 });
     });
     return actions;
   }
@@ -8146,11 +7404,6 @@ window.GameEngine = (function () {
     ensure(state); const def = SPECIAL_PHYSIQUE_CATALOG[id];
     if (!def || state.specialPhysiqueState.activeId) return { success: false, reason: "Cơ thể đã có Dị Thể hoặc lựa chọn không tồn tại." };
     if (!state.specialPhysiqueState.candidates[id]) return { success: false, reason: "Chưa đủ dấu mốc để chứng minh xứng đáng." };
-    const exclusions = def.exclusions || { paths: [], professions: [] };
-    if ((exclusions.paths || []).includes(state.player.pathId) || (exclusions.professions || []).includes(state.professionState?.primaryId)) return { success: false, reason: "Dị Thể này xung đột với Con Đường hoặc Nghề chính hiện tại." };
-    const activePaths = [state.pathState?.primaryPathId, state.pathState?.secondaryPathId, state.player.pathId, state.player.secondaryPathId].filter(Boolean);
-    const activeProfessions = [state.professionState?.primaryId, state.professionState?.secondaryId, state.professionState?.hiddenId].filter(Boolean);
-    if (activePaths.some((pathId) => (exclusions.paths || []).includes(pathId)) || activeProfessions.some((professionId) => (exclusions.professions || []).includes(professionId))) return { success: false, reason: "Dithe exclusion conflict." };
     state.specialPhysiqueState.activeId = id; state.player.specialPhysique = id;
     state.specialPhysiqueState.history.push({ id, day: playerDay(state), source: def.trigger, stage: 1, branch: def.branch || null });
     history(state, "narr", "Một biến đổi sâu kín thức dậy trong huyết nhục; từ hôm nay, " + def.name + " vừa là ân huệ vừa là món nợ.");
@@ -10178,7 +9431,8 @@ window.GameEngine = (function () {
     if (!combat && event && template?.phases?.[event.phaseIndex]?.id === "active") template.choices.filter((choice) => !event.choiceHistory.some((entry) => entry.choiceId === choice.id)).forEach((choice) => actions.push({ id: "act_exp_world_" + event.id + "_" + choice.id, label: choice.label, aliases: [choice.label], priority: 1, category: "interaction" }));
     if (!combat) {
       ensureNpcWorldState(state);
-      Object.values(state.worldSimulation.npcState).filter((npc) => npc.status === "alive" && npc.currentNodeId === state.locationId).slice(0, 8).forEach((npc) => { actions.push({ id: "act_exp_npc_talk_" + npc.npcId, label: "Nói chuyện với " + (npc.name || npc.npcId), aliases: ["nói chuyện", "gặp npc"], priority: 1, category: "interaction" }); if (state.dialogueState?.npcId === npc.npcId) actions.push({ id: "act_exp_npc_dialogue_" + npc.npcId, label: "Tiếp tục đối thoại", aliases: ["đối thoại"], priority: 1, category: "interaction" }); });
+      const localNpcIds = new Set(D.LOCATIONS?.[state.locationId]?.npcs || []);
+      Object.values(state.worldSimulation.npcState).filter((npc) => npc.status === "alive" && npc.currentNodeId === state.locationId && !localNpcIds.has(npc.npcId)).slice(0, 8).forEach((npc) => { actions.push({ id: "act_exp_npc_talk_" + npc.npcId, label: "Nói chuyện với " + (npc.name || npc.npcId), aliases: ["nói chuyện", "gặp npc"], priority: 1, category: "interaction" }); if (state.dialogueState?.npcId === npc.npcId) actions.push({ id: "act_exp_npc_dialogue_" + npc.npcId, label: "Tiếp tục đối thoại", aliases: ["đối thoại"], priority: 1, category: "interaction" }); });
       refreshContracts(state, day);
       Object.values(state.contractBoard.offers).slice(0, 1).forEach((contract) => actions.push({ id: "act_exp_contract_" + contract.id, label: "Nhận " + formatContractName(contract), aliases: ["nhận khế ước", "nhận " + formatContractName(contract).toLowerCase()], priority: 1 }));
       actions.push({ id: "act_exp_divine", label: "Xem Quẻ", aliases: ["xem quẻ", "boi toan"], priority: 1 });
@@ -10376,7 +9630,7 @@ window.GameEngine = (function () {
       scheme: { label: "Dùng Mưu", reward, consequence: "Tỷ lệ thành công dựa trên Ngộ tính; thất bại bị thương." },
       share: { label: "Chia Sẻ", reward: Math.ceil(reward / 2), consequence: "Chắc chắn thành công, giảm nửa phần thưởng và tăng thiện duyên." }
     } };
-    history(state, "warn", "⚔ Phát hiện cơ duyên có người tranh đoạt. Hãy chọn cách ứng biến trong Thế Sự."); return state.pendingContestedOpportunity;
+    history(state, "narr", "Giữa lớp cát nóng, một luồng linh quang bật lên rồi lập tức bị một kẻ lạ mặt chặn ngang. Cơ duyên đã thành cuộc tranh đoạt; ngươi phải quyết định trước khi dấu vết tan vào gió."); return state.pendingContestedOpportunity;
   }
   function resolveContestedOpportunity(state, choice) {
     ensure(state); const opportunity = state.pendingContestedOpportunity;
@@ -10389,8 +9643,8 @@ window.GameEngine = (function () {
     else return { success: false, reason: "Cách tranh cơ duyên không hợp lệ." };
     const success = choice === "share" ? true : seeded(state, "opportunity-resolve:" + choice, opportunity.id, state.meta.turn) < clamp(chance, 0.15, 0.95);
     opportunity.status = success ? "won" : "lost"; opportunity.choice = choice; opportunity.resolvedDay = absoluteDay(state.gameClock);
-    if (success) { grantCanonicalReward(state, "opportunity:" + opportunity.id, { linhThach: reward, exp: reward * 4 }, "opportunity:" + opportunity.id); history(state, "sys", "✦ Đoạt được cơ duyên · Linh Thạch +" + reward + "."); }
-    else { state.player.hp = Math.max(1, Number(state.player.hp || 1) - Math.ceil(Number(state.player.stats?.hpMax || 20) * 0.15)); history(state, "warn", "× Tranh cơ duyên thất bại, bị thương rút lui."); }
+    if (success) { grantCanonicalReward(state, "opportunity:" + opportunity.id, { linhThach: reward, exp: reward * 4 }, "opportunity:" + opportunity.id); history(state, "narr", "Ngươi chớp lấy khoảnh khắc đối thủ sơ hở, thu linh quang vào lòng bàn tay. Cơ duyên đã thuộc về ngươi; Linh Thạch nhận được: " + reward + "."); }
+    else { state.player.hp = Math.max(1, Number(state.player.hp || 1) - Math.ceil(Number(state.player.stats?.hpMax || 20) * 0.15)); history(state, "narr", "Thế giằng co vỡ tan. Đối thủ đoạt mất linh quang, còn ngươi phải lùi lại với vết thương nóng rát bên sườn."); }
     recordContestedOpportunity(state, opportunity); state.pendingContestedOpportunity = null; return { success, attempted: true, reward: success ? reward : 0 };
   }
   function recordContestedOpportunity(state, opportunity) {
@@ -10766,14 +10020,14 @@ window.GameUI = (function () {
 
   function renderNpcWorldSignals(state) {
     const actors = Object.values(state.worldSimulation?.npcState || {}).filter((npc) => npc.status === "alive" && npc.currentNodeId === state.locationId);
-    if (!actors.length) return '<div class="section-title">NPC tại node</div><p class="muted">Không có nhân vật đang hiện diện tại node này.</p>';
+    if (!actors.length) return '<div class="section-title">Nhân vật tại địa điểm</div><p class="muted">Không có nhân vật đang hiện diện tại đây.</p>';
     const rows = actors.map((npc) => {
       const rumors = (npc.rumors || []).filter((rumor) => Number(rumor.expiresDay || 0) >= Number(state.worldSimulation?.lastProcessedDay || 0));
       const queue = npc.aiState === "queued" ? ' · Hàng chờ ' + Number(npc.queueRank || 0) : '';
       const stateLabel = npc.aiState === "queued" ? "Đang chờ" : npc.aiState === "travel" ? "Đang di chuyển" : npc.aiState === "shelter" ? "Trú ẩn" : npc.aiState === "combat" ? "Giao chiến" : "Hiện diện";
       return '<div class="item-row"><b>' + escapeHtml(npc.name || window.GameData.NPCS?.[npc.npcId]?.name || npc.npcId) + '</b><small> · ' + escapeHtml(stateLabel) + queue + ' · Tin đồn đã biết: ' + rumors.length + '</small>' + (rumors.length ? '<p class="muted">' + escapeHtml(rumors.slice(-2).map((rumor) => rumor.text || rumor.key).join(' · ')) + '</p>' : '') + '</div>';
     }).join("");
-    return '<div class="section-title">NPC tại node · trạng thái thế giới</div>' + rows;
+    return '<div class="section-title">Nhân vật tại địa điểm · trạng thái thế giới</div>' + rows;
   }
   function renderFactionBulletin(state) {
     const factionId = state.guildMembership?.guildId || state.player?.tainted?.faction || null;
@@ -10789,7 +10043,7 @@ window.GameUI = (function () {
     const nodeHistory = (node?.history || []).slice(-6).reverse();
     const historyLabels = { weather: "Thiên tượng", sub_location: "Điểm nhỏ", structure: "Công trình", structure_transfer: "Chuyển chủ", faction_change: "Thế lực", actor: "Nhân vật", completion: "Khám phá" };
     const historyHtml = '<div class="section-title">Dấu vết gần đây tại node</div>' + (nodeHistory.length
-      ? '<div class="detail-block node-history">' + nodeHistory.map((entry) => '<div class="item-row"><b>' + escapeHtml(historyLabels[entry.type] || entry.type || "Biến chuyển") + '</b><small> · Ngày ' + Number(entry.day || 0) + ' · ' + escapeHtml(entry.summary || "Một biến chuyển vừa được ghi nhận.") + '</small></div>').join("") + '</div>'
+      ? '<div class="detail-block node-history location-history">' + nodeHistory.map((entry) => '<div class="item-row"><b>' + escapeHtml(historyLabels[entry.type] || entry.type || "Biến chuyển") + '</b><small> · Ngày ' + Number(entry.day || 0) + ' · ' + escapeHtml(entry.summary || "Một biến chuyển vừa được ghi nhận.") + '</small></div>').join("") + '</div>'
       : '<p class="muted">Chưa có biến chuyển cục bộ nào được ghi lại.</p>');
     const event = s.event ? '<div class="detail-block"><b>☄ ' + escapeHtml(s.event.name || "Dị Triều") + '</b><br>Pha hiện tại: ' + escapeHtml(s.event.phase || "đang diễn ra") + ' · kết thúc ngày ' + s.event.phaseEndsDay + '</div>' : '<p class="muted">Khu vực hiện không có Dị Triều.</p>';
       const weatherLabel = window.GameI18n?.weather ? window.GameI18n.weather(s.weather) : s.weather;
@@ -10800,18 +10054,20 @@ window.GameUI = (function () {
       const structureActions = (mapState.structures?.[state.locationId] || []).filter((item) => item.status !== "dismantled").map((item) => '<div class="item-row"><b>' + escapeHtml(item.type === "waystation" ? "Truyền Tống Trận" : item.type === "ward_formation" ? "Hộ Giới Đại Trận" : item.type) + '</b><small> · Cấp ' + Number(item.level || 1) + ' · Độ bền ' + Number(item.integrity || 0) + '% · ' + escapeHtml(item.status || "active") + '</small><div class="item-actions">' + expansionButton("structure_repair", "Sửa chữa", state.locationId, 'data-expansion-arg2="' + escapeHtml(item.id) + '"') + expansionButton("structure_upgrade", "Nâng cấp", state.locationId, 'data-expansion-arg2="' + escapeHtml(item.id) + '"') + expansionButton("structure_dismantle", "Tháo dỡ", state.locationId, 'data-expansion-arg2="' + escapeHtml(item.id) + '"') + '</div></div>').join("");
       const outpost = mapState.outposts?.[state.locationId];
       const outpostActions = outpost ? (outpost.ownerType === "player" ? expansionButton("petition_outpost", "Dâng trạm cho thế lực", state.locationId) : '<small> · Thuộc thế lực: ' + escapeHtml(outpost.ownerId || "không rõ") + '</small>') : expansionButton("claim_outpost", "Lập trạm · 10 Linh Thạch", state.locationId);
-      const construction = '<div class="section-title">Công Trình Bản Đồ</div><div class="detail-block"><p>Node hiện tại: <b>' + escapeHtml(state.locationId || "chưa rõ") + '</b></p><p>Đã dựng: ' + escapeHtml(structures) + '</p>' + structureActions + '<div class="item-actions">' + expansionButton("build_structure", "Dựng Truyền Tống Trận · 20 Linh Thạch", state.locationId, 'data-expansion-arg2="teleport_array"') + expansionButton("build_structure", "Dựng Hộ Giới Đại Trận · 15 Linh Thạch", state.locationId, 'data-expansion-arg2="world_ward"') + outpostActions + '</div></div>';
+      const construction = '<div class="section-title">Công Trình Bản Đồ</div><div class="detail-block"><p>Địa điểm hiện tại: <b>' + escapeHtml(window.GameI18n?.formatTarget(state.locationId, state) || state.locationId || "chưa rõ") + '</b></p><p>Đã dựng: ' + escapeHtml(structures) + '</p>' + structureActions + '<div class="item-actions">' + expansionButton("build_structure", "Dựng Truyền Tống Trận · 20 Linh Thạch", state.locationId, 'data-expansion-arg2="teleport_array"') + expansionButton("build_structure", "Dựng Hộ Giới Đại Trận · 15 Linh Thạch", state.locationId, 'data-expansion-arg2="world_ward"') + outpostActions + '</div></div>';
       const contracts = (s.contracts || []).map((contract) => '<div class="item-row"><b>' + escapeHtml(window.GameI18n?.formatContract(contract) || "Khế Ước") + '</b><small> · ' + escapeHtml(window.GameI18n?.formatTarget(contract, state) || "Mục tiêu theo dấu") + ' · hết hạn ngày ' + Number(contract.expiresDay || 0) + '</small>' + expansionButton("contract_accept", "Nhận khế ước", contract.id) + '</div>').join("") || '<p class="muted">Chưa có khế ước mới.</p>';
       const weatherHistoryHtml = (s.weatherHistory || []).length ? '<small>Chuyển thiên tượng gần đây: ' + s.weatherHistory.slice().reverse().map((item) => escapeHtml((item.from || '—') + ' → ' + (item.to || '—') + ' · ngày ' + (item.day || '—'))).join(' · ') + '</small>' : '';
       return '<div class="section-title">Thế Sự · Ngày ' + s.day + '</div><div class="detail-block"><div class="kv"><span>Mùa</span><b>' + escapeHtml(s.season.name) + '</b></div><div class="kv"><span>Thời tiết</span><b>' + escapeHtml(weatherLabel) + '</b></div><small>Mức độ ' + Number(s.weatherSeverity || 0) + ' · hiệu lực tới ngày ' + Number(s.weatherUntilDay || 0) + '</small><br>' + weatherHistoryHtml + '<br><small>Ảnh hưởng hiện tại: Tu luyện ×' + Number(preview.cultivationMult || 1).toFixed(2) + ' · Nguy cơ di chuyển ' + (Number(preview.travelRiskDelta || 0) * 100).toFixed(0) + '% · Tìm kiếm ' + (Number(preview.searchRewardMult || 1) * 100).toFixed(0) + '% thưởng</small></div>' + event + '<div class="section-title">Khế Ước Khu Vực</div>' + contracts + '<div class="section-title">Chiến Sự & Đại Hội</div><p>Chiến sự đang hoạt động: ' + s.wars.length + '</p><div class="detail-block"><b>Nghề chính: ' + escapeHtml(professionName) + '</b>' + (secondaryName ? '<small> · Nghề Ẩn: ' + escapeHtml(secondaryName) + '</small>' : '') + '<small> · Bậc ' + professionStage + ' · mở hồ sơ tại panel Nhân Vật</small></div><div class="item-actions"><button class="guild-action" data-expansion-modal="guild-project">Công Trình Tông Môn</button><button class="guild-action" data-expansion-modal="opportunity">Xem Cơ Duyên</button></div>' + historyHtml;
   }
   function renderProfessionSection(state) {
     const base = Object.values(window.EXPANSION_DATA?.professionDefinitions || {});
-    const hidden = Object.values(window.EXPANSION_DATA?.hiddenProfessions || {}).filter((definition) => state.professionState?.primaryId && window.GameEngine.professionAvailability?.(state, definition.id)?.visible);
+    const hidden = Object.values(window.EXPANSION_DATA?.hiddenProfessions || {}).filter((definition) => window.GameEngine.professionAvailability?.(state, definition.id)?.visible);
     let defs = base.concat(hidden);
     const lockedIds = new Set([state.professionState?.primaryId, state.professionState?.secondaryId].filter(Boolean));
-    if (state.professionState?.primaryId) defs = defs.filter((definition) => lockedIds.has(definition.id) || window.EXPANSION_DATA?.hiddenProfessions?.[definition.id]);
-    const items = Object.values({ ...(window.EXPANSION_DATA?.professionItems || {}), ...(window.PROFESSION_ITEMS || {}) });
+    if (state.professionState?.secondaryId) defs = defs.filter((definition) => lockedIds.has(definition.id));
+    else if (state.professionState?.primaryId) defs = defs.filter((definition) => definition.id === state.professionState.primaryId || window.GameEngine.professionAvailability?.(state, definition.id)?.visible);
+    const selectedProfessionIds = new Set([state.professionState?.primaryId, state.professionState?.secondaryId].filter(Boolean));
+    const items = Object.values({ ...(window.EXPANSION_DATA?.professionItems || {}), ...(window.PROFESSION_ITEMS || {}) }).filter((item) => !selectedProfessionIds.size || selectedProfessionIds.has(item.professionId));
     const selectionLabel = state.professionState?.primaryId ? (state.professionState?.secondaryId ? "Nghề chính và Nghề Ẩn đã cố định" : "Nghề chính đã khóa; chỉ Nghề Ẩn mở bằng Cổ Tịch Tà Thần mới được chọn") : "Chưa chọn nghề chính";
     const rows = defs.map((definition) => {
       const availability = window.GameEngine.professionAvailability?.(state, definition.id) || { visible: true, selectable: false, reason: "Chưa sẵn sàng." };
@@ -10916,7 +10172,7 @@ window.GameUI = (function () {
       const exists = current.some((item) => item.type === id && item.status !== "dismantled");
       return expansionButton("build_structure", (labels[id] || id) + " · " + Number(def.buildCost || 0) + " Linh Thạch", nodeId, 'data-expansion-arg2="' + escapeHtml(aliases[id] || id) + '"' + (exists ? " disabled" : ""));
     }).join("");
-    return '<div class="section-title">Công Trình · Xây dựng và quản lý</div><div class="detail-block"><p>Node hiện tại: <b>' + escapeHtml(nodeId || "chưa rõ") + '</b></p><p>Công trình đang có:</p>' + rows + '<div class="section-title">Xây mới</div><div class="item-actions">' + buildButtons + '</div></div>' + renderStructureOwnershipPolicy(state);
+    return '<div class="section-title">Công Trình · Xây dựng và quản lý</div><div class="detail-block"><p>Địa điểm hiện tại: <b>' + escapeHtml(window.GameI18n?.formatTarget(nodeId, state) || nodeId || "chưa rõ") + '</b></p><p>Công trình đang có:</p>' + rows + '<div class="section-title">Xây mới</div><div class="item-actions">' + buildButtons + '</div></div>' + renderStructureOwnershipPolicy(state);
   }
   function renderExpansion(state) {
     // Cầu nối tương thích duy nhất: nội dung chi tiết nằm ở các tab chuyên biệt.
@@ -11100,7 +10356,7 @@ window.GameUI = (function () {
       renderProfessionSection(state) +
       equipmentTable +
       '<div class="section-title">Cảnh Giới · ' + escapeHtml(window.GameEngine.pathTitle(state)) + '</div><p class="realm-lore-compact">' + escapeHtml(window.GameEngine.realmLore(state, r).text) + "</p>" +
-      renderBreakthrough(state) + renderStatusActions(state);
+      renderBreakthrough(state);
   }
 
   function openEquipmentPicker(state, category, slot) {
@@ -11323,10 +10579,11 @@ window.GameUI = (function () {
         escapeHtml(faction.name) + '">' + label + '</button>';
     }).join("");
 
-    const guildPins = (map.guilds || []).filter((guild) => guild.pyramid_tier <= 2).map((guild) => {
+    const guildPins = (map.guilds || []).map((guild) => {
       const alignment = guild.alignment === "Tà" ? " evil" : guild.alignment === "Chính" ? " righteous" : " neutral";
-      return '<button type="button" class="faction-pin guild-pin' + alignment + '" data-map-guild="' + escapeHtml(guild.id) + '" style="left:' + guild.x + '%;top:' + guild.y + '%" title="Xem hồ sơ ' +
-        escapeHtml(guild.name) + '"></button>';
+      const tier = Math.max(1, Math.min(5, Number(guild.pyramid_tier || 5)));
+      const type = String(guild.type || "other").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      return '<button type="button" class="faction-pin guild-pin tier-' + tier + ' type-' + type + alignment + '" data-map-guild="' + escapeHtml(guild.id) + '" style="left:' + guild.x + '%;top:' + guild.y + '%" title="' + escapeHtml(guild.name) + ' · Cấp tổ chức ' + tier + '"></button>';
     }).join("");
 
     const localFactions = (map.factions || []).filter((faction) => faction.region_id === currentRegionId);
@@ -11338,10 +10595,13 @@ window.GameUI = (function () {
         '<br>' + faction.traits.map(escapeHtml).join(" · ") + '</small></button>';
     }).join("");
 
+    const warSignals = (window.GameEngine.warFrontSnapshot?.(state) || Object.values(state.worldSimulation?.wars || {})).filter((war) => war.status === "active").slice(0, 5).map((war) => '<div class="map-event-row"><b>⚔ Chiến trận</b><span>' + escapeHtml((war.factionAName || war.factionA || "") + " · " + (war.factionBName || war.factionB || "")) + '</span></div>').join("");
+    const regionEvents = map.regions.map((region) => { const runtime = state.worldSimulation?.regionState?.[region.id]; const event = runtime?.activeEventId && state.worldSimulation?.events?.[runtime.activeEventId]; if (!event) return ""; const template = (window.EXPANSION_DATA?.worldEvents || []).find((entry) => entry.id === event.templateId); return '<div class="map-event-row"><b>☄ ' + escapeHtml(region.name) + '</b><span>' + escapeHtml(template?.name || "Biến cố khu vực") + '</span></div>'; }).join("");
     const cameraControls = '<div class="map-camera-controls"><button type="button" data-map-camera="zoom-out" title="Thu nhỏ">−</button><span>Thiên Đồ · ' + (mapCamera.zoom >= 1.8 ? "Cận cảnh" : mapCamera.zoom > 1 ? "Vùng" : "Vũ Trụ") + '</span><button type="button" data-map-camera="zoom-in" title="Phóng to">+</button><button type="button" data-map-camera="reset" title="Đặt lại góc nhìn">◎</button></div>';
     return '<div class="map-heading"><b>' + map.name + '</b><small>Bản đồ thế lực theo ' + (window.FACTION_DATA?.world?.era || "Kỷ Nguyên hiện tại") + ' · Không gian mở, bấm sao để xem thông tin</small></div>' + cameraControls +
       '<div class="world-map world-overview star-chart"><svg viewBox="0 0 100 100" preserveAspectRatio="none">' + starField + routes + '</svg>' + regions + factions + guildPins + '</div>' +
-      '<p class="map-legend"><span class="dot current"></span> Vùng hiện tại <span class="dot righteous"></span> Chính <span class="dot evil"></span> Tà <span class="dot neutral"></span> Trung lập · Bấm ghim để xem hồ sơ</p>' +
+      '<p class="map-legend"><span class="dot current"></span> Vùng hiện tại <span class="dot righteous"></span> Chính <span class="dot evil"></span> Tà <span class="dot neutral"></span> Trung lập · Kích thước ghim = cấp tổ chức · Bấm ghim để xem hồ sơ</p>' +
+      ((warSignals || regionEvents) ? '<div class="map-event-feed"><b>Biến động trên thiên đồ</b>' + warSignals + regionEvents + '</div>' : '') +
       '<div class="section-title">Thế lực quanh ' + (regionById[currentRegionId]?.name || "khu vực") + '</div>' + factionList;
   }
 
@@ -11424,9 +10684,11 @@ window.GameUI = (function () {
       const classes = ["map-node"];
       const notableCount = Object.values(state.worldSimulation?.npcState || {}).filter((npc) => npc.status === "alive" && npc.currentNodeId === id).length;
       const hiddenOpen = Object.entries(state.worldSimulation?.hiddenRealms || {}).some(([realmId, runtime]) => runtime.status === "open" && (window.EXPANSION_DATA?.hiddenRealms || []).find((entry) => entry.id === realmId)?.parentNodeId === id);
+      const hasOpportunity = state.pendingContestedOpportunity?.status === "pending" && state.pendingContestedOpportunity.nodeId === id;
       if (notableCount) classes.push("has-notable-npc");
       if (hiddenOpen) classes.push("hidden-realm-open");
-      if (isCurrent) classes.push("current");
+      if (hasOpportunity) classes.push("has-opportunity");
+      if (isCurrent) classes.push("current", "star-node");
       else if (isReachable) classes.push("reachable");
       else if (isVisited) classes.push("visited");
       else classes.push("unknown");
@@ -11451,7 +10713,7 @@ window.GameUI = (function () {
     }).join("") : "";
     const region = map.regions.find((item) => item.id === currentPoint?.region);
     return '<div class="map-heading"><b>' + map.name + '</b><small>' + (region ? region.name + " — " + (region.desc || "Một vùng đất đang được ghi chép.") : "") + '</small></div>' +
-      '<div class="world-map"><svg viewBox="0 0 100 100" preserveAspectRatio="none">' + lines + '</svg>' + nodes + unexploredNodes + '</div>' +
+      '<div class="world-map constellation-map"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><circle class="constellation-core" cx="50" cy="50" r="1.4"></circle>' + lines + '</svg>' + nodes + unexploredNodes + '</div>' +
       '<p class="map-legend"><span class="dot current"></span> Hiện tại <span class="dot reachable"></span> Có thể đi <span class="dot visited"></span> Đã khám phá</p>';
   }
 
@@ -11469,7 +10731,7 @@ window.GameUI = (function () {
       const effectiveScore = Number(fate.score || 0) + enhancement * 2;
       const activeSlots = Number((window.GameData.REALMS || []).find((r) => r.id === p.realmId)?.activeSlots || (p.fates || []).length);
       const activeFull = (p.fates || []).filter(Boolean).length >= activeSlots;
-      const narrative = fateNarrative(fate) + " | Instance: quan he bac " + Number(window.GameEngine.fateRelationshipStatus(p, id).stage || 0) + ", duong lich su " + Number(window.GameEngine.fateRelationshipStatus(p, id).nurtureHistory?.length || 0) + ", cong minh " + Number(window.GameEngine.fateRelationshipStatus(p, id).resonanceHistory?.length || 0) + ", tien hoa " + (state.player?.fateEvolutions?.[id]?.branchId || state.player?.fateEvolutions?.[id]?.status || "chua mo") + ", advanced uses " + Object.values(state.player?.fateAdvancedActions?.[id] || {}).filter((entry) => entry && typeof entry === "object").reduce((sum, entry) => sum + Number(entry.uses || 0), 0);
+      const narrative = fateNarrative(fate) + " · Mối quan hệ cấp " + Number(window.GameEngine.fateRelationshipStatus(p, id).stage || 0) + ", lịch sử bồi dưỡng " + Number(window.GameEngine.fateRelationshipStatus(p, id).nurtureHistory?.length || 0) + " lần, cộng minh " + Number(window.GameEngine.fateRelationshipStatus(p, id).resonanceHistory?.length || 0) + " lần.";
       const equipLabel = activeFull ? "Thay thế…" : "Trang bị";
       const relationship = window.GameEngine.fateRelationshipStatus(p, id);
       const instance = state.fateInstances?.[id] || p.fateInstances?.[id];
@@ -11976,7 +11238,7 @@ window.GameUI = (function () {
       locationId: rolled.startLocationId
     });
     const region = D.WORLD_MAP.regions.find((item) => item.id === creation.startRegionId);
-    saveGame();
+    saveGame(true);
     document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === "status"));
     UI.showScreen("game");
     UI.clearStory();
@@ -12074,12 +11336,13 @@ window.GameUI = (function () {
         let result = E.runExpansionCommand(state, command, arg, arg2);
         if (result?.requiresConfirmation && confirm(result.reason + "\nXác nhận tiếp tục?")) result = E.runExpansionCommand(state, command, arg, arg2, { confirmed: true });
         if (!result?.success) alert(result?.reason || "Không thể thực hiện hành động này.");
-        saveGame(); UI.renderPanel(state); renderStoryWindow(); updateClockDisplay();
+        if (command === "opportunity" && result?.success) UI.closeOverlay();
+        renderAfterTurn();
         const overlay = document.getElementById("overlay");
         const overlayContent = document.getElementById("overlay-content");
         if (overlay && !overlay.classList.contains("hidden") && overlayContent) {
           if (command.startsWith("guild_")) overlayContent.innerHTML = UI.renderGuildProjectModal(state);
-          else if (command === "opportunity") { if (result?.success) UI.closeOverlay(); else overlayContent.innerHTML = UI.renderContestedOpportunityModal(state); }
+          else if (command === "opportunity" && !result?.success) overlayContent.innerHTML = UI.renderContestedOpportunityModal(state);
           else if (command === "fate_trial" || command === "fate_evolve") overlayContent.innerHTML = UI.renderFateEvolutionModal(state, arg);
           else if (command === "technique_evolve") overlayContent.innerHTML = UI.renderTechniqueDetail(state);
         }
@@ -12212,6 +11475,33 @@ window.GameUI = (function () {
     });
 
     $("overlay-content").addEventListener("click", (event) => {
+      const overlayCamera = event.target.closest("[data-map-camera]");
+      if (overlayCamera) {
+        UI.adjustMapCamera(overlayCamera.dataset.mapCamera);
+        return;
+      }
+      const expansionCommand = event.target.closest("[data-expansion-command]");
+      if (expansionCommand && state && E.runExpansionCommand) {
+        const command = expansionCommand.dataset.expansionCommand;
+        const arg = expansionCommand.dataset.expansionArg || "";
+        const arg2 = expansionCommand.dataset.expansionArg2 || "";
+        let result = E.runExpansionCommand(state, command, arg, arg2);
+        if (result?.requiresConfirmation && confirm(result.reason + "\nXác nhận tiếp tục?")) {
+          result = E.runExpansionCommand(state, command, arg, arg2, { confirmed: true });
+        }
+        if (!result?.success) alert(result?.reason || "Không thể thực hiện hành động này.");
+        renderAfterTurn();
+        const overlay = document.getElementById("overlay");
+        const overlayContent = document.getElementById("overlay-content");
+        if (overlay && !overlay.classList.contains("hidden") && overlayContent) {
+          if (command === "opportunity") {
+            if (!result?.success) overlayContent.innerHTML = UI.renderContestedOpportunityModal(state);
+          } else if (command.startsWith("guild_")) {
+            overlayContent.innerHTML = UI.renderGuildProjectModal(state);
+          }
+        }
+        return;
+      }
       const originConfirm = event.target.closest("[data-origin-confirm]");
       if (originConfirm && state) {
         const selected = document.querySelector('#overlay-content input[name="origin-specialization"]:checked')?.value || "";
@@ -12220,6 +11510,7 @@ window.GameUI = (function () {
         if (!result.success) { alert(result.reason); return; }
         UI.closeOverlay(true);
         saveGame();
+        if (command === "opportunity" && result?.success) UI.closeOverlay();
         renderAfterTurn();
         return;
       }
@@ -12350,7 +11641,7 @@ window.GameUI = (function () {
       }
     }
     if (result && result.save) {
-      saveGame();
+      saveGame(true);
       flashSave("Đã lưu");
       return;
     }
@@ -12375,8 +11666,6 @@ window.GameUI = (function () {
       return;
     }
 
-    saveGame();
-    flashSave("Đã lưu");
     UI.setLocation(D.LOCATIONS[state.locationId].name);
     UI.renderPanel(state);
     decorateFateAdvancedActions();
@@ -12636,8 +11925,8 @@ window.GameUI = (function () {
   }
 
   /* ---------- save / load ---------- */
-  function saveGame() {
-    if (!state) return;
+  function saveGame(explicit = false) {
+    if (!explicit || !state) return;
     localStorage.setItem(SAVE_KEY, E.serialize(state));
   }
   function exportSaveFile() {
@@ -12645,7 +11934,7 @@ window.GameUI = (function () {
       alert("Chưa có bản lưu để tải xuống.");
       return;
     }
-    saveGame();
+    saveGame(true);
     const payload = E.serialize(state);
     const blob = new Blob([payload], { type: "application/json;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -12666,7 +11955,7 @@ window.GameUI = (function () {
       try {
         const imported = E.deserialize(String(reader.result || ""));
         state = imported;
-        saveGame();
+        saveGame(true);
         UI.showScreen("game");
         renderFull();
         flashSave("Đã nạp tệp lưu");

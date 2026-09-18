@@ -1,5 +1,5 @@
 /* ============================================================
- * CỔ DỊ DIỆN — Dữ liệu thế giới & cốt truyện
+ * CỔ DỊ DIỆN  Dữ liệu thế giới & cốt truyện
  * Tham chiếu: gemini-code-1788421511033.md (V11.1)
  * ============================================================ */
 window.GameData = (function () {
@@ -11,7 +11,7 @@ window.GameData = (function () {
       name: "Cổ Dị Diện",
       genre: ["tiên hiệp", "eldritch", "lovecraft", "tu chân"],
       intro:
-        "Thiên địa linh khí không còn thuần khiết. Tàn niệm của Cổ Thần đã thấm vào từng hơi thở của tu sĩ. Ngươi bước vào Thiên Huyền Tông — nơi ngọn núi còn giữ chút thanh minh cuối cùng."
+        "Thiên địa linh khí không còn thuần khiết. Tàn niệm của Cổ Thần đã thấm vào từng hơi thở của tu sĩ. Ngươi bước vào Thiên Huyền Tông  nơi ngọn núi còn giữ chút thanh minh cuối cùng."
     }
   };
 
@@ -85,7 +85,7 @@ window.GameData = (function () {
     phyMult: realm.stat_multiplier ?? realm.phyMult,
     magMult: realm.stat_multiplier ?? realm.magMult,
     maxQa: realm.max_qi ?? realm.maxQa,
-    desc: realm.description || realm.desc || (realm.name + " — cảnh giới cấp " + (realm.level ?? "?") + " trong hệ thống tu hành 14 cấp.")
+    desc: realm.description || realm.desc || (realm.name + "  cảnh giới cấp " + (realm.level ?? "?") + " trong hệ thống tu hành 14 cấp.")
   }));
 
   /* ---------- Môn phái / Căn cơ ---------- */
@@ -294,6 +294,57 @@ window.GameData = (function () {
     }
   };
 
+  // Canonical Oxy addresses for world-facing services and organizations.
+  // Every address resolves to a stable map node or an explicit Oxy coordinate;
+  // UI layers must never invent a location from a label alone.
+  const MAP_SERVICE_ADDRESSES = [
+    { id: "phuong_thi_van_phong", name: "Phường Thị Vạn Phong", kind: "market", nodeId: "van_phong", regionId: "trung_vuc", role: "market" },
+    { id: "phuong_thi_sa_thanh", name: "Phường Thị Sa Thành", kind: "market", nodeId: "tay_mac_khoi_diem", regionId: "tay_mac", role: "market" },
+    { id: "cho_den_van_phong", name: "Chợ Đen Vạn Phong", kind: "black_market", nodeId: "van_phong", regionId: "trung_vuc", role: "black_market" },
+    { id: "cho_den_sa_thanh", name: "Chợ Đen Sa Thành", kind: "black_market", nodeId: "tay_mac_khoi_diem", regionId: "tay_mac", role: "black_market" }
+  ].map((entry) => ({ ...entry, oxyNode: { ...(WORLD_MAP.locations[entry.nodeId] || { x: 0, y: 0 }) } }));
+  const MAP_SPAWN_ADDRESSES = Object.keys(WORLD_MAP.locations)
+    .filter((id) => id === "trung_vuc_khoi_diem" || id.endsWith("_khoi_diem"))
+    .map((nodeId) => {
+      const point = WORLD_MAP.locations[nodeId];
+      const location = LOCATIONS[nodeId];
+      return { id: "spawn_" + nodeId, name: location?.name || nodeId, kind: "spawn", nodeId, regionId: point.region, role: "character_start_and_respawn", oxyNode: { x: point.x, y: point.y } };
+    });
+  const MAP_FACTION_ADDRESSES = (WORLD_MAP.factions || []).map((faction) => ({
+    id: "faction_address_" + faction.id, name: faction.name, kind: "faction", refId: faction.id, nodeId: "faction_node_" + faction.id,
+    regionId: faction.region_id, role: "organization", oxyNode: { x: Number(faction.x), y: Number(faction.y) }
+  }));
+  const MAP_GUILD_ADDRESSES = (WORLD_MAP.guilds || []).map((guild) => ({
+    id: "guild_address_" + guild.id, name: guild.name, kind: "guild", refId: guild.id, nodeId: "guild_node_" + guild.id,
+    regionId: guild.region_id, role: "organization", tier: Number(guild.pyramid_tier || 5),
+    oxyNode: { x: Number(guild.x), y: Number(guild.y) }
+  }));
+  // Organization coordinates are authored by the generator as percentages;
+  // gameplay uses integer Oxy cells, so normalize once and keep every address
+  // on a unique cell shared by the map registry.
+  const occupiedOrganizationCells = new Set(Object.values(WORLD_MAP.locations || {}).map((point) => Math.round(Number(point.x)) + "," + Math.round(Number(point.y))));
+  [...MAP_FACTION_ADDRESSES, ...MAP_GUILD_ADDRESSES].forEach((address) => {
+    const baseX = Math.max(0, Math.min(100, Math.round(Number(address.oxyNode.x)))), baseY = Math.max(0, Math.min(100, Math.round(Number(address.oxyNode.y))));
+    let x = baseX, y = baseY, radius = 0;
+    while (occupiedOrganizationCells.has(x + "," + y) && radius < 101) {
+      radius += 1;
+      x = Math.max(0, Math.min(100, baseX + radius));
+      y = Math.max(0, Math.min(100, baseY + (radius % 3) - 1));
+    }
+    address.oxyNode = { x, y };
+    occupiedOrganizationCells.add(x + "," + y);
+  });
+  WORLD_MAP.addresses = {
+    services: MAP_SERVICE_ADDRESSES,
+    spawnPoints: MAP_SPAWN_ADDRESSES,
+    factions: MAP_FACTION_ADDRESSES,
+    organizations: MAP_GUILD_ADDRESSES,
+    byNodeId: [...MAP_SERVICE_ADDRESSES, ...MAP_SPAWN_ADDRESSES, ...MAP_FACTION_ADDRESSES, ...MAP_GUILD_ADDRESSES].reduce((index, address) => {
+      (index[address.nodeId] ||= []).push(address);
+      return index;
+    }, {})
+  };
+
   /* ---------- NPC ---------- */
   const NPCS = {
     hai_su_tu: {
@@ -438,20 +489,20 @@ window.GameData = (function () {
 
   const HELP_TEXT = [
     "§LỆNH CƠ BẢN§",
-    "  nhìn / quan sát — quan sát nơi hiện tại",
-    "  đi <hướng> — đi theo hướng: bắc / nam / đông / tây",
-    "  tu luyện — vận công tăng tu vi (tốn linh khí, rủi ro tà niệm)",
-    "  đột phá — cố gắng phá cảnh giới",
-    "  tìm kiếm — tìm vật phẩm tại nơi hiện tại",
-    "  dùng <vật phẩm> — sử dụng vật phẩm",
-    "  gia nhập <môn phái> — chọn tông môn sau khi đạt Khai Lộ Cảnh",
-    "  gia nhập <môn phái> — tổ chức là lựa chọn riêng; xuất thân Tán Tu/Thế Gia chỉ chọn một lần ở đầu game",
-    "  nói chuyện <tên> — trò chuyện với nhân vật",
-    "  tấn công — giao chiến với kẻ thù quanh đây",
-    "  trạng thái / hành trang / nhiệm vụ / mệnh — xem thông tin",
-    "  bản đồ — xem vị trí, nơi đã khám phá và các lối có thể đi",
-    "  tổ chức — xem môn phái; gia nhập <tên>; rời môn",
-    "  lưu / tải / giúp — hệ thống",
+    "  nhìn / quan sát  quan sát nơi hiện tại",
+    "  đi <hướng>  đi theo hướng: bắc / nam / đông / tây",
+    "  tu luyện  vận công tăng tu vi (tốn linh khí, rủi ro tà niệm)",
+    "  đột phá  cố gắng phá cảnh giới",
+    "  tìm kiếm  tìm vật phẩm tại nơi hiện tại",
+    "  dùng <vật phẩm>  sử dụng vật phẩm",
+    "  gia nhập <môn phái>  chọn tông môn sau khi đạt Khai Lộ Cảnh",
+    "  gia nhập <môn phái>  tổ chức là lựa chọn riêng; xuất thân Tán Tu/Thế Gia chỉ chọn một lần ở đầu game",
+    "  nói chuyện <tên>  trò chuyện với nhân vật",
+    "  tấn công  giao chiến với kẻ thù quanh đây",
+    "  trạng thái / hành trang / nhiệm vụ / mệnh  xem thông tin",
+    "  bản đồ  xem vị trí, nơi đã khám phá và các lối có thể đi",
+    "  tổ chức  xem môn phái; gia nhập <tên>; rời môn",
+    "  lưu / tải / giúp  hệ thống",
     "§GỢI Ý§ Bạn cũng có thể gõ bất kỳ hành động tự do nào, ví dụ:",
     "  'ta cẩn thận quan sát bức tượng'",
     "  'ta đọc trang cổ tịch'",

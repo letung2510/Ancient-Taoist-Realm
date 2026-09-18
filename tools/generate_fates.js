@@ -175,7 +175,7 @@ const generatedDir = path.join(__dirname, "..", "fate_system_update", "generated
 fs.mkdirSync(generatedDir, { recursive: true });
 const outPath = path.join(generatedDir, "fate_data.generated.js");
   const json = JSON.stringify(fates);
-  const content = "/* CỔ DỊ DIỆN — 2000+ Mệnh Số (tự sinh từ cách cục Tử Vi) */\nwindow.FATE_DATA = " + json + ";\n";
+  const content = "/* CỔ DỊ DIỆN  2000+ Mệnh Số (tự sinh từ cách cục Tử Vi) */\nwindow.FATE_DATA = " + json + ";\n";
   fs.writeFileSync(outPath, content, "utf8");
   console.log("Generated " + fates.length + " fates -> " + outPath);
   console.log("Unique ids: " + seen.size);

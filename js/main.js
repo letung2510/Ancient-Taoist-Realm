@@ -1,5 +1,5 @@
 /* ============================================================
- * CỔ DỊ DIỆN — Main application wiring
+ * CỔ DỊ DIỆN  Main application wiring
  * ============================================================ */
 (function () {
   "use strict";
@@ -215,7 +215,6 @@
       el.className = "start-region-card" + (region.id === creation.startRegionId ? " selected" : "");
       el.innerHTML = '<div class="region-choice-name">' + region.name + '</div>' +
         '<div class="region-choice-meta">' + region.type + ' · Linh khí ' + region.qi + ' · Nguy hiểm ' + region.danger + '</div>' +
-        '<div class="region-choice-spawn">Điểm đản sinh: ' + (spawn?.[1]?.name || "Node biên giới khu vực") + '</div>' +
         '<div class="region-choice-desc">' + region.description + '</div>';
       el.addEventListener("click", () => {
         if (creation.started) return;
@@ -274,7 +273,8 @@
     $("save-file-input")?.addEventListener("change", importSaveFile);
     document.querySelectorAll(".tab").forEach((tab) => {
       tab.addEventListener("click", () => {
-        tab.closest("details.tab-group")?.removeAttribute("open");
+        const tabGroup = tab.closest("details.tab-group");
+        if (tabGroup) tabGroup.open = true;
         if (tab.dataset.modal) {
           showInfoOverlay(tab.dataset.modal);
           return;
@@ -354,13 +354,14 @@
         let result = E.runExpansionCommand(state, command, arg, arg2);
         if (result?.requiresConfirmation && confirm(result.reason + "\nXác nhận tiếp tục?")) result = E.runExpansionCommand(state, command, arg, arg2, { confirmed: true });
         if (!result?.success) alert(result?.reason || "Không thể thực hiện hành động này.");
-        if (command === "opportunity" && result?.success) UI.closeOverlay();
+        if ((command === "opportunity" || command === "map_event") && result?.success) UI.closeOverlay();
         renderAfterTurn();
         const overlay = document.getElementById("overlay");
         const overlayContent = document.getElementById("overlay-content");
         if (overlay && !overlay.classList.contains("hidden") && overlayContent) {
           if (command.startsWith("guild_")) overlayContent.innerHTML = UI.renderGuildProjectModal(state);
           else if (command === "opportunity" && !result?.success) overlayContent.innerHTML = UI.renderContestedOpportunityModal(state);
+          else if (command === "map_event" && !result?.success) overlayContent.innerHTML = UI.renderMapEventModal(state);
           else if (command === "fate_trial" || command === "fate_evolve") overlayContent.innerHTML = UI.renderFateEvolutionModal(state, arg);
           else if (command === "technique_evolve") overlayContent.innerHTML = UI.renderTechniqueDetail(state);
         }
@@ -532,6 +533,16 @@
         renderAfterTurn();
         return;
       }
+      const journeyIntentConfirm = event.target.closest("[data-journey-intent-confirm]");
+      if (journeyIntentConfirm && state) {
+        const intentId = document.querySelector('#overlay-content input[name="journey-intent"]:checked')?.value || "";
+        const result = E.chooseJourneyIntent(state, intentId);
+        if (!result.success) { alert(result.reason); return; }
+        UI.closeOverlay(true);
+        saveGame();
+        renderAfterTurn();
+        return;
+      }
       const anchorSelect = event.target.closest("[data-anchor-select]");
       if (anchorSelect && state) {
         const result = E.establishHumanAnchor(state, anchorSelect.dataset.anchorSelect);
@@ -668,8 +679,8 @@
       return;
     }
 
-    renderAfterTurn();
-  }
+        renderAfterTurn();
+      }
 
   function renderAfterTurn() {
     if (!state) return;
@@ -691,7 +702,7 @@
     updateClockDisplay();
     updateAtmosphereClass();
     if (state.flags?.blackMarketOpen) { state.flags.blackMarketOpen = false; UI.openOverlay("Nghịch Thương Nhân", UI.renderBlackMarket(state)); }
-    if (state.flags?.originChoicePending && UI.renderOriginChoice) showOriginModal();
+    if ((state.flags?.journeyIntentPending || state.flags?.originChoicePending) && UI.renderOriginChoice) showOriginModal();
   }
 
   function renderStoryWindow() {
@@ -741,7 +752,7 @@
     updateClockDisplay();
     updateAtmosphereClass();
     flashSave("Đã tải bản lưu");
-    if (state.flags?.originChoicePending && UI.renderOriginChoice) showOriginModal();
+    if ((state.flags?.journeyIntentPending || state.flags?.originChoicePending) && UI.renderOriginChoice) showOriginModal();
   }
 
   function updateClockDisplay() {
@@ -772,7 +783,7 @@
   function departureOptions(actionId) {
     const guard = E.pendingDepartureGuard ? E.pendingDepartureGuard(state, actionId) : { allowed: true };
     if (!guard.requiresConfirmation) return {};
-    const kind = guard.pendingType === "opportunity" ? "cơ duyên tranh đoạt" : "phát hiện chưa xử lý";
+    const kind = guard.pendingType === "opportunity" ? "cơ duyên tranh đoạt" : guard.pendingType === "map_event" ? "phát hiện ẩn" : "phát hiện chưa xử lý";
     if (!confirm("Ngươi còn " + kind + " tại đây. Rời đi sẽ làm mất vĩnh viễn. Vẫn muốn rời đi?")) return null;
     return { confirmPendingDeparture: true };
   }
@@ -782,6 +793,10 @@
     UI.renderActions(state, (action) => {
       if (action.id === "act_move_group") {
         showMapOverlay();
+        return;
+      }
+      if (action.id === "act_exp_map_event") {
+        UI.openOverlay("Phát Hiện Ẩn", UI.renderMapEventModal(state));
         return;
       }
       if (action.id === "act_exp_opportunity") {
@@ -819,7 +834,7 @@
         }
       }
       if (action.id === "act_be_quan") {
-        const rawHours = prompt("Bế quan bao nhiêu giờ? (1–8)", "1");
+        const rawHours = prompt("Bế quan bao nhiêu giờ? (18)", "1");
         if (rawHours === null) return;
         const hours = Math.max(1, Math.min(8, Number(rawHours) || 1));
         enqueueAction(() => {
@@ -859,8 +874,8 @@
   }
 
   function showOriginModal() {
-    if (!state?.flags?.originChoicePending) return;
-    UI.openOverlay("Chọn Xuất Thân", UI.renderOriginChoice(state), { locked: true });
+    if (!state?.flags?.journeyIntentPending && !state?.flags?.originChoicePending) return;
+    UI.openOverlay(state.flags.journeyIntentPending ? "Chọn Ý Định Hành Đạo" : "Chọn Xuất Thân", UI.renderOriginChoice(state), { locked: true });
   }
 
   function showInfoOverlay(type) {
@@ -890,7 +905,7 @@
       "  Tà Nhiễm: " + c.corruptionCost
     ];
     if (preview.family === "cam_thuat") {
-      lines.push("", "⚠ CẤM THUẬT — thi triển sẽ gây phản phệ vĩnh viễn hoặc khó hồi phục. Xác nhận?");
+      lines.push("", "⚠ CẤM THUẬT  thi triển sẽ gây phản phệ vĩnh viễn hoặc khó hồi phục. Xác nhận?");
     } else {
       lines.push("", "Xác nhận thi triển?");
     }
@@ -904,7 +919,7 @@
 
   function flashSave(text) {
     UI.setSaveIndicator(text);
-    setTimeout(() => UI.setSaveIndicator("—"), 1500);
+    setTimeout(() => UI.setSaveIndicator(""), 1500);
   }
 
   /* ---------- endings ---------- */
@@ -929,7 +944,7 @@
     UI.clearChoices();
     UI.addStory("sys", "§ " + ending.title);
     UI.addStory(ending.tone === "bad" ? "warn" : "narr", ending.text);
-    UI.addStory("sys", "— HẾT —");
+    UI.addStory("sys", " HẾT ");
     if (id === "succumb") {
       const penalty = state?.flags?.madnessPenalty || {};
       UI.openOverlay("Thanh Tỉnh cạn kiệt · Hình phạt Mất Trí", '<div class="san-ending"><b>THA HÓA</b><p>' + UI.escapeHtml(ending.text) + '</p><div class="detail-kv"><span>Nguồn</span><b>' + UI.escapeHtml(penalty.source || "Tà niệm") + '</b><span>Tu vi mất</span><b>-' + (penalty.lostExp || 0) + '</b><span>Tà Nhiễm</span><b>+' + (penalty.corruptionGained || 0) + '</b><span>Hậu quả</span><b>Kết thúc hành trình hiện tại</b></div><div class="ending-options"><button class="choice" data-ending-action="restart">Luân hồi · Bắt đầu kiếp mới</button><button class="choice" data-ending-action="load">Thi giải · Nạp bản lưu gần nhất</button><button class="choice" data-ending-action="home">Chuyển sinh · Về màn hình chính</button></div></div>');
@@ -939,7 +954,7 @@
       { label: "Nạp bản lưu gần nhất", onClick: () => { loadGame(); renderFull(); } }
     ]);
     if (state) state.pendingEnding = id;
-    UI.setSaveIndicator("Đã kết thúc — có thể nạp lại bản lưu gần nhất");
+    UI.setSaveIndicator("Đã kết thúc  có thể nạp lại bản lưu gần nhất");
   }
 
   /* ---------- save / load ---------- */
