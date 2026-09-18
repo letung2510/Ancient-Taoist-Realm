@@ -2050,6 +2050,8 @@
       if (!targetId || D.LOCATIONS[targetId]) return;
       const record = { nodeId, direction, targetId, day: absoluteDay(state.gameClock) };
       if (!mapState.invalidExits.some((entry) => entry.nodeId === nodeId && entry.direction === direction && entry.targetId === targetId)) mapState.invalidExits.push(record);
+      delete node.exits[direction];
+      if (state.openWorld?.exits?.[nodeId]?.[direction] === targetId) delete state.openWorld.exits[nodeId][direction];
       removed.push(record);
     }));
     mapState.invalidExits = mapState.invalidExits.slice(-200);
