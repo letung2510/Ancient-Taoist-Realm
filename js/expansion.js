@@ -1924,8 +1924,15 @@
     appendNodeHistory(state, nodeId, { type: "structure", summary: (type === "waystation" ? "Truyền Tống Trận" : type === "ward_formation" ? "Hộ Giới Đại Trận" : "Công trình " + type) + " được dựng lên." }); return { success: true, structure };
   }
   function structureById(state, nodeId, structureId) { return (ensureMapState(state).structures[nodeId] || []).find((structure) => structure.id === structureId); }
+  function structureNodeAccess(state, nodeId) {
+    if (!mapNode(state, nodeId)) return { allowed: false, reason: "Không tìm thấy địa điểm." };
+    if (nodeId !== state.locationId) return { allowed: false, reason: "Ngươi phải đang đứng tại node của công trình." };
+    if (!nodeIsDiscovered(state, nodeId)) return { allowed: false, reason: "Chưa khám phá địa điểm này." };
+    return { allowed: true };
+  }
   function repairMapStructure(state, nodeId, structureId) {
     const structure = structureById(state, nodeId, structureId); if (!structure || structure.status === "dismantled") return { success: false, reason: "Không tìm thấy công trình." };
+    const access = structureNodeAccess(state, nodeId); if (!access.allowed) return { success: false, reason: access.reason };
     if (!structureManagerDecision(state, structure, "repair").allowed) return { success: false, reason: "Chỉ chủ hiện tại hoặc thành viên thế lực sở hữu mới được sửa chữa." };
     const missing = Math.max(0, 100 - Number(structure.integrity || 0));
     if (!missing && structure.status !== "disabled") return { success: true, unchanged: true, structure };
@@ -1934,6 +1941,7 @@
   }
   function upgradeMapStructure(state, nodeId, structureId) {
     const structure = structureById(state, nodeId, structureId); if (!structure || structure.status === "dismantled") return { success: false, reason: "Không tìm thấy công trình." };
+    const access = structureNodeAccess(state, nodeId); if (!access.allowed) return { success: false, reason: access.reason };
     if (!structureManagerDecision(state, structure, "upgrade").allowed) return { success: false, reason: "Chỉ chủ người chơi mới được nâng cấp công trình." };
     const definition = STRUCTURE_CATALOG[structure.type] || {}; const current = Number(structure.level || 1); if (current >= Number(definition.maxLevel || 1)) return { success: false, reason: "Công trình đã đạt cấp tối đa." };
     const cost = Number(definition.upgradeBase || 0) * (current + 1); if (Number(state.inventory?.linh_thach || 0) < cost) return { success: false, reason: "Thiếu Linh Thạch nâng cấp." };
@@ -1941,12 +1949,14 @@
   }
   function disableMapStructure(state, nodeId, structureId, reason = "manual") {
     const structure = structureById(state, nodeId, structureId); if (!structure || structure.status === "dismantled") return { success: false, reason: "Không tìm thấy công trình." };
+    const access = structureNodeAccess(state, nodeId); if (!access.allowed) return { success: false, reason: access.reason };
     if (!structureManagerDecision(state, structure, "repair").allowed) return { success: false, reason: "Chỉ chủ hiện tại hoặc thành viên thế lực sở hữu mới được tạm dừng công trình." };
     structure.status = "disabled"; structure.disabledDay = absoluteDay(state.gameClock); structure.disabledReason = reason; invalidateMapInfluence(state, nodeId); appendNodeHistory(state, nodeId, { type: "structure", summary: "Công trình tạm ngừng hoạt động: " + reason + "." }); return { success: true, structure };
   }
   function dismantleMapStructure(state, nodeId, structureId) {
     const structure = structureById(state, nodeId, structureId);
     if (!structure || structure.status === "dismantled") return { success: false, reason: "Không tìm thấy công trình có thể tháo dỡ." };
+    const access = structureNodeAccess(state, nodeId); if (!access.allowed) return { success: false, reason: access.reason };
     if (!structureManagerDecision(state, structure, "dismantle").allowed) return { success: false, reason: "Chỉ chủ người chơi mới được tháo dỡ." };
     const definition = STRUCTURE_CATALOG[structure.type] || {}; const refund = Math.floor(Number(definition.buildCost || 0) * Math.max(1, Number(structure.level || 1)) * Number(definition.refundRate || 0));
     structure.status = "dismantled"; structure.dismantledDay = absoluteDay(state.gameClock); structure.refund = refund;
@@ -2012,6 +2022,7 @@
   function transferMapStructure(state, nodeId, structureId, npcId) {
     const list = ensureMapState(state).structures[nodeId] || []; const structure = list.find((entry) => entry.id === structureId); const npc = state.worldSimulation.npcState?.[npcId];
     if (!structure || structure.status === "dismantled") return { success: false, reason: "Không tìm thấy công trình có thể chuyển chủ." };
+    const access = structureNodeAccess(state, nodeId); if (!access.allowed) return { success: false, reason: access.reason };
     if (!npc || npc.status !== "alive" || npc.currentNodeId !== nodeId) return { success: false, reason: "NPC nhận chuyển chủ không ở tại node này." };
     if (structure.ownerType !== "player" || structure.ownerId !== state.player.id) return { success: false, reason: "Ngươi không phải chủ công trình." };
     structure.transferHistory ||= []; structure.transferHistory.push({ from: structure.ownerId, to: npcId, day: absoluteDay(state.gameClock) }); structure.ownerType = "npc"; structure.ownerId = npcId; structure.status = "active"; invalidateMapInfluence(state, nodeId); appendNodeHistory(state, nodeId, { type: "structure_transfer", summary: "Công trình được giao lại cho một người đang trấn giữ nơi này." }); return { success: true, structure: copy(structure) };

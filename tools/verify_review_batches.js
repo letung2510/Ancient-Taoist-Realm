@@ -87,6 +87,14 @@ function testStructureOwnershipLifecycle() {
   const factionStructure = managed.mapState.structures[managed.locationId][0]; factionStructure.ownerType = "faction"; factionStructure.ownerId = "thien_huyen_tong"; factionStructure.integrity = 50;
   assert(E.repairMapStructure(managed, managed.locationId, factionStructure.id).success);
   assert(!E.upgradeMapStructure(managed, managed.locationId, factionStructure.id).success, "faction-owned structure cannot be upgraded by player policy");
+  const remoteStructureState = makeState(); remoteStructureState.inventory.linh_thach = 100;
+  const remoteStructure = E.buildMapStructure(remoteStructureState, remoteStructureState.locationId, "world_ward");
+  assert(remoteStructure.success); remoteStructure.structure.integrity = 50;
+  const remoteRepairState = E.deserialize(E.serialize(remoteStructureState));
+  const remoteStructureNode = remoteRepairState.locationId; E.move(remoteRepairState, "bac");
+  const remoteRepairInventory = Number(remoteRepairState.inventory.linh_thach || 0);
+  const remoteRepair = E.repairMapStructure(remoteRepairState, remoteStructureNode, remoteStructure.structure.id);
+  assert(!remoteRepair.success && Number(remoteRepairState.inventory.linh_thach || 0) === remoteRepairInventory);
 
   const outpostState = makeState();
   outpostState.inventory.linh_thach = 100;
