@@ -1,4 +1,4 @@
-// grade_sign_maps.js — 2 bảng map bắt buộc dùng chung, chặn lỗi so sánh sai giữa
+// grade_sign_maps.js  2 bảng map bắt buộc dùng chung, chặn lỗi so sánh sai giữa
 // fate_data.js (dùng `grade` string, `sign` code) và fate_relationships.js (dùng `tier` số, `type` nhãn đầy đủ)
 
 const GRADE_TO_TIER = { phan: 1, linh: 2, hoang: 3, huyen: 4, dia: 5, thien: 6, thanh: 7, tien: 8 };

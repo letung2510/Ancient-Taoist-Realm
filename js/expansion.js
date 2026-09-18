@@ -1501,7 +1501,7 @@
       if (beforeOwner !== influence.ownerFactionId) appendNodeHistory(state, state.locationId, { type: "faction_change", summary: "Thế lực kiểm soát nơi này đã đổi khác." });
     }
     applyDailyWorldEffects(state, day);
-    updateDiplomacy(state, day); updateWars(state, day); updateNpcSchedules(state, day); updateHiddenRealms(state, day); processScheduledTasks(state, day);
+    updateDiplomacy(state, day); updateWars(state, day); updateNpcSchedules(state, day); updateHiddenRealms(state, day); updateArmies(state, day); processScheduledTasks(state, day);
     refreshContracts(state, day); refreshAuction(state, day); updateAuction(state, day); updateFactionInternalEvents(state, day); updateTournament(state, day);
     Object.values(state.contractBoard.accepted).forEach((contract) => { if (contract.status === "accepted" && day > contract.expiresDay) { contract.status = "expired"; history(state, "narr", "Ngày hẹn trôi qua; khế ước " + formatContractName(contract) + " đã khép lại khi chưa hoàn thành."); } });
     const regionId = currentRegion(state), region = state.worldSimulation.regionState[regionId];
@@ -3325,6 +3325,52 @@
     grantCanonicalReward(state, "war:" + warId, { exp: 25 }, "war:" + warId + ":" + day + ":" + side);
     history(state, "narr", "Giữa tiếng binh khí va đập, ngươi góp một đòn vào chiến tuyến; chiến công +1."); return { success: true };
   }
+  // Army runtime: the smallest persistent layer for the map army contract.
+  // It deliberately reuses the existing faction/wars/world-tick state.
+  function ensureArmyState(state) {
+    ensure(state); const sim = state.worldSimulation;
+    sim.armies = sim.armies && typeof sim.armies === "object" ? sim.armies : {};
+    Object.values(sim.armies).forEach((army) => {
+      army.soldierCount = Math.max(0, Math.floor(Number(army.soldierCount || 0)));
+      army.morale = clamp(Number(army.morale ?? 70), 0, 100);
+      army.status ||= "garrison"; army.nodeId ||= army.originNodeId || state.locationId;
+      army.route = Array.isArray(army.route) ? army.route : [];
+      army.processedDays = Array.isArray(army.processedDays) ? army.processedDays : [];
+    });
+    return sim.armies;
+  }
+  function createArmy(state, factionId, nodeId, options = {}) {
+    const armies = ensureArmyState(state), id = options.id || "army:" + factionId + ":" + absoluteDay(state.gameClock) + ":" + Object.keys(armies).length;
+    if (armies[id]) return armies[id];
+    armies[id] = { id, factionId, originNodeId: nodeId, nodeId, soldierCount: Math.max(1, Math.floor(Number(options.soldierCount || 100))), morale: clamp(Number(options.morale ?? 70), 0, 100), status: "garrison", route: [], targetNodeId: null, createdDay: absoluteDay(state.gameClock), lastUpdatedDay: absoluteDay(state.gameClock), corruptionExposure: 0, playerIntervention: null };
+    return armies[id];
+  }
+  function armySnapshot(state, nodeId = null) {
+    const armies = Object.values(ensureArmyState(state));
+    return armies.filter((army) => !nodeId || army.nodeId === nodeId).map((army) => ({ ...army, route: army.route.slice(), processedDays: undefined }));
+  }
+  function updateArmies(state, day) {
+    const armies = ensureArmyState(state);
+    Object.values(armies).forEach((army) => {
+      if (army.lastUpdatedDay >= day) return;
+      const days = Math.min(30, Math.max(0, day - Number(army.lastUpdatedDay || day)));
+      const node = D.LOCATIONS?.[army.nodeId];
+      const corruption = Number(node?.corruptionLevel || node?.corruption || 0);
+      if (corruption >= 3 && army.status === "marching") army.morale = clamp(army.morale - days * Math.max(1, corruption - 2), 0, 100);
+      if (army.morale <= 20 && army.status !== "routed") { army.status = "routed"; army.soldierCount = Math.max(1, Math.floor(army.soldierCount * 0.85)); }
+      army.lastUpdatedDay = day;
+    });
+    return armySnapshot(state);
+  }
+  function armyAction(state, armyId, action, options = {}) {
+    const army = ensureArmyState(state)[armyId];
+    if (!army) return { success: false, reason: "Binh đoàn không tồn tại." };
+    if (action === "scout") return { success: true, army: armySnapshot(state, army.nodeId).find((entry) => entry.id === army.id) };
+    if (action === "sabotage") { army.morale = clamp(army.morale - 10, 0, 100); army.soldierCount = Math.max(0, army.soldierCount - Math.ceil(army.soldierCount * 0.05)); return { success: true, army }; }
+    if (action === "join_battle") { army.playerIntervention = { day: absoluteDay(state.gameClock), playerId: state.player.id }; return participateWar(state, options.warId) || { success: true, army }; }
+    if (action === "command") { if (Number(state.player.reputation || state.player.merit || 0) < Number(options.minimumReputation || 20)) return { success: false, reason: "Danh vọng chưa đủ để nhận chỉ huy." }; army.targetNodeId = options.targetNodeId || army.targetNodeId; army.status = "marching"; return { success: true, army }; }
+    return { success: false, reason: "Tương tác binh đoàn không hợp lệ." };
+  }
   function runExpansionCommand(state, command, arg, arg2, options = {}) {
     const table = {
       divine: () => divine(state), contract_accept: () => acceptContract(state, arg), profession_choose: () => chooseProfessionLocked(state, arg), profession_practice: () => practiceProfession(state, arg),
@@ -3335,7 +3381,7 @@
       hidden_profession_action: () => useHiddenProfessionAction(state, arg), path_fusion: () => transitionSecondaryPath(state, arg, options),
       map_event: () => E.resolveMapEvent(state, arg),
       build_structure: () => buildMapStructure(state, arg || state.locationId, arg2 || "teleport_array"), structure_repair: () => repairMapStructure(state, arg || state.locationId, arg2), structure_upgrade: () => upgradeMapStructure(state, arg || state.locationId, arg2), structure_disable: () => disableMapStructure(state, arg || state.locationId, arg2, options.reason || "manual"), structure_dismantle: () => dismantleMapStructure(state, arg || state.locationId, arg2), structure_transfer: () => transferMapStructure(state, arg || state.locationId, arg2, options.npcId || options.targetNpcId), claim_outpost: () => claimOutpost(state, arg || state.locationId), petition_outpost: () => petitionOutpostToFaction(state, arg || state.locationId),
-      bounty: () => placeBounty(state, arg, Number(arg2 || 10)), auction_bid: () => bidAuction(state, arg, Number(arg2)), item_awaken: () => awakenItem(state, arg), heirloom: () => markHeirloom(state, arg), heirloom_repair: () => repairHeirloom(state, arg), prisoner_resolve: () => resolvePrisoner(state, arg, arg2), companion_mutation: () => resolveCompanionMutation(state, arg), opportunity: () => resolveContestedOpportunity(state, arg), read_npc: () => readNpc(state, arg), war: () => participateWar(state, arg), tournament: () => joinTournament(state), codex: () => inspectCodex(state, arg, arg2 || "investigate"), hidden_clue: () => hiddenProfessionClue(state, arg, arg2 || "lead")
+      bounty: () => placeBounty(state, arg, Number(arg2 || 10)), auction_bid: () => bidAuction(state, arg, Number(arg2)), item_awaken: () => awakenItem(state, arg), heirloom: () => markHeirloom(state, arg), heirloom_repair: () => repairHeirloom(state, arg), prisoner_resolve: () => resolvePrisoner(state, arg, arg2), companion_mutation: () => resolveCompanionMutation(state, arg), opportunity: () => resolveContestedOpportunity(state, arg), read_npc: () => readNpc(state, arg), war: () => participateWar(state, arg), army: () => armyAction(state, arg, arg2, options), tournament: () => joinTournament(state), codex: () => inspectCodex(state, arg, arg2 || "investigate"), hidden_clue: () => hiddenProfessionClue(state, arg, arg2 || "lead")
     };
     const result = table[command] ? table[command]() : { success: false, reason: "Lệnh mở rộng không hợp lệ." };
     E.updateDerived(state); return result;
@@ -3372,7 +3418,7 @@
 
   Object.assign(E, {
     ensureExpansionState: ensure, ensureNpcWorldState, ensureMapState, mapNode, mapInfluenceSnapshot, resolveMapInfluence: mapInfluenceSnapshot, refreshMapInfluence, recordMapEventInfluence, mapFogState, moveWithinNode, appendNodeHistory, nodeResonance, mapCompletion, mapCompletionDetailed, buildMapStructure, repairMapStructure, upgradeMapStructure, disableMapStructure, dismantleMapStructure, transferMapStructure, teleportAnchorEligibility, travelPlan: canonicalTravelPlan, travelWeightSnapshot, claimOutpost, petitionOutpostToFaction, createTradeRoute, updateTradeRoutes, validateTradeRouteState, repairInvalidMapExits, wardProtectionAtNode, ensureWorldSimulation, validateExpansionState, validateCacheInvalidationState, validateReplayEnvelope, gameDayOrdinal: absoluteDay, worldRandom: seeded, simulateWorldUntil, simulateWorldAggregate, scheduleWorldTask, cancelWorldTask, processScheduledWorldTasks, resolveOfflineNpcEncounters, actorHistorySnapshot, rehydrateUnknownContent, worldSimulationSummary, getWorldModifiers, setWeather, weatherCatalog, weatherSnapshot, validateWeatherRuntimeState, validateStructureRuntimeState, validateGuildProjectState, worldModifierPreview, resolveNpcWeatherReaction, activeRegionEvent, startWorldEvent, resolveWorldEventChoice,
-    recordRelationshipEvent, relationshipTier, relationshipBreakdown, relationshipPolicySnapshot, validateRelationshipPolicy, validateRelationshipRuntimeState, organizationSnapshot, organizationInteract, ensureOrganizationState, validateOrganizationState, sendMail, refreshContracts, acceptContract, grantCanonicalReward, captureTarget, interrogate, tamePrisoner, scoutWithCompanion, normalizeCompanion, validateCompanionState, validatePrisonerState, validateContestedOpportunity, validateHiddenRealmRuntimeState, productPolicySnapshot, validateProductPolicies, structureManagerDecision, selectCompanionTarget, useCompanionSkill, recordCompanionDamage, simulateOfflineCompanionCombat, recoverCompanion, reviveCompanion,
+    recordRelationshipEvent, relationshipTier, relationshipBreakdown, relationshipPolicySnapshot, validateRelationshipPolicy, validateRelationshipRuntimeState, organizationSnapshot, organizationInteract, ensureOrganizationState, validateOrganizationState, sendMail, refreshContracts, acceptContract, grantCanonicalReward, captureTarget, interrogate, tamePrisoner, scoutWithCompanion, normalizeCompanion, validateCompanionState, validatePrisonerState, validateContestedOpportunity, validateHiddenRealmRuntimeState, ensureArmyState, createArmy, armySnapshot, armyAction, updateArmies, productPolicySnapshot, validateProductPolicies, structureManagerDecision, selectCompanionTarget, useCompanionSkill, recordCompanionDamage, simulateOfflineCompanionCombat, recoverCompanion, reviveCompanion,
     discover, verifyDiscovery, collectDiscovery, rewardDiscovery, discoveryStatusSummary, validateDiscoveryLifecycle, divine, survivalProjection, setPlayerMark, progressionNamespaceSnapshot, pathFusionAffinity, transitionSecondaryPath, chooseProfessionLocked, professionAvailability, practiceProfession, recipeDefinition, recipeCatalog: () => copy(RECIPE_CATALOG), structureCatalog, validateStructureRuntimeState, validateGuildProjectState, rewardPolicySnapshot, validateRewardPolicy, brewPill, useProfessionItem, rechargeProfessionItem, useHiddenProfessionAction, placeFormation, readNpc,
     ensureTechniqueTrials, validateTechniqueRuntimeState, validateCharacterRuntimeState, chooseTechniqueEvolution, techniqueEvolutionModifiers,
     fateEvolutionEligibility, startFateEvolutionTrial, recordFateEvolutionProgress, fateEvolutionCandidates, fateEvolutionPreview, evolveFate, applyFateEvolutionOps, fateEvolutionScoreDelta,

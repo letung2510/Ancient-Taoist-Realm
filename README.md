@@ -1,4 +1,4 @@
-# CỔ DỊ ĐIỂN — RPG tu vi quỷ dị
+# CỔ DỊ ĐIỂN  RPG tu vi quỷ dị
 
 Web game text RPG dùng JavaScript thuần. Luật chuẩn duy nhất của hệ thống nằm tại [`HE_THONG_NEN_TANG_NHAN_VAT_TU_VI_CONG_PHAP.md`](HE_THONG_NEN_TANG_NHAN_VAT_TU_VI_CONG_PHAP.md).
 
@@ -6,7 +6,7 @@ Web game text RPG dùng JavaScript thuần. Luật chuẩn duy nhất của hệ
 
 - Tiến trình có đúng **14 cấp phẳng**, không chia Sơ/Trung/Hậu/Đỉnh.
 - Player mới bắt đầu ở **Di Mệnh Cảnh**, có 5 Mệnh Số cơ bản không trùng và hai Công pháp Phàm nhập môn.
-- Từ cấp 2, nhân vật chọn một Con Đường đủ điều kiện hoặc chọn **Kẻ Vô Lộ — Ngoại Đạo Giả**.
+- Từ cấp 2, nhân vật chọn một Con Đường đủ điều kiện hoặc chọn **Kẻ Vô Lộ  Ngoại Đạo Giả**.
 - Ngoại Đạo Giả giữ danh xưng cảnh giới mặc định, cần `5× EXP`, ngưỡng Mệnh `2×`, kiểm tra đột phá khó hơn và không tham gia hệ Tà Thần/trận doanh.
 - 10 Con Đường thường có bộ danh xưng riêng đủ 14 cấp.
 - Tà Thần chú ý ở cấp 5 là lựa chọn chủ động, chỉ xác nhận một lần và được lưu vĩnh viễn.
@@ -46,7 +46,7 @@ node tools/verify_game.js --update-samples
 ## Nguồn dữ liệu chính
 
 - `data/canh_gioi_tien_hiep.json`: đúng 14 cảnh giới phẳng và alias để migrate ID cũ.
-- `data/path_fate_relations.json`: liên kết Mệnh–Con Đường, danh xưng 14 cấp và ngoại lệ Ngoại Đạo Giả.
+- `data/path_fate_relations.json`: liên kết MệnhCon Đường, danh xưng 14 cấp và ngoại lệ Ngoại Đạo Giả.
 - `data/fate-pool.json`: pool Mệnh Số.
 - `data/tu_tien_factions.json`: vùng, tuyến đường, thế lực và tổ chức.
 - `data/cong_phap.js`: catalog Công pháp bất biến; tiến độ từng Công pháp được lưu trong nhân vật.

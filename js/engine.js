@@ -67,6 +67,73 @@ window.GameEngine = (function () {
       { id: "tan_tu_luu_lac", title: "Tán Tu Lưu Lạc", startLocationId: "vo_tan_hai_khoi_diem", questSeed: "thu_linh_thao" }
     ]
   };
+  const INDEPENDENT_OPENINGS = [
+    { id: "tan_tu_village", title: "Làng nhỏ ven rừng", text: "Một con đường đất dẫn khỏi ngôi làng ven rừng; không có cổng môn phái nào chờ đợi ngươi." },
+    { id: "tan_tu_border_inn", title: "Quán trọ biên thành", text: "Trong quán trọ sát biên, những người qua đường đổi tin tức lấy linh thạch." },
+    { id: "tan_tu_river", title: "Bến sông hoang vắng", text: "Bến sông im tiếng mái chèo; ngươi bắt đầu từ nơi không ai nhận mình làm đệ tử." },
+    { id: "tan_tu_old_road", title: "Cổ đạo ngoài thành", text: "Cổ đạo phủ bụi mở ra trước mắt, chỉ có dấu chân của những kẻ tự tìm đường." },
+    { id: "tan_tu_mountain_shelter", title: "Am đá dưới chân núi", text: "Một am đá lạnh lẽo trở thành nơi đầu tiên ngươi tự dựng vận mệnh." }
+  ];
+  const JOURNEY_INTENT_LABELS = Object.freeze({
+    tam_su: "Tầm Sư",
+    tu_lap: "Tự Lập",
+    quy_tong: "Quy Tông",
+    an_the: "Ẩn Thế"
+  });
+  function organizationKind(faction) {
+    const text = normalizedText([faction?.type, faction?.name].filter(Boolean).join(" "));
+    if (/tong mon|dao tong|kiem tong|dan tong|ma dao|phat tong|quy tong|giao phai|dao thong|phai/.test(text)) return "sect";
+    if (/the gia|gia toc|vuong trieu|co toc|co than bo|toc|bo toc|phu gia/.test(text)) return "family";
+    if (/an the|an the luc|an the|the luc an/.test(text)) return "hidden";
+    return null;
+  }
+  function regionalOrganizations(state) {
+    const regionId = state?.startRegionId || state?.player?.startRegionId;
+    const catalogs = [...(D().GUILDS || []), ...(D().WORLD_MAP?.factions || [])];
+    const unique = new Map(catalogs.filter(Boolean).map((faction) => [faction.id, faction]));
+    return [...unique.values()].filter((faction) => (faction.region_id || faction.regionId) === regionId);
+  }
+  function journeyIntentOptions(character, state = null) {
+    const background = normalizedText(character?.background || "Vô Danh");
+    const options = [
+      { id: "tam_su", label: JOURNEY_INTENT_LABELS.tam_su, description: "Tìm đến một Tông Môn cụ thể để thử gia nhập ở giai đoạn sau." },
+      { id: "tu_lap", label: JOURNEY_INTENT_LABELS.tu_lap, description: "Chọn con đường Tán Tu ngay từ đầu, không tìm môn phái." }
+    ];
+    // Background Tông Môn đã có đạo thống hướng dẫn; không hiển thị Quy Tông.
+    if (background === "tong mon") return options;
+    const organizations = regionalOrganizations(state);
+    const hasFamily = !state || organizations.some((faction) => organizationKind(faction) === "family");
+    if (["hac dao", "vo danh"].includes(background)) {
+      options.push({ id: "an_the", label: JOURNEY_INTENT_LABELS.an_the, description: "Giữ thân phận kín đáo và tìm một thế lực ẩn phù hợp với quá khứ." });
+    } else if (hasFamily) {
+      options.push({ id: "quy_tong", label: JOURNEY_INTENT_LABELS.quy_tong, description: "Hướng về một Thế Gia/gia tộc cụ thể trong vùng." });
+    }
+    return options;
+  }
+  function rollJourneyOpening(state, intentId) {
+    const regionId = state.startRegionId || state.player.startRegionId;
+    const background = String(state.player.background || "Vô Danh");
+    const factions = regionalOrganizations(state);
+    const pick = (pool) => pool.length ? pool[Math.floor(replayRandom(state, "opening-intent:" + intentId + ":" + regionId) * pool.length) % pool.length] : null;
+    if (intentId === "tam_su") {
+      const faction = pick(factions.filter((entry) => organizationKind(entry) === "sect"));
+      if (!faction) return { success: false, reason: "Vùng đã chọn chưa có Tông Môn hợp lệ để Tầm Sư." };
+      return { intentId, type: "sect", targetOrganizationId: faction.id, targetOrganizationKind: "sect", targetName: faction.name, title: "Đứng trước cổng " + faction.name, text: "Ngươi đứng trước cổng " + faction.name + ". Đây là nơi ngươi sẽ thử gia nhập ở giai đoạn 2, không phải một placeholder." };
+    }
+    if (intentId === "quy_tong") {
+      const faction = pick(factions.filter((entry) => organizationKind(entry) === "family"));
+      if (!faction) return { success: false, reason: "Vùng đã chọn chưa có Thế Gia hợp lệ để Quy Tông." };
+      return { intentId, type: "family", targetOrganizationId: faction.id, targetOrganizationKind: "family", targetName: faction.name, title: "Trước phủ đệ " + faction.name, text: "Cánh cổng phủ đệ " + faction.name + " hiện ra trước mắt; huyết thống và quá khứ sẽ quyết định cách họ nhìn ngươi." };
+    }
+    if (intentId === "an_the") {
+      const hiddenPool = factions.filter((entry) => organizationKind(entry) === "hidden");
+      const hiddenFaction = pick(hiddenPool);
+      const scene = INDEPENDENT_OPENINGS[Math.floor(replayRandom(state, "opening-hidden:" + regionId) * INDEPENDENT_OPENINGS.length) % INDEPENDENT_OPENINGS.length];
+      return { intentId, type: "hidden", targetOrganizationId: hiddenFaction?.id || null, targetOrganizationKind: hiddenFaction ? "hidden" : null, targetName: hiddenFaction?.name || null, title: "Ẩn Thế · " + scene.title, text: scene.text + " Không ai biết thân phận thật của ngươi.", sceneId: scene.id, background };
+    }
+    const scene = INDEPENDENT_OPENINGS[Math.floor(replayRandom(state, "opening-independent:" + regionId) * INDEPENDENT_OPENINGS.length) % INDEPENDENT_OPENINGS.length];
+    return { intentId: "tu_lap", type: "independent", targetOrganizationId: null, targetOrganizationKind: null, targetName: null, title: scene.title, text: scene.text, sceneId: scene.id, background };
+  }
   function rollOriginSituation(regionId, rng = entropyRandom) {
     const pool = ORIGIN_SITUATIONS[regionId] || [{ id: "tan_tu_luu_lac", title: "Tán Tu Lưu Lạc", startLocationId: START_LOCATIONS[regionId], questSeed: "thu_linh_thao" }];
     return { ...pool[randomInt(rng, 0, pool.length - 1)] };
@@ -876,6 +943,13 @@ window.GameEngine = (function () {
     const sanRatio = Number(p.maxSan || 100) > 0 ? Number(p.san || 0) / Number(p.maxSan || 100) : 0;
     return clamp(Math.round(distance * 0.35 + Number(p.corruptionRating || 0) * 0.4 + (1 - sanRatio) * 35), 0, 100);
   }
+  function subLocationWrongness(state, subLocationId = null) {
+    const node = D().WORLD_MAP?.locations?.[state?.locationId] || D().LOCATIONS?.[state?.locationId];
+    const sub = (node?.subLocations || []).find((entry) => entry.id === subLocationId) || null;
+    const override = state?.mapState?.subLocationWrongnessOverride?.[subLocationId];
+    const local = Number(sub?.wrongness ?? sub?.corruptionLevel ?? 0);
+    return clamp(Math.round(Number.isFinite(Number(override)) ? Number(override) : worldviewWrongness(state) * 0.7 + local * 0.3), 0, 100);
+  }
   function atmosphereRoll(state, key) {
     let hash = Number(state?.meta?.turn || 0) * 31 + String(state?.locationId || "").length * 17 + String(key || "").length * 13;
     for (const ch of String(key || "")) hash = (hash * 33 + ch.charCodeAt(0)) % 10007;
@@ -1276,6 +1350,8 @@ window.GameEngine = (function () {
       personalityTraits: Array.isArray(input.personalityTraits) ? input.personalityTraits.slice(0, 2) : [],
       background: input.background || "Vô Danh",
       origin: input.origin || input.originProfile || null,
+      journeyIntent: input.journeyIntent || null,
+      openingPlan: input.openingPlan ? JSON.parse(JSON.stringify(input.openingPlan)) : null,
       hiddenGoal: input.hiddenGoal || "Trường sinh",
       cultivationMethod: input.cultivationMethod || "Dẫn Khí Nhập Môn",
       techniques: input.techniques || {
@@ -1735,7 +1811,7 @@ window.GameEngine = (function () {
       pendingGuildChoice: false,
       relationships: {},   // npcId -> { trust, fear, respect, suspicion }
       quests: {},          // questId -> { status, objectives }
-      flags: { originChoicePending: Boolean(character.originSituation), originSituation: character.originSituation || null, originChoice: null },
+      flags: { journeyIntentPending: !character.journeyIntent, journeyIntent: character.journeyIntent || null, openingPlan: character.openingPlan || null, originChoicePending: false, originSituation: null, originChoice: null, originLocked: Boolean(character.origin) },
       memory: { shortTerm: [], longTerm: [], worldFacts: [] },
       history: [],
       logState: { sequence: 0, recentNarratives: [], groups: {}, lastEventId: null },
@@ -1759,14 +1835,13 @@ window.GameEngine = (function () {
       const def = D().QUESTS[qid];
       state.quests[qid] = { id: qid, type: def.type || def.kind || "khu_vuc", title: def.title, priority: def.priority || 1, status: "available", objectives: def.objectives.map((o) => ({ ...o, done: false })), branches: def.branches || [], alternatives: def.alternatives || [], consequences: def.consequences || {}, tracked: false, discoveredAt: null, completedAt: null, failedAt: null };
     });
-    if (character.originSituation?.questSeed && state.quests[character.originSituation.questSeed]) state.quests[character.originSituation.questSeed].status = "hidden";
     state._fateState = fateState(character);
     updateDerived(state);
     if (state.player.san <= 0) triggerMadness(state, "Mệnh Số tương khắc khi thức tỉnh");
     const startRegion = D().WORLD_MAP?.regions?.find((region) => region.id === state.startRegionId);
     pushMemory(state, "Bắt đầu hành trình tại " + (startRegion?.name || "Trung Vực") + ".");
     pushHistory(state, { type: "sys", text: "Ngươi tỉnh giấc tại " + (startRegion?.name || "Trung Vực") + "." });
-    if (character.originSituation) pushHistory(state, { type: "narr", text: "Bối cảnh: " + character.originSituation.title + ". Hãy chọn thân phận hành đạo trước khi tìm đến bất kỳ Tông Môn nào." });
+    if (state.flags.journeyIntentPending) pushHistory(state, { type: "narr", text: "Mọi thuộc tính bẩm sinh đã được định. Hãy chọn một trong các hướng hành đạo trước khi bước vào gameplay chính." });
     return state;
   }
 
@@ -1898,6 +1973,15 @@ window.GameEngine = (function () {
   // Bảo đảm mọi mệnh nhân đều có kiếm khởi đầu; save cũ được migrate một lần.
   function ensureStarterKit(state) {
     state.flags = state.flags || {};
+    if (state.player.openingPlan?.targetFactionId && !state.player.openingPlan.targetOrganizationId) {
+      state.player.openingPlan.targetOrganizationId = state.player.openingPlan.targetFactionId;
+      state.player.openingPlan.targetOrganizationKind = state.player.openingPlan.type === "family" ? "family" : "sect";
+      delete state.player.openingPlan.targetFactionId;
+    }
+    if (!state.player.journeyIntent) {
+      state.flags.journeyIntentPending = true;
+      state.flags.originChoicePending = false;
+    }
     if (state.flags.starterKitGranted) return;
     if (!state.inventory || typeof state.inventory !== "object") state.inventory = {};
     if (!state.inventory.hac_thiet_kiem && D().ITEMS.hac_thiet_kiem) addItem(state, "hac_thiet_kiem", 1);
@@ -2325,6 +2409,25 @@ window.GameEngine = (function () {
   }
 
   /* ---------- Quest ---------- */
+  function chooseJourneyIntent(state, intentId) {
+    if (!state.flags?.journeyIntentPending) return { success: false, reason: "Ý định hành đạo đã được định." };
+    const allowed = journeyIntentOptions(state.player, state).some((option) => option.id === intentId);
+    if (!allowed) return { success: false, reason: "Lựa chọn hành đạo không hợp lệ với bối cảnh nhân vật." };
+    const openingPlan = rollJourneyOpening(state, intentId);
+    if (openingPlan.success === false) return openingPlan;
+    if (["tam_su", "quy_tong"].includes(intentId) && (!openingPlan.targetOrganizationId || !openingPlan.targetOrganizationKind)) return { success: false, reason: "Không tìm được tổ chức đúng loại trong vùng đã chọn." };
+    state.player.journeyIntent = openingPlan.intentId;
+    state.player.openingPlan = openingPlan;
+    state.flags.journeyIntentPending = false;
+    state.flags.journeyIntent = openingPlan.intentId;
+    state.flags.openingPlan = openingPlan;
+    state.flags.originChoicePending = false;
+    state.flags.originLocked = true;
+    state.flags.originSituation = { openingPlan, title: openingPlan.title, startLocationId: state.locationId, questSeed: null };
+    pushMemory(state, "Ý định hành đạo: " + openingPlan.intentId + ".");
+    pushHistory(state, { type: "narr", text: openingPlan.text });
+    return { success: true, intentId: openingPlan.intentId, openingPlan };
+  }
   function chooseOrigin(state, branch, specializationId) {
     if (!state.flags.originChoicePending) return { success: false, reason: "Thân phận hành đạo đã được định." };
     const profile = ORIGIN_PROFILES[branch];
@@ -2588,6 +2691,11 @@ window.GameEngine = (function () {
       pushHistory(state, { type: "warn", text: "× Không tìm thấy tổ chức đó trong vùng hiện tại." });
       return false;
     }
+    const openingTarget = state.player.openingPlan?.targetOrganizationId || state.player.openingPlan?.targetFactionId;
+    if (openingTarget && ["tam_su", "quy_tong"].includes(state.player.journeyIntent) && guild.id !== openingTarget) {
+      pushHistory(state, { type: "warn", text: "Không thể thử gia nhập thế lực khác với mục tiêu trong bối cảnh mở đầu." });
+      return false;
+    }
     const eligibility = guildEligibility(state, guild);
     if (!eligibility.eligible) {
       pushHistory(state, { type: "warn", text: "× " + eligibility.rule.name + " chưa chấp nhận mệnh cách của ngươi: " + eligibility.reasons.join(" · ") + "." });
@@ -2691,10 +2799,10 @@ window.GameEngine = (function () {
     const lifespanDelta = Math.max(0, upgradedMaxLifespan - previousMaxLifespan);
     if (lifespanDelta) state.player.lifespan = Number(state.player.lifespan || 0) + lifespanDelta;
     state.flags.pathChoicePending = !state.player.pathId;
-    const originLocked = Boolean(state.player.origin?.confirmed || state.flags?.originLocked);
-    state.pendingGuildChoice = !originLocked;
+    const journeyTarget = state.player.openingPlan?.targetOrganizationId;
+    state.pendingGuildChoice = Boolean(journeyTarget && ["tam_su", "quy_tong", "an_the"].includes(state.player.journeyIntent));
     state.flags.enteredKhaiLo = true;
-    state.flags.guildDecision = originLocked ? "origin:" + (state.player.origin?.type || state.player.background || "independent") : null;
+    state.flags.guildDecision = state.pendingGuildChoice ? null : "journey:" + (state.player.journeyIntent || "tu_lap");
     activateQuest(state, "chon_dao_lo");
     pushMemory(state, "Bước vào Khai Lộ Cảnh nhờ " + source + ".");
     pushHistory(state, { type: "sys", text: "§ KHAI LỘ THÀNH CÔNG  " + next.name + " (" + source + ")." });
@@ -3520,7 +3628,11 @@ window.GameEngine = (function () {
     }
     state._suppressHistory = false;
     state.autoCultivation = { requested: target, cultivated, rested, reason, turn: state.meta.turn };
-    pushHistory(state, { type: "sys", text: "§ Tự động tu luyện: vận công " + cultivated + " lượt, điều tức " + rested + " lượt. " + reason });
+    const cultivationNarrative = cultivated > 0
+      ? "Ngươi khép mắt, để hơi thở chậm dần giữa dòng linh khí; từng vòng vận công lắng xuống trong đan điền."
+      : "Ngươi ngồi yên dưới khoảng trời tĩnh lặng, lắng nghe linh khí trôi qua mà chưa thể kết thành một vòng vận công."
+    const cultivationStats = "Tự động tu luyện · vận công " + cultivated + " lượt · điều tức " + rested + " lượt · " + reason;
+    pushHistory(state, { type: "sys", text: cultivationNarrative, statDisplay: [cultivationStats] });
     updateDerived(state);
     return { success: cultivated > 0, completed: cultivated, rested, reason };
   }
@@ -3549,7 +3661,11 @@ window.GameEngine = (function () {
       turn: state.meta.turn,
       locationId: state.locationId
     };
-    pushHistory(state, { type: "sys", text: "§ Bế quan kết thúc sau " + duration + " giờ: vận công " + result.completed + " lượt, điều tức " + result.rested + " lượt. " + result.reason });
+    const secludedNarrative = result.completed > 0
+      ? "Sau những giờ bế quan, hơi thở của ngươi đã hòa lại với mạch đất; căn phòng chỉ còn tiếng linh khí khẽ chuyển quanh thân."
+      : "Sau những giờ bế quan, ngươi mở mắt giữa màn tĩnh lặng; linh khí vẫn chưa chịu thuận theo ý niệm."
+    const secludedStats = "Bế quan " + duration + " giờ · vận công " + result.completed + " lượt · điều tức " + result.rested + " lượt · " + result.reason;
+    pushHistory(state, { type: "sys", text: secludedNarrative, statDisplay: [secludedStats] });
     updateDerived(state);
     return { ...result, hours: duration };
   }
@@ -5105,6 +5221,9 @@ window.GameEngine = (function () {
     if (state.player.tainted?.attentionPending) {
       return { inCombat: false, forced: true, state: "TAINTED_ATTENTION_CHOICE", actions: ACTION_DEFINITIONS.filter((action) => action.id.startsWith("act_chon_")) };
     }
+    if (state.flags.journeyIntentPending) {
+      return { inCombat: false, forced: true, state: "JOURNEY_INTENT_CHOICE", actions: journeyIntentOptions(state.player, state).map((option) => ({ id: "act_journey_" + option.id, label: option.label, aliases: [option.id, option.label], priority: 1 })) };
+    }
     if (state.flags.originChoicePending) {
       return { inCombat: false, forced: true, state: "ORIGIN_CHOICE", actions: [] };
     }
@@ -5279,6 +5398,7 @@ window.GameEngine = (function () {
     return fuzzy.length && (fuzzy.length === 1 || fuzzy[0].d < fuzzy[1].d) ? { actionId: fuzzy[0].x.action.id, suggestion: "Ý mày là: " + fuzzy[0].x.action.label + "?" } : null;
   }
   function resolveAction(state, actionId, options = {}) {
+    if (actionId.startsWith("act_journey_")) return chooseJourneyIntent(state, actionId.slice("act_journey_".length));
     if (actionId.startsWith("act_ritual_")) return performBreakthroughRitualStep(state, actionId.slice("act_ritual_".length));
     if (actionId.startsWith("act_path_")) return selectPath(state, actionId.slice("act_path_".length));
     if (actionId.startsWith("act_faction_")) return chooseTaintedFaction(state, actionId.slice("act_faction_".length));
@@ -5319,6 +5439,18 @@ window.GameEngine = (function () {
       if (!departure.allowed && (validMove || validSafeTravel)) action = { id: actionId, label: actionId };
     }
     if (!action) return false;
+    // Journey intent is a pre-game state transition. Resolve it before mutating
+    // the turn clock so an invalid choice cannot consume time or emit an echo.
+    if (actionId.startsWith("act_journey_")) {
+      const journeyResult = resolveAction(state, actionId, options);
+      if (!journeyResult || journeyResult.success === false) return journeyResult || false;
+      state.meta.turn += 1;
+      state.meta.updatedAt = new Date().toISOString();
+      pushHistory(state, { type: "COMMAND_ECHO", debugOnly: true, text: "> [" + action.label + "]" });
+      updateDerived(state);
+      checkAllQuests(state);
+      return journeyResult;
+    }
     state.meta.turn += 1;
     state.meta.updatedAt = new Date().toISOString();
     pushHistory(state, { type: "COMMAND_ECHO", debugOnly: true, text: "> [" + action.label + "]" });
@@ -5588,7 +5720,7 @@ window.GameEngine = (function () {
     return {
       id: player.id,
       name: player.name,
-      origin: { regionId: player.startRegionId || state.startRegionId, locationId: state.locationId, race: player.race, background: player.background, profile: player.origin ? JSON.parse(JSON.stringify(player.origin)) : null, personality: (player.personalityTraits || []).slice(), hiddenGoal: player.hiddenGoal, spiritualRoots: (player.spiritualRoots || []).slice(), spiritualRootBranch: player.spiritualRootBranch || null },
+      origin: { regionId: player.startRegionId || state.startRegionId, locationId: state.locationId, race: player.race, background: player.background, profile: player.origin ? JSON.parse(JSON.stringify(player.origin)) : null, journeyIntent: player.journeyIntent || null, openingPlan: player.openingPlan ? JSON.parse(JSON.stringify(player.openingPlan)) : null, personality: (player.personalityTraits || []).slice(), hiddenGoal: player.hiddenGoal, spiritualRoots: (player.spiritualRoots || []).slice(), spiritualRootBranch: player.spiritualRootBranch || null },
       presentation: { archetypeId: player.archetypeId, portrait: player.portrait },
       realm: { id: realm.id, level: realm.level, title: pathTitle(state), exp: player.exp },
       path: { primary: player.pathId || null, secondary: player.secondaryPathId || null, pathScore: player.pathId ? pathMatchSummary(player, player.pathId).score : 0, professionStage: player.professionStage || null },
@@ -5625,7 +5757,7 @@ window.GameEngine = (function () {
       id: character.id, name: character.name, archetypeId: character.presentation?.archetypeId,
       portrait: character.presentation?.portrait, realmId: character.realm?.id,
       race: origin.race, startRegionId: origin.regionId, spiritualRoots: origin.spiritualRoots, spiritualRootBranch: origin.spiritualRootBranch,
-      personalityTraits: origin.personality, background: origin.background, originProfile: origin.profile, hiddenGoal: origin.hiddenGoal,
+      personalityTraits: origin.personality, background: origin.background, originProfile: origin.profile, journeyIntent: origin.journeyIntent, openingPlan: origin.openingPlan, hiddenGoal: origin.hiddenGoal,
       basePhy: stats.phy, baseMag: stats.mag, aptitude: stats.aptitude, comprehension: stats.comprehension,
       baseFortune: stats.fortune, sat: stats.sat, merit: stats.merit, stamina: stats.staminaCurrent, lifespanConsumableBonus: stats.lifespanConsumableBonus, currentAge: stats.currentAge,
       corruptionRating: stats.corruption, fates: character.fate?.equippedIds,
@@ -5709,9 +5841,6 @@ window.GameEngine = (function () {
       state.player.origin = { type: savedOriginBranch, specialization: resolvedSpecializationId, name: profile.name, specializationName: specialization.name, modifiers, traits: [...new Set([...(profile.baseTraits || []), ...(specialization.traits || [])])], confirmed: true };
       state.flags.originChoicePending = false;
       state.flags.originLocked = true;
-    } else if (!state.player.origin && state.flags.originSituation && savedOriginBranch === "seek_guild") {
-      state.flags.originChoicePending = true;
-      state.flags.originLocked = false;
     }
     state.quests = state.quests || {};
     Object.keys(D().QUESTS).forEach((questId) => {
@@ -5830,8 +5959,8 @@ window.GameEngine = (function () {
   }
 
   return {
-    rnd, clamp, computeFate, fateState, fateStatusLabel, drawInitialFates, rollCharacterCreation, rollSpiritualRootBranch, spiritualRootProfile, startRegionEligibility, availableStartRegions, computeStats, computeRelationshipEffects, validateFateEffectComposition, skillCheck, sanCheck, sanStatus, fortuneStatus, worldviewWrongness, weaveAtmosphere, perceivedValue, realmLore, getPathDisplayName, spiritualRootGrade,
-    createCharacter, createState, updateDerived, originOptions, chooseOrigin, chooseOriginBranch,
+    rnd, clamp, computeFate, fateState, fateStatusLabel, drawInitialFates, rollCharacterCreation, rollSpiritualRootBranch, spiritualRootProfile, startRegionEligibility, availableStartRegions, computeStats, computeRelationshipEffects, validateFateEffectComposition, skillCheck, sanCheck, sanStatus, fortuneStatus, worldviewWrongness, subLocationWrongness, weaveAtmosphere, perceivedValue, realmLore, getPathDisplayName, spiritualRootGrade,
+    createCharacter, createState, updateDerived, originOptions, journeyIntentOptions, chooseJourneyIntent, chooseOrigin, chooseOriginBranch,
     addItem, removeItem, registerGeneratedItem, createLootItem, activateQuest, trackQuest, abandonQuest, checkQuestObjectives, failQuest,
     getGuildBenefits, guildTierInfo, guildEligibility, guildExitCost, joinGuild, refuseGuild, leaveGuild, describeGuild, travelHubCatalog, safeTravelDestination, travelToSafeHub,
     normalizeEquipment, equippedItemIds, equippedItemQuantity, freeItemQuantity, equipmentCategory, equipmentCategoryLabel, equipmentSummary, equipmentEligibility, protectionSlot, equipItem, inventoryActions, handleInventoryAction, cauldronItemSafety,
