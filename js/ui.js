@@ -192,7 +192,9 @@ window.GameUI = (function () {
 
   function renderOriginChoice(state) {
     if (state.flags?.journeyIntentPending) {
-      const options = window.GameEngine.journeyIntentOptions?.(state.player) || [];
+      // FIX (2026-09-18): option rendering must use the selected region too;
+      // otherwise the UI can show Quy Tông when no family exists in that region.
+      const options = window.GameEngine.journeyIntentOptions?.(state.player, state) || [];
       return '<div class="origin-choice journey-intent-choice"><p class="muted">Tộc, Linh Căn và Tính Cách đã được định. Trước khi gameplay chính bắt đầu, hãy chọn ý định hành đạo.</p><div class="origin-choice-grid">' + options.map((option) => '<label class="origin-specialization journey-intent-card"><input type="radio" name="journey-intent" value="' + escapeHtml(option.id) + '"><span><b>' + escapeHtml(option.label) + '</b><small>' + escapeHtml(option.description) + '</small></span></label>').join('') + '</div><button type="button" class="btn btn-primary journey-intent-confirm" data-journey-intent-confirm>Xác nhận ý định</button></div>';
     }
     const profiles = window.GameEngine.originOptions();

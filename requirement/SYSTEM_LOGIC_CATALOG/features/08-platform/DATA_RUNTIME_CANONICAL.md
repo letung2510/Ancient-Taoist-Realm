@@ -275,3 +275,4 @@ the canonical budgets before a batch can be marked green.
 
 - The verifier covers six supported starting regions, all four intent branches, five independent scenes, Background-specific option sets, regional target validity, quest/history isolation, failed-action turn safety, and save/load persistence.
 - Active runtime and requirement files must remain valid UTF-8; detected mojibake is a release-blocking defect.
+- Save/load must preserve `pendingGuildChoice` for a valid journey organization target after entering stage 2.

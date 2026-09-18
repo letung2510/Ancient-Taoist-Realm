@@ -33,3 +33,5 @@
 - `Hắc Đạo` and `Vô Danh` replace `Quy Tông` with `Ẩn Thế`; option matching is accent-normalized and encoding-independent.
 - Background `Tông Môn` exposes exactly `Tầm Sư` and `Tự Lập`.
 - Legacy `originSituation` is not used to hide quests or write opening history. The resolved `openingPlan` owns the opening context.
+- A stage-2 organization invitation is owned by `journeyIntent` and `openingPlan.targetOrganizationId`; `originLocked` must not clear it during save/load.
+- Refusing a stage-2 invitation in the journey flow records a journey decline and never reopens the legacy Origin state machine.

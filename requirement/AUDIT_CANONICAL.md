@@ -4242,6 +4242,14 @@ Open findings:
 - Expanded `tools/verify_opening_intent.js` across six regions, all intents, five scenes, target contracts, state isolation, history/quest consistency, failed-action clock safety, and persistence.
 - UTF-8 repair scan reports zero detected mojibake runs; modified JavaScript and Markdown pass syntax/requirement validation.
 
+## Automatic review remediation — 2026-09-18
+
+- Fixed a UI/runtime divergence where the journey modal omitted `state` and could show a region-invalid `Quy Tông` option.
+- Fixed save/load normalization clearing a valid new-flow `pendingGuildChoice` because `originLocked` was incorrectly treated as legacy Origin state.
+- Fixed `refuseGuild()` so journey-stage refusal is recorded as `journey:<intent>:declined` instead of being rejected by the legacy Origin guard.
+- Added regression coverage for stage-2 invitation persistence and journey-stage refusal.
+- Detailed report: `requirement/LOGIC_REVIEW_REPORT_2026-09-18.md`.
+
 ## White-box logic review — 2026-09-18
 
 The runtime and validator smoke tests pass, but white-box inspection found the following residual risks. These are recorded here as audit findings; no new audit file is created.

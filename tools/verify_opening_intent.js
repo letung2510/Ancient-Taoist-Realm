@@ -88,9 +88,14 @@ assert.strictEqual(actionState.meta.turn, turnBefore);
 const persistence = newState("trung_vuc", "Thế Gia");
 const chosen = E.chooseJourneyIntent(persistence, "quy_tong");
 assert.strictEqual(chosen.success, true);
+assert.strictEqual(E.enterLuyenKhi(persistence, "opening-intent QA"), true);
+assert.strictEqual(persistence.pendingGuildChoice, true);
 const restored = E.deserialize(E.serialize(persistence));
 assert.strictEqual(restored.player.journeyIntent, "quy_tong");
 assert.strictEqual(restored.player.openingPlan.targetOrganizationId, chosen.openingPlan.targetOrganizationId);
+assert.strictEqual(restored.pendingGuildChoice, true);
+assert.strictEqual(E.refuseGuild(restored, "thế gia"), true);
+assert.strictEqual(restored.flags.guildDecision, "journey:quy_tong:declined");
 assert.strictEqual(E.resolveAction(restored, "act_journey_tu_lap").success, false);
 
 console.log("OK: all journey intents, UTF-8 background branches, regional targets, independent scenes, state isolation, failed-action clock safety, and persistence");
