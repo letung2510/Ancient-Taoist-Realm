@@ -508,6 +508,13 @@ function verifyBrowserEngine(sandbox) {
     fates: E.drawInitialFates()
   });
   const state = E.createState({ character });
+  assert(E.validateOpenWorldGrid(state).ok);
+  ["bac", "nam", "dong", "tay"].forEach((direction) => {
+    const probe = E.deserialize(E.serialize(state)), before = probe.locationId;
+    E.move(probe, direction);
+    assert.notStrictEqual(probe.locationId, before, `Oxy movement blocked: ${direction}`);
+    assert(E.validateOpenWorldGrid(probe).ok);
+  });
   const lookTurn = state.meta.turn;
   const lookHistory = state.history.length;
   E.submitActionId(state, "act_nhin");
