@@ -1429,3 +1429,4 @@ Recovered from runtime symbols: pushHistory, createGameEvent, novelLogParagraphs
 ### Resource field contract
 
 - The pinned Linh Khí meter reads `player.qi` and `player.maxQi`. `mana` and `maxMana` are not valid player-state fields.
+- Journey option rendering receives the complete state so region-dependent organization availability matches the engine resolver.

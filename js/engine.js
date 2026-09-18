@@ -2722,7 +2722,7 @@ window.GameEngine = (function () {
   }
 
   function refuseGuild(state, path) {
-    if (state.player.origin?.confirmed || state.flags?.originLocked) {
+    if (state.player.origin?.confirmed) {
       state.pendingGuildChoice = false;
       state.flags.guildDecision = state.flags.guildDecision || "origin:" + (state.player.origin?.type || state.player.background || "independent");
       pushHistory(state, { type: "warn", text: "× Xuất thân đã được định khi bắt đầu game; không thể đổi Tán Tu/Thế Gia. Hãy chọn gia nhập tổ chức nếu muốn." });
@@ -2732,8 +2732,18 @@ window.GameEngine = (function () {
       pushHistory(state, { type: "warn", text: "× Hiện không có lời mời nhập môn nào cần quyết định." });
       return false;
     }
-    const normalized = String(path || "").trim().toLowerCase();
+    const normalized = normalizedText(path);
     const isFamily = /thế gia|the gia|gia tộc|gia toc/.test(normalized);
+    if (state.player.journeyIntent) {
+      // FIX (2026-09-18): journey intent is not legacy Origin. Refusing the
+      // stage-2 invitation must not reopen or block the old Origin state machine.
+      state.pendingGuildChoice = false;
+      state.flags.guildDecision = "journey:" + state.player.journeyIntent + ":declined";
+      pushMemory(state, "Từ chối lời mời tổ chức và tiếp tục theo ý định " + state.player.journeyIntent + ".");
+      pushHistory(state, { type: "sys", text: "§ Ngươi từ chối lời mời nhập môn; ý định hành đạo ban đầu không thay đổi." });
+      checkQuestObjectives(state, "chon_dao_lo");
+      return true;
+    }
     const legacyBackground = isFamily ? "Thế Gia" : "Tán Tu";
     state.pendingGuildChoice = false;
     state.flags.guildDecision = isFamily ? "the_gia" : "tan_tu";
@@ -5943,11 +5953,20 @@ window.GameEngine = (function () {
     state.pendingRewardSummaries = Array.isArray(state.pendingRewardSummaries) ? state.pendingRewardSummaries : [];
     state.market = state.market && Array.isArray(state.market.offers) ? state.market : { generatedAt: 0, refreshIntervalMs: 60000, offers: [], purchased: {} };
     state.pendingGuildChoice = Boolean(state.pendingGuildChoice);
-    if (state.player.origin?.confirmed || state.flags.originLocked) {
+    const journeyCanPursueOrganization = Boolean(state.player.journeyIntent && state.player.openingPlan?.targetOrganizationId && ["tam_su", "quy_tong", "an_the"].includes(state.player.journeyIntent));
+    if (state.player.origin?.confirmed) {
       // Save cũ từng tạo lại lựa chọn Tán Tu/Thế Gia sau khi đột phá. Xuất thân
       // mới chỉ được chọn một lần ở đầu game, vì vậy tự chuẩn hóa trạng thái.
       state.pendingGuildChoice = false;
       state.flags.guildDecision = state.flags.guildDecision || "origin:" + (state.player.origin?.type || state.player.background || "independent");
+    } else if (state.player.journeyIntent) {
+      // FIX (2026-09-18): preserve a valid new-flow stage-2 invitation across
+      // save/load; originLocked belongs to legacy saves and is not a blocker.
+      if (journeyCanPursueOrganization && cultivationTier(state) >= 2 && !state.guildMembership && !state.flags.guildDecision) state.pendingGuildChoice = Boolean(state.pendingGuildChoice);
+      if (!journeyCanPursueOrganization) {
+        state.pendingGuildChoice = false;
+        state.flags.guildDecision = state.flags.guildDecision || "journey:" + state.player.journeyIntent;
+      }
     } else if (cultivationTier(state) >= 2 && !state.guildMembership && !state.flags.guildDecision) {
       state.pendingGuildChoice = false;
       state.flags.guildDecision = "origin:" + (state.player.background || "independent");
