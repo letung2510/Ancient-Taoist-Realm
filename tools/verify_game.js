@@ -199,6 +199,11 @@ function verifyExpansionSystems(sandbox) {
   const builtStructure = E.buildMapStructure(structureState, structureState.locationId, "watchtower");
   assert(builtStructure.success);
   assert(E.validateStructureRuntimeState(structureState).ok);
+  const remoteBuildState = E.deserialize(E.serialize(structureState));
+  E.move(remoteBuildState, "bac");
+  const remoteBuildInventory = Number(remoteBuildState.inventory.linh_thach || 0);
+  const remoteBuild = E.buildMapStructure(remoteBuildState, structureState.locationId, "trading_post");
+  assert(!remoteBuild.success && Number(remoteBuildState.inventory.linh_thach || 0) === remoteBuildInventory);
   const structureId = builtStructure.structure.id;
   builtStructure.structure.ownerType = "npc"; builtStructure.structure.ownerId = "npc_test";
   assert(!E.disableMapStructure(structureState, structureState.locationId, structureId).success, "non-owner must not disable structure");

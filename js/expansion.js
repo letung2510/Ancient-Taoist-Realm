@@ -1910,6 +1910,8 @@
     if (!STRUCTURE_CATALOG[type]) return { success: false, reason: "Invalid structure catalog entry." };
     const allowed = ["watchtower", "waystation", "trading_post", "ward_formation"]; if (!allowed.includes(type)) return { success: false, reason: "Công trình bản đồ không hợp lệ." };
     const node = mapNode(state, nodeId); if (!node) return { success: false, reason: "Không tìm thấy địa điểm." };
+    if (nodeId !== state.locationId) return { success: false, reason: "Ngươi phải đang đứng tại node muốn xây công trình." };
+    if (!nodeIsDiscovered(state, nodeId)) return { success: false, reason: "Chưa khám phá địa điểm này." };
     const list = ensureMapState(state).structures[nodeId] ||= []; if (list.some((structure) => structure.type === type && structure.status !== "dismantled")) return { success: false, reason: "Công trình này đã tồn tại." };
     if (type === "waystation") { const anchor = teleportAnchorEligibility(state, nodeId); if (!anchor.eligible) return { success: false, reason: anchor.reason }; }
     const cost = Number(STRUCTURE_CATALOG[type].buildCost || 0);
