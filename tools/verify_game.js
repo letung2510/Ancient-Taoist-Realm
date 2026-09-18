@@ -511,9 +511,12 @@ function verifyBrowserEngine(sandbox) {
   const repairNode = D.LOCATIONS[repairNodeId];
   const originalRepairExit = repairNode.exits.bac;
   repairNode.exits.bac = "qa_missing_exit_target";
-  const exitRepair = E.repairInvalidMapExits(E.createState({ character: E.createCharacter({ name: "Exit Repair QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) }));
+  const exitRepairState = E.createState({ character: E.createCharacter({ name: "Exit Repair QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  exitRepairState.openWorld.exits[repairNodeId] = { bac: "qa_missing_exit_target" };
+  const exitRepair = E.repairInvalidMapExits(exitRepairState);
   assert(exitRepair.removed.some((entry) => entry.nodeId === repairNodeId && entry.direction === "bac" && entry.targetId === "qa_missing_exit_target"));
-  assert.strictEqual(repairNode.exits.bac, undefined);
+  assert.strictEqual(repairNode.exits.bac, "qa_missing_exit_target");
+  assert.strictEqual(exitRepairState.openWorld.exits[repairNodeId].bac, undefined);
   assert(exitRepair.invalidExits.some((entry) => entry.nodeId === repairNodeId && entry.direction === "bac"));
   repairNode.exits.bac = originalRepairExit;
 
@@ -880,6 +883,11 @@ function verifyMapUI(sandbox) {
   assert.strictEqual(Number(missingAddressState.inventory.linh_thach || 0), missingAddressInventory);
   sandbox.window.GameData.WORLD_MAP.addresses.organizations = savedOrganizationAddresses;
   assert(E.validateOrganizationState(organizationState).ok);
+  organizationState.organizationState.relations.qa_corrupt = { organizationId: "qa_missing_organization", reputation: 0, favor: 0, trust: 0, heat: 0 };
+  const organizationFullAudit = E.validateExpansionState(organizationState);
+  assert(!organizationFullAudit.valid && organizationFullAudit.errors.some((error) => error.startsWith("organizations:")));
+  delete organizationState.organizationState.relations.qa_corrupt;
+  assert(E.validateExpansionState(organizationState).valid);
   const organizationLog = E.novelLogParagraphs(organizationState).at(-1)?.text || "";
   assert(organizationLog.includes("Tại") && organizationLog.includes("Mối quan hệ") && !organizationLog.includes("organizationInteract"));
   const mapEventState = E.createState({ character: E.createCharacter({ name: "Map Event QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
