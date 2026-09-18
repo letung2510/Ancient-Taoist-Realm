@@ -1993,6 +1993,8 @@
 
   function claimOutpost(state, nodeId = state.locationId) {
     const node = mapNode(state, nodeId); if (!node) return { success: false, reason: "Không tìm thấy địa điểm." };
+    if (nodeId !== state.locationId) return { success: false, reason: "Ngươi phải đang đứng tại node muốn lập trạm." };
+    if (!nodeIsDiscovered(state, nodeId)) return { success: false, reason: "Chưa khám phá địa điểm này." };
     const influence = mapInfluenceSnapshot(state, nodeId); if (influence.ownerFactionId || influence.contested) return { success: false, reason: "Nơi này chưa đủ vô chủ để lập trạm." };
     if (Number(state.inventory?.linh_thach || 0) < 10) return { success: false, reason: "Cần 10 Linh Thạch để lập trạm." };
     removeItem(state, "linh_thach", 10); const id = "player_outpost_" + state.player.id; const outpost = { id, nodeId, ownerType: "player", ownerId: state.player.id, power: 5, createdDay: absoluteDay(state.gameClock), structures: [] };
