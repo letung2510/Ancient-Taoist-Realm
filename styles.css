@@ -12,7 +12,7 @@
   --line: #23303d;
   --ui: "Segoe UI Variable", "Segoe UI", "Noto Sans", Arial, sans-serif;
   --display: "Cambria", "Noto Serif", Georgia, serif;
-  --serif: var(--ui);
+  --serif: var(--display);
   --mono: "Cascadia Code", "Consolas", "Noto Sans Mono", monospace;
 }
 
@@ -30,6 +30,10 @@
   color: #e5c77a;
   font-size: .7rem;
 }
+.map-event-feed { margin: 10px 0; padding: 10px 12px; border: 1px solid rgba(217,185,106,.25); border-radius: 10px; background: rgba(24,28,43,.72); }
+.map-event-feed > b { display:block; margin-bottom: 6px; color: var(--gold); font-family: var(--display); }
+.map-event-row { display:flex; justify-content:space-between; gap:12px; padding:5px 0; border-top:1px dashed var(--line); font-size:12px; }
+.map-event-row span { color: var(--ink-dim); text-align:right; }
 
 .map-node.hidden-realm-open {
   border-color: #9f7aea;
@@ -426,6 +430,11 @@ html, body {
 .faction-pin.evil, .dot.evil { background: var(--danger); }
 .faction-pin.neutral, .dot.neutral { background: #a995c9; }
 .faction-pin.guild-pin { width: 5px; height: 5px; outline: 1px solid rgba(255,255,255,.25); }
+.faction-pin.guild-pin.tier-1 { width: 13px; height: 13px; }
+.faction-pin.guild-pin.tier-2 { width: 11px; height: 11px; }
+.faction-pin.guild-pin.tier-3 { width: 9px; height: 9px; }
+.faction-pin.guild-pin.tier-4 { width: 7px; height: 7px; }
+.faction-pin.guild-pin.tier-5 { width: 5px; height: 5px; }
   .faction-row { display: block; width: 100%; padding: 8px 0; border: 0; border-bottom: 1px dashed var(--line); background: transparent; text-align: left; cursor: pointer; }
   .faction-row:hover, .faction-row:focus-visible { background: rgba(217,185,106,.08); }
 .faction-row b { color: var(--ink); }
@@ -450,11 +459,18 @@ html, body {
   z-index: 1;
 }
 .map-node.current { border-color: var(--gold); color: var(--gold); box-shadow: 0 0 0 2px rgba(217,185,106,.12), 0 0 22px rgba(217,185,106,.38); background:rgba(49,37,17,.9); }
+.map-node.star-node { border-radius: 50%; min-height: 54px; width: 54px; display: grid; place-items: center; padding: 7px; clip-path: polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 94%,50% 72%,21% 94%,32% 57%,2% 35%,39% 35%); }
 .map-node.reachable { border-color: var(--jade); color: var(--jade); cursor: pointer; }
 .map-node.reachable:hover { transform:translate(-50%,-50%) scale(1.06); background: #173029; box-shadow: 0 0 18px var(--jade-glow); }
-.map-node.visited { color: var(--ink); }
+.map-node.visited { color: #c6e3ff; border-color: #5c9fe2; background: rgba(23,54,82,.9); }
 .map-node.procedural { border-style:dashed; color:#b09ac7; }
 .map-node.dangerous { border-color:rgba(224,106,106,.62); }
+.map-node.has-opportunity { border-color:#d9a6ff; color:#f0d7ff; box-shadow:0 0 16px rgba(187,118,255,.7); }
+.constellation-map .map-node { width: 48px; min-height: 48px; border-radius: 50%; padding: 5px; text-align:center; font-size: 10px; }
+.constellation-map .map-node.unknown { opacity:.48; background:#3b4350; color:#c0c6ce; }
+.constellation-map .map-node.visited { background: radial-gradient(circle, #5c9fe2 0 12%, #173652 45%, #101a29 75%); }
+.constellation-map .map-node.current { width: 62px; min-height:62px; }
+.constellation-core { fill: var(--gold); filter: drop-shadow(0 0 5px var(--gold)); }
 .map-node.unknown { width:38px; min-height:38px; border-radius:50%; opacity: .52; color:#9ca8b4; font-size:18px; }
 .map-node.fog-0 { opacity:.18; color:#6f7890; border-color:#30384c; }
 .map-node.fog-1 { opacity:.55; color:#a7b9d8; border-style:dotted; }
@@ -582,9 +598,13 @@ html, body {
 .fate-card.grade-thanh .fate-grade-badge { color: #fff; background: #315ca0; }
 .fate-card.grade-tien .fate-grade-badge { color: #ffd4ff; background: #712d78; }
 .ending-options { display: grid; gap: 8px; margin-top: 15px; }
-.market-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .7rem; }
-.market-card { display: grid; gap: .45rem; padding: .75rem; border: 1px solid var(--line); background: rgba(20,24,38,.55); }
-.market-card small { color: var(--ink-dim); }
+.market-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .8rem; margin: .75rem 0 1.25rem; }
+.market-card { display: grid; gap: .55rem; min-height: 118px; padding: .9rem; border: 1px solid rgba(104,137,167,.28); border-radius: 12px; background: linear-gradient(145deg, rgba(26,37,53,.9), rgba(14,20,31,.92)); box-shadow: 0 8px 20px rgba(0,0,0,.14); }
+.market-card b { color: #e9d8a6; font-family: var(--display); letter-spacing: .01em; }
+.market-card small { color: var(--ink-dim); line-height: 1.45; }
+.market-card .guild-action { justify-self: start; margin-top: auto; }
+.market-card.fate-card { border-left: 3px solid var(--gold); }
+.market-card.grade-thien, .market-card.grade-tien { border-left-color: #d5a8ff; box-shadow: 0 0 18px rgba(168,123,255,.12); }
 .fate-view-toggle { display: flex; gap: .5rem; margin: .5rem 0; }
 .fate-owned-count { font-size: .9rem; }
 .help-button { margin-left: .45rem; border-radius: 50%; width: 1.4rem; height: 1.4rem; cursor: pointer; }
