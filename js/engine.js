@@ -424,8 +424,12 @@ window.GameEngine = (function () {
     record.decayPolicy ||= "none";
     record.nurtureHistory ||= [];
     record.resonanceHistory ||= [];
-    record.stage = clamp(Number(record.stage || record.relationshipStage || 0), 0, 4);
-    record.points = Math.max(0, Number(record.points || record.relationshipPoints || 0));
+    const rawStage = Number(record.stage ?? record.relationshipStage ?? 0);
+    const rawPoints = Number(record.points ?? record.relationshipPoints ?? 0);
+    const rawStagnantDays = Number(record.stagnantDays ?? 0);
+    record.stage = Number.isFinite(rawStage) ? clamp(Math.floor(rawStage), 0, 4) : 0;
+    record.points = Number.isFinite(rawPoints) ? Math.max(0, rawPoints) : 0;
+    record.stagnantDays = Number.isFinite(rawStagnantDays) ? Math.max(0, Math.floor(rawStagnantDays)) : 0;
     character.fateRelationships[fateId] = record;
     return record;
   }
@@ -460,7 +464,11 @@ window.GameEngine = (function () {
     const beforeStage = record.stage;
     if (record.stage === 0 && (record.eliteTrials >= 1 || Number(record.activeDays || 0) >= 7)) record.stage = 1;
     if (record.stage === 1 && record.alignedChoices >= 3) record.stage = 2;
-    if (record.stage !== beforeStage) pushHistory(state, { type: "sys", text: "Quan hệ Mệnh " + (fate?.name || fateId) + " tăng lên " + fateRelationshipStatus(state.player, fateId).label + "." });
+    if (record.stage !== beforeStage) {
+      // Mệnh Nguội chỉ đếm thời gian khi quan hệ không tiến triển.
+      record.stagnantDays = 0;
+      pushHistory(state, { type: "sys", text: "Quan hệ Mệnh " + (fate?.name || fateId) + " tăng lên " + fateRelationshipStatus(state.player, fateId).label + "." });
+    }
     return { changed: true, stageChanged: record.stage !== beforeStage, status: fateRelationshipStatus(state.player, fateId) };
   }
   function resonateFate(state, fateId) {
@@ -985,7 +993,7 @@ window.GameEngine = (function () {
       const technique = techniqueCatalog()[id];
       if (!technique || technique.category !== "tam_phap") return;
       if (technique.requiredFaction && technique.requiredFaction !== character.tainted?.faction) return;
-      const stage = Number(character.techniques[id]?.masteryStage || 0);
+      const stage = clamp(Math.floor(Number(character.techniques[id]?.masteryStage || 0)), 0, 4);
       const mastery = (typeof window !== "undefined" && window.CONG_PHAP_DATA?.masteryMultipliers?.[stage]) || [0.6, 0.8, 1, 1.15, 1.3][stage] || 0.6;
       eff.allStatMult += Number(technique.visibleStats?.allStatMultiplier || 0) * mastery;
     });
@@ -1026,15 +1034,19 @@ window.GameEngine = (function () {
   /* ---------- Lifespan ---------- */
   function computeLifespan(character) {
     const realm = realmById(character.realmId);
-    const { eff } = computeStats(character);
     let base = realm.lifespanBase + realm.lifespanBonus;
-    // hung cách hinh_rieu / kiep_sat
+    // Dùng cùng pipeline hiệu ứng với computeStats để Cường Hóa/Quan hệ Mệnh
+    // được áp dụng nhất quán và Trấn Mệnh thật sự tạm vô hiệu hóa hiệu ứng.
     const patterns = D().FATE_PATTERNS;
     let mult = 1;
     (character.fates || []).forEach((f) => {
       const p = patterns.find((x) => x.id === f);
-      if (p && p.effects && p.effects.lifespanMult) mult += p.effects.lifespanMult;
-      if (p && p.effects && p.effects.lifespanBonus) base += p.effects.lifespanBonus;
+      if (!p) return;
+      const suppression = character.suppressedFates?.[f];
+      if (suppression && Number(suppression.untilTurn || 0) > Number(character._turn || 0)) return;
+      const effects = enhancedFateEffects(character, p);
+      if (Number.isFinite(Number(effects.lifespanMult))) mult += Number(effects.lifespanMult);
+      if (Number.isFinite(Number(effects.lifespanBonus))) base += Number(effects.lifespanBonus);
     });
     // Diên Thọ Đan là phần thưởng vĩnh viễn; phải nằm trong công thức
     // trần thọ nguyên để updateDerived không ghi đè ngay sau khi dùng thuốc.
@@ -1415,6 +1427,15 @@ window.GameEngine = (function () {
     const mastery = technique?.mastery || {};
     return { masteryStage: Number(mastery.stage || 0), masteryExp: Number(mastery.exp || 0), usageCount: Number(mastery.usageCount || 0) };
   }
+  function normalizeTechniqueProgress(progress = {}) {
+    const value = progress && typeof progress === "object" ? progress : {};
+    const masteryExp = Number(value.masteryExp ?? value.exp ?? 0);
+    const usageCount = Number(value.usageCount ?? 0);
+    value.masteryStage = clamp(Math.floor(Number(value.masteryStage ?? value.stage ?? 0)), 0, 4);
+    value.masteryExp = Number.isFinite(masteryExp) ? Math.max(0, masteryExp) : 0;
+    value.usageCount = Number.isFinite(usageCount) ? Math.max(0, Math.floor(usageCount)) : 0;
+    return value;
+  }
   function getKnownTechniques(state) {
     const known = state.player.techniques || {};
     return Object.keys(known).map((id) => techniqueCatalog()[id]).filter(Boolean);
@@ -1468,6 +1489,7 @@ window.GameEngine = (function () {
   }
 
   function updateTechniqueMastery(state, technique, progress, activity) {
+    progress = normalizeTechniqueProgress(progress);
     const category = technique?.category;
     const isCombatMethod = category === "chieu_thuc" || category === "cam_thuat";
     if (activity === "combat" && !isCombatMethod) return 0;
@@ -1476,7 +1498,7 @@ window.GameEngine = (function () {
     const cultivationBase = category === "tam_phap" ? 12 : isCombatMethod ? 3 : 8;
     const base = activity === "combat" ? 4 : cultivationBase;
     const gain = Math.max(1, Math.round(base * (1 + Number(state.player.comprehension || 0) / 100)));
-    const oldStage = Number(progress.masteryStage || 0);
+    const oldStage = progress.masteryStage;
     progress.masteryExp = Number(progress.masteryExp || 0) + gain;
     if (activity === "combat") progress.usageCount = Number(progress.usageCount || 0) + 1;
     let stage = 0;
@@ -1494,7 +1516,7 @@ window.GameEngine = (function () {
     if (!technique || !state.player.techniques?.[id]) return { success: false, reason: "Chưa lĩnh ngộ Công pháp này." };
     if (technique.category === "tam_phap") return { success: false, reason: "Tâm Pháp là nội tại bị động, không cần thi triển." };
     if (Number(technique.minRealmLevel || 1) > cultivationTier(state)) return { success: false, reason: "Cảnh giới chưa đủ để thi triển." };
-    const progress = state.player.techniques[id];
+    const progress = state.player.techniques[id] = normalizeTechniqueProgress(state.player.techniques[id]);
     const cooldownUntil = state.player.techniqueCooldowns?.[id] || 0;
     if (cooldownUntil > state.meta.turn) return { success: false, reason: "Công pháp đang hồi chiêu." };
     const stats = computeStats(state.player);
@@ -1502,7 +1524,7 @@ window.GameEngine = (function () {
     const evolution = typeof window !== "undefined" && window.GameExpansion?.techniqueEvolutionModifiers
       ? window.GameExpansion.techniqueEvolutionModifiers(state, id)
       : {};
-    const masteryStage = Number(progress.masteryStage || 0);
+    const masteryStage = progress.masteryStage;
     const masteryCostMultiplier = masteryStage >= 3 ? 0.85 : 1;
     const manaCost = Math.max(0, Math.ceil(Number(visible.manaCost || 0) * masteryCostMultiplier * Number(evolution.manaCostMult || 1)));
     const staminaCost = Math.max(0, Math.ceil(Number(visible.staminaCost || 0) * masteryCostMultiplier * (stats.staminaCostMultiplier || 1)));
@@ -1526,7 +1548,7 @@ window.GameEngine = (function () {
     if (!technique || !state.player.techniques?.[id]) return { success: false, reason: "Chưa lĩnh ngộ Công pháp này." };
     if (technique.category === "tam_phap") return { success: false, reason: "Tâm Pháp là nội tại bị động, không cần thi triển." };
     if (Number(technique.minRealmLevel || 1) > cultivationTier(state)) return { success: false, reason: "Cảnh giới chưa đủ để thi triển." };
-    const progress = state.player.techniques[id];
+    const progress = state.player.techniques[id] = normalizeTechniqueProgress(state.player.techniques[id]);
     const cooldownUntil = state.player.techniqueCooldowns?.[id] || 0;
     if (cooldownUntil > state.meta.turn) return { success: false, reason: "Công pháp đang hồi chiêu." };
     const stats = computeStats(state.player);
@@ -1534,7 +1556,7 @@ window.GameEngine = (function () {
     const evolution = typeof window !== "undefined" && window.GameExpansion?.techniqueEvolutionModifiers
       ? window.GameExpansion.techniqueEvolutionModifiers(state, id)
       : {};
-    const masteryStage = Number(progress.masteryStage || 0);
+    const masteryStage = progress.masteryStage;
     const masteryCostMultiplier = masteryStage >= 3 ? 0.85 : 1;
     const manaCost = Math.max(0, Math.ceil(Number(visible.manaCost || 0) * masteryCostMultiplier * Number(evolution.manaCostMult || 1)));
     const staminaCost = Math.max(0, Math.ceil(Number(visible.staminaCost || 0) * masteryCostMultiplier * (stats.staminaCostMultiplier || 1)));
@@ -1602,7 +1624,7 @@ window.GameEngine = (function () {
       const evolvedPower = basePower * Number(evolution.powerMult || 1) * worldElementPower;
       const power = family === "cam_thuat" ? evolvedPower * (1 + state.player.corruptionRating / 50) : evolvedPower;
       const originDamageMult = 1 + Number(stats.eff?.combatDamagePct || 0) / 100;
-      const damage = Math.max(1, Math.round(stats.mag * power * mastery * elementMult * (1 + state.player.comprehension / 200) * fateElementMult * familyMult * (1 - corruptionPenalty) * originDamageMult + replayInt(state, "technique-damage:" + techniqueId + ":" + Number(state.meta?.turn || 0), 0, 6)));
+      const damage = Math.max(1, Math.round(stats.mag * power * mastery * elementMult * (1 + state.player.comprehension / 200) * fateElementMult * familyMult * (1 - corruptionPenalty) * originDamageMult + replayInt(state, "technique-damage:" + id + ":" + Number(state.meta?.turn || 0), 0, 6)));
       pushHistory(state, { type: "sys", text: "§ Thi triển " + technique.name + ", gây " + damage + " sát thương lên " + enemy.name + "." });
       applyPlayerDamage(state, enemyId, damage);
       afterPlayerCombatAction(state);
@@ -1890,13 +1912,18 @@ window.GameEngine = (function () {
   function fateVaultCapacity(state) {
     state.flags = state.flags || {};
     const realmSlots = Number(realmById(state.player.realmId)?.activeSlots || 0);
-    const unlockedSlots = Math.max(Number(state.flags.fateSlotCapacity || 0), realmSlots, Number((state.player.fates || []).length || 0));
+    // Active slots define the vault size. Do not let a malformed/legacy active
+    // list silently expand capacity and turn duplicate fates into free storage.
+    const savedSlots = Number(state.flags.fateSlotCapacity || 0);
+    const unlockedSlots = Math.max(Number.isFinite(savedSlots) ? savedSlots : 0, realmSlots);
     state.flags.fateSlotCapacity = unlockedSlots;
     return Math.max(0, unlockedSlots * 2);
   }
   function fateTags(fate) {
     const effects = Array.isArray(fate.effects) ? fate.effects : Object.entries(fate.effects || {}).flatMap(([key, value]) => [key, String(value)]);
-    const source = [fate.name, fate.type, ...effects, ...(fate.tags || [])].join(" ");
+    // Element is a first-class Fate field; omitting it made Fate-Công pháp
+    // elemental resonance depend on incidental words in the description.
+    const source = [fate.name, fate.type, fate.element, ...effects, ...(fate.tags || [])].join(" ");
     return normalizedText(source);
   }
   function pathRelation(pathId) {
@@ -2149,10 +2176,17 @@ window.GameEngine = (function () {
 
   function validateFateInventory(state, source = "runtime") {
     const summary = fateVaultSummary(state);
-    const actual = new Set([...(state.player?.fates || []), ...(state.fateInventory || [])]).size;
-    const valid = actual === summary.ownedCount;
-    if (!valid && typeof console !== "undefined") console.warn("[FateInvariant]", source, { actual, displayed: summary.ownedCount, active: summary.activeCount, vault: summary.used });
-    return { ...summary, actualOwnedCount: actual, valid };
+    const active = Array.isArray(state.player?.fates) ? state.player.fates : [];
+    const vault = Array.isArray(state.fateInventory) ? state.fateInventory : [];
+    const all = [...active, ...vault];
+    const actual = new Set(all).size;
+    const known = new Set((D().FATE_PATTERNS || []).map((fate) => fate.id));
+    const duplicateCount = all.length - actual;
+    const invalidIds = all.filter((id) => !known.has(id));
+    const activeSlots = Number(realmById(state.player.realmId)?.activeSlots || 0);
+    const valid = actual === summary.ownedCount && duplicateCount === 0 && invalidIds.length === 0 && active.length <= activeSlots && vault.length <= summary.capacity;
+    if (!valid && typeof console !== "undefined") console.warn("[FateInvariant]", source, { actual, displayed: summary.ownedCount, active: summary.activeCount, vault: summary.used, duplicateCount, invalidIds, activeSlots });
+    return { ...summary, actualOwnedCount: actual, duplicateCount, invalidIds, activeSlots, valid };
   }
 
   function swapFateFromVault(state, activeIndex, vaultId) {
@@ -4622,7 +4656,13 @@ window.GameEngine = (function () {
     const source = Array.isArray(events) ? events : getGameLog(state);
     const groups = [];
     const byDay = new Map();
-    source.filter((event) => event && event.type !== "COMMAND_ECHO" && !event.debugOnly).forEach((event) => {
+    let previousText = null;
+    source.filter((event) => event && event.type !== "COMMAND_ECHO" && !event.debugOnly).filter((event) => {
+      const text = String(event.text || event.narrative?.text || "");
+      if (text && text === previousText) return false;
+      previousText = text;
+      return true;
+    }).forEach((event) => {
       const key = gameLogDayKey(event);
       let group = byDay.get(key);
       if (!group) { group = { dayKey: key, entry: event, events: [], texts: [] }; byDay.set(key, group); groups.push(group); }
@@ -4781,11 +4821,11 @@ window.GameEngine = (function () {
     (loc?.npcs || []).forEach((npcId) => {
       const npc = D().NPCS[npcId];
       if (!npc) return;
-      actions.push({ id: "act_talk_" + npcId, label: "Nói Chuyện " + npc.name, aliases: ["nói chuyện " + npc.name, "noi chuyen " + npc.name], priority: 1 });
+      actions.push({ id: "act_talk_" + npcId, label: "Nói chuyện với " + npc.name, aliases: ["nói chuyện " + npc.name, "noi chuyen " + npc.name], priority: 1 });
     });
     presentEntities(state).forEach((entity) => {
       if (loc?.npcs?.includes(entity.id)) return;
-      actions.push({ id: "act_talk_" + entity.id, label: "Gặp " + entity.name, aliases: ["gặp " + entity.name, "gap " + entity.name, "nói chuyện " + entity.name], priority: 1 });
+      actions.push({ id: "act_talk_" + entity.id, label: "Nói chuyện với " + entity.name, aliases: ["gặp " + entity.name, "gap " + entity.name, "nói chuyện " + entity.name], priority: 1 });
     });
     return actions;
   }
@@ -5485,6 +5525,15 @@ window.GameEngine = (function () {
     state.pendingFateRewards = Array.isArray(state.pendingFateRewards) ? state.pendingFateRewards : [];
     state.fateExcessEssence = Number(state.fateExcessEssence || state.player.fateExcessEssence || 0);
     state.player.fateExcessEssence = state.fateExcessEssence;
+    // Repair old saves before creating instance metadata: an ID can exist only
+    // once and active fates may not exceed the realm slot limit.
+    const knownFateIds = new Set((D().FATE_PATTERNS || []).map((entry) => entry.id));
+    const activeFates = [...new Set((Array.isArray(state.player.fates) ? state.player.fates : []).filter((id) => knownFateIds.has(id)))];
+    const vaultFates = [...new Set((Array.isArray(state.fateInventory) ? state.fateInventory : []).filter((id) => knownFateIds.has(id) && !activeFates.includes(id)))];
+    const activeLimit = Number(realmById(state.player.realmId)?.activeSlots || activeFates.length);
+    while (activeFates.length > activeLimit) vaultFates.unshift(activeFates.pop());
+    state.player.fates = activeFates;
+    state.fateInventory = vaultFates;
     state.fateInstances = state.fateInstances || {};
     [...(state.player.fates || []), ...(state.fateInventory || [])].forEach((id) => {
       if (!state.fateInstances[id]) state.fateInstances[id] = { fateId: id, acquiredAtTurn: 0, source: "save cũ", relationshipStage: 0, resonanceProgress: 0, nurtureLevel: 0 };

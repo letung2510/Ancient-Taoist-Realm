@@ -256,7 +256,7 @@
       locationId: rolled.startLocationId
     });
     const region = D.WORLD_MAP.regions.find((item) => item.id === creation.startRegionId);
-    saveGame();
+    saveGame(true);
     document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === "status"));
     UI.showScreen("game");
     UI.clearStory();
@@ -354,12 +354,13 @@
         let result = E.runExpansionCommand(state, command, arg, arg2);
         if (result?.requiresConfirmation && confirm(result.reason + "\nXác nhận tiếp tục?")) result = E.runExpansionCommand(state, command, arg, arg2, { confirmed: true });
         if (!result?.success) alert(result?.reason || "Không thể thực hiện hành động này.");
-        saveGame(); UI.renderPanel(state); renderStoryWindow(); updateClockDisplay();
+        if (command === "opportunity" && result?.success) UI.closeOverlay();
+        renderAfterTurn();
         const overlay = document.getElementById("overlay");
         const overlayContent = document.getElementById("overlay-content");
         if (overlay && !overlay.classList.contains("hidden") && overlayContent) {
           if (command.startsWith("guild_")) overlayContent.innerHTML = UI.renderGuildProjectModal(state);
-          else if (command === "opportunity") { if (result?.success) UI.closeOverlay(); else overlayContent.innerHTML = UI.renderContestedOpportunityModal(state); }
+          else if (command === "opportunity" && !result?.success) overlayContent.innerHTML = UI.renderContestedOpportunityModal(state);
           else if (command === "fate_trial" || command === "fate_evolve") overlayContent.innerHTML = UI.renderFateEvolutionModal(state, arg);
           else if (command === "technique_evolve") overlayContent.innerHTML = UI.renderTechniqueDetail(state);
         }
@@ -492,6 +493,33 @@
     });
 
     $("overlay-content").addEventListener("click", (event) => {
+      const overlayCamera = event.target.closest("[data-map-camera]");
+      if (overlayCamera) {
+        UI.adjustMapCamera(overlayCamera.dataset.mapCamera);
+        return;
+      }
+      const expansionCommand = event.target.closest("[data-expansion-command]");
+      if (expansionCommand && state && E.runExpansionCommand) {
+        const command = expansionCommand.dataset.expansionCommand;
+        const arg = expansionCommand.dataset.expansionArg || "";
+        const arg2 = expansionCommand.dataset.expansionArg2 || "";
+        let result = E.runExpansionCommand(state, command, arg, arg2);
+        if (result?.requiresConfirmation && confirm(result.reason + "\nXác nhận tiếp tục?")) {
+          result = E.runExpansionCommand(state, command, arg, arg2, { confirmed: true });
+        }
+        if (!result?.success) alert(result?.reason || "Không thể thực hiện hành động này.");
+        renderAfterTurn();
+        const overlay = document.getElementById("overlay");
+        const overlayContent = document.getElementById("overlay-content");
+        if (overlay && !overlay.classList.contains("hidden") && overlayContent) {
+          if (command === "opportunity") {
+            if (!result?.success) overlayContent.innerHTML = UI.renderContestedOpportunityModal(state);
+          } else if (command.startsWith("guild_")) {
+            overlayContent.innerHTML = UI.renderGuildProjectModal(state);
+          }
+        }
+        return;
+      }
       const originConfirm = event.target.closest("[data-origin-confirm]");
       if (originConfirm && state) {
         const selected = document.querySelector('#overlay-content input[name="origin-specialization"]:checked')?.value || "";
@@ -500,6 +528,7 @@
         if (!result.success) { alert(result.reason); return; }
         UI.closeOverlay(true);
         saveGame();
+        if (command === "opportunity" && result?.success) UI.closeOverlay();
         renderAfterTurn();
         return;
       }
@@ -630,7 +659,7 @@
       }
     }
     if (result && result.save) {
-      saveGame();
+      saveGame(true);
       flashSave("Đã lưu");
       return;
     }
@@ -655,8 +684,6 @@
       return;
     }
 
-    saveGame();
-    flashSave("Đã lưu");
     UI.setLocation(D.LOCATIONS[state.locationId].name);
     UI.renderPanel(state);
     decorateFateAdvancedActions();
@@ -916,8 +943,8 @@
   }
 
   /* ---------- save / load ---------- */
-  function saveGame() {
-    if (!state) return;
+  function saveGame(explicit = false) {
+    if (!explicit || !state) return;
     localStorage.setItem(SAVE_KEY, E.serialize(state));
   }
   function exportSaveFile() {
@@ -925,7 +952,7 @@
       alert("Chưa có bản lưu để tải xuống.");
       return;
     }
-    saveGame();
+    saveGame(true);
     const payload = E.serialize(state);
     const blob = new Blob([payload], { type: "application/json;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -946,7 +973,7 @@
       try {
         const imported = E.deserialize(String(reader.result || ""));
         state = imported;
-        saveGame();
+        saveGame(true);
         UI.showScreen("game");
         renderFull();
         flashSave("Đã nạp tệp lưu");

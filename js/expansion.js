@@ -193,6 +193,13 @@
     state.specialPhysiqueState.candidates = state.specialPhysiqueState.candidates || {};
     state.specialPhysiqueState.history = Array.isArray(state.specialPhysiqueState.history) ? state.specialPhysiqueState.history : [];
     state.specialPhysiqueState.rejectedIds = Array.isArray(state.specialPhysiqueState.rejectedIds) ? state.specialPhysiqueState.rejectedIds : [];
+    Object.keys(state.specialPhysiqueState.progress).forEach((trigger) => {
+      const value = Number(state.specialPhysiqueState.progress[trigger]);
+      state.specialPhysiqueState.progress[trigger] = Number.isFinite(value) ? Math.max(0, value) : 0;
+    });
+    if (state.specialPhysiqueState.activeId && !SPECIAL_PHYSIQUE_CATALOG[state.specialPhysiqueState.activeId]) state.specialPhysiqueState.activeId = null;
+    if (!state.specialPhysiqueState.activeId && state.player.specialPhysique && SPECIAL_PHYSIQUE_CATALOG[state.player.specialPhysique]) state.specialPhysiqueState.activeId = state.player.specialPhysique;
+    state.player.specialPhysique = state.specialPhysiqueState.activeId || null;
     state.meta = state.meta || {};
     if (typeof state.meta.saveId !== "string" || !state.meta.saveId) state.meta.saveId = "migrated_" + hash(String(state.player.id || state.player.name || "anonymous"));
     state.runtimeMetrics = state.runtimeMetrics || { schemaVersion: 1, mapInfluence: { calls: 0, cacheHits: 0, uncached: 0, totalMs: 0 }, npcView: { calls: 0, totalMs: 0 }, offline: { calls: 0, totalMs: 0 } };
@@ -665,10 +672,14 @@
   function recordSpecialPhysiqueProgress(state, input = {}) {
     ensure(state); const trigger = String(input.type || input.trigger || "");
     if (!trigger) return { success: false, reason: "Thiếu dấu mốc." };
-    const progress = state.specialPhysiqueState.progress;
-    progress[trigger] = Number(progress[trigger] || 0) + (input.success === false ? 0 : Number(input.amount || 1));
-    if (trigger === "eldritch_beast_survival") progress.eldritchBeastSurvivals = progress[trigger];
     const candidate = Object.values(SPECIAL_PHYSIQUE_CATALOG).find((item) => item.trigger === trigger);
+    if (!candidate) return { success: false, reason: "Dấu mốc Dị Thể không tồn tại." };
+    const rawAmount = input.amount == null ? 1 : Number(input.amount);
+    if (input.success === false) return { success: true, progress: Number(state.specialPhysiqueState.progress[trigger] || 0), candidate: candidate.id, advanced: false };
+    if (!Number.isFinite(rawAmount) || rawAmount < 0) return { success: false, reason: "Mức tiến triển Dị Thể không hợp lệ." };
+    const progress = state.specialPhysiqueState.progress;
+    progress[trigger] = Math.max(0, Number(progress[trigger] || 0)) + rawAmount;
+    if (trigger === "eldritch_beast_survival") progress.eldritchBeastSurvivals = progress[trigger];
     const activeId = state.specialPhysiqueState.activeId;
     const active = activeId && SPECIAL_PHYSIQUE_CATALOG[activeId];
     const activeRecord = active && state.specialPhysiqueState.history.slice().reverse().find((entry) => entry.id === activeId);
@@ -684,11 +695,6 @@
     ensure(state); const def = SPECIAL_PHYSIQUE_CATALOG[id];
     if (!def || state.specialPhysiqueState.activeId) return { success: false, reason: "Cơ thể đã có Dị Thể hoặc lựa chọn không tồn tại." };
     if (!state.specialPhysiqueState.candidates[id]) return { success: false, reason: "Chưa đủ dấu mốc để chứng minh xứng đáng." };
-    const exclusions = def.exclusions || { paths: [], professions: [] };
-    if ((exclusions.paths || []).includes(state.player.pathId) || (exclusions.professions || []).includes(state.professionState?.primaryId)) return { success: false, reason: "Dị Thể này xung đột với Con Đường hoặc Nghề chính hiện tại." };
-    const activePaths = [state.pathState?.primaryPathId, state.pathState?.secondaryPathId, state.player.pathId, state.player.secondaryPathId].filter(Boolean);
-    const activeProfessions = [state.professionState?.primaryId, state.professionState?.secondaryId, state.professionState?.hiddenId].filter(Boolean);
-    if (activePaths.some((pathId) => (exclusions.paths || []).includes(pathId)) || activeProfessions.some((professionId) => (exclusions.professions || []).includes(professionId))) return { success: false, reason: "Dithe exclusion conflict." };
     state.specialPhysiqueState.activeId = id; state.player.specialPhysique = id;
     state.specialPhysiqueState.history.push({ id, day: playerDay(state), source: def.trigger, stage: 1, branch: def.branch || null });
     history(state, "narr", "Một biến đổi sâu kín thức dậy trong huyết nhục; từ hôm nay, " + def.name + " vừa là ân huệ vừa là món nợ.");
@@ -831,7 +837,7 @@
     progress.attempts[key] = Number(progress.attempts[key] || 0) + 1;
     if (roll < 0.18) {
       progress.failures.push({ key, day, retryDay: day + 1, consequence: "lạc hướng" });
-      state.player.san = clamp(Number(state.player.san || 0) - 2, 0, Number(state.player.sanMax || 100));
+      state.player.san = clamp(Number(state.player.san || 0) - 2, 0, Number(state.player.maxSan || 100));
       history(state, "warn", "× Manh mối giả khiến Thanh Tỉnh suy giảm.");
       return { success: false, falseClue: true, reason: "Manh mối giả." };
     }
@@ -1360,7 +1366,7 @@
   function applyDailyWorldEffects(state, day) {
     const region = state.worldSimulation.regionState[currentRegion(state)]; const weather = region?.weather;
     if (weather === "mua") state.player.hp = Math.max(1, Number(state.player.hp || 1) - 1);
-    if (weather === "suong") state.player.san = clamp(Number(state.player.san || 0) - 1, 0, Number(state.player.sanMax || 100));
+    if (weather === "suong") state.player.san = clamp(Number(state.player.san || 0) - 1, 0, Number(state.player.maxSan || 100));
     Object.values(state.worldSimulation.npcState || {}).forEach((npc) => {
       if (npc.status !== "alive") return;
       const npcRegionId = D.WORLD_MAP?.locations?.[npc.currentNodeId]?.region || D.LOCATIONS?.[npc.currentNodeId]?.region || currentRegion(state);
@@ -2716,7 +2722,8 @@
     if (!combat && event && template?.phases?.[event.phaseIndex]?.id === "active") template.choices.filter((choice) => !event.choiceHistory.some((entry) => entry.choiceId === choice.id)).forEach((choice) => actions.push({ id: "act_exp_world_" + event.id + "_" + choice.id, label: choice.label, aliases: [choice.label], priority: 1, category: "interaction" }));
     if (!combat) {
       ensureNpcWorldState(state);
-      Object.values(state.worldSimulation.npcState).filter((npc) => npc.status === "alive" && npc.currentNodeId === state.locationId).slice(0, 8).forEach((npc) => { actions.push({ id: "act_exp_npc_talk_" + npc.npcId, label: "Nói chuyện với " + (npc.name || npc.npcId), aliases: ["nói chuyện", "gặp npc"], priority: 1, category: "interaction" }); if (state.dialogueState?.npcId === npc.npcId) actions.push({ id: "act_exp_npc_dialogue_" + npc.npcId, label: "Tiếp tục đối thoại", aliases: ["đối thoại"], priority: 1, category: "interaction" }); });
+      const localNpcIds = new Set(D.LOCATIONS?.[state.locationId]?.npcs || []);
+      Object.values(state.worldSimulation.npcState).filter((npc) => npc.status === "alive" && npc.currentNodeId === state.locationId && !localNpcIds.has(npc.npcId)).slice(0, 8).forEach((npc) => { actions.push({ id: "act_exp_npc_talk_" + npc.npcId, label: "Nói chuyện với " + (npc.name || npc.npcId), aliases: ["nói chuyện", "gặp npc"], priority: 1, category: "interaction" }); if (state.dialogueState?.npcId === npc.npcId) actions.push({ id: "act_exp_npc_dialogue_" + npc.npcId, label: "Tiếp tục đối thoại", aliases: ["đối thoại"], priority: 1, category: "interaction" }); });
       refreshContracts(state, day);
       Object.values(state.contractBoard.offers).slice(0, 1).forEach((contract) => actions.push({ id: "act_exp_contract_" + contract.id, label: "Nhận " + formatContractName(contract), aliases: ["nhận khế ước", "nhận " + formatContractName(contract).toLowerCase()], priority: 1 }));
       actions.push({ id: "act_exp_divine", label: "Xem Quẻ", aliases: ["xem quẻ", "boi toan"], priority: 1 });
@@ -2914,7 +2921,7 @@
       scheme: { label: "Dùng Mưu", reward, consequence: "Tỷ lệ thành công dựa trên Ngộ tính; thất bại bị thương." },
       share: { label: "Chia Sẻ", reward: Math.ceil(reward / 2), consequence: "Chắc chắn thành công, giảm nửa phần thưởng và tăng thiện duyên." }
     } };
-    history(state, "warn", "⚔ Phát hiện cơ duyên có người tranh đoạt. Hãy chọn cách ứng biến trong Thế Sự."); return state.pendingContestedOpportunity;
+    history(state, "narr", "Giữa lớp cát nóng, một luồng linh quang bật lên rồi lập tức bị một kẻ lạ mặt chặn ngang. Cơ duyên đã thành cuộc tranh đoạt; ngươi phải quyết định trước khi dấu vết tan vào gió."); return state.pendingContestedOpportunity;
   }
   function resolveContestedOpportunity(state, choice) {
     ensure(state); const opportunity = state.pendingContestedOpportunity;
@@ -2927,8 +2934,8 @@
     else return { success: false, reason: "Cách tranh cơ duyên không hợp lệ." };
     const success = choice === "share" ? true : seeded(state, "opportunity-resolve:" + choice, opportunity.id, state.meta.turn) < clamp(chance, 0.15, 0.95);
     opportunity.status = success ? "won" : "lost"; opportunity.choice = choice; opportunity.resolvedDay = absoluteDay(state.gameClock);
-    if (success) { grantCanonicalReward(state, "opportunity:" + opportunity.id, { linhThach: reward, exp: reward * 4 }, "opportunity:" + opportunity.id); history(state, "sys", "✦ Đoạt được cơ duyên · Linh Thạch +" + reward + "."); }
-    else { state.player.hp = Math.max(1, Number(state.player.hp || 1) - Math.ceil(Number(state.player.stats?.hpMax || 20) * 0.15)); history(state, "warn", "× Tranh cơ duyên thất bại, bị thương rút lui."); }
+    if (success) { grantCanonicalReward(state, "opportunity:" + opportunity.id, { linhThach: reward, exp: reward * 4 }, "opportunity:" + opportunity.id); history(state, "narr", "Ngươi chớp lấy khoảnh khắc đối thủ sơ hở, thu linh quang vào lòng bàn tay. Cơ duyên đã thuộc về ngươi; Linh Thạch nhận được: " + reward + "."); }
+    else { state.player.hp = Math.max(1, Number(state.player.hp || 1) - Math.ceil(Number(state.player.maxHp || 20) * 0.15)); history(state, "narr", "Thế giằng co vỡ tan. Đối thủ đoạt mất linh quang, còn ngươi phải lùi lại với vết thương nóng rát bên sườn."); }
     recordContestedOpportunity(state, opportunity); state.pendingContestedOpportunity = null; return { success, attempted: true, reward: success ? reward : 0 };
   }
   function recordContestedOpportunity(state, opportunity) {
