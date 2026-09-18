@@ -502,6 +502,16 @@ function verifyBrowserEngine(sandbox) {
     Object.values(location.exits || {}).forEach((id) => assert(D.WORLD_MAP.locations[id], `Map layout missing: ${id}`));
   });
 
+  const repairNodeId = Object.keys(D.LOCATIONS).find((id) => D.LOCATIONS[id]?.exits?.bac);
+  const repairNode = D.LOCATIONS[repairNodeId];
+  const originalRepairExit = repairNode.exits.bac;
+  repairNode.exits.bac = "qa_missing_exit_target";
+  const exitRepair = E.repairInvalidMapExits(E.createState({ character: E.createCharacter({ name: "Exit Repair QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) }));
+  assert(exitRepair.removed.some((entry) => entry.nodeId === repairNodeId && entry.direction === "bac" && entry.targetId === "qa_missing_exit_target"));
+  assert.strictEqual(repairNode.exits.bac, undefined);
+  assert(exitRepair.invalidExits.some((entry) => entry.nodeId === repairNodeId && entry.direction === "bac"));
+  repairNode.exits.bac = originalRepairExit;
+
   const character = E.createCharacter({
     name: "Test",
     archetypeId: "kiem_tong",
