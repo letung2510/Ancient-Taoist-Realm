@@ -3165,6 +3165,7 @@
   }
   function refreshAuction(state, day = absoluteDay(state.gameClock)) {
     ensure(state); if (day - Number(state.auction.generatedDay || 0) < 7 && Object.keys(state.auction.lots).length) return state.auction;
+    if (Object.keys(state.auction.lots || {}).length) updateAuction(state, day);
     state.auction.lots = {}; const candidates = Object.keys(D.ITEMS || {}).filter((id) => D.ITEMS[id]?.kind !== "quest").slice(0, 20);
     for (let i = 0; i < Math.min(3, candidates.length); i += 1) {
       const itemIndex = (Math.floor(seeded(state, "auction-item", day, i) * candidates.length) + i) % candidates.length;

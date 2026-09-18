@@ -893,7 +893,10 @@ function verifyMapUI(sandbox) {
   const auctionLot = auctionLots[0];
   assert(E.bidAuction(auctionState, auctionLot.id, auctionLot.currentBid + 5).success);
   assert(E.validateAuctionState(auctionState).ok);
-  const auctionLog = E.novelLogParagraphs(auctionState).at(-1)?.text || "";
+  const auctionRewardBeforeRefresh = Number(auctionState.inventory?.[auctionLot.itemId] || 0);
+  E.refreshAuction(auctionState, Number(auctionState.auction.generatedDay || 1) + 7);
+  assert(Number(auctionState.inventory?.[auctionLot.itemId] || 0) === auctionRewardBeforeRefresh + 1, "expired winning auction lot must settle before refresh");
+  const auctionLog = E.novelLogParagraphs(auctionState).findLast((entry) => entry.text.includes("Linh"))?.text || "";
   assert(auctionLog.includes("Linh Thạch") && auctionLog.includes("phường thị") && !auctionLog.includes("bidAuction"));
   const contractState = E.createState({ character: E.createCharacter({ name: "Contract QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
   const contractBoard = E.refreshContracts(contractState);
