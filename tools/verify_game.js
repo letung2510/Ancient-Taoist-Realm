@@ -144,6 +144,7 @@ function verifyExpansionSystems(sandbox) {
   assert.strictEqual(E.worldRandom(state, "stable", 10, 2), E.worldRandom(state, "stable", 10, 2));
   const regionId = sandbox.window.GameData.WORLD_MAP.locations[state.locationId]?.region || "trung_vuc";
   assert(E.setWeather(state, regionId, "mua", 2, "qa").success);
+  assert(state.worldSimulation.regionState[regionId].weatherHistory.some((entry) => entry.to === "mua" && entry.source === "qa"));
   assert.strictEqual(E.worldModifierPreview(state, { regionId }).weatherLabel, "Mưa");
   const taskDay = E.gameDayOrdinal(state.gameClock) + 2;
   assert(E.scheduleWorldTask(state, { id: "qa-task", type: "formation", dueDay: taskDay }).success);
@@ -164,6 +165,69 @@ function verifyExpansionSystems(sandbox) {
   assert(started.success);
   assert(E.activeRegionEvent(state, regionId));
   assert(E.getWorldModifiers(state, { regionId }).encounterChanceMult >= 1);
+  assert(E.validateWorldEventState(state).ok);
+  const eventNode = state.locationId;
+  const foreignRegion = Object.keys(state.worldSimulation.regionState).find((id) => id !== regionId);
+  const foreignNode = Object.keys(sandbox.window.GameData.LOCATIONS || {}).find((id) => sandbox.window.GameData.LOCATIONS[id]?.regionId === foreignRegion);
+  if (foreignNode) {
+    state.locationId = foreignNode;
+    assert(!E.resolveWorldEventChoice(state, started.event.id, "relief").success, "world event choice must require the current region");
+    state.locationId = eventNode;
+  }
+  assert(E.resolveWorldEventChoice(state, started.event.id, "relief").success);
+  assert(E.validateWorldEventState(state).ok);
+  const eventLog = E.novelLogParagraphs(state).at(-1)?.text || "";
+  assert(eventLog.includes("biến cố") && !eventLog.includes("resolveWorldEventChoice"));
+  const eventDay = E.gameDayOrdinal(state.gameClock);
+  E.simulateWorldUntil(state, eventDay + 10);
+  assert(!E.startWorldEvent(state, "huyet_nguyet", regionId, eventDay + 10).success, "world event cooldown must be enforced");
+  const warState = E.createState({ character: E.createCharacter({ name: "War QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  const factionIds = Object.keys(warState.worldSimulation.factionState);
+  assert(factionIds.length >= 2);
+  const warId = "qa_war";
+  warState.worldSimulation.wars[warId] = { id: warId, factionA: factionIds[0], factionB: factionIds[1], startedDay: E.gameDayOrdinal(warState.gameClock), frontNodeIds: [], scoreA: 0, scoreB: 0, status: "active", playerInterventions: [] };
+  assert(E.validateWarState(warState).ok);
+  assert(!E.participateWar(warState, warId).success, "unaffiliated player must not join a war");
+  warState.guildMembership = { guildId: factionIds[0], contribution: 0 };
+  assert(E.participateWar(warState, warId).success);
+  assert(!E.participateWar(warState, warId).success, "war intervention must be once per day");
+  assert(E.validateWarState(warState).ok);
+  const warLog = E.novelLogParagraphs(warState).at(-1)?.text || "";
+  assert(warLog.includes("chiến tuyến") && !warLog.includes("participateWar"));
+  const structureState = E.createState({ character: E.createCharacter({ name: "Structure QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  E.addItem(structureState, "linh_thach", 200);
+  const builtStructure = E.buildMapStructure(structureState, structureState.locationId, "watchtower");
+  assert(builtStructure.success);
+  assert(E.validateStructureRuntimeState(structureState).ok);
+  const structureId = builtStructure.structure.id;
+  builtStructure.structure.ownerType = "npc"; builtStructure.structure.ownerId = "npc_test";
+  assert(!E.disableMapStructure(structureState, structureState.locationId, structureId).success, "non-owner must not disable structure");
+  builtStructure.structure.ownerType = "player"; builtStructure.structure.ownerId = structureState.player.id;
+  assert(E.disableMapStructure(structureState, structureState.locationId, structureId).success);
+  assert(E.repairMapStructure(structureState, structureState.locationId, structureId).success);
+  assert(E.upgradeMapStructure(structureState, structureState.locationId, structureId).success);
+  assert(E.dismantleMapStructure(structureState, structureState.locationId, structureId).success);
+  assert(E.validateStructureRuntimeState(structureState).ok);
+  const routeTarget = Object.keys(sandbox.window.GameData.LOCATIONS || {}).find((nodeId) => nodeId !== structureState.locationId && E.travelPlan(structureState, structureState.locationId, nodeId, "walk").success);
+  assert(routeTarget, "trade route fixture must have an adjacent node");
+  assert(E.createTradeRoute(structureState, structureState.locationId, routeTarget).success);
+  assert(!E.createTradeRoute(structureState, structureState.locationId, routeTarget).success, "duplicate trade route must be rejected");
+  E.updateTradeRoutes(structureState, E.gameDayOrdinal(structureState.gameClock) + 1);
+  assert(E.validateTradeRouteState(structureState).ok);
+  const projectState = E.createState({ character: E.createCharacter({ name: "Project QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  E.addItem(projectState, "linh_thach", 100);
+  projectState.guildMembership = { guildId: factionIds[0], contribution: 0 };
+  assert(!E.startGuildProject(projectState, "missing_project").success);
+  assert(E.startGuildProject(projectState, "repair_vein").success);
+  assert(E.validateGuildProjectState(projectState).ok);
+  while (projectState.guildProject.status === "active") assert(E.contributeGuildProject(projectState, 10).success);
+  assert(projectState.guildProject.status === "completed");
+  assert(E.validateGuildProjectState(projectState).ok);
+  const tournamentState = E.createState({ character: E.createCharacter({ name: "Tournament QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  tournamentState.worldSimulation.tournament = { id: "tournament_120", startDay: 120, endDay: 130, status: "closed", roundsWon: 0, joined: false };
+  const tournamentDay = E.gameDayOrdinal(tournamentState.gameClock), nextTournamentDay = tournamentDay + ((120 - tournamentDay % 120) % 120 || 120);
+  E.simulateWorldUntil(tournamentState, nextTournamentDay);
+  assert(tournamentState.worldSimulation.tournament.status === "open", "closed tournament must reopen on the next cycle");
 
   const relation = E.recordRelationshipEvent(state, "su_phu", "saved", { uniqueKey: "qa-save" });
   assert(relation.success && state.relationships.su_phu.trust >= 12);
@@ -175,6 +239,12 @@ function verifyExpansionSystems(sandbox) {
   state.player.techniques.kiem_khi_so_cap.evolution.status = "ready";
   assert(E.chooseTechniqueEvolution(state, "kiem_khi_so_cap", "doan_niem").success);
   assert(E.techniqueEvolutionModifiers(state, "kiem_khi_so_cap").powerMult > 1);
+  assert(E.validateTechniqueRuntimeState(state).ok);
+  assert(E.validateCharacterRuntimeState(state).ok);
+  state.player.san = -1;
+  assert(!E.validateCharacterRuntimeState(state).ok, "character runtime validator must reject negative sanity");
+  E.updateDerived(state);
+  assert(E.validateCharacterRuntimeState(state).ok);
 
   const codexState = E.createState({ character: E.createCharacter({ name: "Codex Test", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
   const codexId = sandbox.window.EXPANSION_DATA.codexDefinitions[0].id;
@@ -184,6 +254,7 @@ function verifyExpansionSystems(sandbox) {
   assert(E.inspectCodex(codexState, codexId, "collect").success);
   assert(codexState.discoveries.codexClues["lore:" + codexId].verified);
   assert.strictEqual(E.inspectCodex(codexState, codexId, "collect").success, false);
+  assert(E.validateDiscoveryLifecycle(codexState).ok);
   const hiddenProfessionId = Object.keys(sandbox.window.EXPANSION_DATA.hiddenProfessions)[0];
   codexState.hiddenProfessionState.clues[hiddenProfessionId + ":lead"] = { professionId: hiddenProfessionId };
   codexState.hiddenProfessionState.unlocked[hiddenProfessionId] = { day: E.gameDayOrdinal(codexState.gameClock) };
@@ -214,6 +285,9 @@ function verifyExpansionSystems(sandbox) {
   assert(!E.practiceProfession(state, "luyen_dan").success);
   assert(E.chooseProfessionLocked(state, "luyen_dan").success);
   assert(state.inventory.phuong_thuoc >= 1);
+  state.player.stamina = 0;
+  assert(!E.practiceProfession(state, "luyen_dan", { skipCost: true }).success, "external profession practice must not bypass stamina cost");
+  state.player.stamina = 100;
   const professionItemQuantity = state.inventory.phuong_thuoc;
   assert(E.useProfessionItem(state, "phuong_thuoc").success);
   assert.strictEqual(state.inventory.phuong_thuoc, professionItemQuantity);
@@ -248,8 +322,16 @@ function verifyExpansionSystems(sandbox) {
 
   const tribulation = E.prepareTribulation(state);
   assert.strictEqual(tribulation.status, "pending");
+  assert(E.validateReincarnationRuntimeState(state).ok);
   assert(E.chooseTribulation(state, "fate").success);
+  assert(!E.chooseTribulation(state, "fate").success, "tribulation choice must be one-shot");
   assert.strictEqual(state.pendingTribulation.result.bonus >= 0, true);
+  assert(E.validateReincarnationRuntimeState(state).ok);
+  const legacyBefore = state.reincarnationLegacy.previousLives.length;
+  E.beforeReincarnation(state, state.player.fates[0]);
+  E.beforeReincarnation(state, state.player.fates[0]);
+  assert.strictEqual(state.reincarnationLegacy.previousLives.length, legacyBefore + 1);
+  assert(E.validateReincarnationRuntimeState(state).ok);
 
   const hiddenDef = sandbox.window.EXPANSION_DATA.hiddenRealms[0];
   state.locationId = hiddenDef.parentNodeId;
@@ -501,15 +583,17 @@ function verifyBrowserEngine(sandbox) {
   vm.runInContext("Math.random = __originalRandom", sandbox);
   delete sandbox.__originalRandom;
 
+  const moveBefore = E.nodeCoordinates(state, state.locationId);
   E.move(state, "bac");
-  assert(state.visitedLocations.includes("van_phong"));
+  const moveAfter = E.nodeCoordinates(state, state.locationId);
+  assert(moveAfter && moveAfter.x === moveBefore.x && moveAfter.y === moveBefore.y - 1);
   assert(E.describeMap(state).includes("Vạn Giới Lộ"));
 
   // Every cardinal direction remains traversable. Unknown exits are generated
   // lazily, including immediately after fleeing a combat encounter.
   const openWorldState = E.createState({ character });
   const oldLocation = openWorldState.locationId;
-  assert.deepStrictEqual(Array.from(E.contextState(openWorldState).actions.filter((action) => action.id.startsWith("act_move_")).map((action) => action.id)), ["act_move_bac", "act_move_dong", "act_move_tay"]);
+  assert.deepStrictEqual(Array.from(E.contextState(openWorldState).actions.filter((action) => action.id.startsWith("act_move_")).map((action) => action.id)), ["act_move_bac", "act_move_nam", "act_move_dong", "act_move_tay"]);
   E.move(openWorldState, "nam");
   const dangerousLocation = openWorldState.locationId;
   assert.notStrictEqual(dangerousLocation, oldLocation);
@@ -519,6 +603,18 @@ function verifyBrowserEngine(sandbox) {
   assert.strictEqual(openWorldState.locationId, dangerousLocation);
   assert.strictEqual(Object.keys(openWorldState.enemies).length, 0);
   assert.strictEqual(E.contextState(openWorldState).actions.filter((action) => action.id.startsWith("act_move_")).length, 4);
+  const topologyProbe = E.createState({ character });
+  const topologyAudit = E.validateOpenWorldGrid(topologyProbe);
+  assert(topologyAudit.ok, "open-world topology audit failed: " + topologyAudit.errors.join(", "));
+  const cardinalOrigin = E.nodeCoordinates(topologyProbe, topologyProbe.locationId);
+  ["bac", "nam", "dong", "tay"].forEach((direction) => {
+    const before = E.nodeCoordinates(topologyProbe, topologyProbe.locationId);
+    E.move(topologyProbe, direction);
+    const after = E.nodeCoordinates(topologyProbe, topologyProbe.locationId);
+    const delta = { bac: [0, -1], nam: [0, 1], dong: [1, 0], tay: [-1, 0] }[direction];
+    assert(after.x === before.x + delta[0] && after.y === before.y + delta[1], `invalid Oxy step: ${direction}`);
+  });
+  assert(cardinalOrigin && E.validateOpenWorldGrid(topologyProbe).ok);
   E.submitActionId(openWorldState, "act_move_dong");
   assert.notStrictEqual(openWorldState.locationId, dangerousLocation);
   assert.notStrictEqual(openWorldState.locationId, oldLocation);
@@ -607,7 +703,7 @@ function verifyBrowserEngine(sandbox) {
   assert.strictEqual(independentState.quests.chon_dao_lo.status, "completed");
 
   const migrated = E.deserialize(JSON.stringify({ state: { ...state, visitedLocations: undefined } }));
-  assert.deepStrictEqual(Array.from(migrated.visitedLocations), ["van_phong"]);
+  assert.deepStrictEqual(Array.from(migrated.visitedLocations), [state.locationId]);
 
   const canonicalSave = JSON.parse(E.serialize(state));
   assert.strictEqual(canonicalSave.version, 13);
@@ -700,6 +796,27 @@ function verifyMapUI(sandbox) {
   npcState.locationId = "van_phong";
   const npcQuickIds = sandbox.window.GameUI.actionPresentation(npcState).quick.map((action) => action.id);
   assert(npcQuickIds.some((id) => id.startsWith("act_talk_")), "NPC talk must be promoted to quick actions");
+  E.ensureNpcWorldState(npcState);
+  const localNpc = Object.values(npcState.worldSimulation.npcState).find((npc) => npc.status === "alive" && npc.currentNodeId === npcState.locationId && (!npc.currentSubLocationId || npc.currentSubLocationId === npcState.currentSubLocationId));
+  assert(localNpc, "NPC fixture must resolve to the current node");
+  assert(E.npcTalk(npcState, localNpc.npcId).success);
+  const npcQuests = E.npcQuestStatus(npcState, localNpc.npcId);
+  assert(npcQuests.length === 1);
+  assert(E.validateNpcQuestState(npcState).ok);
+  assert(E.acceptNpcQuest(npcState, npcQuests[0].id).success);
+  assert(E.validateNpcQuestState(npcState).ok);
+  assert(E.npcQuestStatus(npcState, localNpc.npcId).length === 0, "NPC quest must not be offered again while active");
+  localNpc.status = "dead";
+  assert(!E.npcTalk(npcState, localNpc.npcId).success, "dead NPC must not be talkable");
+  localNpc.status = "alive";
+  const prisonerState = E.createState({ character: E.createCharacter({ name: "Prisoner QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  prisonerState.prisoners.qa_prisoner = { id: "qa_prisoner", entityId: "yeu_thu", capturedDay: E.gameDayOrdinal(prisonerState.gameClock), resolveByDay: E.gameDayOrdinal(prisonerState.gameClock) + 5, resistance: 50, status: "held" };
+  assert(E.validatePrisonerState(prisonerState).ok);
+  assert(!E.interrogate(prisonerState, "qa_prisoner", "invalid_method").success);
+  assert(!E.resolvePrisoner(prisonerState, "qa_prisoner", "invalid_outcome").success);
+  assert(E.resolvePrisoner(prisonerState, "qa_prisoner", "released").success);
+  assert(E.validatePrisonerState(prisonerState).ok);
+  assert(!E.resolvePrisoner(prisonerState, "qa_prisoner", "executed").success, "resolved prisoner must not be processed twice");
 
   const actualMoveIds = E.moveActions(actionState).map((action) => action.id).sort();
   const declaredMoveIds = Object.keys(E.locationExits(actionState)).map((direction) => "act_move_" + direction).sort();
@@ -715,8 +832,60 @@ function verifyMapUI(sandbox) {
   assert(elements["tab-content"].innerHTML.includes("world-map"));
   assert(elements["tab-content"].innerHTML.includes("faction-pin"));
   assert(elements["tab-content"].innerHTML.includes("guild-pin"));
+  const addressCatalog = E.mapAddressCatalog();
+  assert(addressCatalog.services.length >= 2, "map must contain market addresses");
+  assert(addressCatalog.spawnPoints.length >= 5, "map must contain character spawn/respawn addresses");
+  assert(addressCatalog.organizations.length >= 100, "map must contain organization Oxy addresses");
+  [...addressCatalog.services, ...addressCatalog.spawnPoints].forEach((address) => {
+    assert(address.oxyNode && Number.isFinite(Number(address.oxyNode.x)) && Number.isFinite(Number(address.oxyNode.y)), `invalid Oxy address: ${address.id}`);
+  });
+  addressCatalog.organizations.forEach((address) => {
+    assert(address.nodeId && sandbox.window.GameData.LOCATIONS[address.nodeId], `organization must resolve to a map node: ${address.id}`);
+  });
+  const organizationAddress = addressCatalog.organizations[0];
+  const organizationState = E.createState({ character: E.createCharacter({ name: "Organization QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  organizationState.locationId = organizationAddress.nodeId;
+  E.addItem(organizationState, "linh_thach", 20);
+  assert(E.organizationSnapshot(organizationState, organizationAddress.refId)?.atNode);
+  assert(E.organizationInteract(organizationState, organizationAddress.refId, "donate", 10).success);
+  assert(!E.organizationInteract(organizationState, organizationAddress.refId, "donate", 1).success, "organization daily interaction limit missing");
+  assert(E.validateOrganizationState(organizationState).ok);
+  const organizationLog = E.novelLogParagraphs(organizationState).at(-1)?.text || "";
+  assert(organizationLog.includes("Tại") && organizationLog.includes("Mối quan hệ") && !organizationLog.includes("organizationInteract"));
+  const mapEventState = E.createState({ character: E.createCharacter({ name: "Map Event QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  const pendingMapEvent = E.rollMapEvent(mapEventState, "first_discovery");
+  assert(pendingMapEvent && E.validateMapEventState(mapEventState).ok);
+  const eventNode = mapEventState.locationId;
+  mapEventState.locationId = "cam_dia";
+  assert(!E.resolveMapEvent(mapEventState, pendingMapEvent.choices[0].id).success, "map event must reject resolution outside its node");
+  mapEventState.locationId = eventNode;
+  assert(E.resolveMapEvent(mapEventState, pendingMapEvent.choices[0].id).success);
+  assert(E.validateMapEventState(mapEventState).ok);
+  const mapEventLog = E.novelLogParagraphs(mapEventState).at(-1)?.text || "";
+  assert(mapEventLog.includes("Tại") && !mapEventLog.includes("resolveMapEvent"));
+  const auctionState = E.createState({ character: E.createCharacter({ name: "Auction QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  E.addItem(auctionState, "linh_thach", 100);
+  const auctionLots = E.expansionSummary(auctionState).auctionLots;
+  assert(auctionLots.length > 0, "auction must expose active lots");
+  assert(E.validateAuctionState(auctionState).ok);
+  const auctionLot = auctionLots[0];
+  assert(E.bidAuction(auctionState, auctionLot.id, auctionLot.currentBid + 5).success);
+  assert(E.validateAuctionState(auctionState).ok);
+  const auctionLog = E.novelLogParagraphs(auctionState).at(-1)?.text || "";
+  assert(auctionLog.includes("Linh Thạch") && auctionLog.includes("phường thị") && !auctionLog.includes("bidAuction"));
+  const contractState = E.createState({ character: E.createCharacter({ name: "Contract QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  const contractBoard = E.refreshContracts(contractState);
+  assert(Object.keys(contractBoard.offers).length > 0, "contract board must expose offers");
+  assert(E.validateContractBoardState(contractState).ok);
+  const contractId = Object.keys(contractBoard.offers)[0];
+  assert(E.acceptContract(contractState, contractId).success);
+  assert(E.validateContractBoardState(contractState).ok);
+  const contractLog = E.novelLogParagraphs(contractState).at(-1)?.text || "";
+  assert(contractLog.includes("Khế ước") && !contractLog.includes("acceptContract"));
   sandbox.window.GameUI.setMapView("local", E.createState({ character }));
   assert(elements["tab-content"].innerHTML.includes("data-map-dir"));
+  assert(elements["tab-content"].innerHTML.includes("local-constellation"), "local map must use constellation renderer");
+  assert(!elements["tab-content"].innerHTML.includes('class="map-path'), "local map must not render graph edges");
   ["bac", "nam", "dong", "tay"].forEach((direction) => {
     assert(elements["tab-content"].innerHTML.includes(`data-map-dir="${direction}"`), `missing open-world direction: ${direction}`);
   });
