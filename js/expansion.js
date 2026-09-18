@@ -2203,6 +2203,8 @@
     const mapState = ensureMapState(state);
     const mapCanonicalAudit = validateMapCanonicalState(state);
     if (!mapCanonicalAudit.ok) mapCanonicalAudit.errors.forEach((error) => errors.push("mapCanonical:" + error));
+    const openWorldAudit = typeof E.validateOpenWorldGrid === "function" ? E.validateOpenWorldGrid(state) : { ok: false, errors: ["open-world-validator-missing"] };
+    if (!openWorldAudit.ok) openWorldAudit.errors.forEach((error) => errors.push("openWorldGrid:" + error));
     const tradeRouteAudit = validateTradeRouteState(state);
     if (!tradeRouteAudit.ok) tradeRouteAudit.errors.forEach((error) => errors.push("tradeRoutes:" + error));
     const auctionAudit = validateAuctionState(state);
