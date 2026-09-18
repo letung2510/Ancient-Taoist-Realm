@@ -97,6 +97,13 @@ function testStructureOwnershipLifecycle() {
     assert(petition.success && outpostState.mapState.outposts[outpostState.locationId].ownerType === "faction");
     assert(!E.petitionOutpostToFaction(outpostState, outpostState.locationId).success);
   }
+  const remoteOutpostState = makeState();
+  remoteOutpostState.inventory.linh_thach = 100;
+  const remoteOutpostNode = remoteOutpostState.locationId;
+  E.move(remoteOutpostState, "bac");
+  const remoteOutpostInventory = Number(remoteOutpostState.inventory.linh_thach || 0);
+  const remoteClaim = E.claimOutpost(remoteOutpostState, remoteOutpostNode);
+  assert(!remoteClaim.success && Number(remoteOutpostState.inventory.linh_thach || 0) === remoteOutpostInventory);
 }
 
 function testDiscoveryAndNpcReplay() {
@@ -517,9 +524,11 @@ function testWarCascadeAndOfflineDeterminism() {
 
 function testTravelPreviewCommitParity() {
   const state = makeState();
-  const exits = Object.values(sandbox.window.GameData.LOCATIONS[state.locationId]?.exits || {});
-  const target = exits.find((id) => sandbox.window.GameData.LOCATIONS[id]);
-  assert(target, "QA start node must have a valid exit");
+  const direction = "bac";
+  const probe = makeState();
+  sandbox.window.GameEngine.move(probe, direction);
+  const target = probe.locationId;
+  assert(target && target !== state.locationId, "QA start node must have a valid Oxy neighbor");
   const preview = sandbox.window.GameExpansion.travelPlan(state, state.locationId, target, "walk");
   assert(preview.success, JSON.stringify(preview));
   assert(preview.influence && Number.isFinite(preview.risk));
@@ -528,7 +537,6 @@ function testTravelPreviewCommitParity() {
   state.companion = { state: "active", hp: 10, hpMax: 10, loyalty: 50 };
   const partyPreview = sandbox.window.GameExpansion.travelPlan(state, state.locationId, target, "walk");
   assert(partyPreview.success && partyPreview.partySize === 2 && partyPreview.partyWeight > 1);
-  const direction = Object.entries(sandbox.window.GameData.LOCATIONS[state.locationId].exits).find(([, id]) => id === target)?.[0];
   const before = state.locationId;
   sandbox.window.GameEngine.submitActionId(state, "act_move_" + direction);
   assert(state.locationId === target);
