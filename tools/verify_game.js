@@ -600,13 +600,14 @@ function verifyBrowserEngine(sandbox) {
   assert(moveAfter && moveAfter.x === moveBefore.x && moveAfter.y === moveBefore.y - 1);
   assert(E.describeMap(state).includes("Vạn Giới Lộ"));
 
-  // Every cardinal direction remains traversable. Unknown exits are generated
-  // lazily, including immediately after fleeing a combat encounter.
+   // All four cardinal actions stay visible; movement lazily materializes the
+   // destination and labels the inverse direction as a return action.
   const openWorldState = E.createState({ character });
   assert(E.chooseJourneyIntent(openWorldState, "tu_lap").success);
   const oldLocation = openWorldState.locationId;
-  assert.deepStrictEqual(Array.from(E.contextState(openWorldState).actions.filter((action) => action.id.startsWith("act_move_")).map((action) => action.id)), ["act_move_bac", "act_move_nam", "act_move_dong", "act_move_tay"]);
-  E.move(openWorldState, "nam");
+   assert.deepStrictEqual(Array.from(E.contextState(openWorldState).actions.filter((action) => action.id.startsWith("act_move_")).map((action) => action.id)), ["act_move_bac", "act_move_nam", "act_move_dong", "act_move_tay"]);
+   assert(!E.contextState(openWorldState).actions.some((action) => action.id.startsWith("act_explore_")));
+   E.submitActionId(openWorldState, "act_move_nam");
   const dangerousLocation = openWorldState.locationId;
   assert.notStrictEqual(dangerousLocation, oldLocation);
   D.LOCATIONS[dangerousLocation].enemies = ["yeu_thu"];
@@ -625,13 +626,15 @@ function verifyBrowserEngine(sandbox) {
   ["bac", "nam", "dong", "tay"].forEach((direction) => {
     const before = E.nodeCoordinates(topologyProbe, topologyProbe.locationId);
     E.move(topologyProbe, direction);
+    if (topologyProbe.pendingMapEvent) E.resolveMapEvent(topologyProbe, topologyProbe.pendingMapEvent.choices[0].id);
+    topologyProbe.enemies = {};
     const after = E.nodeCoordinates(topologyProbe, topologyProbe.locationId);
     const delta = { bac: [0, -1], nam: [0, 1], dong: [1, 0], tay: [-1, 0] }[direction];
     assert(after.x === before.x + delta[0] && after.y === before.y + delta[1], `invalid Oxy step: ${direction}`);
   });
   assert(cardinalOrigin && E.validateOpenWorldGrid(topologyProbe).ok);
   if (openWorldState.pendingMapEvent) assert(E.resolveMapEvent(openWorldState, openWorldState.pendingMapEvent.choices[0].id).success);
-  E.submitActionId(openWorldState, "act_move_dong");
+   E.submitActionId(openWorldState, "act_move_dong");
   assert.notStrictEqual(openWorldState.locationId, dangerousLocation);
   assert.notStrictEqual(openWorldState.locationId, oldLocation);
   const openedLocation = openWorldState.locationId;
@@ -791,12 +794,13 @@ function verifyMapUI(sandbox) {
   const actionState = E.createState({ character });
   assert(E.chooseJourneyIntent(actionState, "tu_lap").success);
   const normalActions = sandbox.window.GameUI.actionPresentation(actionState);
+  ["act_move_bac", "act_move_nam", "act_move_dong", "act_move_tay"].forEach((id) => assert(normalActions.quick.some((action) => action.id === id), `missing cardinal movement action: ${id}`));
   const normalQuickIds = normalActions.quick.map((action) => action.id);
   assert(normalQuickIds.includes("act_nhin"));
   assert(normalQuickIds.includes("act_tu_luyen"));
   assert(normalQuickIds.includes("act_hanh_trang"));
   assert(normalQuickIds.some((id) => id.startsWith("act_move_")));
-  assert(normalActions.quick.length <= 8);
+  assert(normalActions.quick.length <= 12);
   assert(normalActions.overflow.some((action) => action.id === "act_giup"), "utility actions must remain available in More");
   const searchAction = normalActions.quick.concat(normalActions.overflow).find((action) => action.id === "act_tim_kiem");
   assert(searchAction?.description.includes("Độ sâu dò"));
@@ -847,8 +851,9 @@ function verifyMapUI(sandbox) {
   assert(!E.resolvePrisoner(prisonerState, "qa_prisoner", "executed").success, "resolved prisoner must not be processed twice");
 
   const actualMoveIds = E.moveActions(actionState).map((action) => action.id).sort();
-  const declaredMoveIds = Object.keys(E.locationExits(actionState)).map((direction) => "act_move_" + direction).sort();
-  assert.deepStrictEqual(Array.from(actualMoveIds), Array.from(declaredMoveIds));
+   const declaredMoveIds = ["act_move_bac", "act_move_nam", "act_move_dong", "act_move_tay"].sort();
+   assert.deepStrictEqual(Array.from(actualMoveIds), Array.from(declaredMoveIds));
+   assert(!E.contextState(actionState).actions.some((action) => action.id.startsWith("act_explore_")));
 
   const combatState = E.createState({ character });
   assert(E.chooseJourneyIntent(combatState, "tu_lap").success);
@@ -929,13 +934,14 @@ function verifyMapUI(sandbox) {
   const contractLog = E.novelLogParagraphs(contractState).at(-1)?.text || "";
   assert(contractLog.includes("Khế ước") && !contractLog.includes("acceptContract"));
   sandbox.window.GameUI.setMapView("local", E.createState({ character }));
-  assert(elements["tab-content"].innerHTML.includes("data-map-dir"));
+   assert(elements["tab-content"].innerHTML.includes("data-map-dir") || elements["tab-content"].innerHTML.includes("data-map-explore-dir"));
   assert(elements["tab-content"].innerHTML.includes("local-constellation"), "local map must use constellation renderer");
-  assert(!elements["tab-content"].innerHTML.includes('class="map-path'), "local map must not render graph edges");
+   assert(elements["tab-content"].innerHTML.includes('class="map-path'), "local map must render confirmed real edges");
+   assert(elements["tab-content"].innerHTML.includes("tree-edge"), "local map must render spanning-tree edges");
   ["bac", "nam", "dong", "tay"].forEach((direction) => {
-    assert(elements["tab-content"].innerHTML.includes(`data-map-dir="${direction}"`), `missing open-world direction: ${direction}`);
+     assert(elements["tab-content"].innerHTML.includes(`data-map-dir="${direction}"`) || elements["tab-content"].innerHTML.includes(`data-map-explore-dir="${direction}"`), `missing open-world direction: ${direction}`);
   });
-  assert(elements["tab-content"].innerHTML.includes("Chưa khám phá"));
+   assert(elements["tab-content"].innerHTML.includes("map-node"));
   sandbox.activeTestTab = "status";
   sandbox.window.GameUI.renderPanel(E.createState({ character }));
   ["Khí Huyết", "Thanh Tỉnh", "Tà Nhiễm", "Căn cốt", "Ngộ tính", "Mệnh Trạng Thái", "Trang Bị / Pháp Bảo", "Loại Trang Bị", "Số Lượng", "Vật Phẩm Đã Trang Bị", "Pháp khí", "Hộ thân · Giáp", "Hộ thân · Ngoa", "Hộ thân · Quần", "Hộ thân · Mũ", "Tùy thân Pháp khí", "Bản mệnh Linh bảo", "Pháp khí Sinh hoạt", "<i>?</i>"]

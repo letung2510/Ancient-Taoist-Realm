@@ -4264,3 +4264,19 @@ The runtime and validator smoke tests pass, but white-box inspection found the f
 
 White-box verification performed: `node tools\\verify_game.js`, `node tools\\verify_opening_intent.js`, `node tools\\verify_expansion_stress.js`, `node tools\\verify_ui_surface_contract.js`, `node tools\\verify_log_narrative.js`, syntax checks for `engine.js`, `main.js`, `ui.js`, and requirement validation. All executed checks passed; the findings above are residual design/coverage risks that the current smoke tests do not prove away.
 - **2026-09-21 — Deep white-box review:** tightened regional organization classification so bare clan/tribe labels cannot qualify as `family`; save migration now reconstructs a valid stage-2 `pendingGuildChoice` from the canonical journey target when the legacy boolean is absent. Canonical updates are recorded in the progression, UI/action-log, and data-runtime feature files. Regression: `verify_opening_intent`, `verify_game`, `verify_review_batches`, and `verify_dichi_deep` PASS. No Git push or commit performed.
+
+## Current implementation status — 2026-09-21
+
+This section is the current source of truth for the seven completion tasks below. Earlier `MISSING`/open rows in historical review tables are retained as history and must not be read as the current runtime state.
+
+| Task | Current state | Evidence / remaining gate |
+|---|---|---|
+| Path/Profession/Dị Thể namespace and migration | **Implemented** | Schema v2 normalization plus `validateCanonicalNamespaces()`; covered by `tools/verify_completion_tasks.js`. |
+| Action priority | **Implemented and browser-verified** | Pending exploration/journey priority is covered by the completion test and verified in Chrome through the localhost E2E server. |
+| NPC dialogue and quest lifecycle | **Implemented baseline** | Check → offer → accept → progress → turn-in, reward, relationship and dialogue-state validation are covered by the completion test. Broader content/balance review remains a separate gate. |
+| Companion combat integration | **Implemented** | Active companion attacks after player combat/skill actions, uses the live enemy HP map, and receives offline combat ticks; covered by companion and completion validators. |
+| Dị Thể and Hidden Profession content | **Implemented and content-checked** | Existing Dị Thể runtime plus four Từ Tích hidden professions and fail/effect policies are present; all canonical endings and Path fusion coverage are checked. |
+| Weather shelter/offline simulation | **Implemented and performance-checked** | Severe-weather shelter hysteresis, clear-weather exit delay, idempotent offline simulation, and a large-save 8MB/15s budget check are validated. |
+| Canonical audit | **Updated** | This status block supersedes stale historical status rows; no Git push or commit was performed. |
+
+Open gates are now limited to broader device-matrix performance sampling and exploratory visual review beyond the deterministic Chrome flow; the requested content, path-fusion, large-save, UI-surface and producer checks have automated coverage.

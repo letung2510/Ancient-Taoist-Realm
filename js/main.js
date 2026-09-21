@@ -495,18 +495,34 @@
         UI.openOverlay("Hồ sơ tổ chức", UI.renderMapFactionDetail(state, "", guildPin.dataset.mapGuild));
         return;
       }
-      const target = event.target.closest("[data-map-dir]");
-      if (!target || !state) return;
-      const actionId = "act_move_" + target.dataset.mapDir;
-      const departure = departureOptions(actionId);
+       const target = event.target.closest("[data-map-dir]");
+       if (!target || !state) return;
+       const direction = target.dataset.mapDir;
+       const actionId = "act_move_" + direction;
+       if (openPendingMoveModal(actionId)) return;
+       const departure = departureOptions(actionId);
       if (departure === null) return;
       enqueueAction(() => {
-        E.submitActionId(state, actionId, departure);
+        submitUiAction(actionId, departure);
         renderAfterTurn();
       });
     });
 
     $("overlay-content").addEventListener("click", (event) => {
+      const pendingDiscoveryResolve = event.target.closest("[data-pending-resolve]");
+      if (pendingDiscoveryResolve && state) {
+        resolvePendingThenMove(pendingDiscoveryResolve.dataset.pendingResolve, pendingDiscoveryResolve.dataset.pendingMove || "");
+        return;
+      }
+      const pendingMoveNow = event.target.closest("[data-pending-move-now]");
+      if (pendingMoveNow && state) {
+        enqueueAction(() => {
+          submitUiAction(pendingMoveNow.dataset.pendingMoveNow, { confirmPendingDeparture: true });
+          UI.closeOverlay();
+          renderAfterTurn();
+        });
+        return;
+      }
       const overlayCamera = event.target.closest("[data-map-camera]");
       if (overlayCamera) {
         UI.adjustMapCamera(overlayCamera.dataset.mapCamera);
@@ -519,16 +535,22 @@
         const arg2 = expansionCommand.dataset.expansionArg2 || "";
         let result = E.runExpansionCommand(state, command, arg, arg2);
         if (result?.requiresConfirmation && confirm(result.reason + "\nXác nhận tiếp tục?")) {
-          result = E.runExpansionCommand(state, command, arg, arg2, { confirmed: true });
-        }
+           result = E.runExpansionCommand(state, command, arg, arg2, { confirmed: true });
+         }
+         const moveAfterDiscovery = expansionCommand.dataset.pendingMove || "";
+         if (result?.success && command === "map_event" && moveAfterDiscovery) submitUiAction(moveAfterDiscovery, { confirmPendingDeparture: true });
         if (!result?.success) alert(result?.reason || "Không thể thực hiện hành động này.");
         renderAfterTurn();
         const overlay = document.getElementById("overlay");
         const overlayContent = document.getElementById("overlay-content");
         if (overlay && !overlay.classList.contains("hidden") && overlayContent) {
-          if (command === "opportunity") {
-            if (!result?.success) overlayContent.innerHTML = UI.renderContestedOpportunityModal(state);
-          } else if (command.startsWith("guild_")) {
+           if (command === "opportunity") {
+             if (result?.success) UI.closeOverlay();
+             else overlayContent.innerHTML = UI.renderContestedOpportunityModal(state);
+           } else if (command === "map_event") {
+             if (result?.success) UI.closeOverlay();
+             else overlayContent.innerHTML = UI.renderMapEventModal(state);
+           } else if (command.startsWith("guild_")) {
             overlayContent.innerHTML = UI.renderGuildProjectModal(state);
           }
         }
@@ -643,13 +665,15 @@
         UI.openOverlay("Hồ sơ tổ chức", UI.renderMapFactionDetail(state, "", guildPin.dataset.mapGuild));
         return;
       }
-      const target = event.target.closest("[data-map-dir]");
-      if (target && state) {
-        const actionId = "act_move_" + target.dataset.mapDir;
-        const departure = departureOptions(actionId);
+       const target = event.target.closest("[data-map-dir]");
+       if (target && state) {
+         const direction = target.dataset.mapDir;
+         const actionId = "act_move_" + direction;
+         if (openPendingMoveModal(actionId)) return;
+         const departure = departureOptions(actionId);
         if (departure === null) return;
         enqueueAction(() => {
-          E.submitActionId(state, actionId, departure);
+          submitUiAction(actionId, departure);
           UI.closeOverlay();
           renderAfterTurn();
         });
@@ -801,13 +825,42 @@
     return { confirmPendingDeparture: true };
   }
 
+  function isMovementActionId(actionId) {
+    return /^act_move_(bac|nam|dong|tay)$/.test(String(actionId || ""));
+  }
+
+  function openPendingMoveModal(actionId) {
+    if (!isMovementActionId(actionId)) return false;
+    if (!E.pendingExplorationAt?.(state) && state.pendingMapEvent?.status !== "pending") return false;
+    if (!E.pendingExplorationAt?.(state) && state.pendingMapEvent?.status === "pending") {
+      UI.openOverlay("Hidden discovery", UI.renderMapEventModal(state, actionId));
+      return true;
+    }
+    UI.openOverlay("Phát hiện đang chờ", UI.renderPendingDiscoveryModal(state, actionId));
+    return true;
+  }
+
+  function resolvePendingThenMove(resolveActionId, moveActionId) {
+    enqueueAction(() => {
+      const result = E.submitActionId(state, resolveActionId);
+      if (result?.success && !E.pendingExplorationAt?.(state) && moveActionId) E.submitActionId(state, moveActionId, { confirmPendingDeparture: true });
+      UI.closeOverlay();
+      renderAfterTurn();
+    });
+  }
+
+  function submitUiAction(actionId, options = {}) {
+    const result = E.submitActionId(state, actionId, options);
+    if (result === false || result?.success === false) {
+      E.pushHistory(state, { type: "warn", text: result?.reason || "Hành động không còn khả dụng; trạng thái đã được làm mới." });
+    }
+    return result;
+  }
+
   function renderActionButtons() {
     if (!UI.renderActions) return;
     UI.renderActions(state, (action) => {
-      if (action.id === "act_move_group") {
-        showMapOverlay();
-        return;
-      }
+      if (openPendingMoveModal(action.id)) return;
       if (action.id === "act_exp_map_event") {
         UI.openOverlay("Phát Hiện Ẩn", UI.renderMapEventModal(state));
         return;
@@ -862,7 +915,7 @@
         return;
       }
       enqueueAction(() => {
-        E.submitActionId(state, action.id, departure);
+        submitUiAction(action.id, departure);
         renderAfterTurn();
       });
     });
