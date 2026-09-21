@@ -1,4 +1,4 @@
-# GAPS  SỔ ĐĂNG KÝ LOGIC CHƯA HOÀN THIỆN VÀ QUYẾT ĐỊNH CẦN CHỐT
+# GAPS — SỔ ĐĂNG KÝ LOGIC CHƯA HOÀN THIỆN VÀ QUYẾT ĐỊNH CẦN CHỐT
 
 ## Đã có runtime và đã được regression
 
@@ -45,4 +45,4 @@ Feature mới chỉ được merge khi có: catalog schema, state schema, resolv
 - Một người mới chỉ đọc thư mục này có thể biết feature nằm ở đâu, state nào, gọi resolver nào, action nào, UI nào và save/migration ra sao.
 - Mọi feature đều ghi rõ phụ thuộc và gap.
 - Không dùng tên Con Đường cho Nghề, không dùng Dị Thể cho Mệnh hoặc Nghề Ẩn.
-- Mọi claim ĐÃ CODE phải đối chiếu runtime/test; phần chưa chắc phải ghi **MỘT PHẦN** hoặc **THIẾT KẾ**.
+- Mọi claim “ĐÃ CODE” phải đối chiếu runtime/test; phần chưa chắc phải ghi **MỘT PHẦN** hoặc **THIẾT KẾ**.

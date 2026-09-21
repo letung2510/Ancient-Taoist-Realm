@@ -1,5 +1,5 @@
 /* ============================================================
- * CỔ DỊ DIỆN  Game Engine (deterministic state machine)
+ * CỔ DỊ DIỆN — Game Engine (deterministic state machine)
  * Tham chiếu: gemini-code-1788421511033.md
  * ============================================================ */
 window.GameEngine = (function () {
@@ -123,7 +123,7 @@ window.GameEngine = (function () {
     if (intentId === "tam_su") {
       const faction = pick(factions.filter((entry) => organizationKind(entry) === "sect"));
       if (!faction) return { success: false, reason: "Vùng đã chọn chưa có Tông Môn hợp lệ để Tầm Sư." };
-      return { intentId, type: "sect", targetOrganizationId: faction.id, targetOrganizationKind: "sect", targetName: faction.name, title: "Đứng trước cổng " + faction.name, text: "Ngươi đứng trước cổng " + faction.name + ". Đây là nơi ngươi sẽ thử gia nhập ở giai đoạn 2, không phải một placeholder." };
+      return { intentId, type: "sect", targetOrganizationId: faction.id, targetOrganizationKind: "sect", targetName: faction.name, title: "Đứng trước cổng " + faction.name, text: "Ngươi đứng trước cổng " + faction.name + ". Đây là nơi ngươi sẽ thử gia nhập ở giai đoạn 2, không phải một chỗ giữ chỗ tạm thời." };
     }
     if (intentId === "quy_tong") {
       const faction = pick(factions.filter((entry) => organizationKind(entry) === "family"));
@@ -331,7 +331,7 @@ window.GameEngine = (function () {
   function cachCucInfo(elements, harmonyScore) {
     const count = elements.length;
     if (count === 1) {
-      if (isExoticRoot(elements[0])) return { name: "Dị Linh Căn  " + elements[0], alignment: harmonyScore > 0 ? "cat" : harmonyScore < 0 ? "hung" : "trung" };
+      if (isExoticRoot(elements[0])) return { name: "Dị Linh Căn — " + elements[0], alignment: harmonyScore > 0 ? "cat" : harmonyScore < 0 ? "hung" : "trung" };
       return { name: "Thuần " + elements[0] + " Chi Thể", alignment: harmonyScore > 0 ? "cat" : harmonyScore < 0 ? "hung" : "trung" };
     }
     if (count === 2) {
@@ -563,7 +563,7 @@ window.GameEngine = (function () {
     if (record.insightRevealed) return { success: true, alreadyRevealed: true, insight: record.insight };
     if (Number(state.player.comprehension || 0) < 60 && record.stage < 2) return { success: false, reason: "Cần Ngộ Tính ≥ 60 hoặc Quan hệ ≥ Tương Ứng." };
     const concepts = String(fate.desc || fate.name).split(/[,:;·]/).map((part) => part.trim()).filter(Boolean);
-    record.insight = "Giác Ngộ: " + (concepts.slice(0, 2).join(" · ") || fate.name) + "  bản chất của Mệnh đã được nhìn thấu.";
+    record.insight = "Giác Ngộ: " + (concepts.slice(0, 2).join(" · ") || fate.name) + " — bản chất của Mệnh đã được nhìn thấu.";
     record.insightRevealed = true;
     if (fateSign(fate) === "hung") state.player.forbiddenKnowledgeCount = Number(state.player.forbiddenKnowledgeCount || 0) + 1;
     pushHistory(state, { type: "sys", text: record.insight });
@@ -966,7 +966,7 @@ window.GameEngine = (function () {
     if (atmosphereRoll(state, key) >= chance) return text;
     const band = level <= 20 ? "low" : level <= 50 ? "medium" : level <= 75 ? "high" : "extreme";
     const lines = AMBIENT_DREAD[band];
-    return text + "\n " + lines[Math.floor(atmosphereRoll(state, key + band) * lines.length)];
+    return text + "\n— " + lines[Math.floor(atmosphereRoll(state, key + band) * lines.length)];
   }
   function perceivedValue(state, value, key) {
     const p = state?.player || {};
@@ -1725,7 +1725,7 @@ window.GameEngine = (function () {
         const condition = attribute.revealCondition || {};
         return Number(state.player.comprehension || 0) >= Number(condition.comprehensionAtLeast || Infinity) || Number(p.masteryStage || 0) >= Number(condition.masteryStageAtLeast || Infinity);
       });
-      return t.name + " · " + t.element + " · " + stages[p.masteryStage || 0] + " · " + (p.masteryExp || 0) + " mastery EXP" + (hidden.length ? " · ẩn tính: " + hidden.map((item) => item.attribute).join(", ") : "");
+      return t.name + " · " + t.element + " · " + stages[p.masteryStage || 0] + " · " + (p.masteryExp || 0) + " kinh nghiệm lĩnh ngộ" + (hidden.length ? " · ẩn tính: " + hidden.map((item) => item.attribute).join(", ") : "");
     }).join("\n");
   }
 
@@ -2030,7 +2030,7 @@ window.GameEngine = (function () {
       state.player.pathId = pathId;
       state.player.unboundTrials = state.player.unboundTrials || {};
       state.flags.pathChoicePending = false;
-      pushHistory(state, { type: "sys", text: "§ Đã bước vào lộ trình Kẻ Vô Lộ  Ngoại Đạo Giả." });
+      pushHistory(state, { type: "sys", text: "§ Đã bước vào lộ trình Kẻ Vô Lộ — Ngoại Đạo Giả." });
       return { success: true, pathId, score: 0 };
     }
     const summary = pathMatchSummary(state.player, pathId);
@@ -2084,7 +2084,7 @@ window.GameEngine = (function () {
       return { level, title: "???", insight: "đạo lộ chưa được lựa chọn", benefit: "chưa thể suy diễn", price: "chưa thể suy diễn", text: "Thiên cơ chưa định. Hãy chọn Con Đường tại Khai Lộ Cảnh để nhìn thấy cảnh giới kế tiếp." };
     }
     const title = level === 1 ? "Di Mệnh Cảnh" : level === 2 ? (pathTitles[1] || "Khai Lộ Cảnh") : (pathTitles[level - 1] || realm?.name || "Vô Danh Cảnh");
-    return { level, title, ...lore, text: title + "  " + lore.insight + ". Ích lợi: " + lore.benefit + ". Cái giá: " + lore.price + "." };
+    return { level, title, ...lore, text: title + " — " + lore.insight + ". Ích lợi: " + lore.benefit + ". Cái giá: " + lore.price + "." };
   }
   function fateCompatibility(pathId, fate) {
     const relation = pathRelation(pathId); if (!relation || !fate) return 0;
@@ -2119,7 +2119,7 @@ window.GameEngine = (function () {
     kiem_dao: "Kiếm Đạo", dan_dao: "Đan Đạo", phu_dao: "Phù Đạo", phong_thuy_dao: "Phong Thủy Đạo",
     ngu_thu_dao: "Ngự Thú Đạo", khoi_loi_dao: "Khôi Lỗi Đạo", am_luat_dao: "Âm Luật Đạo",
     mong_canh_dao: "Mộng Cảnh Đạo", luyen_the_dao: "Luyện Thể Đạo", tinh_tuong_dao: "Tinh Tượng Đạo",
-    ngoai_dao_gia: "Kẻ Vô Lộ  Ngoại Đạo Giả"
+    ngoai_dao_gia: "Kẻ Vô Lộ — Ngoại Đạo Giả"
   };
   function getPathDisplayName(pathId) {
     return PATH_LABELS[pathId] || "Con Đường chưa định danh";
@@ -2820,7 +2820,7 @@ window.GameEngine = (function () {
     state.flags.guildDecision = state.pendingGuildChoice ? null : "journey:" + (state.player.journeyIntent || "tu_lap");
     activateQuest(state, "chon_dao_lo");
     pushMemory(state, "Bước vào Khai Lộ Cảnh nhờ " + source + ".");
-    pushHistory(state, { type: "sys", text: "§ KHAI LỘ THÀNH CÔNG  " + next.name + " (" + source + ")." });
+    pushHistory(state, { type: "sys", text: "§ KHAI LỘ THÀNH CÔNG — " + next.name + " (" + source + ")." });
     pushHistory(state, { type: "sys", text: "§ Xuất thân đã định từ đầu game: " + (state.player.origin?.name || state.player.background || "độc lập") + ". Từ đây chỉ lựa chọn gia nhập tổ chức; có thể tiếp tục hành đạo độc lập." });
     updateDerived(state);
     return true;
@@ -3444,7 +3444,7 @@ window.GameEngine = (function () {
       cultivationJournalPush(state, { type: "breakthrough", amount: 0, realmId: next.id, note: "Đột phá thành công" });
       recordTaintedMilestones(state);
       pushMemory(state, "Đột phá thành công: " + pathTitle(state));
-      pushHistory(state, { type: "sys", text: "§ ĐỘT PHÁ THÀNH CÔNG  " + pathTitle(state) + "!" });
+      pushHistory(state, { type: "sys", text: "§ ĐỘT PHÁ THÀNH CÔNG — " + pathTitle(state) + "!" });
       grantBreakthroughFate(state, next.level);
       updateDerived(state);
       return { changed: true, reason: "Đột phá thành công." };
@@ -3473,7 +3473,7 @@ window.GameEngine = (function () {
     state.flags.breakthroughRitual = null;
     recordTaintedMilestones(state);
     pushMemory(state, "Đột phá thành công: " + pathTitle(state));
-    pushHistory(state, { type: "sys", text: "§ ĐỘT PHÁ THÀNH CÔNG  " + pathTitle(state) + "!" + (lifespanDelta ? " Thọ Nguyên tối đa +" + lifespanDelta + " năm, hiện tại +" + lifespanDelta + " năm." : "") });
+    pushHistory(state, { type: "sys", text: "§ ĐỘT PHÁ THÀNH CÔNG — " + pathTitle(state) + "!" + (lifespanDelta ? " Thọ Nguyên tối đa +" + lifespanDelta + " năm, hiện tại +" + lifespanDelta + " năm." : "") });
     grantBreakthroughFate(state, next.level);
     updateDerived(state);
     return { changed: true, reason: "Đột phá thành công." };
@@ -3613,7 +3613,7 @@ window.GameEngine = (function () {
     state.player.exp -= state.flags.madnessPenalty.lostExp;
     state.player.corruptionRating = clamp(Number(state.player.corruptionRating || 0) + state.flags.madnessPenalty.corruptionGained, 0, 100);
     pushMemory(state, "Rơi vào trạng thái Mất Trí.");
-    pushHistory(state, { type: "warn", text: "§ NGƯƠI ĐÃ MẤT TRÍ  " + source + ". Hình phạt: mất " + state.flags.madnessPenalty.lostExp + " Tu vi, Corruption +" + state.flags.madnessPenalty.corruptionGained + "." });
+    pushHistory(state, { type: "warn", text: "§ NGƯƠI ĐÃ MẤT TRÍ — " + source + ". Hình phạt: mất " + state.flags.madnessPenalty.lostExp + " Tu vi, Corruption +" + state.flags.madnessPenalty.corruptionGained + "." });
     state.pendingEnding = "succumb";
     return true;
   }
@@ -4087,9 +4087,9 @@ window.GameEngine = (function () {
       pushHistory(state, { type: "sys", text: "Khu vực này không có tài nguyên hoặc dấu vết có thể tìm kiếm." });
       return { success: false, reason: "Khu vực không thể tìm kiếm." };
     }
-    if (status.depleted) {
+      if (status.depleted) {
       pushHistory(state, { type: "warn", text: "× Khu vực đã bị lục soát. Tài nguyên có thể hồi lại sau " + status.recoverIn + " lượt." });
-      return { success: false, reason: "Search Depth đã cạn." };
+      return { success: false, reason: "Độ sâu dò tìm đã cạn." };
     }
     const staminaCost = 5;
     if (Number(state.player.stamina || 0) < staminaCost) {
@@ -4100,6 +4100,8 @@ window.GameEngine = (function () {
     state.flags.searches = state.flags.searches || {};
     const sessionNumber = Number(state.flags.searches[state.locationId] || 0) + 1;
     state.flags.searches[state.locationId] = sessionNumber;
+    state.logState = state.logState || { sequence: 0, recentNarratives: [], groups: {}, lastEventId: null };
+    state.logState.activeSceneId = "scene:search:" + state.locationId + ":" + sessionNumber;
     const site = ensureSearchSite(state);
     const stats = computeStats(state.player);
     const worldSearchMult = typeof window !== "undefined" && window.GameExpansion?.getWorldModifiers
@@ -4172,9 +4174,12 @@ window.GameEngine = (function () {
       if (generated) collected.push(generated.name);
     });
     pending.findings = pending.findings.filter((finding) => finding.type === "information");
-    if (!pending.findings.length) state.pendingSearch = null;
+    if (!pending.findings.length) {
+      state.pendingSearch = null;
+      if (state.logState) state.logState.activeSceneId = null;
+    }
     if (state.locationId === "linh_dien" && collected.length) state.flags.searchedLinhDien = true;
-    pushHistory(state, { type: "sys", text: collected.length ? "Những thứ còn vương lại được ngươi nhặt lên, từng món một  " + collected.join(" · ") + "." : "Bàn tay chỉ chạm vào đất lạnh; nơi này không còn gì hữu hình để mang theo." });
+    pushHistory(state, { type: "sys", text: collected.length ? "Những thứ còn vương lại được ngươi nhặt lên, từng món một — " + collected.join(" · ") + "." : "Bàn tay chỉ chạm vào đất lạnh; nơi này không còn gì hữu hình để mang theo." });
     checkQuestObjectives(state, "thu_linh_thao");
     checkQuestObjectives(state, "co_tich");
     updateDerived(state);
@@ -4186,7 +4191,10 @@ window.GameEngine = (function () {
     const site = ensureSearchSite(state);
     site.chainStage = Math.min(3, Number(site.chainStage || 0) + 1);
     pending.findings = pending.findings.filter((finding) => finding.type !== "information");
-    if (!pending.findings.length) state.pendingSearch = null;
+    if (!pending.findings.length) {
+      state.pendingSearch = null;
+      if (state.logState) state.logState.activeSceneId = null;
+    }
     const beats = [
       "Dấu chân không thuộc người sống dẫn về phía một vách đá rỗng.",
       "Sau vách đá là dấu tích một động phủ đã bị cố tình xóa tên.",
@@ -4203,23 +4211,24 @@ window.GameEngine = (function () {
         const secretId = openWorldTarget(state, secretDirection);
         const secret = D().LOCATIONS[secretId];
         if (secret?.openWorld) {
-          secret.name = "Động Phủ Bị Xóa Tên · " + secret.x + "," + secret.y;
+          secret.name = "Động Phủ Bị Xóa Tên";
           secret.desc = "Một động phủ bị cạo sạch môn huy và tên chủ nhân. Những vết khắc còn sót lại khớp với dấu chân ngươi vừa lần theo.";
         }
         site.secretLocationId = secretId;
         site.secretDirection = secretDirection;
-        pushHistory(state, { type: "sys", text: "Sau lớp đá câm lặng, một lối vào bí mật hiện ra về hướng " + ({ bac: "Bắc", nam: "Nam", dong: "Đông", tay: "Tây" }[secretDirection] || secretDirection) + "  " + (secret?.name || secretId) + "." });
+        pushHistory(state, { type: "sys", text: "Sau lớp đá câm lặng, một lối vào bí mật hiện ra về hướng " + ({ bac: "Bắc", nam: "Nam", dong: "Đông", tay: "Tây" }[secretDirection] || secretDirection) + " — " + (secret?.name || secretId) + "." });
       }
     }
     if (site.chainStage >= 3) {
       questId = ensureSearchChainQuest(state, state.locationId, Number(state.flags.searches?.[state.locationId] || 0) + 1);
-      pushHistory(state, { type: "sys", text: "Mảnh ngọc giản hé lộ một lời nhờ cậy chưa ai dám nhận  " + D().QUESTS[questId].title + "." });
+      pushHistory(state, { type: "sys", text: "Mảnh ngọc giản hé lộ một lời nhờ cậy chưa ai dám nhận — " + D().QUESTS[questId].title + "." });
     }
     return { success: true, chainStage: site.chainStage, questId };
   }
   function leaveSearchSession(state) {
     if (!state.pendingSearch) return { success: false, reason: "Không có phát hiện nào đang chờ xử lý." };
     state.pendingSearch = null;
+    if (state.logState) state.logState.activeSceneId = null;
     pushHistory(state, { type: "sys", text: "Ngươi rời những phát hiện lại phía sau; dấu vết mờ dần trong gió." });
     return { success: true };
   }
@@ -4437,7 +4446,7 @@ window.GameEngine = (function () {
     );
     for (const entity of candidates) {
       if (roll() < Number(entity.appearance_weight) * Number(worldTravel.encounterChanceMult || 1)) {
-        pushHistory(state, { type: "narr", text: "Một dị tượng chợt hiện  " + entity.name + " bước ra từ màn linh vụ." });
+        pushHistory(state, { type: "narr", text: "Một dị tượng chợt hiện — " + entity.name + " bước ra từ màn linh vụ." });
         interactEntity(state, entity.id);
         return entity.id;
       }
@@ -4958,7 +4967,7 @@ window.GameEngine = (function () {
     const raw = String(type || "SYSTEM").toUpperCase();
     return LOG_TYPE_ALIASES[String(type || "").toLowerCase()] || raw;
   }
-  function logValue(value, fallback = "") { return value === undefined || value === null || value === "" ? fallback : String(value); }
+  function logValue(value, fallback = "—") { return value === undefined || value === null || value === "" ? fallback : String(value); }
   function formatEventChanges(changes) {
     if (!Array.isArray(changes)) return "";
     return changes.map((change) => {
@@ -4990,8 +4999,14 @@ window.GameEngine = (function () {
       }
     });
   }
+  const LOG_UTF8_MOJIBAKE = /(?:\u00c3[\u0080-\u00ff]|\u00c2[\u00a7\u00b7\u2122\u0080-\u00ff]|\u00e2(?:\u20ac|\u201a|\u201e|\u2026|\u2020|\u2021)|\u00e1[\u00bb\u00ba]|\u00ef\u00bf\u00bd|\uFFFD)/u;
+  function sanitizeLogUtf8(text) {
+    let value = repairMojibakeText(String(text ?? ""));
+    value = value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").normalize("NFC");
+    return LOG_UTF8_MOJIBAKE.test(value) || value.includes("\uFFFD") ? "Một rào cản vô hình khẽ khép lại trước hành động của ngươi; hãy thử lại khi hoàn cảnh đổi khác." : value;
+  }
   function narrativeSafe(text, event = {}) {
-    let value = repairMojibakeText(String(text || "")).trim();
+    let value = sanitizeLogUtf8(text).trim();
     // Raw subsystem announcements are converted at the final boundary so
     // NPC/weather/offline producers cannot bypass the novel log pipeline.
     const code = value.match(/\b[A-Z][A-Z0-9_]{3,}\b/)?.[0];
@@ -4999,22 +5014,29 @@ window.GameEngine = (function () {
     else if (code) value = "Một rào cản vô hình khẽ khép lại trước hành động của ngươi; hãy thử lại khi hoàn cảnh đổi khác.";
     value = value.replace(/^[×§&=✦>]+\s*/, "");
     value = value.replace(/\b[A-Z][A-Z0-9_]{3,}\b/g, "");
+    // Never expose internal JavaScript producer names in the novel log.
+    // Older saves and expansion producers may have persisted values such as
+    // resolveMapEvent/bidAuction instead of a player-facing sentence.
+    const technicalFunction = /\b(?:resolve|submit|run|accept|bid|refresh|validate|choose|perform|record|update|process|handle|render|create|use|select|move|search|talk|combat|load|save)[A-Z][A-Za-z0-9_]*\b/;
+    if (technicalFunction.test(value)) {
+      value = "Một rào cản vô hình khẽ khép lại trước hành động của ngươi; hãy thử lại khi hoàn cảnh đổi khác.";
+    }
     value = value.replace(/\b(?:Offline|Search|Depth|session|counter|cooldown|multiplier|internal|debug|raw|payload|field_name|undefined|null)\b/gi, "");
     value = value.replace(/NPC\s+([^:：]{2,40})\s+phản ứng với thời tiết\s+([^:：]+)\s*[:：]\s*(.+)/i,
       (_, npc, weather) => {
         const name = npc.trim();
         const sky = weather.trim().toLowerCase();
-        if (/tuyết|snow/i.test(sky)) return "Tuyết phủ trắng con đường trước cửa tiệm  " + name + " kéo áo choàng chặt hơn, thu dọn sạp sớm vì cái lạnh đã ngấm vào đầu ngón tay.";
-        if (/mưa|rain|âm vũ/i.test(sky)) return "Mưa gõ dồn trên mái hiên  " + name + " kéo nón che đầu, bước nhanh về phía mái ngói gần nhất để giữ khô những món hàng còn dang dở.";
-        if (/lôi|bão|storm|linh phong/i.test(sky)) return "Sấm linh lực rạn trong không trung  " + name + " siết chặt quyết ấn, lùi khỏi khoảng trời trống để bảo toàn sinh mạng trước cơn biến động.";
-        if (/sương|fog/i.test(sky)) return "Sương mỏng trườn qua bậc đá  " + name + " hạ thấp giọng, lần theo mùi hương quen thuộc để khỏi lạc giữa màn trắng.";
-        return "Mây trời đổi sắc quanh " + name + "  người ấy khép áo, quan sát con đường trước mặt rồi tự chọn nơi trú chân an toàn.";
+        if (/tuyết|snow/i.test(sky)) return "Tuyết phủ trắng con đường trước cửa tiệm — " + name + " kéo áo choàng chặt hơn, thu dọn sạp sớm vì cái lạnh đã ngấm vào đầu ngón tay.";
+        if (/mưa|rain|âm vũ/i.test(sky)) return "Mưa gõ dồn trên mái hiên — " + name + " kéo nón che đầu, bước nhanh về phía mái ngói gần nhất để giữ khô những món hàng còn dang dở.";
+        if (/lôi|bão|storm|linh phong/i.test(sky)) return "Sấm linh lực rạn trong không trung — " + name + " siết chặt quyết ấn, lùi khỏi khoảng trời trống để bảo toàn sinh mạng trước cơn biến động.";
+        if (/sương|fog/i.test(sky)) return "Sương mỏng trườn qua bậc đá — " + name + " hạ thấp giọng, lần theo mùi hương quen thuộc để khỏi lạc giữa màn trắng.";
+        return "Mây trời đổi sắc quanh " + name + " — người ấy khép áo, quan sát con đường trước mặt rồi tự chọn nơi trú chân an toàn.";
       });
     // A producer may still submit a concise subsystem message. It must never
     // leak announcement punctuation into the player-facing prose boundary.
     value = value.replace(/\b([^.;!?]{2,48})\s+(?:phản ứng|thực hiện|kích hoạt|cập nhật|ghi nhận|xử lý|áp dụng)\s+([^.;!?]{2,80})\s*[:：]\s*/iu,
-      (_, subject, action) => subject.trim() + " " + action.trim() + "  ");
-    value = value.replace(/[:：]/g, "  ");
+      (_, subject, action) => subject.trim() + " " + action.trim() + " — ");
+    value = value.replace(/[:：]/g, " — ");
     value = value.replace(/\s{2,}/g, " ").replace(/\s+([.;,])/g, "$1");
     // Legacy producers often emit a correct fact in HUD-like imperative form
     // ("Đã...", "Hoàn thành...", "Cần..."). Keep the fact, but give it a
@@ -5028,6 +5050,8 @@ window.GameEngine = (function () {
         : "Dư âm của biến chuyển còn vương trong không khí; " + first;
     }
     if (!value) value = event.type === "SYSTEM" ? "Một gợn sóng vô hình lướt qua thế giới." : "Một biến chuyển vừa được ghi vào ký ức.";
+    const runtimeLint = lintNarrativeText(value, { statDisplay: Boolean(event.statDisplay?.length) });
+    if (!runtimeLint.ok) value = "Một rào cản vô hình khẽ khép lại trước hành động của ngươi; hãy thử lại khi hoàn cảnh đổi khác.";
     return value;
   }
   function formatPlayerLogText(state, entry = {}) {
@@ -5060,12 +5084,45 @@ window.GameEngine = (function () {
       portrait: event.portrait || null
     })));
   }
+  // Unified scene projection: one player-facing paragraph per causal scene.
+  function groupIntoScenes(history) {
+    const scenes = [];
+    const byKey = new Map();
+    (Array.isArray(history) ? history : []).forEach((event) => {
+      if (!event || event.debugOnly || event.playerVisible === false || event.type === "COMMAND_ECHO") return;
+      const key = event.sceneId || (gameLogDayKey(event) + "|" + String(event.locationId || ""));
+      let scene = byKey.get(key);
+      if (!scene) {
+        scene = { sceneId: key, dayKey: gameLogDayKey(event), clock: event.clock || event.timestamp || "", events: [], texts: [], stats: [] };
+        byKey.set(key, scene); scenes.push(scene);
+      }
+      const text = formatPlayerLogText(null, event);
+      if (text && !scene.texts.includes(text)) { scene.texts.push(text); scene.events.push(event); }
+      scene.stats.push(...(Array.isArray(event.statDisplay) ? event.statDisplay : []), ...(Array.isArray(event.stats) ? event.stats : []));
+    });
+    return scenes;
+  }
+
+  function novelLogParagraphs(state, events = null) {
+    const source = (Array.isArray(events) ? events : getGameLog(state)).map((event) => normalizeHistoryEvent(state, event)).filter(Boolean);
+    return groupIntoScenes(source).map((scene) => ({
+      dayKey: scene.dayKey,
+      sceneId: scene.sceneId,
+      clock: scene.clock,
+      text: scene.texts.join(" "),
+      events: scene.events,
+      statDisplay: [...new Set(scene.stats)].filter(Boolean),
+      portrait: scene.events.find((event) => event.portrait)?.portrait || null
+    }));
+  }
+
   function validateLogSurfaceState(state) {
     const errors = [], history = Array.isArray(state?.history) ? state.history : [], seenDays = new Set();
     history.forEach((event, index) => {
       if (!event || event.debugOnly || event.type === "COMMAND_ECHO") return;
       const text = formatPlayerLogText(state, event), hasStats = Array.isArray(event.statDisplay) && event.statDisplay.length > 0;
       if (!text && !hasStats) errors.push("empty:" + index);
+      if (text && LOG_UTF8_MOJIBAKE.test(text)) errors.push("utf8:" + index);
       if (text) { const lint = lintNarrativeText(text, { statDisplay: hasStats }); if (!lint.ok) errors.push("narrative:" + index + ":" + lint.issues.join(",")); }
     });
     novelLogParagraphs(state).forEach((paragraph) => seenDays.add(paragraph.dayKey));
@@ -5078,7 +5135,7 @@ window.GameEngine = (function () {
     const recent = state.logState?.recentNarratives || [];
     let template = pool.find((item) => !recent.includes(item)) || pool[0];
     const vars = { ...(event.context || {}), ...(event.result || {}) };
-    let text = template.replace(/\{(\w+)\}/g, (_, key) => logValue(vars[key], key === "text" ? event.text : ""));
+    let text = template.replace(/\{(\w+)\}/g, (_, key) => logValue(vars[key], key === "text" ? event.text : "—"));
     return narrativeSafe(text, event);
   }
   function renderScene(state, events = []) {
@@ -5104,6 +5161,16 @@ window.GameEngine = (function () {
       return "【" + timestamp + "】\n\n" + narrativeSafe(body, group[0]) + (stats.length ? "\n◇ " + [...new Set(stats)].join(" · ") : "");
     }).join("\n\n");
   }
+  // Final renderer entry point: every visible history item is projected
+  // through the same causal-scene grouper used by the story window.
+  function renderScene(state, events = []) {
+    const scenes = groupIntoScenes((Array.isArray(events) ? events : []).map((event) => normalizeHistoryEvent(state, event)).filter(Boolean));
+    return scenes.map((scene) => {
+      const body = scene.texts.join(" ");
+      const stats = [...new Set(scene.stats)].filter(Boolean);
+      return "【" + scene.clock + "】\n\n" + narrativeSafe(body, scene.events[0] || {}) + (stats.length ? "\n◇ " + stats.join(" · ") : "");
+    }).join("\n\n");
+  }
   function lintNarrativeText(text, options = {}) {
     const value = String(text ?? "").trim(); const issues = [];
     if (!value) issues.push("empty narrative");
@@ -5126,7 +5193,19 @@ window.GameEngine = (function () {
       statDisplay: Array.isArray(input.statDisplay) ? input.statDisplay.slice() : [],
       event_flags: input.event_flags || input.flags || {}, importance: input.importance || "NORMAL",
       severity: input.severity || (type === "SYSTEM" && input.type === "warn" ? "WARNING" : "INFO"),
-      narrative: input.narrative || null, text: input.text || ""
+      narrative: input.narrative || null, text: input.text || "",
+      rawText: input.rawText ?? input.text ?? null,
+      locationId: input.locationId || state.locationId || null,
+      sceneId: input.sceneId || state.logState.activeSceneId || ("scene:" + String(state.locationId || "unknown") + ":" + String(state.meta?.turn || 0) + ":" + gameLogDayKey({ clock: clockLabel(state) })),
+      relation: input.relation || "standalone",
+      causedBy: input.causedBy || null,
+      playerVisible: input.playerVisible !== false,
+      debugOnly: Boolean(input.debugOnly),
+      errorCode: input.errorCode || null,
+      stats: Array.isArray(input.stats) ? input.stats.slice() : [],
+      narrativeKey: input.narrativeKey || null,
+      npcContext: input.npcContext || null,
+      weatherContext: input.weatherContext || null
     };
     if (!event.statDisplay.length && event.changes.length) {
       const changeText = formatEventChanges(event.changes);
@@ -5139,10 +5218,33 @@ window.GameEngine = (function () {
     state.logState.lastEventId = event.id;
     return event;
   }
-  function emitGameEvent(state, input) { return pushHistory(state, input); }
+
+  function normalizeHistoryEvent(state, event = {}) {
+    if (!event || typeof event !== "object") return null;
+    if (!event.id) {
+      state.logState = state.logState || { sequence: 0 };
+      state.logState.sequence = Number(state.logState.sequence || 0) + 1;
+      event.id = "legacy_evt_" + String(state.logState.sequence).padStart(6, "0");
+    }
+    event.locationId ||= state?.locationId || null;
+    event.sceneId ||= "scene:" + String(event.locationId || "unknown") + ":" + String(event.turn ?? state?.meta?.turn ?? 0) + ":" + gameLogDayKey(event);
+    event.relation ||= "standalone";
+    if (event.causedBy === undefined) event.causedBy = null;
+    if (event.playerVisible === undefined) event.playerVisible = !event.debugOnly;
+    if (event.debugOnly === undefined) event.debugOnly = event.type === "COMMAND_ECHO";
+    if (event.errorCode === undefined) event.errorCode = null;
+    if (!Array.isArray(event.stats)) event.stats = Array.isArray(event.statDisplay) ? event.statDisplay.slice() : [];
+    if (event.rawText === undefined) event.rawText = event.text || null;
+    if (event.text !== undefined) event.text = sanitizeLogUtf8(event.text);
+    if (event.narrative?.text !== undefined) event.narrative.text = sanitizeLogUtf8(event.narrative.text);
+    return event;
+  }
+  function emitEvent(state, input) { return pushHistory(state, input); }
+  function emitGameEvent(state, input) { return emitEvent(state, input); }
   function pushHistory(state, entry = {}) {
     if (state._suppressHistory) return null;
-    const event = entry.id && entry.timestamp && entry.context && entry.result ? { ...entry } : createGameEvent(state, entry);
+    const event = normalizeHistoryEvent(state, entry.id && entry.timestamp && entry.context && entry.result ? { ...entry } : createGameEvent(state, entry));
+    if (event?.text !== undefined) event.text = sanitizeLogUtf8(event.text);
     state.history = Array.isArray(state.history) ? state.history : [];
     state.logState = state.logState || { sequence: 0, recentNarratives: [], groups: {}, lastEventId: null, totalEvents: 0 };
     state.logState.totalEvents = Number(state.logState.totalEvents || 0) + 1;
@@ -5247,8 +5349,41 @@ window.GameEngine = (function () {
       return { inCombat: false, forced: true, state: "PATH_CHOICE", actions };
     }
     if (state.player.tainted?.factionPending) {
-      const choices = [["rebel_heaven", "Phản Thiên  Tà Thần"], ["loyal_heaven", "Trung Thành Thiên Đạo"], ["neutral", "Trung Lập"]];
+      const choices = [["rebel_heaven", "Phản Thiên — Tà Thần"], ["loyal_heaven", "Trung Thành Thiên Đạo"], ["neutral", "Trung Lập"]];
       return { inCombat: false, forced: true, state: "TAINTED_FACTION_CHOICE", actions: choices.map(([id, label]) => ({ id: "act_faction_" + id, label, aliases: [id, label], priority: 1 })) };
+    }
+    // Pending scenes are a hard gate. Build their actions before ordinary
+    // movement/search/combat actions so the UI cannot lose the resolution step.
+    const pendingOpportunity = state.pendingContestedOpportunity?.status === "pending" ? state.pendingContestedOpportunity : null;
+    if (pendingOpportunity) {
+      // Legacy saves may only contain the opportunity id/status. Keep the
+      // old single-entry action for those records; fully populated runtime
+      // opportunities expose the explicit resolution choices below.
+      if (!pendingOpportunity.kind && !pendingOpportunity.options && !pendingOpportunity.resolutionOptions) {
+        return resolveActionPriority(state, { inCombat: false, forced: false, state: "PENDING_OPPORTUNITY", pending: true, actions: [
+          { id: "act_exp_opportunity", label: "Cơ Duyên Hiện Ra", aliases: ["cơ duyên", "co duyen"], priority: 0, tier: 0, urgency: 100, blocking: true, category: "opportunity" },
+          { id: "act_trang_thai", label: "Trạng Thái", aliases: ["trạng thái", "trang thai"], priority: 1, tier: 3, scope: "system", consumesTurn: false, category: "utility" }
+        ] });
+      }
+      return resolveActionPriority(state, { inCombat: false, forced: false, state: "PENDING_OPPORTUNITY", pending: true, actions: [
+        { id: "act_opportunity_fight", label: "Tranh Đoạt", aliases: ["tranh đoạt", "cuong đoạt"], priority: 0, tier: 0, urgency: 100, blocking: true, category: "opportunity" },
+        { id: "act_opportunity_scheme", label: "Dùng Mưu", aliases: ["dùng mưu", "dung muu"], priority: 0, tier: 0, urgency: 99, blocking: true, category: "opportunity" },
+        { id: "act_opportunity_share", label: "Chia Sẻ", aliases: ["chia sẻ", "chia se"], priority: 0, tier: 0, urgency: 98, blocking: true, category: "opportunity" },
+        { id: "act_trang_thai", label: "Trạng Thái", aliases: ["trạng thái", "trang thai"], priority: 1, tier: 3, scope: "system", consumesTurn: false, category: "utility" }
+      ] });
+    }
+    const pendingExploration = pendingExplorationAt(state);
+    // Combat always takes precedence over an unresolved discovery. The
+    // discovery remains in state and is surfaced again after the encounter.
+    if (!inCombat && (pendingExploration || state.pendingMapEvent?.status === "pending")) {
+      const pendingActions = [];
+      if (pendingExploration?.findings?.some((finding) => ["resource", "rare"].includes(finding.type))) pendingActions.push({ id: "act_search_collect", label: "Thu Thập Phát Hiện", aliases: ["thu thập", "thu thap"], category: "interaction" });
+      if (pendingExploration?.findings?.some((finding) => finding.type === "information")) pendingActions.push({ id: "act_search_investigate", label: "Điều Tra Dấu Vết", aliases: ["điều tra dấu vết", "dieu tra dau vet"], category: "interaction" });
+      if (pendingExploration?.findings?.some((finding) => finding.type === "information") && presentEntities(state).length) pendingActions.push({ id: "act_explore_npc_assist", label: "Nhờ NPC Dẫn Dấu", aliases: ["nhờ npc dẫn dấu", "nho npc dan dau"], category: "interaction" });
+      if (state.pendingMapEvent?.status === "pending") pendingActions.push({ id: "act_exp_map_event", label: "Xử Lý Phát Hiện Ẩn", aliases: ["xử lý phát hiện", "xu ly phat hien"], category: "discovery" });
+      pendingActions.push({ id: "act_search_leave", label: "Bỏ Qua Phát Hiện", aliases: ["bỏ qua phát hiện", "bo qua phat hien"], category: "interaction" });
+      pendingActions.push({ id: "act_trang_thai", label: "Trạng Thái", aliases: ["trạng thái", "trang thai"], priority: 1, tier: 3, scope: "system", consumesTurn: false, category: "utility" });
+      return resolveActionPriority(state, { inCombat: false, forced: false, state: "PENDING_EXPLORATION", pending: true, actions: pendingActions });
     }
     const actions = ACTION_DEFINITIONS.filter((a) => a.id !== "act_be_quan").filter((a) => !forced || a.priority === 0).filter((a) => {
       if (a.id.startsWith("act_chon_")) return false;
@@ -5271,7 +5406,7 @@ window.GameEngine = (function () {
       const status = searchStatus(state);
       searchAction.label = "Tìm Kiếm · " + status.rolls + " lượt dò";
       searchAction.searchStatus = status;
-      searchAction.description = "Search Depth " + status.depth + "/" + status.maxDepth + " · Tài nguyên " + status.resourcePct + "% · Rủi ro " + status.riskPct + "% · tốn 5 Thể Lực";
+      searchAction.description = "Độ sâu dò " + status.depth + "/" + status.maxDepth + " · Tài nguyên " + status.resourcePct + "% · Rủi ro " + status.riskPct + "% · tốn 5 Thể Lực";
       if (Number(state.player.stamina || 0) < 5) searchAction.disabled_reason = "Cần ít nhất 5 Thể Lực.";
     }
     const breakthrough = breakthroughRequirements(state);
@@ -5321,10 +5456,8 @@ window.GameEngine = (function () {
       result.actions = actions.filter((action) => action.id === "act_tan_cong_thuong" || action.id === "act_bo_chay" || action.id.startsWith("act_skill_") || ["act_nhin", "act_hanh_trang", "act_trang_thai"].includes(action.id));
       return { ...result, actions: resolveActions(state, result.actions) };
     }
-    if (state.pendingContestedOpportunity?.status === "pending") {
-      result.actions = actions.filter((action) => action.id === "act_exp_opportunity" || action.id === "act_trang_thai");
-      return { ...result, actions: resolveActions(state, result.actions) };
-    }
+    if (result.pending) return { ...result, actions: resolveActions(state, actions) };
+    if (state.pendingContestedOpportunity?.status === "pending") return { ...result, actions: resolveActions(state, actions) };
     if (pendingExplorationAt(state)) result.actions = actions.filter((action) => action.id === "act_search_collect" || action.id === "act_search_investigate" || action.id === "act_explore_npc_assist" || action.id === "act_search_leave" || action.id === "act_trang_thai");
     result.actions = resolveActions(state, result.actions);
     return result;
@@ -5373,9 +5506,9 @@ window.GameEngine = (function () {
     const byId = new Map();
     rawActions.map((raw, index) => {
       const id = String(raw?.id || "");
-      const forced = ["act_chon_", "act_path_", "act_faction_", "act_ritual_"].some((prefix) => id.startsWith(prefix));
+      const forced = ["act_chon_", "act_journey_", "act_path_", "act_faction_", "act_ritual_"].some((prefix) => id.startsWith(prefix));
       const combat = ["act_tan_cong_thuong", "act_bo_chay", "act_skill_"].some((prefix) => id === prefix || id.startsWith(prefix));
-      const pending = ["act_search_collect", "act_search_investigate", "act_explore_npc_assist", "act_search_leave", "act_exp_opportunity"].includes(id);
+      const pending = ["act_search_collect", "act_search_investigate", "act_explore_npc_assist", "act_search_leave", "act_exp_map_event", "act_exp_opportunity", "act_opportunity_fight", "act_opportunity_scheme", "act_opportunity_share"].includes(id);
       const meta = { ...raw, tier: raw?.tier ?? (forced || combat || pending ? 0 : 2), urgency: raw?.urgency ?? (forced ? 100 : combat ? 90 : pending ? 80 : 10), blocking: raw?.blocking ?? (forced || combat || pending), scope: raw?.scope ?? (combat ? "combat" : pending ? "pending" : "local"), sourceOrder: raw?.sourceOrder ?? index, category: raw?.category ?? (combat ? "combat" : pending ? "opportunity" : "other") };
       const action = normalizeAction(meta, index);
       if (!byId.has(action.id)) byId.set(action.id, action);
@@ -5414,6 +5547,12 @@ window.GameEngine = (function () {
   }
   function resolveAction(state, actionId, options = {}) {
     if (actionId.startsWith("act_journey_")) return chooseJourneyIntent(state, actionId.slice("act_journey_".length));
+    if (actionId.startsWith("act_opportunity_")) {
+      const choice = actionId.slice("act_opportunity_".length);
+      return typeof window !== "undefined" && window.GameExpansion?.resolveContestedOpportunity
+        ? window.GameExpansion.resolveContestedOpportunity(state, choice)
+        : { success: false, reason: "Cơ duyên hiện chưa thể xử lý." };
+    }
     if (actionId.startsWith("act_ritual_")) return performBreakthroughRitualStep(state, actionId.slice("act_ritual_".length));
     if (actionId.startsWith("act_path_")) return selectPath(state, actionId.slice("act_path_".length));
     if (actionId.startsWith("act_faction_")) return chooseTaintedFaction(state, actionId.slice("act_faction_".length));
@@ -5435,6 +5574,7 @@ window.GameEngine = (function () {
       act_tim_kiem: () => search(state),
       act_search_collect: () => collectSearchFindings(state),
       act_search_investigate: () => investigateSearchFinding(state),
+      act_explore_npc_assist: () => investigateSearchFinding(state),
       act_search_leave: () => leaveSearchSession(state),
       act_dot_pha: () => breakthroughRitualStatus(state).remaining.length ? { changed: false, reason: "Hãy mở Nghi Thức Đột Phá và hoàn tất cổng đang active trước." } : doBreakthrough(state),
       act_nghi_ngoi: () => rest(state),
@@ -5454,6 +5594,9 @@ window.GameEngine = (function () {
       if (!departure.allowed && (validMove || validSafeTravel)) action = { id: actionId, label: actionId };
     }
     if (!action) return false;
+    if (action.enabled === false || action.disabledReason || action.disabled_reason) {
+      return { success: false, reason: action.disabledReason || action.disabled_reason || "Hành động chưa sẵn sàng." };
+    }
     // Journey intent is a pre-game state transition. Resolve it before mutating
     // the turn clock so an invalid choice cannot consume time or emit an echo.
     if (actionId.startsWith("act_journey_")) {
@@ -5600,7 +5743,7 @@ window.GameEngine = (function () {
   function getChuyenSinhBlockers(state) {
     const blockers = [];
     if (cultivationTier(state) < 8) blockers.push("Cảnh giới hiện tại: " + cultivationTier(state) + "/8");
-    if (state.player.lifespan <= 0) blockers.push("Thọ Nguyên đã cạn  đây là Luân Hồi bắt buộc");
+    if (state.player.lifespan <= 0) blockers.push("Thọ Nguyên đã cạn — đây là Luân Hồi bắt buộc");
     if (state.flags?.chuyenSinhCooldownUntil && Date.now() < state.flags.chuyenSinhCooldownUntil) blockers.push("Chuyển Sinh đang trong thời gian hồi");
     return blockers;
   }
@@ -5637,7 +5780,7 @@ window.GameEngine = (function () {
     const perceivedQi = perceivedValue(state, p.qi, "qi");
     const perceivedFortune = perceivedValue(state, s.fortune, "fortune");
     return [
-      "§ " + p.name + "  " + pathTitle(state),
+      "§ " + p.name + " — " + pathTitle(state),
       "Cảnh giới: " + pathTitle(state) + " (tầng " + cultivationTier(state) + ")",
       "Khí Huyết: " + perceivedHp + "/" + p.maxHp,
       "Linh Khí: " + perceivedQi + "/" + p.maxQi,
@@ -5662,7 +5805,7 @@ window.GameEngine = (function () {
       const item = D().ITEMS[id];
       if (!item) return "  Vật phẩm không xác định: " + id;
       const equipped = equippedIds.has(id) ? " [Đang trang bị]" : "";
-      return "  " + item.name + " ×" + state.inventory[id] + equipped + "  " + (item.desc || "Không rõ lai lịch.");
+      return "  " + item.name + " ×" + state.inventory[id] + equipped + " — " + (item.desc || "Không rõ lai lịch.");
     }).join("\n"), "inventory");
   }
   function describeQuests(state) {
@@ -5708,7 +5851,7 @@ window.GameEngine = (function () {
     const exits = Object.entries(locationExits(state)).filter(([, id]) => id && D().LOCATIONS[id]).map(([dir, id]) => {
       return "  " + directions[dir] + " → " + D().LOCATIONS[id].name;
     });
-    return weaveAtmosphere(state, "§ Bản Đồ  " + (D().WORLD_MAP?.name || "Vạn Giới Lộ") + "\n" +
+    return weaveAtmosphere(state, "§ Bản Đồ — " + (D().WORLD_MAP?.name || "Vạn Giới Lộ") + "\n" +
       "  Hiện tại: " + loc.name + "\n" +
       (exits.length ? "  Lối đi:\n" + exits.join("\n") : "  Không có lối đi khả dụng."), "map:" + state.locationId);
   }
@@ -5996,6 +6139,6 @@ window.GameEngine = (function () {
     elementRelation, familyMatchup, toCanonicalCharacter, fromCanonicalCharacter,
     gainExp, recordCultivationGain, cultivationVelocityStatus, adjustDaoTam, cultivationJournalPush, enterLuyenKhi, cultivate, autoCultivate, secludedCultivation, rest, doBreakthrough, drainSan, restoreSan, move, locationExits, look, ensureSearchSite, pendingExplorationAt, pendingDepartureGuard, confirmPendingDeparture, searchStatus, search, collectSearchFindings, investigateSearchFinding, leaveSearchSession, useItem,
     talk, combat, beginCombat, aliveEnemies, firstAliveEnemy, enemyTurn, afterPlayerCombatAction, applyPlayerDamage, endCombat, combatEntity, spawnCombatEntity, maybeSpawnCombatExtras, lootTable, rollEntityLoot, rollDefeatBonus, entityCatalog, getEntity, entityForPlayer, dialogueState, presentEntities, mapAddressCatalog, mapAddressesAtNode, mapOxyAddress, rollMapEvent, resolveMapEvent, validateMapEventState, maybeTriggerRandomEncounter, findEntityByName, interactEntity, monsterAction, useTechnique, techniquePreview, learnTechnique, getKnownTechniques, techniqueCatalog, validateTechniqueCatalog, techniqueStatus, techniqueProgress, contextState, resolveActionPriority, moveActions, talkActions, skillActions, parseAction, resolveAction, submitActionId, submitTurn, describeStatus, describeInventory, describeQuests, coordinateKey, neighborCoordinate, getNodeAtCoordinate, nodeCoordinates, validateOpenWorldGrid,
-    describeFate, describeMap, serialize, deserialize, pushMemory, pushHistory, createGameEvent, emitGameEvent, renderGameEvent, renderScene, lintNarrativeText, repairMojibakeText, narrativeSafe, formatPlayerLogText, getGameLog, novelLogParagraphs, validateLogSurfaceState, detectMilestones, formatEventChanges, ensureGameClock, ensureWorldClock, syncWorldClock, clockLabel, worldClockLabel, advanceGameTime, processOnlineFateReward, applyOfflineProgress, GAME_TIME_CONFIG, ERROR_NARRATIVE_MAP, playerFacingReason
+    describeFate, describeMap, serialize, deserialize, pushMemory, pushHistory, createGameEvent, emitEvent, emitGameEvent, normalizeHistoryEvent, groupIntoScenes, renderGameEvent, renderScene, lintNarrativeText, repairMojibakeText, sanitizeLogUtf8, narrativeSafe, formatPlayerLogText, getGameLog, novelLogParagraphs, validateLogSurfaceState, detectMilestones, formatEventChanges, ensureGameClock, ensureWorldClock, syncWorldClock, clockLabel, worldClockLabel, advanceGameTime, processOnlineFateReward, applyOfflineProgress, GAME_TIME_CONFIG, ERROR_NARRATIVE_MAP, playerFacingReason
   };
 })();

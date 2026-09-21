@@ -1,5 +1,5 @@
 /* ============================================================
- * CỔ DỊ DIỆN  Unified expansion runtime
+ * CỔ DỊ DIỆN — Unified expansion runtime
  * World simulation, living factions/NPCs, progression branches,
  * professions, contracts, companions, legacies and Fate evolution.
  * ============================================================ */
@@ -2014,8 +2014,9 @@
     appendNodeHistory(state, nodeId, { type: "faction_change", summary: "Một trạm mới mang cờ của người chơi được dựng lên." }); return { success: true, outpost };
   }
   function petitionOutpostToFaction(state, nodeId = state.locationId) {
+    // Player-facing reasons are normalized by the UTF-8 log boundary.
     const existingOutpost = ensureMapState(state).outposts[nodeId];
-    if (existingOutpost && (existingOutpost.ownerType !== "player" || existingOutpost.ownerId !== state.player.id || existingOutpost.donatedToFactionId)) return { success: false, reason: "Tráº¡m nÃ y ÄÃ£ ÄÆ°á»£c dÃ¢ng cho tháº¿ lá»±c hoáº·c khÃ´ng cÃ²n thuá»c quyền ngươi chơi." };
+    if (existingOutpost && (existingOutpost.ownerType !== "player" || existingOutpost.ownerId !== state.player.id || existingOutpost.donatedToFactionId)) return { success: false, reason: "Trạm này đã được dâng cho thế lực hoặc không còn thuộc quyền ngươi chơi." };
     const outpost = ensureMapState(state).outposts[nodeId]; const factionId = state.guildMembership?.guildId || state.player.tainted?.faction;
     if (!outpost || !factionId) return { success: false, reason: "Cần có trạm của riêng mình và đang phục vụ một thế lực." };
     outpost.donatedToFactionId = factionId; outpost.ownerType = "faction"; outpost.ownerId = factionId; const faction = state.worldSimulation.factionState[factionId]; if (faction) { faction.power = Number(faction.power || 0) + 5; faction.reputationWithPlayer = Number(faction.reputationWithPlayer || 0) + 20; }

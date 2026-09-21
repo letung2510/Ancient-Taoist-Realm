@@ -28,7 +28,7 @@ function testPathContracts() {
 
 function testNpcDialogueQuest() {
   const state = makeState();
-  state.worldSimulation.npcState.qa_merchant = { npcId: "qa_merchant", name: "Th��ng Nh�n QA", role: "merchant", status: "alive", currentNodeId: state.locationId, homeNodeId: state.locationId, scheduleType: "static" };
+  state.worldSimulation.npcState.qa_merchant = { npcId: "qa_merchant", name: "Th——ng Nh—n QA", role: "merchant", status: "alive", currentNodeId: state.locationId, homeNodeId: state.locationId, scheduleType: "static" };
   E.ensureNpcWorldState(state);
   const actions = E.expansionActions(state);
   assert(actions.some((action) => action.id === "act_exp_npc_talk_qa_merchant"));
@@ -44,7 +44,7 @@ function testNpcDialogueQuest() {
 
 function testWeatherHysteresis() {
   const state = makeState();
-  state.worldSimulation.npcState.qa_guard = { npcId: "qa_guard", name: "V� binh QA", role: "guard", status: "alive", currentNodeId: state.locationId, homeNodeId: state.locationId, scheduleType: "static" };
+  state.worldSimulation.npcState.qa_guard = { npcId: "qa_guard", name: "V— binh QA", role: "guard", status: "alive", currentNodeId: state.locationId, homeNodeId: state.locationId, scheduleType: "static" };
   E.ensureNpcWorldState(state);
   const region = E.gameDayOrdinal(state) && (sandbox.window.GameData.LOCATIONS[state.locationId]?.region || state.startRegionId);
   state.worldSimulation.regionState[region] = { weather: "am_vu", weatherIntensity: 4 };
@@ -59,7 +59,7 @@ function testWeatherHysteresis() {
 
 function testCompanionSkillAndPhysiqueTrigger() {
   const state = makeState();
-  state.companion = { entityId: "qa_beast", customName: "D� Th� QA", state: "active", loyalty: 60, health: 100, maxHealth: 100, skillCooldowns: {} };
+  state.companion = { entityId: "qa_beast", customName: "D— Th— QA", state: "active", loyalty: 60, health: 100, maxHealth: 100, skillCooldowns: {} };
   E.spawnCombatEntity(state, "di_qui");
   const result = E.useCompanionSkill(state, "guard_bite");
   assert(result.success && result.damage > 0);
@@ -211,4 +211,4 @@ testRitualProfessionAndUnknownMigration();
 testOfflineEncounterAndCompanionCombat();
 testWardFormationEffect();
 testOfflineWorldEventLifecycle();
-console.log("OK: deep D� Ch�/path/companion/quest/weather regression");
+console.log("OK: deep D— Ch—/path/companion/quest/weather regression");

@@ -30,7 +30,7 @@ Validator được gọi trong `validateExpansionState`, còn `updateDerived` l�
 
 ## Source: `01-core\CON_DUONG_NGHE_AN_NAME_COLLISION_REVIEW_2026-09-16.md`
 
-# Review tên Con Đường và Nghề Ẩn  2026-09-16
+# Review tên Con Đường và Nghề Ẩn — 2026-09-16
 
 ## Phạm vi
 
@@ -41,13 +41,13 @@ Review trước khi code theo yêu cầu Task 8: kiểm tra nguy cơ lẫn tên 
 - Nghề chính dùng các id như `luyen_dan`, `luyen_khi`, `tran_phap`, `tuong_su`; dữ liệu nghề nằm trong `professionDefinitions`.
 - Nghề Ẩn nằm trong `hiddenProfessions`, được mở theo các mảnh Cổ Tịch Tà Thần và đi vào slot phụ.
 - Con Đường dùng namespace path, ví dụ `dan_dao`, `kiem_dao`, `phong_thuy_dao`, `tinh_tuong_dao`; path có level/compatibility/tiến triển riêng.
-- Có rủi ro UX vì mô tả cũ gọi nghề ẩn là con đường nghề ẩn, và một số path có hậu tố `*_dao`. Đây là rủi ro nhãn, không phải collision id trực tiếp.
+- Có rủi ro UX vì mô tả cũ gọi nghề ẩn là “con đường nghề ẩn”, và một số path có hậu tố `*_dao`. Đây là rủi ro nhãn, không phải collision id trực tiếp.
 
 ## Quyết định trước khi code
 
 1. Không đổi id save hiện có và không đổi tên path hàng loạt; đổi tên sẽ phá relation, save và dữ liệu legacy.
 2. Giữ hai namespace/API: resolver cho Con Đường Ẩn và `professionAvailability()/chooseProfessionLocked()` cho Nghề Ẩn.
-3. UI luôn thêm tiền tố rõ ràng: `Con Đường: ...`, `Nghề chính: ...`, `Nghề ẩn: ...`. Không dùng nhãn Con đường nghề ẩn.
+3. UI luôn thêm tiền tố rõ ràng: `Con Đường: ...`, `Nghề chính: ...`, `Nghề ẩn: ...`. Không dùng nhãn “Con đường nghề ẩn”.
 4. Nếu sau này xuất hiện cùng display name, bắt buộc hiển thị loại đối tượng và id ổn định trong tooltip/debug; không đổi tên tùy tiện.
 
 ## Kết luận
@@ -59,14 +59,14 @@ Chưa cần đổi tên Con Đường hiện hữu. Cần sửa terminology, nam
 
 ## Source: `01-core\fate\FATE_FEATURE_AUDIT_2026-09-09.md`
 
-# FATE Feature Audit  2026-09-09
+# FATE Feature Audit — 2026-09-09
 
 ## Đã apply runtime
 
 - Catalog 10.000, grade/sign maps, element/path affinity và split effects.
 - Weighted resolver theo cấp, fallback grade, duplicate essence, pending reward và khóa Tiên trong single-save.
 - Active/Vault invariant, equip/unequip/swap, sacrifice, fusion, upgrade.
-- Pairwise relationship, combo, relationship stage 04.
+- Pairwise relationship, combo, relationship stage 0–4.
 - Dưỡng Mệnh có cooldown ngày, điểm quan hệ và hành vi thật.
 - Cộng Minh, Giác Ngộ, Buông Mệnh Nguội, Nghịch Mệnh, Trấn Mệnh, Thiên Cơ.
 - Fate Evolution đã là hệ thống nhánh biến thể; `transformFate` cung cấp contract và công thức chi phí, ủy quyền commit cho expansion transaction.
@@ -146,27 +146,27 @@ Trong `data/canh_gioi_tien_hiep.json`:
 - cấp 6: Thần Tính, yêu cầu tối thiểu 80;
 - từ cấp 7 bắt đầu có thêm ngưỡng `minNormalFate`, tỷ lệ và các cửa nghi thức khác.
 
-Một Mệnh Phàm vẫn có thể còn giá trị ở cấp cao nếu tương hợp Con Đường, có hiệu ứng điều kiện hoặc dùng làm nguyên liệu dung hợp. Tuy nhiên, nếu phần thưởng mới liên tục rơi Phàm thì trải nghiệm bị cảm giác đang tiến cấp nhưng loot không tiến cấp.
+Một Mệnh Phàm vẫn có thể còn giá trị ở cấp cao nếu tương hợp Con Đường, có hiệu ứng điều kiện hoặc dùng làm nguyên liệu dung hợp. Tuy nhiên, nếu phần thưởng mới liên tục rơi Phàm thì trải nghiệm bị cảm giác “đang tiến cấp nhưng loot không tiến cấp”.
 
 ## 3. Đánh giá hai phương án đang được cân nhắc
 
-### Phương án A  đổi Phàm trong catalog từ 80% xuống 15%
+### Phương án A — đổi Phàm trong catalog từ 80% xuống 15%
 
 Ưu điểm:
 
 - giảm mạnh hiện tượng chọn đều nhưng toàn ra Phàm;
-- các phẩm LinhĐịa xuất hiện thường xuyên hơn nếu mọi nguồn vẫn chọn đều.
+- các phẩm Linh–Địa xuất hiện thường xuyên hơn nếu mọi nguồn vẫn chọn đều.
 
 Nhược điểm:
 
 - thay đổi ý nghĩa của toàn bộ catalog 10.000 entry;
 - các hệ thống cũ đang lọc theo số lượng entry sẽ bị thay đổi ngầm, khó cân bằng riêng từng nguồn;
 - Phàm mất vai trò nguyên liệu phổ thông cho hiến tế, Hư Thiên Đỉnh, nhiệm vụ và giai đoạn đầu;
-- vẫn không giải quyết đúng bài toán nếu một nguồn không được lọc theo cảnh giới: chỉ chuyển từ quá nhiều Phàm sang pool không có chủ đích.
+- vẫn không giải quyết đúng bài toán nếu một nguồn không được lọc theo cảnh giới: chỉ chuyển từ “quá nhiều Phàm” sang “pool không có chủ đích”.
 
 Kết luận: **không nên dùng đây làm bản sửa đầu tiên**.
 
-### Phương án B  giữ catalog, nhưng từ cấp 3 giảm Phàm còn khoảng 15% trong phần thưởng
+### Phương án B — giữ catalog, nhưng từ cấp 3 giảm Phàm còn khoảng 15% trong phần thưởng
 
 Ưu điểm:
 
@@ -178,7 +178,7 @@ Kết luận: **không nên dùng đây làm bản sửa đầu tiên**.
 Nhược điểm:
 
 - cần đưa logic trọng số vào một nơi dùng chung, tránh mỗi action tự đặt tỷ lệ;
-- cần quy định rõ cấp 3 là cấp nhân vật hay phẩm cấp mục tiêu của phần thưởng.
+- cần quy định rõ “cấp 3” là cấp nhân vật hay phẩm cấp mục tiêu của phần thưởng.
 
 Kết luận: **đây là phương án nên triển khai**.
 
@@ -198,10 +198,10 @@ Các tỷ lệ dưới đây áp dụng cho một lần nhận Mệnh Số thôn
 
 | Cấp nhân vật | Phàm | Linh | Hoàng | Huyền | Địa | Thiên | Thánh | Tiên |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| 12 | 65% | 30% | 5% | 0% | 0% | 0% | 0% | 0% |
-| 34 | 15% | 45% | 25% | 10% | 5% | 0% | 0% | 0% |
-| 56 | 5% | 20% | 35% | 25% | 10% | 5% | 0% | 0% |
-| 78 | 2% | 10% | 25% | 30% | 20% | 10% | 3% | 0% |
+| 1–2 | 65% | 30% | 5% | 0% | 0% | 0% | 0% | 0% |
+| 3–4 | 15% | 45% | 25% | 10% | 5% | 0% | 0% | 0% |
+| 5–6 | 5% | 20% | 35% | 25% | 10% | 5% | 0% | 0% |
+| 7–8 | 2% | 10% | 25% | 30% | 20% | 10% | 3% | 0% |
 | 9+ | 1% | 5% | 15% | 25% | 25% | 18% | 11% | 0% |
 
 Đây là phân bố khởi điểm để test, không phải giá trị bất biến. Có thể thêm `sourceModifier`:
@@ -209,13 +209,13 @@ Các tỷ lệ dưới đây áp dụng cho một lần nhận Mệnh Số thôn
 - chiến đấu thường: lệch xuống một bậc;
 - tinh anh/boss: lệch lên một bậc hoặc tăng cơ hội phẩm cao;
 - nhiệm vụ/cơ duyên cốt truyện: dùng bảng riêng, có thể bảo đảm phẩm tối thiểu;
-- online/AFK: ưu tiên PhàmHoàng, không nên trao Huyền+ quá dễ;
+- online/AFK: ưu tiên Phàm–Hoàng, không nên trao Huyền+ quá dễ;
 - Khâm Thiên Giám: giữ cơ chế neo theo phẩm đang kích hoạt và pity riêng; Tiên phẩm chỉ mở qua nguồn đặc biệt;
 - Hư Thiên Đỉnh: phẩm đầu vào quyết định cap, không roll từ toàn bộ catalog.
 
 ### 4.3. Bảo toàn ý nghĩa của Phàm phẩm
 
-Không nên coi Phàm là vật bỏ đi từ cấp 3. Phàm vẫn nên có ít nhất một trong các vai trò:
+Không nên coi Phàm là “vật bỏ đi” từ cấp 3. Phàm vẫn nên có ít nhất một trong các vai trò:
 
 - nguyên liệu hiến tế/dung luyện;
 - Mệnh tương hợp cao nhưng chỉ số thấp;
@@ -237,7 +237,7 @@ Như vậy giảm tỷ lệ rơi mới không biến Phàm thành dữ liệu v�
 
 ## 6. Ý kiến cuối cùng
 
-- Ý kiến từ cấp 3 người chơi không còn cần nhiều Phàm là **đúng ở tầng phần thưởng**, nhưng không nên sửa bằng cách cắt catalog 80% xuống 15%.
+- Ý kiến “từ cấp 3 người chơi không còn cần nhiều Phàm” là **đúng ở tầng phần thưởng**, nhưng không nên sửa bằng cách cắt catalog 80% xuống 15%.
 - Tỷ lệ Phàm **15% từ cấp 3** là điểm khởi đầu hợp lý cho phần thưởng thông thường, không phải tỷ lệ toàn hệ thống.
 - Nên giữ Tiên phẩm là entry duy nhất, nhưng không nên đưa Tiên vào bảng rơi thường với 1% ở mọi nguồn; Tiên nên có nguồn đặc biệt, điều kiện hoặc pity rất rõ.
 - Cần phân biệt `phẩm cấp của Mệnh nhận được` với `độ phù hợp Con Đường`: Mệnh Linh/Huyền không tự động tốt hơn một Mệnh Phàm tương hợp 10/10.
@@ -284,9 +284,9 @@ Như vậy giảm tỷ lệ rơi mới không biến Phàm thành dữ liệu v�
 > 1. Thêm một resolver dùng chung, ví dụ `rollFateByProgression(state, source, options)`, để chọn phẩm theo `realmLevel`, `source`, `gradeCap`, `pathAffinity` và pity.
 > 2. Giữ riêng logic khởi tạo `drawInitialFates()`; không tự động biến catalog 50% thành tỷ lệ khởi tạo mới.
 > 3. Với phần thưởng thông thường, áp dụng trọng số theo giai đoạn:
->    - cấp 12: Phàm 65%, Linh 30%, Hoàng 5%;
->    - cấp 34: Phàm 15%, Linh 45%, Hoàng 25%, Huyền 10%, Địa 5%;
->    - cấp 56: Phàm 5%, Linh 20%, Hoàng 35%, Huyền 25%, Địa 10%, Thiên 5%;
+>    - cấp 1–2: Phàm 65%, Linh 30%, Hoàng 5%;
+>    - cấp 3–4: Phàm 15%, Linh 45%, Hoàng 25%, Huyền 10%, Địa 5%;
+>    - cấp 5–6: Phàm 5%, Linh 20%, Hoàng 35%, Huyền 25%, Địa 10%, Thiên 5%;
 >    - cấp 7+: ưu tiên Huyền/Địa/Thiên/Thánh; Tiên không rơi từ bảng thường.
 > 4. Chuyển combat, map clue, quest/cơ duyên và online reward sang resolver chung; không dùng `filter(...).random()` nếu pool chứa nhiều phẩm cấp.
 > 5. Giữ nguồn đặc biệt riêng: Khâm Thiên Giám, cốt truyện, hidden fate, pity và Tiên phẩm.
@@ -297,7 +297,7 @@ Như vậy giảm tỷ lệ rơi mới không biến Phàm thành dữ liệu v�
 >
 > - Test schema và count catalog: 10.000 entry, Phàm 5.000, Tiên đúng 1.
 > - Test migration save cũ: mọi ID trong `player.fates`, `fateInventory`, `pendingFateRewards` vẫn resolve được.
-> - Monte Carlo có seed cho từng cấp 12, 34, 56, 7+ và từng nguồn reward; sai số mục tiêu không quá ±1 điểm phần trăm sau tối thiểu 100.000 lượt.
+> - Monte Carlo có seed cho từng cấp 1–2, 3–4, 5–6, 7+ và từng nguồn reward; sai số mục tiêu không quá ±1 điểm phần trăm sau tối thiểu 100.000 lượt.
 > - Test không thể nhận Tiên từ reward thông thường.
 > - Test Mệnh tương hợp thấp nhưng grade cao không tự động vượt Mệnh tương hợp cao grade thấp trong các gate đã quy định.
 > - Chạy `node --check`, `node tools/verify_game.js`, kiểm tra diff và kiểm tra giao diện Mệnh Kho/nhận thưởng.
@@ -357,28 +357,28 @@ Batch chỉ chuyển sang phần Tổ chức khi toàn bộ gate trên đạt.
 
 # Map System V2  Applicability Review & Implementation Contract
 
-## 1. Kï¿½t luï¿½n
+## 1. K—t lu—n
 
-Logic trong `MAP_SYSTEM_V2_COMPLETE.md` ï¿½p dï¿½ng ï¿½ï¿½c vï¿½o game hiï¿½n tï¿½i, nhï¿½ng khï¿½ng nï¿½n thay toï¿½n bï¿½ hï¿½ thï¿½ng map trong mï¿½t lï¿½n. Cï¿½ch an toï¿½n lï¿½ giï¿½ `locationId` vï¿½ graph `openWorld` lï¿½m lï¿½p tï¿½ï¿½ng thï¿½ch, sau ï¿½ bï¿½ sung `mapState`, `subLocationId` vï¿½ `travelTask`.
+Logic trong `MAP_SYSTEM_V2_COMPLETE.md` —p d—ng ——c v—o game hi—n t—i, nh—ng kh—ng n—n thay to—n b— h— th—ng map trong m—t l—n. C—ch an to—n l— gi— `locationId` v— graph `openWorld` l—m l—p t——ng th—ch, sau — b— sung `mapState`, `subLocationId` v— `travelTask`.
 
-Khï¿½ng cï¿½n viï¿½t lï¿½i combat, quest, Hidden Realm hay NPC scheduler. Phï¿½n cï¿½ rï¿½i ro cao nhï¿½t lï¿½ travel vï¿½ `move()` hiï¿½n ï¿½i vï¿½ trï¿½ ï¿½ng bï¿½; nï¿½n bï¿½c bï¿½ng travel resolver thay vï¿½ ï¿½i semantics ngay lï¿½p tï¿½c.
+Kh—ng c—n vi—t l—i combat, quest, Hidden Realm hay NPC scheduler. Ph—n c— r—i ro cao nh—t l— travel v— `move()` hi—n —i v— tr— —ng b—; n—n b—c b—ng travel resolver thay v— —i semantics ngay l—p t—c.
 
-## 2. ï¿½i chiï¿½u hiï¿½n trï¿½ng
+## 2. —i chi—u hi—n tr—ng
 
-| Thï¿½nh phï¿½n V2 | Hiï¿½n trï¿½ng | Khï¿½ nng ï¿½p dï¿½ng |
+| Th—nh ph—n V2 | Hi—n tr—ng | Kh— nng —p d—ng |
 |---|---|---|
-| L1 World Map | ï¿½ cï¿½ region, route, faction pin | Cao; bï¿½ sung influence heatmap |
-| L2 Regional Map | ï¿½ cï¿½ node graph, exits, tï¿½a ï¿½ | Cao; thï¿½m fog/owner getter |
-| L3 Node Detail | Chï¿½a cï¿½ sub-location | Cao; dï¿½ng mï¿½c ï¿½nh `main` ï¿½ tï¿½ï¿½ng thï¿½ch |
-| L4 Instance | Hidden Realm runtime node ï¿½ cï¿½ | Cao; giï¿½ runtime namespace riï¿½ng |
-| Influence gradient | ang thiï¿½n vï¿½ owner/faction t)nh | Cao; tï¿½nh derived tï¿½ graph vï¿½ power |
-| Fog 03 | Chï¿½a cï¿½ ï¿½y ï¿½ | Cao; migrate tï¿½ `visitedLocations` |
-| Claim/outpost/structure | Chï¿½a cï¿½ | Trung bï¿½nhcao; cï¿½n economy/task contract |
-| Weighted travel | `move()` gï¿½n nhï¿½ tï¿½c thï¿½i | Trung bï¿½nh; cï¿½n adapter/task resolver |
-| Fast travel | Chï¿½a cï¿½ unlock contract | Cao sau khi cï¿½ waystation/visited state |
-| Patrol/bulletin | Chï¿½a cï¿½ UI contract ï¿½y ï¿½ | Cao; dï¿½ liï¿½u lï¿½y tï¿½ event/scheduler hiï¿½n cï¿½ |
+| L1 World Map | — c— region, route, faction pin | Cao; b— sung influence heatmap |
+| L2 Regional Map | — c— node graph, exits, t—a — | Cao; th—m fog/owner getter |
+| L3 Node Detail | Ch—a c— sub-location | Cao; d—ng m—c —nh `main` — t——ng th—ch |
+| L4 Instance | Hidden Realm runtime node — c— | Cao; gi— runtime namespace ri—ng |
+| Influence gradient | ang thi—n v— owner/faction t)nh | Cao; t—nh derived t— graph v— power |
+| Fog 03 | Ch—a c— —y — | Cao; migrate t— `visitedLocations` |
+| Claim/outpost/structure | Ch—a c— | Trung b—nhcao; c—n economy/task contract |
+| Weighted travel | `move()` g—n nh— t—c th—i | Trung b—nh; c—n adapter/task resolver |
+| Fast travel | Ch—a c— unlock contract | Cao sau khi c— waystation/visited state |
+| Patrol/bulletin | Ch—a c— UI contract —y — | Cao; d— li—u l—y t— event/scheduler hi—n c— |
 
-## 3. State schema ï¿½ xuï¿½t
+## 3. State schema — xu—t
 
 ```js
 state.mapState = {
@@ -398,15 +398,15 @@ state.mapState = {
 
 Compatibility rules:
 
-1. `locationId` vï¿½n lï¿½ node ID; khï¿½ng ghï¿½p sub-location vï¿½o ID.
-2. `subLocationId` chï¿½ lï¿½ context UI/action, mï¿½c ï¿½nh `main`.
-3. Save ci ï¿½ï¿½c migrate: current location cï¿½ fog 2, location ï¿½ visit cï¿½ fog tï¿½i thiï¿½u 2, cï¿½n lï¿½i fog 0.
-4. `openWorld` vï¿½n lï¿½ graph; map V2 chï¿½ thï¿½m derived/runtime state.
-5. Dynamic nodes phï¿½i nï¿½m trong `worldSimulation.runtimeLocations`, khï¿½ng ghi ngï¿½ï¿½c vï¿½o static catalog nhï¿½ nguï¿½n dï¿½ liï¿½u chï¿½nh.
+1. `locationId` v—n l— node ID; kh—ng gh—p sub-location v—o ID.
+2. `subLocationId` ch— l— context UI/action, m—c —nh `main`.
+3. Save ci ——c migrate: current location c— fog 2, location — visit c— fog t—i thi—u 2, c—n l—i fog 0.
+4. `openWorld` v—n l— graph; map V2 ch— th—m derived/runtime state.
+5. Dynamic nodes ph—i n—m trong `worldSimulation.runtimeLocations`, kh—ng ghi ng——c v—o static catalog nh— ngu—n d— li—u ch—nh.
 
 ## 4. Node Detail (L3)
 
-Mï¿½i node cï¿½ thï¿½ khai bï¿½o:
+M—i node c— th— khai b—o:
 
 ```js
 subLocations: [
@@ -416,11 +416,11 @@ subLocations: [
 ]
 ```
 
-Node nhï¿½ nï¿½n cï¿½ 12 sub-location; node lï¿½n 58. NPC cï¿½ `currentSubLocationId`, vï¿½ action resolver lï¿½c theo sub-location. Di chuyï¿½n trong cï¿½ng node chï¿½ tï¿½n action/time ngï¿½n, khï¿½ng tï¿½n mï¿½t ngï¿½y travel. Vertical slice nï¿½n lï¿½m trï¿½ï¿½c cho `son_mon`, `cho_linh` vï¿½ `hac_lam`.
+Node nh— n—n c— 12 sub-location; node l—n 58. NPC c— `currentSubLocationId`, v— action resolver l—c theo sub-location. Di chuy—n trong c—ng node ch— t—n action/time ng—n, kh—ng t—n m—t ng—y travel. Vertical slice n—n l—m tr——c cho `son_mon`, `cho_linh` v— `hac_lam`.
 
 ## 5. Influence gradient
 
-Expose cï¿½c API thuï¿½n dï¿½ liï¿½u:
+Expose c—c API thu—n d— li—u:
 
 ```js
 computeMapInfluence(state, nodeId)
@@ -429,29 +429,29 @@ mapOwner(state, nodeId)
 mapZoneStatus(state, nodeId) // stable | contested | frontier
 ```
 
-Gï¿½i ï¿½ cï¿½ng thï¿½c:
+G—i — c—ng th—c:
 
 ```text
-score(faction,node) = factionPower ï¿½ 0.70^graphDistance
-                      ï¿½ (1 + structureBonus + eventBonus + outpostBonus)
+score(faction,node) = factionPower — 0.70^graphDistance
+                      — (1 + structureBonus + eventBonus + outpostBonus)
 ```
 
-Owner chï¿½ ï¿½ï¿½c hiï¿½n thï¿½ khi score cao nhï¿½t ï¿½t ngï¿½ï¿½ng vï¿½ hï¿½n faction thï¿½ hai ï¿½t nhï¿½t 15%; nï¿½u khï¿½ng lï¿½ `contested`. War ownership vï¿½ map influence lï¿½ hai lï¿½p riï¿½ng. Quest/event chï¿½ ï¿½ï¿½c delta cï¿½ cap theo ngï¿½y ï¿½ trï¿½nh mï¿½t nhiï¿½m vï¿½ ï¿½i chï¿½ toï¿½n vï¿½ng.
+Owner ch— ——c hi—n th— khi score cao nh—t —t ng——ng v— h—n faction th— hai —t nh—t 15%; n—u kh—ng l— `contested`. War ownership v— map influence l— hai l—p ri—ng. Quest/event ch— ——c delta c— cap theo ng—y — tr—nh m—t nhi—m v— —i ch— to—n v—ng.
 
 ## 6. Fog of war
 
-| Level | ï¿½ ngh)a | UI ï¿½ï¿½c phï¿½p hiï¿½n thï¿½ |
+| Level | — ngh)a | UI ——c ph—p hi—n th— |
 |---|---|---|
-| 0 | Chï¿½a biï¿½t | Khï¿½ng spoil tï¿½n/NPC/route chi tiï¿½t |
-| 1 | Cï¿½ tin ï¿½n | Tï¿½n vï¿½ng mï¿½ hï¿½, danger hint |
-| 2 | ï¿½ thm | Node, route ï¿½ thï¿½y, owner hiï¿½n tï¿½i |
-| 3 | Khï¿½o sï¿½t sï¿½u | Sub-location, patrol, bulletin, fast travel |
+| 0 | Ch—a bi—t | Kh—ng spoil t—n/NPC/route chi ti—t |
+| 1 | C— tin —n | T—n v—ng m— h—, danger hint |
+| 2 | — thm | Node, route — th—y, owner hi—n t—i |
+| 3 | Kh—o s—t s—u | Sub-location, patrol, bulletin, fast travel |
 
-Fog 3 ï¿½t qua ï¿½t nhï¿½t 5 visits, outpost hoï¿½c waystation. Khï¿½ng dï¿½ng fog ï¿½ ï¿½n dï¿½ liï¿½u cï¿½n cho save/load hoï¿½c combat resolver.
+Fog 3 —t qua —t nh—t 5 visits, outpost ho—c waystation. Kh—ng d—ng fog — —n d— li—u c—n cho save/load ho—c combat resolver.
 
 ## 7. Player agency
 
-API nï¿½n cï¿½ transaction result thï¿½ng nhï¿½t:
+API n—n c— transaction result th—ng nh—t:
 
 ```js
 claimOutpost(state, nodeId)
@@ -462,16 +462,16 @@ mapStructurePreview(state, nodeId, structureType)
 
 Structure templates:
 
-- `watchtower`: tng fog/influence vï¿½ giï¿½m patrol surprise.
-- `waystation`: mï¿½ fast travel, giï¿½m travel risk.
-- `trading_post`: tng trade yield, cï¿½n node cï¿½ market.
-- `ward_formation`: giï¿½m encounter/curse risk, cï¿½n MAG/formation item.
+- `watchtower`: tng fog/influence v— gi—m patrol surprise.
+- `waystation`: m— fast travel, gi—m travel risk.
+- `trading_post`: tng trade yield, c—n node c— market.
+- `ward_formation`: gi—m encounter/curse risk, c—n MAG/formation item.
 
-Claim cï¿½n node frontier, khï¿½ng cï¿½ outpost ï¿½i ï¿½ch vï¿½ ï¿½ task/cost; mï¿½i node tï¿½i a 3 structures. Nï¿½u chï¿½a cï¿½ multiplayer, `ownerId` phï¿½i lï¿½ character/faction local, khï¿½ng giï¿½ ï¿½nh server authority.
+Claim c—n node frontier, kh—ng c— outpost —i —ch v— — task/cost; m—i node t—i a 3 structures. N—u ch—a c— multiplayer, `ownerId` ph—i l— character/faction local, kh—ng gi— —nh server authority.
 
 ## 8. Weighted travel
 
-Tï¿½ch preview vï¿½ commit:
+T—ch preview v— commit:
 
 ```js
 travelPreview(state, fromId, toId, mode)
@@ -480,80 +480,80 @@ resolveTravelTask(state, taskId, result)
 fastTravel(state, fromId, toId)
 ```
 
-Mode mï¿½c ï¿½nh:
+Mode m—c —nh:
 
 - `walk`: full graph distance, daily event rolls.
-- `ngu_khi`: khoï¿½ng 1/3 thï¿½i gian, tiï¿½u hao resource, vï¿½n cï¿½ risk.
-- `truyen_tong_tran`: gï¿½n nhï¿½ 0 ngï¿½y, chï¿½ khi hai ï¿½u ï¿½ unlock.
+- `ngu_khi`: kho—ng 1/3 th—i gian, ti—u hao resource, v—n c— risk.
+- `truyen_tong_tran`: g—n nh— 0 ng—y, ch— khi hai —u — unlock.
 
-`move()` ci nï¿½n gï¿½i `startTravel(..., "walk")` ï¿½ compatibility mode. Escort giï¿½m risk; mï¿½i ngï¿½y travel roll patrol/weather/encounter. Chï¿½ commit location sau khi task hoï¿½n tï¿½t ï¿½ khï¿½ng phï¿½ cï¿½c action ang giï¿½ ï¿½nh vï¿½ trï¿½ ï¿½ng bï¿½.
+`move()` ci n—n g—i `startTravel(..., "walk")` — compatibility mode. Escort gi—m risk; m—i ng—y travel roll patrol/weather/encounter. Ch— commit location sau khi task ho—n t—t — kh—ng ph— c—c action ang gi— —nh v— tr— —ng b—.
 
-## 9. Patrol, owner tag vï¿½ bulletin
+## 9. Patrol, owner tag v— bulletin
 
-Patrol khï¿½ng nï¿½n lï¿½ node ï¿½c lï¿½p trï¿½n graph. Render nï¿½ trï¿½n edge bï¿½ng schedule hiï¿½n cï¿½, vï¿½i icon danger/owner. Owner tag lï¿½y tï¿½ `mapOwner()` vï¿½ mï¿½u trï¿½ng thï¿½i (`stable`, `contested`, `frontier`). Bulletin board tï¿½i a 3 tin phï¿½ hï¿½p fog, lï¿½y tï¿½ faction/event state; khï¿½ng ï¿½a thï¿½ng tin cï¿½a node fog 0.
+Patrol kh—ng n—n l— node —c l—p tr—n graph. Render n— tr—n edge b—ng schedule hi—n c—, v—i icon danger/owner. Owner tag l—y t— `mapOwner()` v— m—u tr—ng th—i (`stable`, `contested`, `frontier`). Bulletin board t—i a 3 tin ph— h—p fog, l—y t— faction/event state; kh—ng —a th—ng tin c—a node fog 0.
 
-## 10. Rollout ï¿½ nghï¿½
+## 10. Rollout — ngh—
 
 1. **Phase A:** `mapState`, migration, fog 03, influence resolver.
-2. **Phase B:** L3 cho ba node mï¿½u, NPC sub-location vï¿½ action filtering.
+2. **Phase B:** L3 cho ba node m—u, NPC sub-location v— action filtering.
 3. **Phase C:** outpost/structures, fast travel, bulletin/patrol UI.
-4. **Phase D:** weighted travel task, escort, daily rolls; bï¿½t mï¿½c ï¿½nh sau khi regression pass.
+4. **Phase D:** weighted travel task, escort, daily rolls; b—t m—c —nh sau khi regression pass.
 
 Acceptance contract:
 
-- Save ci load ï¿½ï¿½c vï¿½ khï¿½ng mï¿½t `locationId`/quest/combat state.
-- Mï¿½i map action trï¿½ `{ success, reason, data }`, rollback khi thiï¿½u cost.
-- Derived influence/fog cï¿½ thï¿½ rebuild deterministic tï¿½ state.
-- Runtime Hidden Realm khï¿½ng lï¿½m bï¿½n static catalog.
-- `verify_game.js` vï¿½ stress simulation vï¿½n pass; travel task khï¿½ng tï¿½o duplicate event/reward.
+- Save ci load ——c v— kh—ng m—t `locationId`/quest/combat state.
+- M—i map action tr— `{ success, reason, data }`, rollback khi thi—u cost.
+- Derived influence/fog c— th— rebuild deterministic t— state.
+- Runtime Hidden Realm kh—ng l—m b—n static catalog.
+- `verify_game.js` v— stress simulation v—n pass; travel task kh—ng t—o duplicate event/reward.
 
-## 11. ï¿½nh giï¿½ cuï¿½i
+## 11. —nh gi— cu—i
 
-Map V2 phï¿½ hï¿½p vï¿½i kiï¿½n trï¿½c hiï¿½n tï¿½i nï¿½u triï¿½n khai dï¿½ng additive adapter. Khï¿½ng nï¿½n thay `D.LOCATIONS`, khï¿½ng nï¿½n tï¿½o composite ID kiï¿½u `node/subLocation`, vï¿½ khï¿½ng nï¿½n biï¿½n `move()` thï¿½nh async ngay trong phase ï¿½u. Ba iï¿½m cï¿½n thiï¿½t kï¿½ kï¿½ nhï¿½t lï¿½ travel task, giï¿½i hï¿½n influence delta vï¿½ quyï¿½n sï¿½ hï¿½u outpost trong save ï¿½n ngï¿½ï¿½i chï¿½i.
-## 12. Chi tiï¿½t triï¿½n khai theo module
+Map V2 ph— h—p v—i ki—n tr—c hi—n t—i n—u tri—n khai d—ng additive adapter. Kh—ng n—n thay `D.LOCATIONS`, kh—ng n—n t—o composite ID ki—u `node/subLocation`, v— kh—ng n—n bi—n `move()` th—nh async ngay trong phase —u. Ba i—m c—n thi—t k— k— nh—t l— travel task, gi—i h—n influence delta v— quy—n s— h—u outpost trong save —n ng——i ch—i.
+## 12. Chi ti—t tri—n khai theo module
 
-### 12.1. `mapState` vï¿½ migration
+### 12.1. `mapState` v— migration
 
-Khï¿½i tï¿½o `mapState` ï¿½ mï¿½t factory duy nhï¿½t. Migration chï¿½y trï¿½ï¿½c mï¿½i resolver, bï¿½ sung default cho save ci vï¿½ giï¿½ nguyï¿½n quest/combat state. Heatmap, patrol projection vï¿½ bulletin chï¿½ lï¿½ dï¿½ liï¿½u rebuildable; khï¿½ng cï¿½n serialize toï¿½n bï¿½.
+Kh—i t—o `mapState` — m—t factory duy nh—t. Migration ch—y tr——c m—i resolver, b— sung default cho save ci v— gi— nguy—n quest/combat state. Heatmap, patrol projection v— bulletin ch— l— d— li—u rebuildable; kh—ng c—n serialize to—n b—.
 
 ### 12.2. L3 adapter
 
-Thï¿½m `getNodeDetail(state,nodeId)`, `enterSubLocation(state,nodeId,subLocationId)` vï¿½ `availableNodeActions(state,nodeId,subLocationId)`. Node chï¿½a khai bï¿½o detail nhï¿½n layout mï¿½c ï¿½nh `main`. UI khï¿½ng gï¿½i catalog trï¿½c tiï¿½p ï¿½ quyï¿½t ï¿½nh action; adapter phï¿½i kiï¿½m tra fog vï¿½ NPC occupancy.
+Th—m `getNodeDetail(state,nodeId)`, `enterSubLocation(state,nodeId,subLocationId)` v— `availableNodeActions(state,nodeId,subLocationId)`. Node ch—a khai b—o detail nh—n layout m—c —nh `main`. UI kh—ng g—i catalog tr—c ti—p — quy—t —nh action; adapter ph—i ki—m tra fog v— NPC occupancy.
 
 ### 12.3. Influence cache
 
-Cache key gï¿½m `worldTick + factionVersion + structureVersion + eventVersion`. Quest thay ï¿½i influence chï¿½ invalidate node vï¿½ vï¿½ng kï¿½; cuï¿½i world tick full rebuild ï¿½ sï¿½a drift. Snapshot trï¿½ thï¿½m `confidence` vï¿½ `expiresAtTick` ï¿½ UI phï¿½n biï¿½t sï¿½ liï¿½u hiï¿½n tï¿½i/ï¿½ï¿½c tï¿½nh.
+Cache key g—m `worldTick + factionVersion + structureVersion + eventVersion`. Quest thay —i influence ch— invalidate node v— v—ng k—; cu—i world tick full rebuild — s—a drift. Snapshot tr— th—m `confidence` v— `expiresAtTick` — UI ph—n bi—t s— li—u hi—n t—i/——c t—nh.
 
 ### 12.4. Fog/event pipeline
 
-Mï¿½i nguï¿½n khï¿½m phï¿½ phï¿½t event `{ nodeId, level, source, actorId, tick }`. Reducer ï¿½p dï¿½ng max level, ghi journal mï¿½t lï¿½n vï¿½ invalidate L1/L2/L3. Rumor tï¿½ bulletin chï¿½ nï¿½ng fog khi player ï¿½c tin.
+M—i ngu—n kh—m ph— ph—t event `{ nodeId, level, source, actorId, tick }`. Reducer —p d—ng max level, ghi journal m—t l—n v— invalidate L1/L2/L3. Rumor t— bulletin ch— n—ng fog khi player —c tin.
 
 ### 12.5. Outpost/structure service
 
-Tï¿½ch ba lï¿½p `preview`, `commit`, `tickMaintenance`; preview khï¿½ng mutate, commit dï¿½ng transaction resolver, maintenance chï¿½y sau world tick. Integrity dï¿½ï¿½i 30% phï¿½t warning; tick ï¿½u thiï¿½u upkeep chï¿½ cï¿½nh bï¿½o, khï¿½ng xï¿½a outpost ngay.
+T—ch ba l—p `preview`, `commit`, `tickMaintenance`; preview kh—ng mutate, commit d—ng transaction resolver, maintenance ch—y sau world tick. Integrity d——i 30% ph—t warning; tick —u thi—u upkeep ch— c—nh b—o, kh—ng x—a outpost ngay.
 
 ### 12.6. Travel service
 
-Giï¿½ `move()` lï¿½m compatibility wrapper. UI mï¿½i dï¿½ng `travelPreview` rï¿½i `startTravel`; engine tick gï¿½i `resolveTravelDay`. Combat/instance interrupt bï¿½ng `interruptTravel`, khï¿½ng tï¿½ sï¿½a `locationId`; chï¿½ task completed mï¿½i cï¿½p nhï¿½t location, visits, fog vï¿½ fast-travel unlock.
+Gi— `move()` l—m compatibility wrapper. UI m—i d—ng `travelPreview` r—i `startTravel`; engine tick g—i `resolveTravelDay`. Combat/instance interrupt b—ng `interruptTravel`, kh—ng t— s—a `locationId`; ch— task completed m—i c—p nh—t location, visits, fog v— fast-travel unlock.
 
 ### 12.7. Projection/UI
 
-World map nhï¿½n `heatmapProjection`; regional map nhï¿½n `nodeProjection + patrolEdges`; node detail nhï¿½n `detailProjection`; bulletin nhï¿½n `bulletinProjection`. Projection luï¿½n ï¿½p fog trï¿½ï¿½c khi trï¿½ UI ï¿½ khï¿½ng cï¿½ ï¿½ï¿½ng vï¿½ng lï¿½m lï¿½ static catalog.
+World map nh—n `heatmapProjection`; regional map nh—n `nodeProjection + patrolEdges`; node detail nh—n `detailProjection`; bulletin nh—n `bulletinProjection`. Projection lu—n —p fog tr——c khi tr— UI — kh—ng c— ——ng v—ng l—m l— static catalog.
 
-## 13. Rï¿½i ro vï¿½ kiï¿½m soï¿½t
+## 13. R—i ro v— ki—m so—t
 
-| Rï¿½i ro | Kiï¿½m soï¿½t |
+| R—i ro | Ki—m so—t |
 |---|---|
-| Travel async phï¿½ action ï¿½ng bï¿½ | Compatibility wrapper, commit khi completed |
-| Heatmap lï¿½ch sau nhiï¿½u tick | Versioned cache + full rebuild ï¿½nh kï¿½ |
-| Player chiï¿½m node quï¿½ dï¿½ | Frontier/threshold/cost/upkeep/contest decay |
-| Fog lï¿½m hï¿½ng quest | Quest dï¿½ng canonical state, UI chï¿½ lï¿½c projection |
-| Retry nhï¿½n ï¿½i reward | Idempotency key + transaction journal |
-| Runtime node lï¿½m bï¿½n catalog | `runtimeLocations` lï¿½ source riï¿½ng |
+| Travel async ph— action —ng b— | Compatibility wrapper, commit khi completed |
+| Heatmap l—ch sau nhi—u tick | Versioned cache + full rebuild —nh k— |
+| Player chi—m node qu— d— | Frontier/threshold/cost/upkeep/contest decay |
+| Fog l—m h—ng quest | Quest d—ng canonical state, UI ch— l—c projection |
+| Retry nh—n —i reward | Idempotency key + transaction journal |
+| Runtime node l—m b—n catalog | `runtimeLocations` l— source ri—ng |
 
-## 14. Tiï¿½u chï¿½ hoï¿½n thï¿½nh
+## 14. Ti—u ch— ho—n th—nh
 
-Map V2 chï¿½ ï¿½ï¿½c ï¿½nh dï¿½u hoï¿½n thï¿½nh khi bï¿½n phase pass regression, save migration vï¿½ stress simulation; tï¿½i thiï¿½u cï¿½ test cho tï¿½ng API mutation, interrupted travel, contested ownership, fog privacy vï¿½ transaction rollback.
+Map V2 ch— ——c —nh d—u ho—n th—nh khi b—n phase pass regression, save migration v— stress simulation; t—i thi—u c— test cho t—ng API mutation, interrupted travel, contested ownership, fog privacy v— transaction rollback.
 
 
 ---
@@ -602,7 +602,7 @@ Không chuyển sang batch chiến sự/sự kiện tổ chức nếu địa ch�
 
 ## Source: `06-expansion\REWARD_PRODUCER_CANONICAL_AUDIT_2026-09-17.md`
 
-# REWARD PRODUCER CANONICAL AUDIT  2026-09-17
+# REWARD PRODUCER CANONICAL AUDIT — 2026-09-17
 
 ## Contract
 
@@ -625,7 +625,7 @@ Catalog balance/pity policy and producer-specific browser presentation remain co
 
 ## Source: `07-ui\BROWSER_QA_STATUS_2026-09-17.md`
 
-# Browser QA Status  2026-09-17
+# Browser QA Status — 2026-09-17
 
 ## Evidence
 
@@ -643,7 +643,7 @@ Asset/path integrity và headless render đã pass; pixel/responsive/browser int
 
 ## Source: `07-ui\LOG_PRODUCER_AUDIT_CANONICAL_2026-09-17.md`
 
-# Player log producer audit  2026-09-17
+# Player log producer audit — 2026-09-17
 
 All JavaScript files under `js/` are now included in the static literal producer audit;
 the audit no longer assumes only `engine.js` and `expansion.js` can emit history. It
@@ -662,11 +662,11 @@ runtime formatter and static/dynamic producer checks are implemented.
 
 ## Source: `07-ui\UI_ACTION_BINDING_STATIC_AUDIT_2026-09-17.md`
 
-# UI Action Binding Static Audit  2026-09-17
+# UI Action Binding Static Audit — 2026-09-17
 
 ## Mục tiêu
 
-Ngăn regression kiểu nút được render nhưng click không thực thi logic. Mọi nút mở rộng phải phát ra một command nằm trong command table của `runExpansionCommand`.
+Ngăn regression kiểu “nút được render nhưng click không thực thi logic”. Mọi nút mở rộng phải phát ra một command nằm trong command table của `runExpansionCommand`.
 
 ## Hợp đồng canonical
 
@@ -690,7 +690,7 @@ Ngăn regression kiểu nút được render nhưng click không thực thi lo
 
 ## Source: `AUDIT_DI_CHI_LOGIC_GAPS_UTF8_FIXED.md`
 
-# AUDIT Dữ CHệ  LOGIC GAPS & IMPLEMENTATION NOTES
+# AUDIT Dữ CHệ – LOGIC GAPS & IMPLEMENTATION NOTES
 
 > Mục đượch: ghi nhận các logic còn thiếu, chưa nối hoặc chưa khợp giữa tại liệu và runtime.
 > File này dẢnh cho review và bổ sung note trước khi triển khai code.
@@ -698,9 +698,9 @@ Ngăn regression kiểu nút được render nhưng click không thực thi lo
 > Ngày audit: 2026-09-14  
 > Phạm vi: Dị Thể, Dị Thể, NPC, Cổ Tích/Từ Tích, Con Đường Ẩn, weather, save và test.
 
-## 1. Quy c trạng thái
+## 1. Quy ––c trạng thái
 
-| Trạng thái |  nghĩa |
+| Trạng thái | – nghĩa |
 |---|---|
 | `MISSING` | Chưa có trong runtime |
 | `PARTIAL` | Cổ một phần nhưng chưa đã flow/effect |
@@ -709,7 +709,7 @@ Ngăn regression kiểu nút được render nhưng click không thực thi lo
 | `READY` | Đã có và còn test xác nhận |
 | `ACCEPTED` | Đã được chỉt hệẨng xử là |
 
-## 2. Dị Thể  Specũal Physique
+## 2. Dị Thể – Specũal Physique
 
 | ID | Hạng mục | Hiện trạng | Trạng thái | Ưu tiên | Note bổ sung |
 |---|---|---|---|---|---|
@@ -718,7 +718,7 @@ Ngăn regression kiểu nút được render nhưng click không thực thi lo
 | PHY-003 | Giới hạn số hƯu | Chưa enforce tại đa 1 Dị Thể/nhận vật | `MISSING` | P0 | |
 | PHY-004 | Thánh Thể | Chưa có trigger 10 quest thiện liẨn tiếp | `MISSING` | P0 | |
 | PHY-005 | Hỗn Độn Thể | Chưa kiểm tra 5 cùng phợp khệc Ngi Hình cùng đất TiƯu Thành | `MISSING` | P0 | |
-| PHY-006 | Vạn Độc Thể | Chưa có counter 5 trên Quái Dị Biến và điều kiện không dùng hồi phục ngoi | `MISSING` | P0 | |
+| PHY-006 | Vạn Độc Thể | Chưa có counter 5 trên Quái Dị Biến và điều kiện không dùng hồi phục ngo–i | `MISSING` | P0 | |
 | PHY-007 | Cửu U Thể | Chưa nối trigger cùng minh `vo_he`/`di_he` | `MISSING` | P0 | |
 | PHY-008 | Bất Tử Thể | Chưa nối động 1 lớn Luôn Hồi Thật Bổi | `MISSING` | P0 | |
 | PHY-009 | Thiên Sinh Đạo Thể | Chưa có hidden lore quest server-wide và unique claim | `MISSING` | P0 | |
@@ -734,16 +734,16 @@ Ngăn regression kiểu nút được render nhưng click không thực thi lo
 |---|---|---|---|---|---|
 | PROF-001 | 7 nghề Cổ Tích | Runtime có 7 nghề cũ theo số làẨng Cổ Tích | `PARTIAL` | P1 | |
 | PROF-002 | 4 nghề Từ Tích | Tại liệu có Cuồng Ngôn Giả, Thực Cảnh Sư, Huyễn Ảnh Sư, Vong Ngã Sư nhưng runtime chưa có catalog | `MISMATCH` | P0 | Chỉt giữ 7 nghề, 4 nghề, hay hợp nhất catalog? |
-| PROF-003 | `linkedTaThanId` | 7 nghề Cổ Tích chưa gần r vài Từ Thần | `MISSING` | P0 | |
+| PROF-003 | `linkedTaThanId` | 7 nghề Cổ Tích chưa gần r– vài Từ Thần | `MISSING` | P0 | |
 | PROF-004 | Đãc Từ Tích | Chưa có item được Từ Tích/Cổ Thần tàn hồn vài cost SAN/corruption | `MISSING` | P0 | |
 | PROF-005 | Từ Tích thật bổi | Chưa có trạng thái thật bổi, khóa vĩnh viẨn hoặc false clue | `MISSING` | P1 | |
-| PROF-006 | Effect Cuồng Ngôn Giả | Chưa tác động SAN NPC/đượch qua hồi thoi | `MISSING` | P0 | |
+| PROF-006 | Effect Cuồng Ngôn Giả | Chưa tác động SAN NPC/đượch qua hồi tho–i | `MISSING` | P0 | |
 | PROF-007 | Effect Thực Cảnh Sư | Chưa hệt corruption của node và chuyển vào player | `MISSING` | P0 | |
 | PROF-008 | Effect Huyễn Ảnh Sư | Chưa tạo illusion clone trong combat/NPC | `MISSING` | P0 | |
 | PROF-009 | Effect Vong Ngã Sư | Chưa giao tiếp vài người chỉt/vật quá khệ và risk quán memory | `MISSING` | P0 | |
 | PROF-010 | Slot nghề | Cổ `primaryId`, `secondaryId`, `hiddenIds` động thái; còn xác nhận source of truth | `RISK` | P1 | |
 | PROF-011 | Dormant profession | Còn bảo đảm nghề dormant không nhận passive/action/mastery | `READY` | P1 | Test thêm |
-| PROF-012 | Giới hạn nghề | Chưa có validation r tại đa 1 nghề chính + 1 nghề Ẩn active | `PARTIAL` | P0 | |
+| PROF-012 | Giới hạn nghề | Chưa có validation r– tại đa 1 nghề chính + 1 nghề Ẩn active | `PARTIAL` | P0 | |
 | PROF-013 | Bách Khoa Chí Dị | Chưa có registry lore cho nghề đã biết/chưa unlock/bổ phong Ẩn | `MISSING` | P2 | |
 
 >> Codex từ design catalog runtime, logic, API, tại liệu liẨn quan phần này. Sau đã triển khai code
@@ -752,7 +752,7 @@ Ngăn regression kiểu nút được render nhưng click không thực thi lo
 | ID | Hạng mục | Hiện trạng | Trạng thái | Ưu tiên | Note bổ sung |
 |---|---|---|---|---|---|
 | PATH-001 | Catalog chung | Đã có `hiddenPath.catalog` | `READY` | P1 | Test toàn bổ consumer |
-| PATH-002 | Trigger Ma Kiếm Đạo | Chưa enforce Corruption >= 70 liẨn tác 30 ngy khi đang Kiếm Đạo | `MISMATCH` | P1 | |
+| PATH-002 | Trigger Ma Kiếm Đạo | Chưa enforce Corruption >= 70 liẨn tác 30 ng–y khi đang Kiếm Đạo | `MISMATCH` | P1 | |
 | PATH-003 | Trigger Vô Danh Đạo | Chưa enforce background `vo_danh` và giải hạn faction cấp 8 | `MISMATCH` | P1 | |
 | PATH-004 | Trigger Tà Thần Khí Đạo | Chưa enforce cùng một Từ Thần được Lớng Nghe đã 5 lớn | `MISMATCH` | P1 | |
 | PATH-005 | Encounter Cổ Thần | Đã có location/world/behavior gate chung | `PARTIAL` | P1 | Bổ sung trigger riêng tồng path |
@@ -768,13 +768,13 @@ Ngăn regression kiểu nút được render nhưng click không thực thi lo
 |---|---|---|---|---|---|
 | BEAST-001 | Spawn ecology | Chưa có hệ sinh thái spawn Dị Thể theo node/region/weather | `MISSING` | P1 | |
 | BEAST-002 | Capture gating | Cổ capture từ entity/prisoner nhưng chưa đã rarity, danger, combat condition | `PARTIAL` | P1 | |
-| BEAST-003 | Tame lifecycle | Cổ bổt  từ binh  thuẨn hòa | `READY` | P1 | Test edge cases |
+| BEAST-003 | Tame lifecycle | Cổ bổt – từ binh – thuẨn hòa | `READY` | P1 | Test edge cases |
 | BEAST-004 | Combat integration | Companion chưa tham gia combat thật | `MISSING` | P0 | |
 | BEAST-005 | Skill/passive | Effect hiện chỉ yêu scout/reveal/risk | `PARTIAL` | P1 | |
 | BEAST-006 | Loyalty | Cổ loyalty nhưng chưa Ảnh hệẨng đẩy đã hành vi/combat/flee | `PARTIAL` | P1 | |
 | BEAST-007 | Injury/death | Chưa có bổ thương, chỉt, một, hồi phục theo thái gian | `MISSING` | P1 | |
 | BEAST-008 | Mutation | Cổ cure/accept/release mutation | `READY` | P1 | Kiếm tra combat effect |
-| BEAST-009 | Vạn Độc Thể link | Chưa ghi nhận động combat Quái Dị Biến và hồi phục bổn ngoi | `MISSING` | P0 | |
+| BEAST-009 | Vạn Độc Thể link | Chưa ghi nhận động combat Quái Dị Biến và hồi phục bổn ngo–i | `MISSING` | P0 | |
 | BEAST-010 | Collection | Cổ collection beasts nhưng chưa phần biết Dị Thể thương/hiám/có thển | `PARTIAL` | P2 | |
 >> Codex từ design catalog runtime, logic, API, tại liệu liẨn quan phần này. Sau đã triển khai code
 ## 6. NPC, Quest và Dialogue
@@ -782,7 +782,7 @@ Ngăn regression kiểu nút được render nhưng click không thực thi lo
 | ID | Hạng mục | Hiện trạng | Trạng thái | Ưu tiên | Note bổ sung |
 |---|---|---|---|---|---|
 | NPC-001 | NPC schema | Cổ entity có bổn, nhưng nhiều NPC có `dialogue_id: null`, `quest_ids: []` | `PARTIAL` | P0 | |
-| NPC-002 | Dialogue state machine | Chưa nối đẩy đã IDLE  CHECK  OFFER  PROGRESS  TURN_IN | `MISSING` | P0 | |
+| NPC-002 | Dialogue state machine | Chưa nối đẩy đã IDLE – CHECK – OFFER – PROGRESS – TURN_IN | `MISSING` | P0 | |
 | NPC-003 | Quest giver | Chưa có `giver_npc_id` runtime | `MISSING` | P0 | |
 | NPC-004 | Quest objective | Faction daily chỉ yêu dùng `faction_action` | `PARTIAL` | P1 | |
 | NPC-005 | Quest prerequisite | Chưa xử là đẩy đã level/faction/prerequisite quest | `MISSING` | P1 | |
@@ -801,12 +801,12 @@ Ngăn regression kiểu nút được render nhưng click không thực thi lo
 | ID | Hạng mục | Hiện trạng | Trạng thái | Ưu tiên | Note bổ sung |
 |---|---|---|---|---|---|
 | WORLD-001 | Weather canonical fields | Cổ weather/intensity/until/source/history | `READY` | P1 | |
-| WORLD-002 | Weather hysteresis | Chưa có ngẨng vào/ra shelter r rẨng | `MISSING` | P1 | |
-| WORLD-003 | War weather pause | Chưa xác nhận bảo/tuyt nẨng định chiện động được từ | `PARTIAL` | P1 | |
-| WORLD-004 | Natural disaster | Cổ trigger Bảo Linh Khệ cường đã 5 ko dữi | `READY` | P1 | Test duration/reset |
+| WORLD-002 | Weather hysteresis | Chưa có ng–Ẩng vào/ra shelter r– rẨng | `MISSING` | P1 | |
+| WORLD-003 | War weather pause | Chưa xác nhận bảo/tuy–t nẨng định chiện động được từ | `PARTIAL` | P1 | |
+| WORLD-004 | Natural disaster | Cổ trigger Bảo Linh Khệ cường đã 5 k–o dữi | `READY` | P1 | Test duration/reset |
 | WORLD-005 | Disaster consequences | Incũdent có tạo nhưng chưa nối đẩy đã NPC/faction/map consequence | `PARTIAL` | P1 | |
 | WORLD-006 | NPC weather behavior | Cổ mood/reaction/shelter nhưng chưa đã route/need integration | `PARTIAL` | P1 | |
-| WORLD-007 | Itinerant merchant | Cổ cadence 3 ngy và fallback merchant | `PARTIAL` | P1 | Nối giao dữch thật |
+| WORLD-007 | Itinerant merchant | Cổ cadence 3 ng–y và fallback merchant | `PARTIAL` | P1 | Nối giao dữch thật |
 >> Codex từ design catalog runtime, logic, API, tại liệu liẨn quan phần này. Sau đã triển khai code
 ## 8. Save, canonical state và validation
 
@@ -852,7 +852,7 @@ Ngăn regression kiểu nút được render nhưng click không thực thi lo
 >> 7 nghề có tách là nghề phụ, 4 nghề Từ thển tồn hạn là con đãẨng phụ.
 Nếu đã desgin 4 nghề con đãẨng phụ done rủi, xửy ra trạng làp vài 4 nghề từ tách thể bổ 4 nghề từ tách đi.
 
-2. Dị Thể lưu  `state.player.specũalPhysique` hay `state.physiqueState`? >>  `state.player.specũalPhysique`
+2. Dị Thể lưu – `state.player.specũalPhysique` hay `state.physiqueState`? >> – `state.player.specũalPhysique`
 3. `state.player.*` hay `state.pathState.*` là source of truth cho path? >> Giới thểch cho tại 2 hám này trước
 4. Dị Thể có được tham gia combat trúc tiếp hay chỉ là companion utility? >> Tham gia combat trúc tiếp.
 5. NPC quest dùng chung `contractBoard` hay tạo `questState` riêng? >> Quest state riêng
@@ -861,7 +861,7 @@ Nếu đã desgin 4 nghề con đãẨng phụ done rủi, xửy ra trạng làp
 
 ## 12. Kết quá kiểm tra hiện tại
 
-- Syntax JavaScript: đất  các file runtime đã kiểm tra.
+- Syntax JavaScript: đất – các file runtime đã kiểm tra.
 - Regression có bổn: đất.
 - Semantic coverage Dị Thể: chưa đất.
 - Semantic coverage Từ Tích: chưa đất.
@@ -885,25 +885,25 @@ Nếu đã desgin 4 nghề con đãẨng phụ done rủi, xửy ra trạng làp
 - Ngày:
 - Nối dung:
 
-## 14. Quyết định đã approve  canonical implementation contract
+## 14. Quyết định đã approve – canonical implementation contract
 
-Phần này là nguồn chỉ dẫn trúc tiếp cho Codex khi triển khai. Không được quay lài mở hành cũ nếu trủi vài các quyết định dữi đẩy.
+Phần này là nguồn chỉ dẫn trúc tiếp cho Codex khi triển khai. Không được quay lài mở hành cũ nếu trủi vài các quyết định dữ–i đẩy.
 
 ### 14.1. Phần loại namespace
 
 ```text
 7 Cổ Tích
-   Nghề Nghiáp phụ
-   dùng secondaryId
-   PROF-003 đến PROF-005
+  – Nghề Nghiáp phụ
+  – dùng secondaryId
+  – PROF-003 đến PROF-005
 
 4 Cổ Thần tàn hồn
-   Con Đường Ẩn
-   dùng hiddenPathId
-   PROF-006 đến PROF-009 là effect của hidden path
+  – Con Đường Ẩn
+  – dùng hiddenPathId
+  – PROF-006 đến PROF-009 là effect của hidden path
 ```
 
-Không tạo 4 Nghề Từ Tích riêng nếu effect tương Ẩng đã thuc 4 hidden path. Không dùng chung một ID cho `professionId`, `pathId`, `hiddenPathId` hoặc `pathVariant`.
+Không tạo 4 Nghề Từ Tích riêng nếu effect tương Ẩng đã thu–c 4 hidden path. Không dùng chung một ID cho `professionId`, `pathId`, `hiddenPathId` hoặc `pathVariant`.
 
 ### 14.2. Slot nghề canonical
 
@@ -921,7 +921,7 @@ state.professionState = {
 - `secondaryId`: một trong bảy nghề Cổ Tích đang active.
 - `discoveredHiddenIds`: danh sốch nghề Cổ Tích đã biết nhưng chưa chọn.
 - Không dùng `hiddenIds` đã cấp passive/action/mastery nếu nghề chưa nám trong `secondaryId`.
-- Nếu thật bổi chui Cổ Tích, `secondaryId` giữ `null`; nhận vật vẫn dùng nghề chính bình thương.
+- Nếu thật bổi chu–i Cổ Tích, `secondaryId` giữ `null`; nhận vật vẫn dùng nghề chính bình thương.
 - Nghề phụ đã lock không được đối trúc tiếp; nếu còn đối phải qua nghi thểc phụ tách/giải khóa riêng.
 
 ### 14.3. Source of truth của Con Đường
@@ -954,26 +954,26 @@ Ngoại Đạo Giả là namespace `unbound`, không phải path chính và khô
 Flow chọn Ngoại Đạo Giả phải được xử là trước mỗi kiểm tra `pathRelation()` hoặc kiểm tra path chính:
 
 ```text
-Khai Là  chọn Ngoại Đạo Giả
-         player.pathId = null
-         player.unboundStatus.active = true
-         pathState.primaryPathId = null
-         không nhận path effect chính
+Khai Là – chọn Ngoại Đạo Giả
+        – player.pathId = null
+        – player.unboundStatus.active = true
+        – pathState.primaryPathId = null
+        – không nhận path effect chính
 ```
 
 Không đã `isUnboundPlayer()` chọn chính action dùng đã chọn Ngoại Đạo Giả. Sau khi đã unbound, không được chọn path chính nếu chưa có flow tháo trạng thái unbound hợp là.
 
-### 14.5. Ritual Gọi Mệnh  Dựng Neo
+### 14.5. Ritual Gọi Mệnh – Dựng Neo
 
 Pipeline canonical:
 
 ```text
 Gọi Mệnh
- Dựng Neo
- Đãi ChiƯu Con Đường
- Vt Dữ Tương
- Trừ Giữ
- Commit
+– Dựng Neo
+– Đãi ChiƯu Con Đường
+– V––t Dữ Tương
+– Trừ Giữ
+– Commit
 ```
 
 Chuẩn field milestone:
@@ -1007,7 +1007,7 @@ Quy tác:
 - Neo phải tồn tại, có stability dữẨng và được reserve cho ritual đang chỉy.
 - Không được dùng một Neo cho nhiều ritual active.
 - Failure phải ghi `failureLog`, step, reason, impact và có thể tác động SAN/Corruption/Mệnh Nợ/Neo.
-- Chỉ bổc Commit mỗi cấp nhất milestone và effect.
+- Chỉ bổ–c Commit mỗi cấp nhất milestone và effect.
 - Mỗi path phải có ritual state riêng trong `pathState.ritualByPath`.
 
 ### 14.6. Chuyển đãẨng
@@ -1015,9 +1015,9 @@ Quy tác:
 - Trước cảnh giải 4: một EXP của path hiện tại theo field path progression thểc từ.
 - Từ cảnh giải 4: phụ một Mệnh Khí, tăng `fateDebt`, giảm stability Neo và ghi `transitionHistory`.
 - Không reset `pathDebt` khi đối path.
-- `pathVariant` thuc path cũ không được từ động mang sang path mỗi.
+- `pathVariant` thu–c path cũ không được từ động mang sang path mỗi.
 - Nếu đang có ritual active, không cho chuyển đãẨng.
-- Nếu đang hybrid, phải yêu cấu xử là hybrid trước hoặc chuyển trạng thái r rẨng; không đã hybrid cũ ám thêm áp lớn path mỗi.
+- Nếu đang hybrid, phải yêu cấu xử là hybrid trước hoặc chuyển trạng thái r– rẨng; không đã hybrid cũ ám thêm áp lớn path mỗi.
 
 ### 14.7. Song tu
 
@@ -1031,12 +1031,12 @@ Quy tác:
 ### 14.8. Dung hợp
 
 - Mở từ cảnh giải 10.
-- Hai path phải có t nhất một Mệnh trụ chung.
+- Hai path phải có –t nhất một Mệnh trụ chung.
 - Dung hợp phải qua commit/cost/risk riêng, không chỉ gần object `hybridPath`.
-- Kết quá lưu tại `pathState.hybridPath`, giữ làch số hai path gc.
+- Kết quá lưu tại `pathState.hybridPath`, giữ làch số hai path g–c.
 - Không tạo slot path mỗi và không xửa hidden path.
 - Nếu có từ hai Mệnh cấm chưa hòa giải, ghi trạng thái `Dữ Hệ` và tăng Corruption cho các ritual sau.
-- Không cho dung hợp lớn hai nếu chưa có flow tại cấu trúc r rẨng.
+- Không cho dung hợp lớn hai nếu chưa có flow tại cấu trúc r– rẨng.
 
 ### 14.9. Nghịch Hành
 
@@ -1059,13 +1059,13 @@ Nghịch Hành là `pathVariant`, không phải hidden path.
 }
 ```
 
-- Không gi legacy activation rủi rollback state nếu có thể tách flow canonical trúc tiếp.
+- Không g–i legacy activation rủi rollback state nếu có thể tách flow canonical trúc tiếp.
 - `pathDebt` không reset khi chuyển path.
 
 ### 14.10. Hidden path từ Cổ Thần tàn hồn
 
 - 4 nhậnh Cổ Thần tàn hồn là hidden path, không phải nghề.
-- Cổ thể discovered/unlocked nhiều hidden path  dormant.
+- Cổ thể discovered/unlocked nhiều hidden path – dormant.
 - Chỉ một hidden path active.
 - Hidden path dormant không nhận effect, ritual hoặc title active.
 - `seal` là kết thểc encounter vĩnh viẨn.
@@ -1092,7 +1092,7 @@ state.player.specũalPhysique = {
 
 - Chỉ được số hƯu tại đa một Dị Thể.
 - Unlock bằng gameplay trigger, không roll làc tạo nhận vật.
-- Effect phải được được từ catalog runtime, không hard-code rủi rc trong combat.
+- Effect phải được được từ catalog runtime, không hard-code rủi r–c trong combat.
 - Cổ thể giải trừ bằng nghi thểc Từy Thể; phải có cost, risk và scar/penalty.
 - Mỗi unlock/removal/effect phải ghi source, day và history.
 
@@ -1102,7 +1102,7 @@ state.player.specũalPhysique = {
 - Mỗi companion có combat profile, skill/passive, loyalty, health, corruption, injury và lifecycle.
 - Loyalty Ảnh hệẨng khệ năng hệ trừ, bổ chỉy và mutation.
 - Capture phải kiểm tra rarity, danger, trạng thái combat và điều kiện node.
-- Vạn Độc Thể phải nhận progress từ combat Quái Dị Biến thật; dùng hồi phục ngoi phải reset hoặc loại progress theo được từ.
+- Vạn Độc Thể phải nhận progress từ combat Quái Dị Biến thật; dùng hồi phục ngo–i phải reset hoặc loại progress theo được từ.
 
 ### 14.13. NPC Quest
 
@@ -1166,7 +1166,7 @@ Không đã `updateNpcSchedules()` ghi đã shelter do `resolveNpcWeatherReactio
 - Không dùng contract board làm quest state cho NPC.
 - Không dùng regression syntax/pass có bổn làm bằng chọng rẨng logic Dị Chí đã hoàn chính.
 
-## 17. Changelog triển khai Codex  2026-09-14
+## 17. Changelog triển khai Codex – 2026-09-14
 
 ### Đã triển khai
 
@@ -1175,14 +1175,14 @@ Không đã `updateNpcSchedules()` ghi đã shelter do `resolveNpcWeatherReactio
 - Save round-trip cho Dị Thể.
 - `pathState.canonicalSource` làm có xác định state canonical; runtime projection được động bổ và `player.*`.
 - Ngoại Đạo Giả được xử là trước `pathRelation()` và không ghi vào `pathId`.
-- Ritual milestone dùng `realmLevel` và `pathLevel`; loại bổ phụ thuc logic vào field `level` cũ.
+- Ritual milestone dùng `realmLevel` và `pathLevel`; loại bổ phụ thu–c logic vào field `level` cũ.
 - Ritual failure ghi SAN/Corruption/Neo impact và failure log.
-- Song tu tăng thêm 10% SAN cost  bổc cost ritual.
+- Song tu tăng thêm 10% SAN cost – bổ–c cost ritual.
 - Không cho chuyển path khi Hybrid Path còn active.
 - Dung hợp ghi forbidden fate, trạng thái `diHe` và corruption khi có từ hai Mệnh cấm chưa hòa giải.
 - Hidden path trigger riêng cho Ma Kiếm Đạo, Vô Danh Đạo và Tà Thần Khí Đạo.
 - Companion có đến hệ trừ combat trúc tiếp.
-- CuẨng Ngần hidden path gy SAN drain khi can thiáp vào NPC encounter.
+- CuẨng Ngần hidden path g–y SAN drain khi can thiáp vào NPC encounter.
 - HuyẨn Ảnh hidden path có có hồi tạo đến illusion trong combat.
 - NPC có `questState` riêng vài available/active/completed/failed, prerequisite, objective progress và reward protection.
 
@@ -1191,7 +1191,7 @@ Không đã `updateNpcSchedules()` ghi đã shelter do `resolveNpcWeatherReactio
 - Trigger Dị Thể vẫn còn hook vào toàn bổ event gameplay thật thay và chỉ API progress.
 - Companion còn bổ sung injury/death/flee/skill catalog và deterministic combat roll.
 - UI NPC dialogue, quest icon và UI preview cost/risk chưa hoàn thiện.
-- Thểc Cảnh và Vong Ng đã có effect nẨn nhưng còn test integration vài node corruption và memory loss.
+- Thểc Cảnh và Vong Ng– đã có effect nẨn nhưng còn test integration vài node corruption và memory loss.
 - Weather shelter queue/reroute/hysteresis chưa hoàn từt.
 - Còn regression chuyển biết cho pathState canonical, ritual failure, Hybrid và hidden path exact trigger.
 ## 18. Hoàn thiện sốu đã apply
@@ -1200,15 +1200,15 @@ Không đã `updateNpcSchedules()` ghi đã shelter do `resolveNpcWeatherReactio
 
 - NPC hiện có `dialogueState` theo các trạng thái `IDLE_GREET`, `QUEST_OFFER`, `QUEST_PROGRESS_HINT`, `QUEST_TURN_IN`, `GENERIC_CHAT`.
 - NPC hiện diẨn tại node tạo action `Nối chuyển`, action nhận/trừ quest và icon `!/?` từ trạng thái quest.
-- Quest động cho NPC thương nhận và NPC tiên tiƯu được đăng k theo ngy, có expiry và reward.
+- Quest động cho NPC thương nhận và NPC tiên tiƯu được đăng k– theo ng–y, có expiry và reward.
 - Mỗi quest đi qua `questState` chung, không tạo state UI riêng.
 
 ### Companion
 
 - Catalog skill dùng `EXPANSION_DATA.companionSkills`, gám damage, cooldown, loyalty cost và effect.
 - Companion có `health`, `maxHealth`, `injury`, `skillCooldowns`, `fleeCount`.
-- Combat victory có xác sut thương tách deterministic; loyalty và 0 chuyển companion sang `fled`.
-- Skill được gi bằng action UI hoặc `runExpansionCommand("companion_skill")`.
+- Combat victory có xác su–t thương tách deterministic; loyalty và 0 chuyển companion sang `fled`.
+- Skill được g–i bằng action UI hoặc `runExpansionCommand("companion_skill")`.
 
 ### Từ động trigger Dị Thể
 
@@ -1218,7 +1218,7 @@ Không đã `updateNpcSchedules()` ghi đã shelter do `resolveNpcWeatherReactio
 
 ### Weather shelter
 
-- Severity `>=3` vào shelter; severity `<=1` mỗi rủi shelter, có hysteresis tại thiếu một ngy.
+- Severity `>=3` vào shelter; severity `<=1` mỗi rủi shelter, có hysteresis tại thiếu một ng–y.
 - Shelter đẩy chuyển NPC sang `shelter_queue`, lưu `queuePosition`; làch di chuyển không được ghi đã trạng thái trừ Ẩn.
 - Mỗi NPC lưu `weatherState` gám severity, mode, lastTransitionDay và rerouteCount.
 
@@ -1228,7 +1228,7 @@ Không đã `updateNpcSchedules()` ghi đã shelter do `resolveNpcWeatherReactio
 - Kiếm tra riêng path canonical/ritual, NPC dialogue/quest/icon, companion skill, Dị Thể progress và weather shelter hysteresis.
 - Lớnh kiểm tra: `node tools/verify_dichi_deep.js` và `node tools/verify_game.js`.
 
-### Ghi chỉ thit k
+### Ghi chỉ thi–t k–
 
 - Icon hiện dùng text token `!/?` đã tương thểch renderer hiện tại; UI có thể thay bằng sprite mở không đối contract action.
 - Companion injury hiện là state gameplay tại thiếu; hồi phục theo `recoveryDay`, chưa có item chưa thương riêng.
@@ -1237,7 +1237,7 @@ Không đã `updateNpcSchedules()` ghi đã shelter do `resolveNpcWeatherReactio
 
 - Companion có trạng thái `dead`, `fled`, `injury`, action hồi sinh tồn 12 Linh Thạch và hồi phục vài `soul_scar`.
 - Thật bổi Luôn Hồi/Chuyển Sinh được ghi vào `reincarnationLegacy.failureCount`, động bổ sang `flags` và kiểm tra Dị Thể.
-- Quan hệ NPC đất ngẨng trust/respect số kích hoạt kiểm tra resonance Dị Thể.
+- Quan hệ NPC đất ng–Ẩng trust/respect số kích hoạt kiểm tra resonance Dị Thể.
 - Weather queue được promote mỗi world tick; queue quá 3 nhợp số reroute và `homeNodeId`.
 - Quest panel hiện thể quest NPC, objective progress, icon và dialogue state; action runtime vẫn là nguồn số thật.
 - `shadow_scout` reveal node exit thật qua discovery registry.
@@ -1249,14 +1249,14 @@ Trạng thái kiểm chọng: `node tools/verify_dichi_deep.js` và `node tools/
 
 ### Companion
 
-- Enemy có thể chuyển mục tiƯu sang companion vài xác sut bảo và chỉ; damage được trừ trúc tiếp vào `companion.health`.
-- Companion chuyển `injury` hoặc `dead` theo ngẨng health; trạng thái chỉt hiện thể action hồi sinh.
-- Hồi sinh tồn 12 Linh Thạch, hồi 35% health và tạo `soul_scar` trong 5 ngy.
+- Enemy có thể chuyển mục tiƯu sang companion vài xác su–t bảo và chỉ; damage được trừ trúc tiếp vào `companion.health`.
+- Companion chuyển `injury` hoặc `dead` theo ng–Ẩng health; trạng thái chỉt hiện thể action hồi sinh.
+- Hồi sinh tồn 12 Linh Thạch, hồi 35% health và tạo `soul_scar` trong 5 ng–y.
 
 ### Quest và Dị Thể
 
 - Quest NPC hệt hạn trong world tick được chuyển từ `available/active` sang `failed`.
-- `reincarnation_failure` dùng `progress >= required`, không một eligibility khi vàt mục.
+- `reincarnation_failure` dùng `progress >= required`, không một eligibility khi và–t mục.
 - Scheduled task hệ trừ `quest_expire`, `npc_encounter`, `faction_influence`.
 
 ### Weather
@@ -1272,8 +1272,8 @@ Trạng thái kiểm chọng: `node tools/verify_dichi_deep.js` và `node tools/
 
 Kiếm chọng sau thay đối:
 
-- `node tools/verify_dichi_deep.js`  pass.
-- `node tools/verify_game.js`  pass.
+- `node tools/verify_dichi_deep.js` – pass.
+- `node tools/verify_game.js` – pass.
 
 
 ---
@@ -1287,12 +1287,12 @@ Phạm vi: `js/engine.js`, `js/expansion.js`, `js/ui.js`, `js/main.js`, toàn b�
 
 ## Từm từt
 
-Core runtime đã có đãẨng nối tương đối đẩy đã và hai bổ regression hiện tại pass. Tuy nhiện hệ thểng vẫn còn một số khoảng trạng logic có thể tạo hành vi sai khi chỉi dữi ngy. Cổc điám quan trạng nhất là:
+Core runtime đã có đãẨng nối tương đối đẩy đã và hai bổ regression hiện tại pass. Tuy nhiện hệ thểng vẫn còn một số khoảng trạng logic có thể tạo hành vi sai khi chỉi dữi ng–y. Cổc điám quan trạng nhất là:
 
-1. Companion đã có damage/death/revive nhưng chưa có damage ledger và chiện thut bảo và Ẩn định.
+1. Companion đã có damage/death/revive nhưng chưa có damage ledger và chiện thu–t bảo và Ẩn định.
 2. Thương nhận của Trạm giao thương chưa được tạo/làp làch từ động đẩy đã; hiện chỉ yêu dữa trên NPC hiện hƯu và quest động.
-3. Travel route đang có fallback `mapDistance = 1` cho mỗi node đã biết, làm giảm  nghĩa khoảng cóch bổn đã.
-4. Faction bulletin hiện chỉy qua làp wrapper; hành vi động  export cui nhưng còn hợp nhất source đã tránh regression khi sửa tiếp.
+3. Travel route đang có fallback `mapDistance = 1` cho mỗi node đã biết, làm giảm – nghĩa khoảng cóch bổn đã.
+4. Faction bulletin hiện chỉy qua làp wrapper; hành vi động – export cu–i nhưng còn hợp nhất source đã tránh regression khi sửa tiếp.
 5. Quest NPC, faction daily và contract chưa dùng hoàn toàn một lifecycle/expiry engine thểng nhất.
 6. Offline simulation vẫn aggregate nhiều hệ thểng, chưa mở phầng đẩy đã encounter, dialogue và companion combat.
 7. Một số lookup Mệnh Số/Fate vẫn tuyẨn tính trong runtime/UI.
@@ -1306,7 +1306,7 @@ Core runtime đã có đãẨng nối tương đối đẩy đã và hai bổ re
 | Mệnh Số/Fate | Đã nối phần lớn | Cao | Còn lookup tuyẨn tính và một số event trigger chưa phụ hệt |
 | Cùng phợp/tu luyẨn | Đã nối | Trung bình | Còn test cost rollback và evolution branch lài |
 | Con Đường | Đã nối | Cao | Còn test canonical path state sau deserialize/transition |
-| Ritual Gọi Mệnh  Dựng Neo | Đã nối | Cao | Còn test tồng milestone, failure, retry và hybrid cost |
+| Ritual Gọi Mệnh – Dựng Neo | Đã nối | Cao | Còn test tồng milestone, failure, retry và hybrid cost |
 | Nghề chính/phụ | Đã nối | Trung bình | Còn test lock, đối nghề lài, có tách 7 nghề |
 | Hidden path | Đã nối | Cao | Còn test dormant/active/Tháo Neo/Phong Ấn vĩnh viẨn |
 | Dị Thể | Đã nối progress | Cao | Chưa phụ toàn bổ trigger moral/fate/lore bằng gameplay event thật |
@@ -1315,7 +1315,7 @@ Core runtime đã có đãẨng nối tương đối đẩy đã và hai bổ re
 | NPC dialogue | MVP | Trung bình | Cổ tree generic/merchant/guard, thiếu catalog per-NPC |
 | NPC quest | MVP | Cao | Cổ expiry, nhưng còn kiểm tra reward rollback và prerequisite chain |
 | Faction daily/contract | Hoạt động | Cao | Hai lifecycle còn tách rủi |
-| Weather | Hoạt động | Cao | Cổ severity/hysteresis/queue/reroute, còn test multi-region dữi ngy |
+| Weather | Hoạt động | Cao | Cổ severity/hysteresis/queue/reroute, còn test multi-region dữi ng–y |
 | War | Hoạt động | Cao | Cổ pause và weather; chưa đã integration vài NPC encounter và outpost |
 | World event | Hoạt động | Cao | Còn test event chain, offline aggregate và event conflict |
 | Map topology/travel | Hoạt động | Cao | Fallback distance 1 là rủi ro logic lớn |
@@ -1334,7 +1334,7 @@ Core runtime đã có đãẨng nối tương đối đẩy đã và hai bổ re
 - Test tạo nhận vật vài archetype/path/profession không tồn tại.
 - Test state thiếu tồng nhậnh lớn: `pathState`, `questState`, `specũalPhysiqueState`, `worldSimulation`, `companion`. >> Bổ sung cho từt có nhậnh đã
 - Test deserialize state cũ thiếu `gameClock`, `mapState`, `npcState` và array bổ hạng. >> check xem và sao bổ thiếu, bổ sung vào
-- Chưa có invariant checker đã sốu cho `player.pathId`/`pathState.primaryPathId`, slot nghề và hidden path. >> Còn invariant no thể bổ sung
+- Chưa có invariant checker đã sốu cho `player.pathId`/`pathState.primaryPathId`, slot nghề và hidden path. >> Còn invariant n–o thể bổ sung
 
 ## 2. Mệnh Số, quan hệ Mệnh và tu luyẨn
 
@@ -1342,7 +1342,7 @@ Core runtime đã có đãẨng nối tương đối đẩy đã và hai bổ re
 
 - Nhiều lookup vẫn dùng `.find()`/`.filter()` trúc tiếp thay và registry/index. >> Đãi thành regis/index
 - Còn index theo `fateId`, `grade`, `element`, `pathId` và cache invalidation khi evolve/transform. >> thểc thi đi
-- Một số event làa chọn đão được chưa thểng nhất schema `alignment`, nẨn `moralGoodStreak` có thể không tăng nếu action cũ không gi field chuẩn. >> Đãi theo logic mỗi được apply
+- Một số event làa chọn đão được chưa thểng nhất schema `alignment`, nẨn `moralGoodStreak` có thể không tăng nếu action cũ không g–i field chuẩn. >> Đãi theo logic mỗi được apply
 - Fate resonance hiện kiểm tra eligibility theo snapshot quan hệ, chưa lưu resonance source/count riêng. >> thểc hiện tạo resonance source/ count riêng 
 - Còn test Fate pending khi kho đẩy, đối slot, deserialize và nhận trạng. >> thểc hiện đi
 
@@ -1351,10 +1351,10 @@ Core runtime đã có đãẨng nối tương đối đẩy đã và hai bổ re
 Đã có path canonical, ritual wrapper, dual cultivation, fuse, hybrid và path debt. Còn thiếu:
 
 - Còn test từt có milestone riêng của tồng path, không chỉ kiểm tra object tồn tại. >> chỉp nhận
-- Failure ritual còn test rollback cost, SAN, anchor stability, corruption và retry cùng ngy. >> triẨn khai đi
-- Còn bảo đảm `pathState` luôn là source sau deserialize; hiện một số state mỗi chỉ được sync khi gi transition. >> chỉp nhận phương Ẩn, yêu cấu triẨn khai code
+- Failure ritual còn test rollback cost, SAN, anchor stability, corruption và retry cùng ng–y. >> triẨn khai đi
+- Còn bảo đảm `pathState` luôn là source sau deserialize; hiện một số state mỗi chỉ được sync khi g–i transition. >> chỉp nhận phương Ẩn, yêu cấu triẨn khai code
 - Hybrid cost/effect còn test khi đối hidden path, tháo neo và fuse thật bổi.
-- `pathDebt` còn test không bổ reset  reincarnation/chuyển sinh ngoi chỉ .
+- `pathDebt` còn test không bổ reset – reincarnation/chuyển sinh ngo–i chỉ –.
 - `ngoai_dao_gia` còn test không bao giữ ghi vào `pathId` qua mỗi entry point.
 >> chỉp nhận phương Ẩn, yêu cấu triẨn khai code
 ## 4. Nghề nghiáp và Cổ Tích
@@ -1362,7 +1362,7 @@ Core runtime đã có đãẨng nối tương đối đẩy đã và hai bổ re
 Đã có khóa nghề chính/phụ và 7 nghề Cổ Tích. Còn thiếu:
 
 - Test 7 nghề không chiám quá hai slot nghề. >> >> chỉp nhận phương Ẩn, yêu cấu triẨn khai code
-- Test Cổ Tích IVII mở động nghề tương Ẩng, không từ động mở qua search thương. >> chỉp nhận phương Ẩn, yêu cấu triẨn khai code
+- Test Cổ Tích I–VII mở động nghề tương Ẩng, không từ động mở qua search thương. >> chỉp nhận phương Ẩn, yêu cấu triẨn khai code
 - Test nghề chính đã lock không bổ ghi đã khi load/deserialize. >> chỉp nhận phương Ẩn, yêu cấu triẨn khai code
 - Test profession item không mở nhám hidden path. >> chỉp nhận phương Ẩn, yêu cấu triẨn khai code
 - Cooldown nghề, cost và reward chưa có một transaction rollback contract thểng nhất. >> chỉp nhận phương Ẩn, yêu cấu triẨn khai code
@@ -1374,26 +1374,26 @@ Core runtime đã có đãẨng nối tương đối đẩy đã và hai bổ re
 - Moral action chưa được từ động chuẩn hòa từ toàn bổ action choice. >> tạo logic từ động chuẩn hòa từ toàn bổ action choice
 - Hidden lore claim/server unique mỗi dữa vào flag, chưa có source quest lifecycle đẩy đã. >> Tạo source quest lifecycle, rủi link vào hidden lore claim
 - Multi-element mastery tính từ technique catalog nhưng còn index/cache. >> Tạo index.cache rủi triẨn khai code
-- Còn phần biết r `eligible`, `pending`, `active`, `removed`, `blocked` trong UI và save migration. >> TriẨn khai đi, nhệ phụi làm theo chuẩn ngần ng đang có
+- Còn phần biết r– `eligible`, `pending`, `active`, `removed`, `blocked` trong UI và save migration. >> TriẨn khai đi, nhệ phụi làm theo chuẩn ngần ng– đang có
 - Còn test trigger trạng trong cùng tick không tạo duplicate history/pending. >> chỉp nhận
 
 ## 6. Dị Thể và companion
 
 Đã có support attack, skill, enemy hit, injury, death, flee, revive. Còn thiếu:
 
-- Chưa có `damageLedger`/`lastDamageSource`, nẨn khệ truy nguyẨn nguyẨn nhận chỉt. >> Chỉ còn ghi chỉt là được, trạng thương, chỉt giữ hay g đã.
-- Enemy target companion đang dùng xác sut chung, chưa phụ thuc role/skill/loyalty/guard stance. >> Từ tạo logic và triẨn khai. logic cùng đến giữn cùng từt, luôn tồn cùng kám vài nhận vật đã đã bổ vướng code
-- Injury làm companion từm thái không bổ định nhưng chưa có trạng thái `recovering` hiện thể r. >> tạo logic đi
+- Chưa có `damageLedger`/`lastDamageSource`, nẨn khệ truy nguyẨn nguyẨn nhận chỉt. >> Chỉ còn ghi chỉt là được, trạng thương, chỉt giữ hay g– đã.
+- Enemy target companion đang dùng xác su–t chung, chưa phụ thu–c role/skill/loyalty/guard stance. >> Từ tạo logic và triẨn khai. logic cùng đến giữn cùng từt, luôn tồn cùng kám vài nhận vật đã đã bổ vướng code
+- Injury làm companion từm thái không bổ định nhưng chưa có trạng thái `recovering` hiện thể r–. >> tạo logic đi
 - Revive chưa kiểm tra node an toàn, faction facũlity hoặc giải hạn số lớn hồi sinh. >> từ tạo logic cho tại
 - Companion skill chưa có skill progression/mastery. >> tạo logic nhệ
-- Chưa có test combat nhiều enemy, companion chỉt giữa làt và revive ngay sau combat. >> tạo logic, cùng đến giữn cùng từt
+- Chưa có test combat nhiều enemy, companion chỉt giữa là–t và revive ngay sau combat. >> tạo logic, cùng đến giữn cùng từt
 
 ## 7. NPC, dialogue và quest
 
 Đã có presence, schedule, dialogue state, dialogue tree có bổn, portrait fallback, skill và quest. Còn thiếu:
 
-- NPC có thể chưa có catalog dialogue/portrait/skill riêng; hiện merchant/guard/generic phần loại theo role. >> tạo catolog giữp tại, cùng chi tit và phong phụ cùng từt, nhệ phần chia NPC theo vẫng, từ chỉc,.. trên map
-- Dialogue choice chưa có điều kiẨn realm, faction reputation, weather, war hoặc relationship. >> Tạo dialogue chi tit.
+- NPC có thể chưa có catalog dialogue/portrait/skill riêng; hiện merchant/guard/generic phần loại theo role. >> tạo catolog giữp tại, cùng chi ti–t và phong phụ cùng từt, nhệ phần chia NPC theo vẫng, từ chỉc,.. trên map
+- Dialogue choice chưa có điều kiẨn realm, faction reputation, weather, war hoặc relationship. >> Tạo dialogue chi ti–t.
 - Quest accept/turn-in chưa chỉy qua transaction chung vài dialogue choice. >> phụi chỉy quan transaction chung
 - Quest expiry đã có nhưng prerequisite chain và reward failure chưa được cascade đẩy đã. >> làm đẩy đã cascade
 - `npcIndex` có thể chưa id trạng nếu dữ liệu cũ/register nhiều lớn. >> tạo riêng index
@@ -1404,7 +1404,7 @@ Core runtime đã có đãẨng nối tương đối đẩy đã và hai bổ re
 Đã có intensity, severity, hysteresis, shelter queue, priority và nearest safe node. Còn thiếu:
 
 - Chưa có capacũty reservation atomic; hai NPC cùng tick có thể cùng thểy một slot trạng trong cóc branch được biết. >> tạo logic riêng
-- Reroute chỉ xửt node lớn còn một bổc, chưa có BFS nhiều bổc. >> tạo logic giữp tại
+- Reroute chỉ xửt node lớn còn một bổ–c, chưa có BFS nhiều bổ–c. >> tạo logic giữp tại
 - Chưa loại trừ đẩy đã node có thiện tai active, ward broken hoặc faction blockade. >> tạo logic giữp tại
 - Shelter queue chưa phát thểng bảo khi NPC được promote/reroute. >> tạo logic đi
 - Còn test bảo liẨn vẫng, đối weather nhanh và NPC đang travel. >> tạo logic đi
@@ -1416,7 +1416,7 @@ Core runtime đã có đãẨng nối tương đối đẩy đã và hai bổ re
 - Huyết nguyệt còn test chính xác phase `active` vài ward formation, không chỉ template tồn tại.
 - War capture node còn động bổ ngay `mapState.influence`, owner và outpost.
 - NPC encounter trong war front chưa chuyển thành encounter combat/evacuation thật.
-- Faction action chưa phụ toàn bổ interaction type; còn registry action  influence amount.
+- Faction action chưa phụ toàn bổ interaction type; còn registry action – influence amount.
 - Faction daily, contract và bulletin đang dùng cóc state/lifecycle khệc nhau.
 
 >> Codex từ tạo logic 
@@ -1425,7 +1425,7 @@ Core runtime đã có đãẨng nối tương đối đẩy đã và hai bổ re
 Đã có topology repair, fog, watchtower reveal, trading post condition, ward condition, waystation limit và teleport free. Còn thiếu/rủi ro:
 
 - `mapDistance` fallback mỗi node đã biết thành distance 1 có thể làm sai travel day, risk và nearest-safe-node.
-- `truyen_tong_tran` kiểm tra unlock hai đầu nhưng chưa kiểm tra cùng region/động node tồng mởn theo catalog canonical  mỗi save cũ.
+- `truyen_tong_tran` kiểm tra unlock hai đầu nhưng chưa kiểm tra cùng region/động node tồng mởn theo catalog canonical – mỗi save cũ.
 - Watchtower reveal chưa có chi phụ upkeep/integrity degradation theo thái gian.
 - Trading post chưa từ tạo merchant itinerary khi node đã điều kiẨn.
 - Outpost/waystation/ward/trading post chưa có một lifecycle damage/repair/abandon thểng nhất.
@@ -1437,17 +1437,17 @@ Core runtime đã có đãẨng nối tương đối đẩy đã và hai bổ re
 
 Đã có pure snapshot và persist wrapper. Còn thiếu/rủi ro:
 
-- Legacy `mapInfluenceSnapshot` vẫn tồn tại và có mutation; export hiện dùng pure wrapper nhưng source dữ gy rủi ro bảo trừ.
-- Legacy `factionBulletin` được bổc bổi `factionBulletinWithDailyQuests`; hành vi cui động nhưng nẨn hợp nhất thành một implementation.
+- Legacy `mapInfluenceSnapshot` vẫn tồn tại và có mutation; export hiện dùng pure wrapper nhưng source dữ g–y rủi ro bảo trừ.
+- Legacy `factionBulletin` được bổc bổi `factionBulletinWithDailyQuests`; hành vi cu–i động nhưng nẨn hợp nhất thành một implementation.
 - Influence map chưa có heatmap theo region được materialize/cache.
-- `ownerFactionId`  một số flow vẫn có thể suy ra từ cấu trúc cũ thay và `influenceMap` canonical.
+- `ownerFactionId` – một số flow vẫn có thể suy ra từ cấu trúc cũ thay và `influenceMap` canonical.
 
 >> Từ tạo logic mỗi bổ vào
 ## 12. Save, scheduled task và offline simulation
 
 Đã có canonical v13, scheduled task, IndexedDB archive và offline aggregate. Còn thiếu:
 
-- Scheduled task unknown type hiện còn policy r: `ready`, `dormant`, `failed` hay retry.
+- Scheduled task unknown type hiện còn policy r–: `ready`, `dormant`, `failed` hay retry.
 - Task handler chưa có retry count/backoff/dead-letter state.
 - Offline aggregate chưa mở phầng đẩy đã NPC encounter, dialogue, companion combat và war intervention.
 - Migration còn test unknown event/item/evolution branch bảo toàn dormant state.
@@ -1462,7 +1462,7 @@ Core runtime đã có đãẨng nối tương đối đẩy đã và hai bổ re
 - Action parser có nhiều dùng delimiter (`_`, `::`, `:`), còn một encoder/decoder canonical.
 - Log narrative còn quát toàn bổ reason code; không chỉ reason code đã nám trong map.
 - Một số UI Fate/market/combat vẫn có lookup tuyẨn tính.
-- Còn đo render cost của `contextState` và expansionActions tạo nhiều action và gi presence/quest status làp lài.
+- Còn đo render cost của `contextState` và expansionActions tạo nhiều action và g–i presence/quest status làp lài.
 >> tạo thêm cho phần này
 ## 14. Regression còn thiếu
 
@@ -1478,16 +1478,16 @@ Bổ test hiện tại pass nhưng chưa đã coverage cho:
 - Save migration unknown branches và IndexedDB failure.
 - UI action parser cho NPC id/quest id có nhiều dƯu phần cóch.
 
-## Ưu tiẨn đã xut
+## Ưu tiẨn đã xu–t
 
-### P0  còn sửa trước khi mở rẨng thêm feature
+### P0 – còn sửa trước khi mở rẨng thêm feature
 
-1. Bổ fallback `mapDistance = 1` hoặc giải hạn r phụm vi fallback.
+1. Bổ fallback `mapDistance = 1` hoặc giải hạn r– phụm vi fallback.
 2. Hợp nhất influence pure/persist và faction bulletin thành một implementation.
 3. Chuẩn hòa action ID encoder/decoder.
 4. Bổ sung migration unknown branch và scheduled task retry/dead-letter.
 
-### P1  hoàn thiện gameplay logic
+### P1 – hoàn thiện gameplay logic
 
 1. Merchant itinerary thật cho trading post.
 2. Faction daily/contract/quest lifecycle chung.
@@ -1495,7 +1495,7 @@ Bổ test hiện tại pass nhưng chưa đã coverage cho:
 4. Companion damage ledger, stance và revive constraints.
 5. Weather BFS reroute và shelter reservation.
 
-### P2  tại Ưu và phụ test
+### P2 – tại Ưu và phụ test
 
 1. Fate index/cache.
 2. Region heatmap cache.
@@ -1505,10 +1505,10 @@ Bổ test hiện tại pass nhưng chưa đã coverage cho:
 
 ## Kết luôn
 
-`map distance  travel risk`, `war  influence/owner`, `NPC quest  dialogue/expiry`, `weather  shelter/travel`, `save migration  unknown state`, `action id  UI handler`.
+`map distance – travel risk`, `war – influence/owner`, `NPC quest – dialogue/expiry`, `weather – shelter/travel`, `save migration – unknown state`, `action id – UI handler`.
 
 
-## 15. Implementation update  2026-09-14
+## 15. Implementation update – 2026-09-14
 
 Đã triẨn khai từ cóc note được approve:
 
@@ -1519,7 +1519,7 @@ Bổ test hiện tại pass nhưng chưa đã coverage cho:
 - Moral action được chuẩn hòa từ động từ action id; Fate resonance lưu `fateResonanceCount` và `fateResonanceSources`.
 - `reincarnation_failure` giữ điều kiẨn `>= required`.
 - Companion có `damageLedger`, stance `protect`, skill mastery, revive count/limit và điều kiẨn node an toàn.
-- Weather reroute dùng BFS tại đa 4 bổc, loại node chiện số/thiện tai/ward hạng; shelter có reservation theo tick.
+- Weather reroute dùng BFS tại đa 4 bổ–c, loại node chiện số/thiện tai/ward hạng; shelter có reservation theo tick.
 - Trạm giao thương tạo/làp làch merchant itinerary thật khi cấu trúc còn hoạt động.
 - Dialogue catalog bổ sung profile theo role + region, portrait và skill riêng cho merchant/guard.
 - Quest expiry và unknown scheduled task đã có regression.
@@ -1533,7 +1533,7 @@ OK: characters, procedural items, map, data integrity, save migration, UI and DO
 
 Cổc phần còn còn đất riêng: hợp nhất source legacy influence/bulletin, transaction chung cho toàn bổ quest/contract, offline simulation đẩy đã encounter/war/companion, failure-injection IndexedDB và bổ test ritual/profession/save migration chuyển biết.
 
-## 16. Implementation update  batch transaction/offline/archive/regression
+## 16. Implementation update – batch transaction/offline/archive/regression
 
 - Quest NPC, contract và faction daily dùng chung `questTransaction`; command path cũng đã chuyển sang wrapper transactional.
 - Quest lifecycle có expiry động nhất cho NPC quest, contract accepted và faction daily.
@@ -1550,7 +1550,7 @@ OK: IndexedDB archive failure injection and retry queue
 OK: deep Dị Chí/path/companion/quest/weather regression
 ```
 
-## 17. Boundary hardening  2026-09-14
+## 17. Boundary hardening – 2026-09-14
 
 - Map topology không còn dùng complete-graph fallback: khoảng cóch chỉ đi qua exit thật hoặc cảnh reverse hợp là.
 - Exit hạng được ghi vào `state.mapState.invalidExits`; topology runtime từ loại target không tồn tại.
@@ -1559,14 +1559,14 @@ OK: deep Dị Chí/path/companion/quest/weather regression
 - Faction action hoàn thành faction daily qua transaction contract chung.
 - Trạm giao thương giữ phát sinh yield thểc từ mỗi merchant visit và đẩy influence faction; effect risk của Tháp canh/Trạm dịch chuyển/Trận pháp được địa vào travel preview.
 
-## 18. Final completion batches  ward, unknown migration, offline world
+## 18. Final completion batches – ward, unknown migration, offline world
 
 - `ward_formation` có protection runtime: giảm encounter chance, giảm corruption gain, phát hành `curseRiskDelta`/`corruptionGainMult`, và giảm corruption vẫng sau event bổ bổ qua.
 - Migration v13 bảo toàn unknown inventory item trong `unknownContent.items` vài payload/quantity/status `dormant`; unknown fate evolution branch được giữ nguyẨn payload và chuyển trạng thái `ready` đã không một tiẨn tránh.
 - Offline tick không còn bổ qua local incũdent, world event generation hoặc hidden realm progression; event vẫn advance/resolve deterministic, incũdent vẫn sinh theo seed, hidden realm competitor progress vẫn được cấp nhất.
 - Regression bổ sung cho ward protection, unknown item/evolution migration và offline world event lifecycle.
 
-## 19. Implementation update  12 logic notes
+## 19. Implementation update – 12 logic notes
 
 - Curse/corruption đi qua ward-aware pipeline; ledger giữ `rawAmount`, `wardReduction` và `wardNodeId`.
 - Offline NPC encounter xử là encounter một phòa; local incũdent trong offline tick được resolve deterministic.
@@ -1591,7 +1591,7 @@ OK: IndexedDB archive failure injection and retry queue
 
 ## Source: `SYSTEM_LOGIC_CATALOG\BATCH_5_RUNTIME_CANONICAL_STATUS_2026-09-16.md`
 
-# Batch 5  Runtime Canonical Closure Status  2026-09-16
+# Batch 5 — Runtime Canonical Closure Status — 2026-09-16
 
 ## Completed in this batch
 
@@ -1606,14 +1606,14 @@ OK: IndexedDB archive failure injection and retry queue
 
 ## Evidence
 
-- `node tools/verify_review_batches.js`  pass.
-- `node tools/verify_dichi_deep.js`  pass.
-- `node tools/verify_expansion_stress.js`  pass.
-- `node tools/verify_companion_runtime.js`  pass.
-- `node tools/verify_indexeddb_archive.js`  pass.
-- `node tools/verify_log_narrative.js`  pass.
-- `node tools/profile_runtime_budget.js`  pass; current Node profile: 65 influence calls, 0.169 ms average, 3.7 MB serialized sample.
-- `node tools/verify_game.js`  pass after the batch.
+- `node tools/verify_review_batches.js` — pass.
+- `node tools/verify_dichi_deep.js` — pass.
+- `node tools/verify_expansion_stress.js` — pass.
+- `node tools/verify_companion_runtime.js` — pass.
+- `node tools/verify_indexeddb_archive.js` — pass.
+- `node tools/verify_log_narrative.js` — pass.
+- `node tools/profile_runtime_budget.js` — pass; current Node profile: 65 influence calls, 0.169 ms average, 3.7 MB serialized sample.
+- `node tools/verify_game.js` — pass after the batch.
 
 ## Still intentionally open
 
@@ -1628,12 +1628,12 @@ OK: IndexedDB archive failure injection and retry queue
 
 ## Source: `SYSTEM_LOGIC_CATALOG\BATCH_6_RUNTIME_UI_STATUS_2026-09-16.md`
 
-# Batch 6  Runtime/UI/Log status  2026-09-16
+# Batch 6 — Runtime/UI/Log status — 2026-09-16
 
 ## Đã hoàn thiện trong đợt này
 
 - Bổ sung bảng tín hiệu NPC tại tab Quan hệ: NPC đang ở node, trạng thái di chuyển/trú ẩn/chiến đấu, thứ tự hàng đợi và rumor gần nhất.
-- Bổ sung Dấu vết gần đây tại node trong tab Thế giới, đọc từ `node.history`, gồm thiên tượng, điểm nhỏ, công trình, chuyển chủ, thế lực, nhân vật và khám phá.
+- Bổ sung “Dấu vết gần đây tại node” trong tab Thế giới, đọc từ `node.history`, gồm thiên tượng, điểm nhỏ, công trình, chuyển chủ, thế lực, nhân vật và khám phá.
 - Chốt guard Nghề Ẩn: không thể chọn Nghề Ẩn trước Nghề chính; sau khi Nghề chính commit, nghề thường khác bị khóa, Nghề Ẩn chỉ được điền slot phụ khi Cổ Tịch và đồ thị manh mối hợp lệ.
 - Bổ sung regression cho mã lỗi kỹ thuật không được lọt vào player-visible log và cho việc gộp các event cùng ngày thành một đoạn novel.
 - Ổn định fixture breakthrough trong `verify_game.js`: tách kiểm thử cổng đột phá khỏi cơ chế Tẩu Hỏa Nhập Ma có thể làm giảm Tu vi sau một lần gain lớn.
@@ -1646,7 +1646,7 @@ OK: IndexedDB archive failure injection and retry queue
 - `node tools/verify_game.js`
 - `node tools/verify_review_batches.js`
 - `node tools/verify_log_narrative.js`
-- `node tools/verify_expansion_log_matrix.js`  43/43
+- `node tools/verify_expansion_log_matrix.js` — 43/43
 
 ## Còn mở
 
@@ -1658,7 +1658,7 @@ OK: IndexedDB archive failure injection and retry queue
 
 ## Source: `SYSTEM_LOGIC_CATALOG\BATCH_7_OFFLINE_LOG_DITHE_STATUS_2026-09-16.md`
 
-# Batch 7  Offline, replay, log và Dị Thể  2026-09-16
+# Batch 7 — Offline, replay, log và Dị Thể — 2026-09-16
 
 ## Đã triển khai
 
@@ -1686,7 +1686,7 @@ OK: IndexedDB archive failure injection and retry queue
 - `verify_dichi_deep.js`
 - `verify_expansion_stress.js --runs=2 --days=60`
 - `verify_log_narrative.js`
-- `verify_expansion_log_matrix.js`  43/43
+- `verify_expansion_log_matrix.js` — 43/43
 
 ## Còn mở
 
@@ -1704,7 +1704,7 @@ OK: IndexedDB archive failure injection and retry queue
 
 ## Source: `SYSTEM_LOGIC_CATALOG\BATCH_EXECUTION_STATUS.md`
 
-# Batch Execution Status  Review 33 mục
+# Batch Execution Status — Review 33 mục
 
 Ngày bắt đầu: 2026-09-16  
 Phạm vi: `REVIEW_INCOMPLETE_DESIGN_UNRESOLVED.md`  
@@ -1712,7 +1712,7 @@ Nguyên tắc: một mục chỉ hoàn tất khi có requirement, state/schema, 
 
 Ma trận audit từng mục: `33_ITEM_COMPLETION_MATRIX_2026-09-16.md`.
 
-## Batch 1  P0: Canonical map, construction, Fate boundary
+## Batch 1 — P0: Canonical map, construction, Fate boundary
 
 ### Đã triển khai
 
@@ -1734,9 +1734,9 @@ Ma trận audit từng mục: `33_ITEM_COMPLETION_MATRIX_2026-09-16.md`.
 - `node --check js/engine.js`
 - `node --check js/expansion.js`
 - `node --check js/ui.js`
-- `node tools/verify_expansion_log_matrix.js`  43/43
-- `node tools/verify_dichi_deep.js`  pass
-- `node tools/verify_game.js`  pass; một lần chạy ngắn gặp gate đột phá không ổn định, chạy lại với timeout đầy đủ đã pass.
+- `node tools/verify_expansion_log_matrix.js` — 43/43
+- `node tools/verify_dichi_deep.js` — pass
+- `node tools/verify_game.js` — pass; một lần chạy ngắn gặp gate đột phá không ổn định, chạy lại với timeout đầy đủ đã pass.
 
 ### Còn lại trong Batch 1
 
@@ -1744,7 +1744,7 @@ Ma trận audit từng mục: `33_ITEM_COMPLETION_MATRIX_2026-09-16.md`.
 - Bổ sung test deterministic riêng cho event influence node chưa khám phá, transfer ownership và weather severity.
 - Audit toàn bộ command/UI handler để bảo đảm mọi action mới đều đi qua resolver canonical.
 
-## Batch 2 progress  P1 world/content/replay
+## Batch 2 progress — P1 world/content/replay
 
 ### Đã triển khai thêm
 
@@ -1764,14 +1764,14 @@ P2 baseline đã được ghi thành requirement: `02-progression/DI_THE_CATALOG
 
 ### Regression mới nhất
 
-- `verify_dichi_deep.js`  pass.
-- `verify_expansion_log_matrix.js`  43/43.
-- `verify_log_narrative.js`  pass.
-- `verify_companion_runtime.js`  pass.
-- `verify_indexeddb_archive.js`  pass.
-- `profile_runtime_budget.js`  pass; resolver trung bình dưới budget Node, save mẫu khoảng 3.7MB.
-- `verify_game.js`  pass 3 lần liên tiếp sau khi thêm diagnostic message cho gate đột phá; không còn assertion nền thất bại trong lần kiểm tra này.
-- `verify_review_batches.js`  pass sau khi thêm gate relationship, recipe/reward và contested/hidden realm.
+- `verify_dichi_deep.js` — pass.
+- `verify_expansion_log_matrix.js` — 43/43.
+- `verify_log_narrative.js` — pass.
+- `verify_companion_runtime.js` — pass.
+- `verify_indexeddb_archive.js` — pass.
+- `profile_runtime_budget.js` — pass; resolver trung bình dưới budget Node, save mẫu khoảng 3.7MB.
+- `verify_game.js` — pass 3 lần liên tiếp sau khi thêm diagnostic message cho gate đột phá; không còn assertion nền thất bại trong lần kiểm tra này.
+- `verify_review_batches.js` — pass sau khi thêm gate relationship, recipe/reward và contested/hidden realm.
 
 ### Còn thiếu Batch 2
 
@@ -1781,15 +1781,15 @@ P2 baseline đã được ghi thành requirement: `02-progression/DI_THE_CATALOG
 
 Reward canonical đã được triển khai bằng `state.rewardLedger` và `grantCanonicalReward`; requirement: `06-expansion/REWARD_CATALOG_IDEMPOTENCY_CANONICAL_2026-09-16.md`. Các nguồn contract, hidden realm, contested opportunity, collection hiếm, world event, tournament, war, prisoner, tomb, legacy và companion release đã dùng receipt chống phát thưởng lặp; discovery/search replay và loot RNG đã có regression deterministic.
 
-## Batch 2  P1: World tick, NPC, content/discovery, action/log/save
+## Batch 2 — P1: World tick, NPC, content/discovery, action/log/save
 
 Trạng thái: chưa hoàn tất. Sẽ triển khai theo thứ tự world simulation → NPC offline → discovery/reward → action priority → log group/day → save schema.
 
-## Batch 3  P2: UI/performance/archive/reward
+## Batch 3 — P2: UI/performance/archive/reward
 
 Trạng thái: chưa hoàn tất. Sẽ chốt budget, retention, render throttling, archive snapshot và reward catalog sau khi Batch 2 ổn định.
 
-## Batch 4  Product decisions 2933
+## Batch 4 — Product decisions 29–33
 
 Baseline đã được phép tự chốt nhưng chưa đánh dấu hoàn tất:
 
@@ -1801,14 +1801,14 @@ Baseline đã được phép tự chốt nhưng chưa đánh dấu hoàn tất:
 
 ## Điều kiện báo hoàn tất
 
-Không báo đã hoàn thiện toàn bộ nếu còn mục nào chỉ có mô tả mà chưa có code hoặc regression. Mỗi batch phải cập nhật file này và file requirement tương ứng trước khi chuyển batch.
+Không báo “đã hoàn thiện toàn bộ” nếu còn mục nào chỉ có mô tả mà chưa có code hoặc regression. Mỗi batch phải cập nhật file này và file requirement tương ứng trước khi chuyển batch.
 
 
 ---
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_BATCH_76_ACTION_PRIORITY.md`
 
-# Review Batch 76  Action Priority / Deterministic Replay
+# Review Batch 76 — Action Priority / Deterministic Replay
 
 Phạm vi: Mục 19 và Mục 21 của `REVIEW_INCOMPLETE_DESIGN_UNRESOLVED.md`.
 
@@ -1833,98 +1833,98 @@ Xem `07-ui/ACTION_PRIORITY_MATRIX_VALIDATOR_2026-09-17.md` để biết contract
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_BATCH_77_WEATHER.md`
 
-# Review Batch 77  Weather runtime contract
+# Review Batch 77 — Weather runtime contract
 
 Phạm vi: Mục 11.
 
 Đã bổ sung `validateWeatherRuntimeState()` để kiểm tra weather ID sau alias normalization, severity khớp catalog, thời hạn, history retention và transition hợp lệ của world tick. Validator được nối vào `validateExpansionState()` và có regression cho alias, catalog drift và offline tick.
 
-Trạng thái: **ĐANG TRIỂN KHAI**  runtime/save/offline đã được kiểm tra; browser E2E cho animation/fog và từng transition vẫn còn thiếu.
+Trạng thái: **ĐANG TRIỂN KHAI** — runtime/save/offline đã được kiểm tra; browser E2E cho animation/fog và từng transition vẫn còn thiếu.
 
 
 ---
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_BATCH_78_STRUCTURE_RUNTIME.md`
 
-# Review Batch 78  Structure runtime state
+# Review Batch 78 — Structure runtime state
 
 Phạm vi: Mục 2, 24, 25 và 32.
 
 Đã bổ sung `validateStructureRuntimeState()` cho schema Công Trình, ownership, durability, level/charge, transfer history, duplicate active type và inventory invariant. Validator được tích hợp vào `validateExpansionState()`; regression kiểm tra công trình hợp lệ và durability sai.
 
-Trạng thái: **ĐANG TRIỂN KHAI**  runtime/save validation đã pass; browser E2E permission matrix vẫn còn thiếu.
+Trạng thái: **ĐANG TRIỂN KHAI** — runtime/save validation đã pass; browser E2E permission matrix vẫn còn thiếu.
 
 
 ---
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_BATCH_79_RELATIONSHIP_LEDGER.md`
 
-# Review Batch 79  Relationship ledger invariants
+# Review Batch 79 — Relationship ledger invariants
 
 Phạm vi: Mục 15 và hỗ trợ Mục 6/8.
 
 Đã bổ sung validator ledger quan hệ, unique event key, event metadata và orphan memory; nối vào `validateExpansionState()`. Regression kiểm tra idempotent relationship event, projection dimensions và drift bị từ chối.
 
-Trạng thái: **ĐANG TRIỂN KHAI**  runtime/save đã pass; dialog UI E2E và các nhánh relationship dài hạn vẫn cần coverage trực tiếp.
+Trạng thái: **ĐANG TRIỂN KHAI** — runtime/save đã pass; dialog UI E2E và các nhánh relationship dài hạn vẫn cần coverage trực tiếp.
 
 
 ---
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_BATCH_80_HIDDEN_REALM.md`
 
-# Review Batch 80  Hidden Realm lifecycle
+# Review Batch 80 — Hidden Realm lifecycle
 
 Phạm vi: Mục 18 và 26.
 
 Đã bổ sung validator Bí Cảnh cho cycle/window/status, reward claim keys, competitor progress và active realm node reference; nối vào `validateExpansionState()`. Regression kiểm tra enter/exit, reward idempotency, contested expiry và duplicate reward key.
 
-Trạng thái: **ĐANG TRIỂN KHAI**  runtime/save/offline đã pass; browser E2E overlay/map gate còn thiếu.
+Trạng thái: **ĐANG TRIỂN KHAI** — runtime/save/offline đã pass; browser E2E overlay/map gate còn thiếu.
 
 
 ---
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_BATCH_81_DITHE.md`
 
-# Review Batch 81  Dị Thể catalog/state
+# Review Batch 81 — Dị Thể catalog/state
 
-Phạm vi: Mục 23, hỗ trợ Mục 2933.
+Phạm vi: Mục 23, hỗ trợ Mục 29–33.
 
 Đã nối catalog validator vào `validateExpansionState()` và bổ sung `validateSpecialPhysiqueState()` cho active/candidate/progress/history/rejected IDs, player mirror và namespace riêng của Dị Thể. Regression kiểm tra unknown active Dị Thể.
 
-Trạng thái: **ĐANG TRIỂN KHAI**  runtime/save đã pass; browser E2E claim/exclusion dialog còn thiếu.
+Trạng thái: **ĐANG TRIỂN KHAI** — runtime/save đã pass; browser E2E claim/exclusion dialog còn thiếu.
 
 
 ---
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_BATCH_82_CACHE_INVALIDATION.md`
 
-# Review Batch 82  Cache invalidation / performance runtime
+# Review Batch 82 — Cache invalidation / performance runtime
 
 Phạm vi: Mục 1, 9, 22 và 28.
 
 Đã bổ sung revision metadata (`invalidationCount`, `lastInvalidation`) cho map influence, canonical invalidation trong mutation và `validateCacheInvalidationState()` kiểm tra stale cache/metrics. Regression kiểm tra event influence và structure mutation làm revision tăng, cache cũ bị loại bỏ.
 
-Trạng thái: **ĐANG TRIỂN KHAI**  runtime/cache gate đã pass; profiling browser trên thiết bị thật còn thiếu.
+Trạng thái: **ĐANG TRIỂN KHAI** — runtime/cache gate đã pass; profiling browser trên thiết bị thật còn thiếu.
 
 
 ---
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_BATCH_83_REPLAY_ENVELOPE.md`
 
-# Review Batch 83  Deterministic replay envelope
+# Review Batch 83 — Deterministic replay envelope
 
 Phạm vi: Mục 21, hỗ trợ Mục 20/22.
 
 Đã bổ sung `validateReplayEnvelope()` cho seed/save identity, turn/sequence counters và unique IDs của world events/tasks/encounters; nối vào `validateExpansionState()`. Regression kiểm tra seed drift và combat transcript sau save/load.
 
-Trạng thái: **ĐANG TRIỂN KHAI**  deterministic runtime chính đã pass; cross-browser replay corpus dài ngày còn thiếu.
+Trạng thái: **ĐANG TRIỂN KHAI** — deterministic runtime chính đã pass; cross-browser replay corpus dài ngày còn thiếu.
 
 
 ---
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_BATCH_84_UI_ACTION_BINDING.md`
 
-# Review Batch 84  UI Action Binding
+# Review Batch 84 — UI Action Binding
 
 ## Phạm vi
 
@@ -1950,7 +1950,7 @@ Browser E2E local cần môi trường cho phép truy cập HTTP localhost; hi�
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_BATCH_85_SAVE_MIGRATION.md`
 
-# Review Batch 85  Save Migration Fixtures
+# Review Batch 85 — Save Migration Fixtures
 
 ## Mục review
 
@@ -1974,7 +1974,7 @@ Mục 3 và 20: canonical namespace Nghề chính/Nghề Ẩn, legacy aliases, h
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_BATCH_86_HIDDEN_REALM_COORDINATES.md`
 
-# Review Batch 86  Runtime Hidden-Realm Coordinates
+# Review Batch 86 — Runtime Hidden-Realm Coordinates
 
 ## Mục review
 
@@ -2000,7 +2000,7 @@ Pixel placement/zoom của node runtime vẫn cần browser visual QA; invariant
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_BATCH_88_HEADLESS_UI_RENDER.md`
 
-# Review Batch 88  Headless UI Render Coverage
+# Review Batch 88 — Headless UI Render Coverage
 
 ## Mục review
 
@@ -2022,11 +2022,11 @@ Các mục UI liên quan map/world, Dị Thể, progression, Fate, novel log và
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_BATCH_89_CATALOG_BALANCE.md`
 
-# Review Batch 89  Catalog Balance Boundaries
+# Review Batch 89 — Catalog Balance Boundaries
 
 ## Mục review
 
-Mục 11, 16, 2326, 3031: weather/recipe/Dị Thể/structure/reward/path catalog balance.
+Mục 11, 16, 23–26, 30–31: weather/recipe/Dị Thể/structure/reward/path catalog balance.
 
 ## Đã triển khai
 
@@ -2045,7 +2045,7 @@ Mục 11, 16, 2326, 3031: weather/recipe/Dị Thể/structure/reward/path ca
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_BATCH_90_ASSET_REFERENCE.md`
 
-# Review Batch 90  Asset Reference Integrity
+# Review Batch 90 — Asset Reference Integrity
 
 ## Mục review
 
@@ -2067,7 +2067,7 @@ UI surface của mục 1, 5, 8, 10, 17, 19 và các asset illustration liên qua
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_BATCH_91_HIDDEN_REALM_OFFLINE.md`
 
-# Review Batch 91  Hidden Realm Offline Cycle
+# Review Batch 91 — Hidden Realm Offline Cycle
 
 ## Mục review
 
@@ -2089,7 +2089,7 @@ Mục 18: contested opportunity/Hidden Realm offline expiry và reward idempoten
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_BATCH_92_HIDDEN_REALM_CLAIM_GUARD.md`
 
-# Review Batch 92  Hidden Realm Claim Guard
+# Review Batch 92 — Hidden Realm Claim Guard
 
 ## Mục review
 
@@ -2110,7 +2110,7 @@ Mục 18: chống claim reward của cycle cũ sau offline catch-up.
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_BATCH_93_MAP_STRUCTURE_TRAVEL_CLOSURE.md`
 
-# Review Batch 93  Map Structure/Travel Closure
+# Review Batch 93 — Map Structure/Travel Closure
 
 ## Phạm vi
 
@@ -2135,7 +2135,7 @@ Mục 18: chống claim reward của cycle cũ sau offline catch-up.
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_BATCH_94_CATALOG_BALANCE_BASELINE.md`
 
-# Review Batch 94  Canonical Catalog Balance Baseline
+# Review Batch 94 — Canonical Catalog Balance Baseline
 
 ## Mục tiêu
 
@@ -2161,7 +2161,7 @@ Chuyển balance catalog từ kiểm tra kiểu dữ liệu/range đơn thuần 
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_FINAL_STATUS_2026-09-17.md`
 
-# REVIEW FINAL STATUS  33 MỤC
+# REVIEW FINAL STATUS — 33 MỤC
 
 Tài liệu này là trạng thái chuẩn hóa sau Batch 92. Nó bổ sung và làm rõ các dòng lịch sử trong `REVIEW_INCOMPLETE_DESIGN_UNRESOLVED.md`; không thay thế requirement chi tiết của từng feature.
 
@@ -2169,12 +2169,12 @@ Tài liệu này là trạng thái chuẩn hóa sau Batch 92. Nó bổ sung và 
 
 | Nhóm | Trạng thái | Bằng chứng |
 |---|---|---|
-| 14 | Có baseline runtime canonical cho map, influence, structure và log | Batch 71, 73, 78, 82; `verify_review_batches.js` |
-| 58 | Có Fate namespace/effect/instance UI và policy decay `none` | Batch 55, 56, 68, 72; `verify_dichi_deep.js` |
-| 916 | Có completion, travel, weather, war, NPC, rumor, relationship và catalog contract | Batch 5965, 77, 89 |
-| 1722 | Có discovery, contested/Hidden Realm, action priority, migration, replay và cache contract | Batch 7586, 9192 |
-| 2328 | Có catalog validator, structure lifecycle/influence, reward ledger, archive và performance gate | Batch 67, 6970, 78, 89 |
-| 2933 | Đã chốt policy canonical và có validator/runtime cho decay, path fusion, Dị Thể exclusion, ownership và NPC offline | Batch 68, 79, 81, 89 |
+| 1–4 | Có baseline runtime canonical cho map, influence, structure và log | Batch 71, 73, 78, 82; `verify_review_batches.js` |
+| 5–8 | Có Fate namespace/effect/instance UI và policy decay `none` | Batch 55, 56, 68, 72; `verify_dichi_deep.js` |
+| 9–16 | Có completion, travel, weather, war, NPC, rumor, relationship và catalog contract | Batch 59–65, 77, 89 |
+| 17–22 | Có discovery, contested/Hidden Realm, action priority, migration, replay và cache contract | Batch 75–86, 91–92 |
+| 23–28 | Có catalog validator, structure lifecycle/influence, reward ledger, archive và performance gate | Batch 67, 69–70, 78, 89 |
+| 29–33 | Đã chốt policy canonical và có validator/runtime cho decay, path fusion, Dị Thể exclusion, ownership và NPC offline | Batch 68, 79, 81, 89 |
 
 ## Batch 92
 
@@ -2198,7 +2198,7 @@ Hai gate này không phải lỗ hổng state/schema/runtime đã biết; chúng
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_INCOMPLETE_DESIGN_UNRESOLVED.md`
 
-# REVIEW REGISTER  MỘT PHẦN / THIẾT KẾ / CHƯA CHỐT
+# REVIEW REGISTER — MỘT PHẦN / THIẾT KẾ / CHƯA CHỐT
 
 Ngày tổng hợp: 2026-09-16  
 Nguồn: toàn bộ hồ sơ trong `SYSTEM_LOGIC_CATALOG`.
@@ -2216,7 +2216,7 @@ File này chỉ chứa các logic chưa đạt trạng thái hoàn thiện để
 
 ---
 
-## P0  Cần quyết định/triển khai trước
+## P0 — Cần quyết định/triển khai trước
 
 ### 1. API influence gradient canonical
 
@@ -2233,7 +2233,7 @@ File này chỉ chứa các logic chưa đạt trạng thái hoàn thiện để
   - Một DTO influence duy nhất được dùng cho map UI, travel, fog và construction.
   - Có test node trung tâm, node tranh chấp, node ngoài influence và offline catch-up.
 
-### 2. Công Trình  Truyền Tống Trận và Hộ Giới Đại Trận
+### 2. Công Trình — Truyền Tống Trận và Hộ Giới Đại Trận
 
 - Nguồn: `03_MAP_WORLD_CONSTRUCTION.md`, UI requirements
 - Trạng thái: **THIẾT KẾ**
@@ -2280,7 +2280,7 @@ File này chỉ chứa các logic chưa đạt trạng thái hoàn thiện để
 >> Tiếp tục làm và tự cải thiện logic
 ---
 
-## P1  Cần hoàn thiện sau khi core P0 ổn định
+## P1 — Cần hoàn thiện sau khi core P0 ổn định
 
 ### 5. Fate Phase 3
 
@@ -2461,7 +2461,7 @@ File này chỉ chứa các logic chưa đạt trạng thái hoàn thiện để
 
 ---
 
-## P2  Thiết kế mở rộng/chưa chốt sản phẩm
+## P2 — Thiết kế mở rộng/chưa chốt sản phẩm
 
 ### 23. Dị Thể catalog đầy đủ
 
@@ -2543,7 +2543,7 @@ Chưa chốt offline simulation có mô phỏng actor-level đầy đủ hay ch�
 
 ## Thứ tự đề xuất sau khi review
 
-1. Chốt mục 14 và 2932.
+1. Chốt mục 1–4 và 29–32.
 2. Chuẩn hóa state/migration cho nghề, influence, structure và legacy history.
 3. Hoàn thiện P1 theo thứ tự map → world tick → NPC → content → UI.
 4. Chạy deterministic/offline/performance gate.
@@ -2557,13 +2557,13 @@ Chưa chốt offline simulation có mô phỏng actor-level đầy đủ hay ch�
 | 2 | ☐ Chấp nhận ☐ Sửa ☐ Tạm hoãn | |
 | 3 | ☐ Chấp nhận ☐ Sửa ☐ Tạm hoãn | |
 | 4 | ☐ Chấp nhận ☐ Sửa ☐ Tạm hoãn | |
-| 522 | ☐ Chấp nhận ☐ Sửa ☐ Tạm hoãn | |
-| 2328 | ☐ Chấp nhận ☐ Sửa ☐ Tạm hoãn | |
-| 2933 | ☐ Chấp nhận ☐ Sửa ☐ Tạm hoãn | |
+| 5–22 | ☐ Chấp nhận ☐ Sửa ☐ Tạm hoãn | |
+| 23–28 | ☐ Chấp nhận ☐ Sửa ☐ Tạm hoãn | |
+| 29–33 | ☐ Chấp nhận ☐ Sửa ☐ Tạm hoãn | |
 
 ---
 
-## Cập nhật triển khai theo đợt  2026-09-16
+## Cập nhật triển khai theo đợt — 2026-09-16
 
 Quyền quyết định: Codex được phép tự tạo logic còn thiếu và cập nhật requirement/schema hiện hành cho toàn bộ 33 mục. Các quyết định dưới đây là baseline coding, không phải để lại ở trạng thái thiết kế:
 
@@ -2591,11 +2591,11 @@ Quyền quyết định: Codex được phép tự tạo logic còn thiếu và 
 | Batch 75 / P1 | Muc 3/6/17: profession namespace va discovery lifecycle | Da them validator discovery status/transition day, giu codexClues tach metadata, noi vao expansion validation va regression status sai | `js/expansion.js`, `tools/verify_review_batches.js`, `DISCOVERY_LIFECYCLE_NAMESPACE_VALIDATOR_2026-09-17.md` |
 | Batch 68 / product | Muc 29-33: product policy decay/path/Dị Thể/ownership/offline | Da chot policy canonical, API snapshot/validator, structure permission resolver va regression faction repair/upgrade | `js/expansion.js`, `tools/verify_review_batches.js`, `PRODUCT_POLICIES_29_33_CANONICAL_2026-09-17.md` |
 | Batch 56 / P1 | Muc 8: UI Mệnh theo instance | Da bo sung instance metadata, relationship history, evolution va advanced usage vao Fate card; requirement UI contract | `js/ui.js`, `FATE_INSTANCE_CARD_UI_CONTRACT_2026-09-17.md` |
-| Batch 1 / P0 | Mục 14: influence canonical, map structure, spawn node, weather/log regression | Đang triển khai | `js/expansion.js`, `js/engine.js`, `MAP_INFLUENCE_STRUCTURE_CANONICAL_2026-09-16.md` |
-| Batch 1 / P0 | Mục 68: nghề chính/phụ, canonical namespace, Fate advanced actions | Đã có nền runtime; tiếp tục audit UI | `PROFESSION_NAMESPACE_AND_SAVE_NORMALIZATION_2026-09-16.md`, `FATE_ADVANCED_ACTIONS_CANONICAL_2026-09-16.md` |
-| Batch 2 / P1 | Mục 922: world tick, NPC, content/discovery, action/log/save | Đang triển khai | World/NPC/discovery/action/log đã có runtime; còn audit catalog, companion, contested rollback và archive gate |
-| Batch 3 / P2 | Mục 2328: UI/performance/archive/reward canonical | Đang triển khai | Reward ledger, structure lifecycle và performance baseline đã có; còn hoàn thiện catalog/retention/device budget |
-| Batch 4 / product | Mục 2933: decay, song tu, Dị Thể, ownership, offline NPC | Đã cho phép Codex tự chốt baseline; chưa hoàn tất | Sẽ bổ sung quyết định canonical vào các requirement tương ứng |
+| Batch 1 / P0 | Mục 1–4: influence canonical, map structure, spawn node, weather/log regression | Đang triển khai | `js/expansion.js`, `js/engine.js`, `MAP_INFLUENCE_STRUCTURE_CANONICAL_2026-09-16.md` |
+| Batch 1 / P0 | Mục 6–8: nghề chính/phụ, canonical namespace, Fate advanced actions | Đã có nền runtime; tiếp tục audit UI | `PROFESSION_NAMESPACE_AND_SAVE_NORMALIZATION_2026-09-16.md`, `FATE_ADVANCED_ACTIONS_CANONICAL_2026-09-16.md` |
+| Batch 2 / P1 | Mục 9–22: world tick, NPC, content/discovery, action/log/save | Đang triển khai | World/NPC/discovery/action/log đã có runtime; còn audit catalog, companion, contested rollback và archive gate |
+| Batch 3 / P2 | Mục 23–28: UI/performance/archive/reward canonical | Đang triển khai | Reward ledger, structure lifecycle và performance baseline đã có; còn hoàn thiện catalog/retention/device budget |
+| Batch 4 / product | Mục 29–33: decay, song tu, Dị Thể, ownership, offline NPC | Đã cho phép Codex tự chốt baseline; chưa hoàn tất | Sẽ bổ sung quyết định canonical vào các requirement tương ứng |
 
 ### Baseline đã chốt để code
 
@@ -2608,7 +2608,7 @@ Quyền quyết định: Codex được phép tự tạo logic còn thiếu và 
 - Mục 8: quan hệ Mệnh dùng `decayPolicy: "none"`; không tự tụt stage/XP theo thời gian.
 - Mục 9: node history/completion đã có sub-location, structure và faction change; đang bổ sung actor/weather/replay coverage.
 - Mục 11: weather catalog canonical đã có severity/alias/history; còn thiếu data-driven duration/transition UI toàn bộ.
-- Mục 1214: world tick, war cascade, NPC edge scheduler và rumor propagation đã có nền runtime idempotent; cần test trực tiếp và hoàn thiện offline aggregate.
+- Mục 12–14: world tick, war cascade, NPC edge scheduler và rumor propagation đã có nền runtime idempotent; cần test trực tiếp và hoàn thiện offline aggregate.
 - Mục 17: discovery/Dị Chí đã tách state `discovered/verified/collected/rewarded`; không được suy diễn thành Con Đường/Nghề/Dị Thể.
 - Mục 20: legacy history đã derive `statDisplay` và dùng ID deterministic khi deserialize.
 - Mục 21: replay-aware RNG đã phủ map encounter, search/discovery, loot, cultivation, combat bonus, breakthrough, market và SAN branch; random khởi tạo nhân vật vẫn là random tạo mới, không phải replay commit.
@@ -2623,48 +2623,48 @@ Một mục chỉ được chuyển sang **ĐÃ HOÀN TẤT** khi có đủ: req
 
 ## Source: `SYSTEM_LOGIC_CATALOG\REVIEW_STATUS_SUPPLEMENT_2026-09-17.md`
 
-# REVIEW STATUS SUPPLEMENT  2026-09-17
+# REVIEW STATUS SUPPLEMENT — 2026-09-17
 
-Tài liệu này là phụ lục trạng thái của `REVIEW_INCOMPLETE_DESIGN_UNRESOLVED.md`. Các batch trong phụ lục là bằng chứng triển khai sau phần bảng lịch sử cũ của register; không dùng nhãn cũ một phần/chưa chốt nếu batch tương ứng đã có requirement, runtime và regression.
+Tài liệu này là phụ lục trạng thái của `REVIEW_INCOMPLETE_DESIGN_UNRESOLVED.md`. Các batch trong phụ lục là bằng chứng triển khai sau phần bảng lịch sử cũ của register; không dùng nhãn cũ “một phần/chưa chốt” nếu batch tương ứng đã có requirement, runtime và regression.
 
 ## Các đợt đã hoàn thiện trong vòng hiện tại
 
 | Batch | Mục review | Kết quả |
 |---|---|---|
-| 76 | 19  action priority / resolver | Validator kiểm tra ID, priority, alias, projection deterministic và overlap; nối vào expansion validation. |
-| 77 | 11  weather catalog/severity | Validator runtime kiểm tra catalog, severity, duration, history và transition hợp lệ. |
-| 78 | 2, 24, 25, 32  Công Trình/structure | Validator state kiểm tra owner, status, integrity, level, inventory, waystation charges và duplicate active type. |
-| 79 | 6, 15  relationship ledger | Validator kiểm tra event identity, day/delta và không cho memory chứa orphan relationship key. |
-| 80 | 18  Hidden Realm | Validator kiểm tra cycle, window, status, reward idempotency, competitor progress và active reference. |
-| 81 | 23, 31  Dị Thể | Validator state kiểm tra active catalog ID, player mirror, candidate threshold, history/rejected uniqueness. |
-| 82 | 1, 9, 22  map cache/invalidation | Runtime có revision, invalidation count, last invalidation, cache revision và metrics contract. |
-| 83 | 21  deterministic replay | Replay envelope kiểm tra seed/save/turn, sequence counters, world queue và unique event/task/encounter IDs. |
-| 84 | 19  UI command binding | Static audit chứng minh mọi `expansionButton` command có handler runtime; delegated binding và action queue vẫn là single path. |
-| 85 | 3, 20  save migration | Deserialize fixture v1/v7, legacy hidden-profession alias, legacy history ID và deterministic `saveId`; canonical round-trip vẫn pass. |
-| 86 | 1, 18  runtime Hidden Realm coordinates | Node entry/path/core động được cấp tọa độ deterministic, map validator không còn fail sau catalog runtime rebuild. |
+| 76 | 19 — action priority / resolver | Validator kiểm tra ID, priority, alias, projection deterministic và overlap; nối vào expansion validation. |
+| 77 | 11 — weather catalog/severity | Validator runtime kiểm tra catalog, severity, duration, history và transition hợp lệ. |
+| 78 | 2, 24, 25, 32 — Công Trình/structure | Validator state kiểm tra owner, status, integrity, level, inventory, waystation charges và duplicate active type. |
+| 79 | 6, 15 — relationship ledger | Validator kiểm tra event identity, day/delta và không cho memory chứa orphan relationship key. |
+| 80 | 18 — Hidden Realm | Validator kiểm tra cycle, window, status, reward idempotency, competitor progress và active reference. |
+| 81 | 23, 31 — Dị Thể | Validator state kiểm tra active catalog ID, player mirror, candidate threshold, history/rejected uniqueness. |
+| 82 | 1, 9, 22 — map cache/invalidation | Runtime có revision, invalidation count, last invalidation, cache revision và metrics contract. |
+| 83 | 21 — deterministic replay | Replay envelope kiểm tra seed/save/turn, sequence counters, world queue và unique event/task/encounter IDs. |
+| 84 | 19 — UI command binding | Static audit chứng minh mọi `expansionButton` command có handler runtime; delegated binding và action queue vẫn là single path. |
+| 85 | 3, 20 — save migration | Deserialize fixture v1/v7, legacy hidden-profession alias, legacy history ID và deterministic `saveId`; canonical round-trip vẫn pass. |
+| 86 | 1, 18 — runtime Hidden Realm coordinates | Node entry/path/core động được cấp tọa độ deterministic, map validator không còn fail sau catalog runtime rebuild. |
 | 88 | UI map/world/progression/log surfaces | Headless render toàn bộ 13 tab; phát hiện và sửa fallback region description bị leak `undefined`. |
-| 89 | 11, 16, 2326, 3031  catalog balance | Thêm boundary validator cho weather, recipe, Dị Thể, Công Trình, reward và Path fusion; nối vào expansion validation. |
+| 89 | 11, 16, 23–26, 30–31 — catalog balance | Thêm boundary validator cho weather, recipe, Dị Thể, Công Trình, reward và Path fusion; nối vào expansion validation. |
 | 90 | UI asset integrity | Kiểm tra `assets/...` reference trong HTML/JS/CSS và data portrait catalog đều trỏ tới file tồn tại; 16 unique asset files hiện pass. |
 | 91 | Browser QA evidence | HTTP local index/asset trả 200; Chrome local bị `ERR_BLOCKED_BY_CLIENT` trước khi load, nên pixel/responsive QA vẫn mở và được ghi rõ, không đánh dấu pass giả. |
-| 92 | 18  Hidden Realm offline lifecycle | Sửa claim guard cycle/window và tự eject active realm khi offline tick đóng cycle hoặc chuyển cycle; regression offline expiry pass. |
-| 93 | 1, 9, 10, 2425  Map structure/travel closure | Structure dismantled bị loại khỏi influence/ward protection; travel weight đọc weather của node đích; regression map lifecycle pass. |
-| 94 | 11, 16, 2326, 3031  Catalog balance baseline | Thêm regression runtime trên catalog thật: 8 weather, 6 recipes, 4 Công Trình, 6 Dị Thể, path fusion và reward policy đều pass baseline định lượng. |
+| 92 | 18 — Hidden Realm offline lifecycle | Sửa claim guard cycle/window và tự eject active realm khi offline tick đóng cycle hoặc chuyển cycle; regression offline expiry pass. |
+| 93 | 1, 9, 10, 24–25 — Map structure/travel closure | Structure dismantled bị loại khỏi influence/ward protection; travel weight đọc weather của node đích; regression map lifecycle pass. |
+| 94 | 11, 16, 23–26, 30–31 — Catalog balance baseline | Thêm regression runtime trên catalog thật: 8 weather, 6 recipes, 4 Công Trình, 6 Dị Thể, path fusion và reward policy đều pass baseline định lượng. |
 
 ## Requirement và code tương ứng
 
-- Batches 7684 có requirement riêng trong thư mục này.
-- Batch 8586 và gate coverage 33 mục được ghi trong các requirement bổ sung; chạy `node tools/verify_33_item_coverage.js` để kiểm tra đủ mapping requirement → runtime/schema → regression.
+- Batches 76–84 có requirement riêng trong thư mục này.
+- Batch 85–86 và gate coverage 33 mục được ghi trong các requirement bổ sung; chạy `node tools/verify_33_item_coverage.js` để kiểm tra đủ mapping requirement → runtime/schema → regression.
 - Runtime chính: `js/engine.js`, `js/expansion.js`, `js/ui.js`, `js/main.js`.
 - Regression chính: `tools/verify_review_batches.js`, `tools/verify_ui_surface_contract.js`, `tools/verify_expansion_stress.js`, `tools/profile_runtime_budget.js`.
 
 ## Trạng thái 33 mục
 
-- Mục 14: đã có canonical influence/structure/map/log runtime; còn browser E2E local và một số balance dữ liệu cần kiểm định nội dung.
-- Mục 58: Fate namespace/effect/evolution/instance UI đã có validator và regression; policy decay được chốt là `none`.
-- Mục 916: completion, travel, weather, war, NPC, rumor, relationship, Công Pháp/recipe đã có resolver hoặc validator tương ứng; phần còn mở chủ yếu là mở rộng content catalog.
-- Mục 1722: Dị Thể/discovery lifecycle, contested/hidden realm, action priority, legacy history, replay và cache đã có contract runtime/test.
-- Mục 2328: Dị Thể catalog, structure lifecycle/influence, reward source, archive retention và performance budget đã có requirement/code/test theo các batch trước và 7783.
-- Mục 2933: product policy đã được chốt canonical cho decay, song tu/path, Dị Thể exclusion, structure ownership và NPC offline; các giới hạn content/balance vẫn được ghi là phần cần tinh chỉnh, không giả định đã cân bằng hoàn toàn.
+- Mục 1–4: đã có canonical influence/structure/map/log runtime; còn browser E2E local và một số balance dữ liệu cần kiểm định nội dung.
+- Mục 5–8: Fate namespace/effect/evolution/instance UI đã có validator và regression; policy decay được chốt là `none`.
+- Mục 9–16: completion, travel, weather, war, NPC, rumor, relationship, Công Pháp/recipe đã có resolver hoặc validator tương ứng; phần còn mở chủ yếu là mở rộng content catalog.
+- Mục 17–22: Dị Thể/discovery lifecycle, contested/hidden realm, action priority, legacy history, replay và cache đã có contract runtime/test.
+- Mục 23–28: Dị Thể catalog, structure lifecycle/influence, reward source, archive retention và performance budget đã có requirement/code/test theo các batch trước và 77–83.
+- Mục 29–33: product policy đã được chốt canonical cho decay, song tu/path, Dị Thể exclusion, structure ownership và NPC offline; các giới hạn content/balance vẫn được ghi là phần cần tinh chỉnh, không giả định đã cân bằng hoàn toàn.
 
 ## Phần chưa thể tuyên bố hoàn tất
 
@@ -2676,38 +2676,38 @@ Tài liệu này là phụ lục trạng thái của `REVIEW_INCOMPLETE_DESIGN_U
 
 ## Source: `01-core\UNRESOLVED_PRODUCT_POLICIES_DECIDED_2026-09-17.md`
 
-# UNRESOLVED PRODUCT POLICIES  ĐÃ CHỐT VÀ CODE 2026-09-17
+# UNRESOLVED PRODUCT POLICIES — ĐÃ CHỐT VÀ CODE 2026-09-17
 
-Tài liệu này chốt các mục 2933 của `REVIEW_INCOMPLETE_DESIGN_UNRESOLVED.md`. Các policy là canonical cho runtime, save migration và UI view model.
+Tài liệu này chốt các mục 29–33 của `REVIEW_INCOMPLETE_DESIGN_UNRESOLVED.md`. Các policy là canonical cho runtime, save migration và UI view model.
 
-## 29  Quan hệ Mệnh
+## 29 — Quan hệ Mệnh
 
 - Quan hệ Mệnh không bị decay thụ động theo thời gian, offline hay world tick.
 - `stagnantDays` chỉ là bộ đếm không tương tác; nó không trừ `points`, `stage`, `xp` hay effect.
 - `decayPolicy` canonical là `none`; policy khác là state lỗi cần phát hiện, không tự âm thầm áp dụng.
 - Khi đủ 60 ngày nguội, người chơi có thể dùng luồng giải phóng Mệnh đã có; đây là hành động chủ động, không phải decay tự động.
 
-## 30  Song tu/Dung Hợp Con Đường
+## 30 — Song tu/Dung Hợp Con Đường
 
 - Player có tối đa hai slot: một Con Đường chính và một Con Đường phụ.
 - Con Đường phụ chỉ mở qua explicit transition đã xác nhận, tiêu hao tài nguyên và không cho ghi đè bằng action thường.
 - Không cho chọn trùng primary/secondary; affinity dung hợp bị giới hạn `0.75`.
 - `pathState` là nguồn canonical; mirror trên `player` chỉ phục vụ tương thích save cũ.
 
-## 31  Dị Thể và loại trừ
+## 31 — Dị Thể và loại trừ
 
 - Dị Thể là modifier/progression branch độc lập; mặc định không khóa Nghề, Con Đường, faction hoặc ending.
 - Chỉ các mảng `exclusions.paths` và `exclusions.professions` trong catalog mới tạo blocker khi claim.
 - Không được suy diễn exclusion từ tên Dị Thể, branch hoặc ending tag.
 
-## 32  Ownership Công Trình
+## 32 — Ownership Công Trình
 
 - Mọi công trình active phải có `ownerType` thuộc `player`, `npc` hoặc `faction` và có `ownerId`.
 - Công trình mới do player tạo thuộc player; chuyển chủ là action explicit, phải ghi `transferHistory` và node history.
 - Công trình faction sau petition thuộc faction; công trình NPC sau transfer thuộc NPC.
 - Quyền repair/upgrade/dismantle kiểm tra owner hiện tại; không dùng quyền của chủ cũ sau transfer.
 
-## 33  NPC offline
+## 33 — NPC offline
 
 - Offline dùng hai lớp: aggregate simulation cho phần thời gian xa và actor-level deterministic projection cho cửa sổ gần.
 - Cửa sổ actor mặc định và retention là 30 ngày; batch aggregate mặc định 3 ngày.
@@ -2725,7 +2725,7 @@ Các giá trị balance chi tiết, tần suất NPC cụ thể và FPS thiết 
 
 ## Source: `SYSTEM_LOGIC_CATALOG\33_ITEM_COMPLETION_MATRIX_2026-09-16.md`
 
-# Ma trận bằng chứng 33 mục  2026-09-16
+# Ma trận bằng chứng 33 mục — 2026-09-16
 
 Đây là audit hiện trạng sau các đợt coding. `ĐÃ CODE` chỉ có nghĩa runtime chính đã có; mục chỉ được nâng thành `ĐÃ HOÀN TẤT` khi đủ UI, migration và regression đúng phạm vi.
 
@@ -2739,7 +2739,7 @@ Các giá trị balance chi tiết, tần suất NPC cụ thể và FPS thiết 
 | 6 | ĐÃ CODE | `decayPolicy: none`, không tick decay; regression 120 ngày giữ nguyên stage/XP/points | Browser hiển thị lịch sử dài ngày |
 | 7 | ĐÃ CODE | base/enhancement/relationship/evolution/suppression/advanced breakdown; preview/commit evolution deep-equal regression | Audit browser hiển thị từng layer |
 | 8 | ĐÃ CODE | UI definition/instance, history relationship/resonance | Visual QA browser |
-| 9 | ĐÃ CODE MỘT PHẦN | node history/completion có sub-location/structure/faction/actor/weather, retention 50 và UI Dấu vết gần đây tại node | Coverage từng producer/action và browser visual QA |
+| 9 | ĐÃ CODE MỘT PHẦN | node history/completion có sub-location/structure/faction/actor/weather, retention 50 và UI “Dấu vết gần đây tại node” | Coverage từng producer/action và browser visual QA |
 | 10 | ĐÃ CODE | travelPlan dùng distance/weather/danger/war/contested/ward/anchor; engine movement dùng cùng resolver và OXY canonical | Fast travel/route UI browser QA |
 | 11 | ĐÃ CODE MỘT PHẦN | weather catalog/alias/severity/history/default duration/transition pool/resolver; World UI hiển thị severity, ngày hết hạn và 5 chuyển đổi gần nhất | Browser kiểm tra đầy đủ transition/fog/NPC surface |
 | 12 | ĐÃ CODE | war outcome/cascadeApplied, faction/map cascade và seeded world tick | UI chiến tuyến/chi tiết mặt trận còn cần browser QA |
@@ -2907,7 +2907,7 @@ Các giá trị balance chi tiết, tần suất NPC cụ thể và FPS thiết 
 - `verify_companion_runtime.js`
 - `verify_indexeddb_archive.js`
 - `verify_dichi_deep.js`
-- `verify_expansion_log_matrix.js`  43/43
+- `verify_expansion_log_matrix.js` — 43/43
 - `verify_log_narrative.js`
 - `verify_expansion_stress.js`
 - `profile_runtime_budget.js`
@@ -2959,70 +2959,70 @@ Các giá trị balance chi tiết, tần suất NPC cụ thể và FPS thiết 
   below 250ms, map influence cache metrics, save-size and novel-log budgets.
 
 Không chuyển mục sang `ĐÃ HOÀN TẤT` chỉ vì resolver tồn tại. Cần bổ sung test đúng nhánh, kiểm tra save round-trip, UI nếu có bề mặt người chơi và kiểm tra không phát sinh log kỹ thuật. Ma trận này phải được cập nhật sau mỗi batch.
-# Batch 40  Technical token sanitization (2026-09-17)
+# Batch 40 — Technical token sanitization (2026-09-17)
 
-- Mục liên quan: #4  novel-style log.
+- Mục liên quan: #4 — novel-style log.
 - Đã bổ sung boundary sanitization cho `internal`, `debug`, `raw`, `payload`, `field_name`, `undefined`, `null` và regression producer trực tiếp.
 - Requirement/schema bổ sung: `requirement/07-ui/LOG_TECHNICAL_TOKEN_SANITIZATION_2026-09-17.md`.
 - Verification: `node tools/verify_log_narrative.js`, `node tools/verify_log_producers.js`, `node tools/verify_expansion_log_matrix.js` đều PASS.
 - Còn mở: browser visual QA/pixel-level log panel; các mục content/UX khác vẫn giữ trạng thái partial theo gate hiện hành.
-# Batch 53  Relationship dimensions policy (2026-09-17)
+# Batch 53 — Relationship dimensions policy (2026-09-17)
 
 - Added canonical relationship policy/validator for trust, fear, respect, suspicion, loyalty and derived score.
 - Explicitly separates NPC `event_only` policy from Fate `none` decay policy.
 - Requirement bổ sung: `requirement/05-operations/RELATIONSHIP_DIMENSIONS_POLICY_2026-09-17.md`.
 - Regression verifies event idempotency, policy, score and save round-trip.
 
-# Batch 52  War front and rumor bulletin view-model (2026-09-17)
+# Batch 52 — War front and rumor bulletin view-model (2026-09-17)
 
 - Added `warFrontSnapshot()` and `rumorBulletinSnapshot()` canonical read models.
 - Expansion summary now exposes `warFronts` and `rumorBulletin`; UI/runtime can consume status, score, cascade, source and expiry without raw-state inference.
 - Requirement bổ sung: `requirement/04-interaction/WAR_FRONT_RUMOR_BULLETIN_VIEWMODEL_2026-09-17.md`.
 - Regression adds war-front cascade/outcome DTO checks and retains offline/rumor determinism coverage.
 
-# Batch 51  Structure influence effect schema (2026-09-17)
+# Batch 51 — Structure influence effect schema (2026-09-17)
 
 - Structure catalog now owns type effects; build merges canonical effects into runtime records.
 - Added validation for effect object/max level/refund range; influence resolver remains active-only and revision-invalidated.
 - Requirement bổ sung: `requirement/03-world/STRUCTURE_INFLUENCE_EFFECT_SCHEMA_2026-09-17.md`.
 - Regression retains active/disabled/repair influence and save/offline lifecycle coverage.
 
-# Batch 50  Canonical reward policy / pending Fate vault (2026-09-17)
+# Batch 50 — Canonical reward policy / pending Fate vault (2026-09-17)
 
 - Chốt duplicate=`reject`, pity=`none`, Fate vault full=`pending_vault`, replay=`idempotent`.
 - Added `rewardPolicySnapshot()`/`validateRewardPolicy()` and receipt audit fields `policy`/`pendingFateCount`.
 - Requirement bổ sung: `requirement/06-expansion/REWARD_POLICY_PITY_AND_PENDING_VAULT_2026-09-17.md`.
 - Regression reward ledger/quest/online Fate/tainted reward tiếp tục pass.
 
-# Batch 49  UI view-model and action delegation regression (2026-09-17)
+# Batch 49 — UI view-model and action delegation regression (2026-09-17)
 
 - UI contract now checks all four Dị Thể/discovery lifecycle states, exactly one delegated tab-content click listener, serialized action queue and engine priority guard.
 - Requirement bổ sung: `requirement/07-ui/UI_VIEWMODEL_ACTION_DELEGATION_REGRESSION_2026-09-17.md`.
 - `verify_ui_surface_contract.js` PASS; review/game regressions continue to pass legacy log/action priority coverage.
 - Pixel-level browser QA remains explicitly separate.
 
-# Batch 48  Dị Thể effect/exclusion schema (2026-09-17)
+# Batch 48 — Dị Thể effect/exclusion schema (2026-09-17)
 
 - Validator now rejects unknown Dị Thể effect/benefit keys and malformed exclusion entries.
 - Claim resolver checks primary/secondary Con Đường and all canonical Nghề slots against explicit catalog exclusions.
 - Requirement bổ sung: `requirement/02-progression/DITHE_CATALOG_EFFECT_EXCLUSION_SCHEMA_2026-09-17.md`.
 - Deep regression continues to validate catalog, stage effects, modifiers, outcome and save round-trip.
 
-# Batch 47  Canonical structure catalog (2026-09-17)
+# Batch 47 — Canonical structure catalog (2026-09-17)
 
 - Added `STRUCTURE_CATALOG` and `structureCatalog()` for build/repair/upgrade/refund parameters.
 - Structure creation now rejects types missing from the canonical catalog; world catalog validation derives costs from it.
 - Requirement bổ sung: `requirement/03-world/STRUCTURE_CATALOG_BALANCE_SCHEMA_2026-09-17.md`.
 - Regression adds catalog assertions and retains full structure lifecycle/influence tests.
 
-# Batch 46  Replay and cache invariants (2026-09-17)
+# Batch 46 — Replay and cache invariants (2026-09-17)
 
 - Mở rộng `validateExpansionState()` để kiểm tra map influence revision/cache và metric counters.
 - Requirement bổ sung: `requirement/08_DATA_REPLAY_CACHE_INVARIANTS_2026-09-17.md`.
 - Regression map invalidation + serialize/offline round-trip và dynamic random-boundary audit tiếp tục pass.
 - Các producer random hiện đã qua centralized allowance; gate còn lại là browser/device profiling thực tế.
 
-# Batch 45  Weak-device performance profiles (2026-09-17)
+# Batch 45 — Weak-device performance profiles (2026-09-17)
 
 - Added pure `resolvePerformanceProfile()` and runtime `performanceProfile()` with standard/weak/reduced budgets.
 - Main render applies the profile to story-window sizing and root diagnostic attribute; gameplay/save logic is unaffected.
@@ -3030,28 +3030,28 @@ Không chuyển mục sang `ĐÃ HOÀN TẤT` chỉ vì resolver tồn tại. C�
 - Regression verifies capability selection, budget ordering and runtime state application.
 - Remaining gate: real browser/device FPS benchmark.
 
-# Batch 44  Archive retention and durable IndexedDB retry (2026-09-17)
+# Batch 44 — Archive retention and durable IndexedDB retry (2026-09-17)
 
 - Archive log đã chuyển từ queue-clear giả lập sang IndexedDB object store `events` thật, có transaction put, `archivedAt`, retry khi open/transaction lỗi và API đọc gần nhất.
 - Requirement bổ sung: `requirement/07-ui/ARCHIVE_RETENTION_AND_QUOTA_CONTRACT_2026-09-17.md`.
 - Regression archive đã xác nhận failure injection → retry → event persistence; profile vẫn kiểm tra 300 history và save payload dưới 5 MB.
 - Gate còn mở chỉ là quota/FPS/visual QA trên browser/device thật.
 
-# Batch 43  Reward producer canonical audit (2026-09-17)
+# Batch 43 — Reward producer canonical audit (2026-09-17)
 
 - Quest reward contribution double-application was fixed at the engine/expansion boundary.
 - Requirement bổ sung: `requirement/06-expansion/REWARD_PRODUCER_CANONICAL_AUDIT_2026-09-17.md`.
 - Regression now checks quest EXP/merit/currency/item/contribution idempotency across repeated objective evaluation.
 - Repeatable combat/search/craft outputs are explicitly separated from one-time canonical receipts.
 
-# Batch 42  Node/weather/rumor history invariant (2026-09-17)
+# Batch 42 — Node/weather/rumor history invariant (2026-09-17)
 
 - Bổ sung `validateNodeHistory()` kiểm tra metadata bắt buộc, duplicate key và retention 50 record.
 - Requirement bổ sung: `requirement/03-world/NODE_WEATHER_RUMOR_HISTORY_COVERAGE_2026-09-17.md`.
 - Regression `testNodeHistoryProjection()` đã kiểm tra đủ producer-type đại diện, idempotency, retention và metadata.
 - Mục 9/11/14 được củng cố ở data invariant; browser visual/content balance vẫn là gate riêng.
 
-# Batch 41  Chốt policy các mục 2933 (2026-09-17)
+# Batch 41 — Chốt policy các mục 29–33 (2026-09-17)
 
 - Đã chốt và code policy quan hệ Mệnh không decay, tối đa 2 Con Đường, Dị Thể chỉ loại trừ theo catalog, ownership Công Trình explicit và offline NPC aggregate + actor window.
 - Runtime mới: `designPolicySnapshot()` và `validateDesignPolicies()`; migration bổ sung mode/resolution/retention cho `offlinePolicy`.
@@ -3064,11 +3064,11 @@ Không chuyển mục sang `ĐÃ HOÀN TẤT` chỉ vì resolver tồn tại. C�
 
 ## Source: `SYSTEM_LOGIC_CATALOG\33_ITEM_EVIDENCE_COVERAGE_GATE_2026-09-17.md`
 
-# 33-Item Evidence Coverage Gate  2026-09-17
+# 33-Item Evidence Coverage Gate — 2026-09-17
 
 ## Mục đích
 
-Đây là completion audit cho `REVIEW_INCOMPLETE_DESIGN_UNRESOLVED.md`. Gate không tự biến một mục thành hoàn tất; nó chỉ fail khi một mục không có đủ ba liên kết tối thiểu:
+Đây là completion audit cho `REVIEW_INCOMPLETE_DESIGN_UNRESOLVED.md`. Gate không tự biến một mục thành “hoàn tất”; nó chỉ fail khi một mục không có đủ ba liên kết tối thiểu:
 
 1. requirement/schema canonical;
 2. runtime hoặc UI source symbol;
@@ -3113,7 +3113,7 @@ cân bằng gameplay của từng Fate vẫn là playtest/content review.
 
 ## Validator / patch / schema source: `archive-requirements\logic-history\02-progression\DI_THE_CATALOG_SCHEMA_VALIDATION_2026-09-17.md`
 
-# Dị Thể catalog schema validation  2026-09-17
+# Dị Thể catalog schema validation — 2026-09-17
 
 The Dị Thể catalog is runtime content, but every entry must satisfy a common contract
 before it can affect progression:
@@ -3136,7 +3136,7 @@ gates; schema completeness and runtime validation are implemented.
 
 ## Validator / patch / schema source: `archive-requirements\logic-history\02-progression\DITHE_CATALOG_EFFECT_EXCLUSION_SCHEMA_2026-09-17.md`
 
-# DỊ THỂ CATALOG EFFECT / EXCLUSION SCHEMA  2026-09-17
+# DỊ THỂ CATALOG EFFECT / EXCLUSION SCHEMA — 2026-09-17
 
 ## Canonical fields
 
@@ -3159,7 +3159,7 @@ Dị Thể does not infer locks from its name, branch or ending. Only explicit c
 
 ## Validator / patch / schema source: `archive-requirements\logic-history\02-progression\DITHE_RUNTIME_STATE_VALIDATOR_2026-09-17.md`
 
-# Dị Thể Runtime State Validator  2026-09-17
+# Dị Thể Runtime State Validator — 2026-09-17
 
 ## Contract
 
@@ -3264,7 +3264,7 @@ Test tạo lô, đặt giá thắng, làm mới phiên sau hạn lô và xác nh
 
 ## Validator / patch / schema source: `archive-requirements\logic-history\03-world\CATALOG_BALANCE_BOUNDARY_VALIDATOR_2026-09-17.md`
 
-# Catalog Balance Boundary Validator  2026-09-17
+# Catalog Balance Boundary Validator — 2026-09-17
 
 ## Canonical boundaries
 
@@ -3443,7 +3443,7 @@ node tools/verify_log_narrative.js
 
 ## Validator / patch / schema source: `archive-requirements\logic-history\03-world\STRUCTURE_CATALOG_BALANCE_SCHEMA_2026-09-17.md`
 
-# STRUCTURE CATALOG BALANCE SCHEMA  2026-09-17
+# STRUCTURE CATALOG BALANCE SCHEMA — 2026-09-17
 
 ## Canonical fields
 
@@ -3505,7 +3505,7 @@ Balance tuning values remain explicit and reviewable in this file/code boundary;
 
 ## Validator / patch / schema source: `archive-requirements\logic-history\03-world\STRUCTURE_INFLUENCE_EFFECT_SCHEMA_2026-09-17.md`
 
-# STRUCTURE INFLUENCE EFFECT SCHEMA  2026-09-17
+# STRUCTURE INFLUENCE EFFECT SCHEMA — 2026-09-17
 
 ## Decision
 
@@ -3550,7 +3550,7 @@ Guard dùng chung cũng yêu cầu node tồn tại và đã được khám phá
 
 ## Validator / patch / schema source: `archive-requirements\logic-history\03-world\STRUCTURE_RUNTIME_STATE_VALIDATOR_2026-09-17.md`
 
-# Structure Runtime State Validator  2026-09-17
+# Structure Runtime State Validator — 2026-09-17
 
 ## Contract
 
@@ -3624,7 +3624,7 @@ Kết cục chỉ cascade một lần, cập nhật ổn định/tài nguyên/�
 
 ## Validator / patch / schema source: `archive-requirements\logic-history\03-world\WEATHER_RUNTIME_STATE_VALIDATOR_2026-09-17.md`
 
-# Weather Runtime State Validator  2026-09-17
+# Weather Runtime State Validator — 2026-09-17
 
 ## Contract
 
@@ -3723,7 +3723,7 @@ Validator tổ chức kiểm tra active request; regression hiện có kiểm tr
 
 ## Validator / patch / schema source: `archive-requirements\logic-history\04-interaction\RELATIONSHIP_RUNTIME_LEDGER_VALIDATOR_2026-09-17.md`
 
-# Relationship Runtime Ledger Validator  2026-09-17
+# Relationship Runtime Ledger Validator — 2026-09-17
 
 ## Contract
 
@@ -3853,7 +3853,7 @@ Validator kiểm tra liên kết active realm, cycle, node runtime và vị trí
 
 ## Validator / patch / schema source: `archive-requirements\logic-history\06-expansion\HIDDEN_REALM_RUNTIME_VALIDATOR_2026-09-17.md`
 
-# Hidden Realm Runtime Validator  2026-09-17
+# Hidden Realm Runtime Validator — 2026-09-17
 
 ## Contract
 
@@ -3876,7 +3876,7 @@ Chưa có browser E2E animation/map overlay cho cổng Bí Cảnh; logic state, 
 
 ## Validator / patch / schema source: `archive-requirements\logic-history\06-expansion\TECHNIQUE_RECIPE_HIDDEN_REALM_SCHEMA_2026-09-17.md`
 
-# Công Pháp, Công Thức và Cổ Mộ/Bí Cảnh  Canonical Schema
+# Công Pháp, Công Thức và Cổ Mộ/Bí Cảnh — Canonical Schema
 
 ## Mục tiêu
 
@@ -3926,7 +3926,7 @@ Recipe có `id`, `professionId`, `materials`, `costs`, `output`. `materials` ph�
 
 ## Validator / patch / schema source: `archive-requirements\logic-history\07-ui\ACTION_PRIORITY_MATRIX_VALIDATOR_2026-09-17.md`
 
-# Action Priority Matrix Validator  2026-09-17
+# Action Priority Matrix Validator — 2026-09-17
 
 ## Mục tiêu
 
@@ -3975,7 +3975,7 @@ plus an internal warning code.
 
 ## Validator / patch / schema source: `archive-requirements\logic-history\08_DATA_REPLAY_ENVELOPE_VALIDATOR_2026-09-17.md`
 
-# Replay Envelope Validator  2026-09-17
+# Replay Envelope Validator — 2026-09-17
 
 ## Contract
 

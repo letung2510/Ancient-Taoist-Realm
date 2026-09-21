@@ -255,7 +255,7 @@ function main() {
 const generatedDir = path.join(__dirname, "..", "fate_system_update", "generated");
 fs.mkdirSync(generatedDir, { recursive: true });
 const outPath = path.join(generatedDir, "fate_data.generated.js");
-  const content = "/* CỔ DỊ DIỆN  Mệnh Số từ tu_han_viet_tien_hiep.json (8 phẩm chất + tỷ lệ) */\nwindow.FATE_DATA = " + JSON.stringify(fates) + ";\n";
+  const content = "/* CỔ DỊ DIỆN — Mệnh Số từ tu_han_viet_tien_hiep.json (8 phẩm chất + tỷ lệ) */\nwindow.FATE_DATA = " + JSON.stringify(fates) + ";\n";
   fs.writeFileSync(outPath, content, "utf8");
 
   const byGrade = {};

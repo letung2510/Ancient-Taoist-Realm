@@ -1,5 +1,5 @@
 /* ============================================================
- * CỔ DỊ DIỆN  Main application wiring
+ * CỔ DỊ DIỆN — Main application wiring
  * ============================================================ */
 (function () {
   "use strict";
@@ -108,7 +108,21 @@
         drainingActions = false;
         return;
       }
-      try { next(); } catch (err) { console.error("Action failed", err); }
+      try {
+        next();
+      } catch (err) {
+        console.error("Action failed", err);
+        // A failed action must release the queue and repaint the action
+        // surface; otherwise one exception can leave the bar looking frozen.
+        try {
+          if (state) {
+            E.pushHistory(state, { type: "warn", text: "Hành động vừa rồi không thể hoàn tất; trạng thái đã được ổn định lại." });
+            renderAfterTurn();
+          }
+        } catch (repaintError) {
+          console.error("Action recovery failed", repaintError);
+        }
+      }
       const schedule = typeof setTimeout === "function"
         ? setTimeout
         : (callback) => Promise.resolve().then(callback);
@@ -260,7 +274,6 @@
     UI.showScreen("game");
     UI.clearStory();
     E.pushHistory(state, { type: "narr", text: D.WORLDS.co_di_dien.intro });
-    E.pushHistory(state, { type: "sys", text: "§ " + name + " tỉnh giấc tại " + (region?.name || "một vùng đất vô danh") + "." });
     E.pushHistory(state, { type: "sys", text: E.describeFate(state) });
     renderFull();
     flashSave("Đã lưu nhân vật mới");
@@ -834,7 +847,7 @@
         }
       }
       if (action.id === "act_be_quan") {
-        const rawHours = prompt("Bế quan bao nhiêu giờ? (18)", "1");
+        const rawHours = prompt("Bế quan bao nhiêu giờ? (1–8)", "1");
         if (rawHours === null) return;
         const hours = Math.max(1, Math.min(8, Number(rawHours) || 1));
         enqueueAction(() => {
@@ -905,7 +918,7 @@
       "  Tà Nhiễm: " + c.corruptionCost
     ];
     if (preview.family === "cam_thuat") {
-      lines.push("", "⚠ CẤM THUẬT  thi triển sẽ gây phản phệ vĩnh viễn hoặc khó hồi phục. Xác nhận?");
+      lines.push("", "⚠ CẤM THUẬT — thi triển sẽ gây phản phệ vĩnh viễn hoặc khó hồi phục. Xác nhận?");
     } else {
       lines.push("", "Xác nhận thi triển?");
     }
@@ -919,7 +932,7 @@
 
   function flashSave(text) {
     UI.setSaveIndicator(text);
-    setTimeout(() => UI.setSaveIndicator(""), 1500);
+    setTimeout(() => UI.setSaveIndicator("—"), 1500);
   }
 
   /* ---------- endings ---------- */
@@ -944,7 +957,7 @@
     UI.clearChoices();
     UI.addStory("sys", "§ " + ending.title);
     UI.addStory(ending.tone === "bad" ? "warn" : "narr", ending.text);
-    UI.addStory("sys", " HẾT ");
+    UI.addStory("sys", "— HẾT —");
     if (id === "succumb") {
       const penalty = state?.flags?.madnessPenalty || {};
       UI.openOverlay("Thanh Tỉnh cạn kiệt · Hình phạt Mất Trí", '<div class="san-ending"><b>THA HÓA</b><p>' + UI.escapeHtml(ending.text) + '</p><div class="detail-kv"><span>Nguồn</span><b>' + UI.escapeHtml(penalty.source || "Tà niệm") + '</b><span>Tu vi mất</span><b>-' + (penalty.lostExp || 0) + '</b><span>Tà Nhiễm</span><b>+' + (penalty.corruptionGained || 0) + '</b><span>Hậu quả</span><b>Kết thúc hành trình hiện tại</b></div><div class="ending-options"><button class="choice" data-ending-action="restart">Luân hồi · Bắt đầu kiếp mới</button><button class="choice" data-ending-action="load">Thi giải · Nạp bản lưu gần nhất</button><button class="choice" data-ending-action="home">Chuyển sinh · Về màn hình chính</button></div></div>');
@@ -954,7 +967,7 @@
       { label: "Nạp bản lưu gần nhất", onClick: () => { loadGame(); renderFull(); } }
     ]);
     if (state) state.pendingEnding = id;
-    UI.setSaveIndicator("Đã kết thúc  có thể nạp lại bản lưu gần nhất");
+    UI.setSaveIndicator("Đã kết thúc — có thể nạp lại bản lưu gần nhất");
   }
 
   /* ---------- save / load ---------- */

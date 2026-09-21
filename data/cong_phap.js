@@ -1,4 +1,4 @@
-/* Canonical Công Pháp data  HE_THONG_NEN_TANG_NHAN_VAT_TU_VI_CONG_PHAP.md. */
+/* Canonical Công Pháp data — HE_THONG_NEN_TANG_NHAN_VAT_TU_VI_CONG_PHAP.md. */
 (function () {
   "use strict";
 
