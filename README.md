@@ -1,6 +1,6 @@
 # CỔ DỊ ĐIỂN  RPG tu vi quỷ dị
 
-Web game text RPG dùng JavaScript thuần. Luật chuẩn duy nhất của hệ thống nằm tại [`HE_THONG_NEN_TANG_NHAN_VAT_TU_VI_CONG_PHAP.md`](HE_THONG_NEN_TANG_NHAN_VAT_TU_VI_CONG_PHAP.md).
+Web game text RPG dùng JavaScript thuần. Luật chuẩn của hệ thống được tổ chức tại [kho requirement](requirement/README.md) và các tài liệu canonical trong `requirement/SYSTEM_LOGIC_CATALOG`.
 
 ## Luật runtime đã chốt
 

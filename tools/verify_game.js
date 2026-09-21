@@ -614,7 +614,9 @@ function verifyBrowserEngine(sandbox) {
   E.submitActionId(openWorldState, "act_bo_chay");
   assert.strictEqual(openWorldState.locationId, dangerousLocation);
   assert.strictEqual(Object.keys(openWorldState.enemies).length, 0);
-  assert.strictEqual(E.contextState(openWorldState).actions.filter((action) => action.id.startsWith("act_move_")).length, 4);
+  const postFleeContext = E.contextState(openWorldState);
+  assert(postFleeContext.actions.some((action) => action.id === "act_exp_map_event"), "pending map discovery must remain actionable after fleeing");
+  assert.strictEqual(postFleeContext.actions.filter((action) => action.id.startsWith("act_move_")).length, 0);
   const topologyProbe = E.createState({ character });
   assert(E.chooseJourneyIntent(topologyProbe, "tu_lap").success);
   const topologyAudit = E.validateOpenWorldGrid(topologyProbe);
@@ -628,6 +630,7 @@ function verifyBrowserEngine(sandbox) {
     assert(after.x === before.x + delta[0] && after.y === before.y + delta[1], `invalid Oxy step: ${direction}`);
   });
   assert(cardinalOrigin && E.validateOpenWorldGrid(topologyProbe).ok);
+  if (openWorldState.pendingMapEvent) assert(E.resolveMapEvent(openWorldState, openWorldState.pendingMapEvent.choices[0].id).success);
   E.submitActionId(openWorldState, "act_move_dong");
   assert.notStrictEqual(openWorldState.locationId, dangerousLocation);
   assert.notStrictEqual(openWorldState.locationId, oldLocation);
@@ -796,7 +799,7 @@ function verifyMapUI(sandbox) {
   assert(normalActions.quick.length <= 8);
   assert(normalActions.overflow.some((action) => action.id === "act_giup"), "utility actions must remain available in More");
   const searchAction = normalActions.quick.concat(normalActions.overflow).find((action) => action.id === "act_tim_kiem");
-  assert(searchAction?.description.includes("Search Depth"));
+  assert(searchAction?.description.includes("Độ sâu dò"));
 
   const originHtml = sandbox.window.GameUI.renderOriginChoice(actionState);
   ["Tán Tu", "Thế Gia", "Kiếm Tu Lang Bạt", "Linh Mạch Truyền Thừa", "data-origin-confirm"].forEach((label) => assert(originHtml.includes(label), `missing origin modal content: ${label}`));
@@ -913,8 +916,9 @@ function verifyMapUI(sandbox) {
   const auctionRewardBeforeRefresh = Number(auctionState.inventory?.[auctionLot.itemId] || 0);
   E.refreshAuction(auctionState, Number(auctionState.auction.generatedDay || 1) + 7);
   assert(Number(auctionState.inventory?.[auctionLot.itemId] || 0) === auctionRewardBeforeRefresh + 1, "expired winning auction lot must settle before refresh");
-  const auctionLog = E.novelLogParagraphs(auctionState).findLast((entry) => entry.text.includes("Linh"))?.text || "";
-  assert(auctionLog.includes("Linh Thạch") && auctionLog.includes("phường thị") && !auctionLog.includes("bidAuction"));
+  const auctionLog = E.novelLogParagraphs(auctionState).findLast((entry) => entry.text.includes("phường thị"))?.text || "";
+  const auctionItemName = sandbox.window.GameData.ITEMS[auctionLot.itemId]?.name || auctionLot.itemId;
+  assert(auctionLog.includes(auctionItemName) && auctionLog.includes("phường thị") && !auctionLog.includes("bidAuction"));
   const contractState = E.createState({ character: E.createCharacter({ name: "Contract QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
   const contractBoard = E.refreshContracts(contractState);
   assert(Object.keys(contractBoard.offers).length > 0, "contract board must expose offers");

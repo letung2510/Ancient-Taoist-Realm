@@ -1,5 +1,5 @@
 /* ============================================================
- * CỔ DỊ DIỆN  Dữ liệu thế giới & cốt truyện
+ * CỔ DỊ DIỆN — Dữ liệu thế giới & cốt truyện
  * Tham chiếu: gemini-code-1788421511033.md (V11.1)
  * ============================================================ */
 window.GameData = (function () {
@@ -11,7 +11,7 @@ window.GameData = (function () {
       name: "Cổ Dị Diện",
       genre: ["tiên hiệp", "eldritch", "lovecraft", "tu chân"],
       intro:
-        "Thiên địa linh khí không còn thuần khiết. Tàn niệm của Cổ Thần đã thấm vào từng hơi thở của tu sĩ. Ngươi bước vào Thiên Huyền Tông  nơi ngọn núi còn giữ chút thanh minh cuối cùng."
+        "Thiên địa linh khí không còn thuần khiết. Tàn niệm của Cổ Thần đã thấm vào từng hơi thở của tu sĩ. Ngươi bước vào Thiên Huyền Tông — nơi ngọn núi còn giữ chút thanh minh cuối cùng."
     }
   };
 
@@ -85,7 +85,7 @@ window.GameData = (function () {
     phyMult: realm.stat_multiplier ?? realm.phyMult,
     magMult: realm.stat_multiplier ?? realm.magMult,
     maxQa: realm.max_qi ?? realm.maxQa,
-    desc: realm.description || realm.desc || (realm.name + "  cảnh giới cấp " + (realm.level ?? "?") + " trong hệ thống tu hành 14 cấp.")
+    desc: realm.description || realm.desc || (realm.name + " — cảnh giới cấp " + (realm.level ?? "?") + " trong hệ thống tu hành 14 cấp.")
   }));
 
   /* ---------- Môn phái / Căn cơ ---------- */
@@ -489,20 +489,20 @@ window.GameData = (function () {
 
   const HELP_TEXT = [
     "§LỆNH CƠ BẢN§",
-    "  nhìn / quan sát  quan sát nơi hiện tại",
-    "  đi <hướng>  đi theo hướng: bắc / nam / đông / tây",
-    "  tu luyện  vận công tăng tu vi (tốn linh khí, rủi ro tà niệm)",
-    "  đột phá  cố gắng phá cảnh giới",
-    "  tìm kiếm  tìm vật phẩm tại nơi hiện tại",
-    "  dùng <vật phẩm>  sử dụng vật phẩm",
-    "  gia nhập <môn phái>  chọn tông môn sau khi đạt Khai Lộ Cảnh",
-    "  gia nhập <môn phái>  tổ chức là lựa chọn riêng; xuất thân Tán Tu/Thế Gia chỉ chọn một lần ở đầu game",
-    "  nói chuyện <tên>  trò chuyện với nhân vật",
-    "  tấn công  giao chiến với kẻ thù quanh đây",
-    "  trạng thái / hành trang / nhiệm vụ / mệnh  xem thông tin",
-    "  bản đồ  xem vị trí, nơi đã khám phá và các lối có thể đi",
-    "  tổ chức  xem môn phái; gia nhập <tên>; rời môn",
-    "  lưu / tải / giúp  hệ thống",
+    "  nhìn / quan sát — quan sát nơi hiện tại",
+    "  đi <hướng> — đi theo hướng: bắc / nam / đông / tây",
+    "  tu luyện — vận công tăng tu vi (tốn linh khí, rủi ro tà niệm)",
+    "  đột phá — cố gắng phá cảnh giới",
+    "  tìm kiếm — tìm vật phẩm tại nơi hiện tại",
+    "  dùng <vật phẩm> — sử dụng vật phẩm",
+    "  gia nhập <môn phái> — chọn tông môn sau khi đạt Khai Lộ Cảnh",
+    "  gia nhập <môn phái> — tổ chức là lựa chọn riêng; xuất thân Tán Tu/Thế Gia chỉ chọn một lần ở đầu game",
+    "  nói chuyện <tên> — trò chuyện với nhân vật",
+    "  tấn công — giao chiến với kẻ thù quanh đây",
+    "  trạng thái / hành trang / nhiệm vụ / mệnh — xem thông tin",
+    "  bản đồ — xem vị trí, nơi đã khám phá và các lối có thể đi",
+    "  tổ chức — xem môn phái; gia nhập <tên>; rời môn",
+    "  lưu / tải / giúp — hệ thống",
     "§GỢI Ý§ Bạn cũng có thể gõ bất kỳ hành động tự do nào, ví dụ:",
     "  'ta cẩn thận quan sát bức tượng'",
     "  'ta đọc trang cổ tịch'",

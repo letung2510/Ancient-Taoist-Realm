@@ -1431,3 +1431,12 @@ Recovered from runtime symbols: pushHistory, createGameEvent, novelLogParagraphs
 - The pinned Linh Khí meter reads `player.qi` and `player.maxQi`. `mana` and `maxMana` are not valid player-state fields.
 - Journey option rendering receives the complete state so region-dependent organization availability matches the engine resolver.
 - Journey intent labels and organization targets are rendered from the same engine option contract. The UI must not infer regional availability from background text or a partial player object.
+
+## Regression addendum: status, action recovery, and local map
+
+- The canonical status tab owns the player name, Khí Huyết, Linh Khí, and Thanh Tỉnh meters. The pinned summary is suppressed while that tab is active so the same fields are not rendered twice.
+- `act_journey_*` is a forced action family. The engine resolver must keep it visible and executable while journey intent is pending.
+- UI action rendering recognizes both `disabled_reason` and `disabledReason`; a disabled action cannot be committed through `submitActionId`.
+- The action queue must recover from an action exception, release the queue, write a player-facing recovery message, and repaint the action surface.
+- The Lân cận map is always the constellation renderer. The legacy route-graph renderer is not a valid fallback for that surface.
+- Auction regression identifies the lot by deterministic `lotId`/`itemId` and derives the expected item name from the catalog; it must not assume that a lot contains Linh Thạch.

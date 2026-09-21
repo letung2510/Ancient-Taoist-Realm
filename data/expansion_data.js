@@ -1,4 +1,4 @@
-/* CỔ DỊ DIỆN  data-driven content for the world expansion systems. */
+/* CỔ DỊ DIỆN — data-driven content for the world expansion systems. */
 (function () {
   "use strict";
 
