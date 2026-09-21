@@ -81,10 +81,15 @@ window.GameEngine = (function () {
     an_the: "Ẩn Thế"
   });
   function organizationKind(faction) {
-    const text = normalizedText([faction?.type, faction?.name].filter(Boolean).join(" "));
+    const type = normalizedText(faction?.type || "");
+    const name = normalizedText(faction?.name || "");
+    const text = (type + " " + name).trim();
+    if (/an the|an the luc|the luc an/.test(text)) return "hidden";
     if (/tong mon|dao tong|kiem tong|dan tong|ma dao|phat tong|quy tong|giao phai|dao thong|phai/.test(text)) return "sect";
-    if (/the gia|gia toc|vuong trieu|co toc|co than bo|toc|bo toc|phu gia/.test(text)) return "family";
-    if (/an the|an the luc|an the|the luc an/.test(text)) return "hidden";
+    // FIX (2026-09-21): classify only explicit family-style organizations.
+    // A bare "Tộc/Bộ" also matches clans, tribes, alliances, or species labels
+    // and must not make those organizations eligible for Quy Tông.
+    if (/the gia|gia toc|vuong trieu|phu gia/.test(text)) return "family";
     return null;
   }
   function regionalOrganizations(state) {
@@ -5962,7 +5967,9 @@ window.GameEngine = (function () {
     } else if (state.player.journeyIntent) {
       // FIX (2026-09-18): preserve a valid new-flow stage-2 invitation across
       // save/load; originLocked belongs to legacy saves and is not a blocker.
-      if (journeyCanPursueOrganization && cultivationTier(state) >= 2 && !state.guildMembership && !state.flags.guildDecision) state.pendingGuildChoice = Boolean(state.pendingGuildChoice);
+      // FIX (2026-09-21): reconstruct the stage-2 invitation when an older
+      // serializer omitted the boolean flag but preserved the canonical target.
+      if (journeyCanPursueOrganization && cultivationTier(state) >= 2 && !state.guildMembership && !state.flags.guildDecision) state.pendingGuildChoice = true;
       if (!journeyCanPursueOrganization) {
         state.pendingGuildChoice = false;
         state.flags.guildDecision = state.flags.guildDecision || "journey:" + state.player.journeyIntent;

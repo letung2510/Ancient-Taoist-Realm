@@ -1430,3 +1430,4 @@ Recovered from runtime symbols: pushHistory, createGameEvent, novelLogParagraphs
 
 - The pinned Linh Khí meter reads `player.qi` and `player.maxQi`. `mana` and `maxMana` are not valid player-state fields.
 - Journey option rendering receives the complete state so region-dependent organization availability matches the engine resolver.
+- Journey intent labels and organization targets are rendered from the same engine option contract. The UI must not infer regional availability from background text or a partial player object.

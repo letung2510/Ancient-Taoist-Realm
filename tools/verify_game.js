@@ -786,6 +786,7 @@ function verifyMapUI(sandbox) {
   const E = sandbox.window.GameEngine;
   const character = E.createCharacter({ name: "Test", archetypeId: "kiem_tong", fates: E.drawInitialFates() });
   const actionState = E.createState({ character });
+  assert(E.chooseJourneyIntent(actionState, "tu_lap").success);
   const normalActions = sandbox.window.GameUI.actionPresentation(actionState);
   const normalQuickIds = normalActions.quick.map((action) => action.id);
   assert(normalQuickIds.includes("act_nhin"));
@@ -807,6 +808,7 @@ function verifyMapUI(sandbox) {
   assert(fateUxHtml.includes("Tháo xuống Mệnh Kho"));
   assert(fateUxHtml.includes("Sở hữu "));
   const ritualState = E.createState({ character: E.createCharacter({ name: "Ritual UI", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  assert(E.chooseJourneyIntent(ritualState, "tu_lap").success);
   ritualState.player.realmId = "khai_lo";
   E.updateDerived(ritualState);
   const ritualHtml = sandbox.window.GameUI.renderRitualModal(ritualState, "call_fate", { disabled_reason: "Tu vi: 0 / 100" });
@@ -815,6 +817,7 @@ function verifyMapUI(sandbox) {
   sandbox.activeTestTab = "map";
 
   const npcState = E.createState({ character });
+  assert(E.chooseJourneyIntent(npcState, "tu_lap").success);
   npcState.locationId = "van_phong";
   const npcQuickIds = sandbox.window.GameUI.actionPresentation(npcState).quick.map((action) => action.id);
   assert(npcQuickIds.some((id) => id.startsWith("act_talk_")), "NPC talk must be promoted to quick actions");
@@ -845,6 +848,7 @@ function verifyMapUI(sandbox) {
   assert.deepStrictEqual(Array.from(actualMoveIds), Array.from(declaredMoveIds));
 
   const combatState = E.createState({ character });
+  assert(E.chooseJourneyIntent(combatState, "tu_lap").success);
   combatState.enemies = { yeu_thu: 1 };
   const combatQuickIds = sandbox.window.GameUI.actionPresentation(combatState).quick.map((action) => action.id);
   ["act_tan_cong_thuong", "act_bo_chay", "act_nhin", "act_hanh_trang"].forEach((id) => assert(combatQuickIds.includes(id), `missing combat quick action: ${id}`));

@@ -276,3 +276,4 @@ the canonical budgets before a batch can be marked green.
 - The verifier covers six supported starting regions, all four intent branches, five independent scenes, Background-specific option sets, regional target validity, quest/history isolation, failed-action turn safety, and save/load persistence.
 - Active runtime and requirement files must remain valid UTF-8; detected mojibake is a release-blocking defect.
 - Save/load must preserve `pendingGuildChoice` for a valid journey organization target after entering stage 2.
+- Migration invariant: if a valid `tam_su`, `quy_tong`, or `an_the` journey has a canonical organization target at stage 2+, no membership, and no guild decision, `deserialize()` must restore `pendingGuildChoice = true` even when an older save omitted the boolean flag.

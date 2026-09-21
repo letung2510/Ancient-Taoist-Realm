@@ -8,7 +8,11 @@ const sandbox = { window: {} };
 vm.createContext(sandbox);
 ["gemini-code-1788430656294.js", "data/world_data.js", "data/fate_data.js", "data/fate_relationships.js", "data/cong_phap.js", "data/npc_monsters.js", "data/path_fate_relations.js", "data/profession_items.js", "data/expansion_data.js", "data/data.js", "js/i18n.js", "js/engine.js", "js/expansion.js"].forEach((file) => vm.runInContext(fs.readFileSync(path.join(ROOT, file), "utf8"), sandbox, { filename: file }));
 const E = sandbox.window.GameEngine;
-const makeState = () => E.createState({ character: E.createCharacter({ name: "Review QA", archetypeId: "kiem_tong", fates: E.drawInitialFates(), startRegionId: "trung_vuc" }) });
+const makeState = () => {
+  const state = E.createState({ character: E.createCharacter({ name: "Review QA", archetypeId: "kiem_tong", fates: E.drawInitialFates(), startRegionId: "trung_vuc" }) });
+  assert(E.chooseJourneyIntent(state, "tu_lap").success);
+  return state;
+};
 
 function testMapCanonical() {
   const state = makeState(); state.inventory.linh_thach = 100;

@@ -2111,4 +2111,10 @@ Các phần còn lại trong tài liệu (Chiến Ngộ/Cảnh Ngộ, Vấn Đ�
 1–30 ngày, Chuyển Đạo, Tiểu Kiếp, profile nghi thức theo Con Đường, rankboard,
 Tu Vi Thư UI) vẫn là backlog; chưa đánh dấu hoàn tất cho tới khi có action,
 transaction và test tương ứng.
+## Journey intent and stage-2 organization gate
 
+- `Tầm Sư` stores one concrete regional sect in `openingPlan.targetOrganizationId`.
+- `Quy Tông` stores one concrete regional family-style organization in the same field.
+- Organization classification uses explicit family markers; a bare `Tộc` or `Bộ` label is not enough because it can describe a tribe, alliance, or species.
+- On entering Khai Lộ, a valid targeted journey sets `pendingGuildChoice`. Save migration reconstructs that flag when the canonical target exists, the character is at stage 2+, has no membership, and has no recorded guild decision.
+- `Tự Lập` records an independent journey decision and never creates a guild target.
