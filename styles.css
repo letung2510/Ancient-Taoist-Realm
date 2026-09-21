@@ -756,22 +756,52 @@ html, body {
 
 /* Local constellation field: no graph edges, only radial star clusters. */
 .local-constellation { isolation: isolate; }
-.local-constellation .constellation-field { position: absolute; inset: 0; z-index: 3; overflow: hidden; background: radial-gradient(circle at 50% 50%, rgba(126, 120, 232, .12), transparent 24%), radial-gradient(circle at 50% 50%, transparent 28%, rgba(10, 17, 41, .55) 72%); }
-.local-constellation .constellation-field::before, .local-constellation .constellation-field::after { content: ""; position: absolute; inset: 8%; border: 1px dashed rgba(162, 161, 238, .16); border-radius: 50%; pointer-events: none; }
-.local-constellation .constellation-field::after { inset: 23%; border-color: rgba(118, 224, 208, .14); }
+.local-constellation .constellation-field { position: absolute; inset: 0; z-index: 3; overflow: hidden; background: radial-gradient(circle at 50% 50%, rgba(126, 120, 232, .16), transparent 22%), radial-gradient(circle at 24% 18%, rgba(255, 255, 255, .35) 0 1px, transparent 1.5px), radial-gradient(circle at 76% 28%, rgba(255, 255, 255, .24) 0 1px, transparent 1.5px), radial-gradient(circle at 30% 78%, rgba(118, 224, 208, .22) 0 1px, transparent 1.5px), #080e20; }
+.local-constellation .constellation-field::before, .local-constellation .constellation-field::after { content: ""; position: absolute; inset: 0; border: 0; pointer-events: none; }
+.local-constellation .local-route-layer { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; pointer-events: none; mix-blend-mode: screen; }
+.local-constellation .local-route-layer .map-path { stroke: #6474a8; stroke-width: .34; stroke-dasharray: 1.2 2.2; opacity: .58; }
+.local-constellation .local-route-layer .map-path.constellation-edge { stroke: rgba(154, 178, 220, .5); stroke-width: .32; stroke-dasharray: 1.1 2.5; opacity: .55; }
+.local-constellation .local-route-layer .map-path.guide-edge { stroke: #c9a4ff; stroke-width: .9; stroke-dasharray: 2.2 1.4; opacity: .95; filter: drop-shadow(0 0 4px rgba(201, 164, 255, .7)); }
+.local-constellation .local-route-layer .map-path.supplemental-edge { stroke: #7f87ad; stroke-width: .38; stroke-dasharray: 1.2 2.2; opacity: .5; }
+.local-constellation .local-route-layer .map-path.explored { stroke: var(--jade); stroke-width: .65; stroke-dasharray: none; opacity: .82; filter: drop-shadow(0 0 3px rgba(118, 224, 208, .7)); }
 .constellation-cluster-label { position: absolute; z-index: 4; top: 38px; left: 50%; transform: translateX(-50%); color: rgba(203, 214, 247, .66); font: 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; pointer-events: none; }
-.local-constellation .constellation-core { position: absolute; z-index: 2; left: 50%; top: 50%; width: 16px; height: 16px; transform: translate(-50%, -50%); border-radius: 50%; background: #fff7cf; box-shadow: 0 0 5px 2px #f3c978, 0 0 26px 9px rgba(243, 201, 120, .3); pointer-events: none; }
-.local-constellation .map-node { z-index: 3; display: grid; place-items: center; gap: 1px; min-height: 46px; width: 46px; border-radius: 50%; border-width: 1px; transform: translate(-50%, -50%); transition: transform .18s ease, filter .18s ease, opacity .18s ease; }
-.local-constellation .map-node:hover, .local-constellation .map-node:focus-visible { z-index: 5; transform: translate(-50%, -50%) scale(1.18); filter: brightness(1.24); }
-.local-constellation .map-node.current { width: 68px; min-height: 68px; }
-.local-constellation .map-node.current .map-star-glyph { font-size: 21px; }
+.local-constellation .constellation-core { position: absolute; z-index: 2; left: 50%; top: 50%; width: 8px; height: 8px; transform: translate(-50%, -50%); border-radius: 50%; background: #fff7cf; box-shadow: 0 0 4px 1px #f3c978, 0 0 12px 3px rgba(243, 201, 120, .28); pointer-events: none; }
+.local-constellation .map-node { z-index: 3; display: grid; place-items: center; min-height: 6px; width: 6px; padding: 0; border: 0; border-radius: 50%; transform: translate(-50%, -50%); transition: transform .18s ease, filter .18s ease, opacity .18s ease; font-size: 0; }
+.local-constellation .map-node:hover, .local-constellation .map-node:focus-visible { z-index: 5; transform: translate(-50%, -50%) scale(1.7); filter: brightness(1.24); }
+.local-constellation .map-node.current { width: 11px; min-height: 11px; }
+.local-constellation .map-node .map-star-glyph { display: none; }
+.local-constellation .map-node .map-node-label { display: none; }
 .map-star-glyph { color: #dce5ff; font-size: 16px; line-height: 1; text-shadow: 0 0 8px currentColor; }
 .map-node-label { max-width: 82px; overflow: hidden; color: inherit; font: 600 9px/1.1 var(--ui); text-align: center; text-overflow: ellipsis; white-space: nowrap; }
-.local-constellation .map-node.unknown-exit { width: 40px; min-height: 40px; opacity: .72; border-style: dotted; }
-.local-constellation .map-node.has-notable-npc { border-color: #f4dc83; box-shadow: 0 0 16px rgba(244, 220, 131, .55); }
-.local-constellation .map-node.has-event { border-color: #f27b91; box-shadow: 0 0 18px rgba(242, 123, 145, .62); }
-.local-constellation .map-node.has-opportunity { border-color: #d9a6ff; box-shadow: 0 0 20px rgba(217, 166, 255, .7); }
-.local-constellation .map-node.hidden-realm-open { border-color: #9e9aff; box-shadow: 0 0 19px rgba(158, 154, 255, .72); }
+.local-constellation .map-node.unknown-exit { width: 12px; min-height: 12px; opacity: .72; border-style: dotted; }
+.local-constellation .map-node.exploration-frontier { color: #d5e4ff; border-color: #7895d8; background: #29375d; }
+/* Local BFS Tree palette: cool structural colors, warm semantic alerts. */
+.local-constellation .map-node.fog-hidden { background: #202c46; border-color: #435477; box-shadow: none; opacity: .58; }
+.local-constellation .map-node.discovered-neutral { background: #38647b; border-color: #81d2d0; box-shadow: 0 0 7px rgba(129, 210, 208, .45); }
+.local-constellation .map-node.reachable { background: #315f9a; border-color: #78c9ff; box-shadow: 0 0 8px rgba(120, 201, 255, .52); }
+.local-constellation .map-node.visited { background: #4d507c; border-color: #b4b8ec; box-shadow: 0 0 7px rgba(180, 184, 236, .38); }
+.local-constellation .map-node.faction-righteous { background: #236f9f; border-color: #83dcff; box-shadow: 0 0 9px rgba(131, 220, 255, .55); }
+.local-constellation .map-node.faction-evil { background: #873f68; border-color: #ff8eaa; box-shadow: 0 0 9px rgba(255, 142, 170, .55); }
+.local-constellation .map-node.important-node { background: #9a7440; border-color: #ffd783; box-shadow: 0 0 10px rgba(255, 215, 131, .62); }
+.local-constellation .map-node.danger-zone { background: #7d304e; border-color: #ff788d; box-shadow: 0 0 10px rgba(255, 120, 141, .65); }
+.local-constellation .map-node.current { background: #ffe29a; border-color: #fff8d6; box-shadow: 0 0 6px 2px #ffd36e, 0 0 18px 5px rgba(255, 211, 110, .52); }
+.local-constellation .map-node.has-notable-npc { border-color: #ffe58a; box-shadow: 0 0 16px rgba(255, 229, 138, .62); }
+.local-constellation .map-node.has-event { border-color: #ff7894; box-shadow: 0 0 18px rgba(255, 120, 148, .68); }
+.local-constellation .map-node.has-opportunity { border-color: #d9a1ff; box-shadow: 0 0 20px rgba(217, 161, 255, .72); }
+.local-constellation .map-node.hidden-realm-open { border-color: #aaa5ff; box-shadow: 0 0 19px rgba(170, 165, 255, .76); }
+.local-constellation .map-node.direction-dot { width: 5px; min-height: 5px; background: #8c98b7; border: 1px solid rgba(220, 229, 255, .75); box-shadow: 0 0 5px rgba(169, 184, 224, .65); opacity: .82; }
+.local-constellation .map-node.direction-known { background: #a8c6ff; }
+.local-constellation .map-node.direction-unknown { background: #5d6682; opacity: .52; }
+.local-constellation .map-node.route-guide { z-index: 4; }
+.local-constellation .map-node.teleport-node { background: #bf8cff; border: 1px solid #e4ceff; box-shadow: 0 0 10px rgba(191, 140, 255, .86); }
+.local-constellation .map-node.signal-danger { background: #d85774; box-shadow: 0 0 8px rgba(216, 87, 116, .72); }
+.local-constellation .map-node.signal-opportunity { background: #d9a1ff; box-shadow: 0 0 9px rgba(217, 161, 255, .8); }
+.local-constellation .map-node.signal-event { background: #ffad70; box-shadow: 0 0 9px rgba(255, 173, 112, .78); }
+.local-constellation .map-node.signal-important { background: #ffd783; box-shadow: 0 0 9px rgba(255, 215, 131, .72); }
+.local-constellation .map-node.current { background: #fff0b0; border: 1px solid #fffbe5; box-shadow: 0 0 7px 2px #ffd36e, 0 0 21px 6px rgba(255, 211, 110, .65); }
+.local-constellation + .map-legend .dot.current { background: #ffe29a; box-shadow: 0 0 6px rgba(255, 211, 110, .7); }
+.local-constellation + .map-legend .dot.reachable { background: #78c9ff; box-shadow: 0 0 6px rgba(120, 201, 255, .7); }
+.local-constellation + .map-legend .dot.visited { background: #b4b8ec; box-shadow: 0 0 6px rgba(180, 184, 236, .55); }
 .dot.npc { background: #f4dc83; box-shadow: 0 0 6px rgba(244, 220, 131, .7); }
 .dot.event { background: var(--danger); box-shadow: 0 0 6px rgba(242, 123, 145, .7); }
 .dot.opportunity { background: #d9a6ff; box-shadow: 0 0 6px rgba(217, 166, 255, .7); }

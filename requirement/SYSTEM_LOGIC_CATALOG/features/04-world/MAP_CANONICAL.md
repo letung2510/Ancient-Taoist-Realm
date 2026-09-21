@@ -2524,7 +2524,9 @@ Toàn bộ game dùng một ngôn ngữ giao diện thống nhất: nền tinh k
 
 - Thiên Đồ hiển thị khu vực như các sao, tuyến nối như tinh tuyến và tổ chức như các ghim có màu theo phe/phân loại.
 - Node hiện tại có quầng vàng; node đã khám phá xanh lam; node có thể đi xanh ngọc; node chưa khám phá xám; cơ duyên tím; chiến trận/nguy hiểm đỏ.
-- Tab `Lân cận` là open map theo bán kính, hiển thị mục tiêu 15–20 node quanh vị trí hiện tại; không render cạnh graph hoặc `map-path`.
+- Tab `Lân cận` là Dynamic Local BFS Constellation Tree, hiển thị tối đa 39 node quanh vị trí hiện tại; node được chọn bằng BFS trên gameplay graph thật.
+- Cạnh `map-path` chỉ được render giữa hai node đã tồn tại và được `locationExits()` xác nhận là kề nhau theo Oxy. Ô chưa sinh không được vẽ như một cạnh thật.
+- Mỗi node luôn có bốn action `act_move_<direction>`; ô Oxy hợp lệ được lazy-generate qua cùng movement handler, còn hướng ngoài biên bị khóa.
 - Mọi tông môn, tổ chức, phường thị và điểm khởi đầu/tái sinh phải có địa chỉ Oxy ổn định thông qua `WORLD_MAP.addresses`.
 - Cấp tổ chức càng cao thì ghim càng lớn.
 - Có hai lớp xem: `Thiên Đồ` cho toàn thế giới và `Lân Cận` cho các node có thể di chuyển.
@@ -3788,7 +3790,7 @@ The damaged historical prose above is not authoritative where characters were lo
 - state.openWorld.coordinates is the runtime coordinate source and uses integer Oxy coordinates within OPEN_WORLD_BOUNDS (currently 0..100).
 - coordinateIndex must resolve one node per coordinate. Duplicate coordinates, missing locations, out-of-bounds values, index mismatches, and non-adjacent exits are invalid.
 - locationExits(state, locationId) resolves authored exits and Oxy neighbors; a target is accepted only when its coordinate is the expected adjacent cell.
-- openWorldTarget(state, direction) resolves the adjacent target, creates a procedural node only inside bounds, records the forward edge, and restores the reciprocal edge.
+- openWorldTarget(state, direction, { create }) resolves the adjacent target; with `create: false` it only resolves an existing node, while exploration may create a procedural node only inside bounds, record the forward edge, and restore the reciprocal edge.
 - validateOpenWorldGrid(state) is the integrity gate for bounds, duplicates, directions, index consistency, and adjacency.
 
 ### Movement transaction
@@ -3798,6 +3800,9 @@ The damaged historical prose above is not authoritative where characters were lo
 - When available, movement delegates cost, risk, weather, and war weighting to GameExpansion.travelPlan; a failed plan does not commit movement.
 - Leaving a node handles pending exploration and map-event lifecycle. Discovery, quest, encounter, SAN, history, and derived-state updates occur after destination commit.
 - Missing or invalid routes return a failure result; they do not silently create an arbitrary node.
+- `moveActions(state)` exposes all four cardinal `act_move_<direction>` actions; in-bounds actions may lazily materialize the adjacent target, while boundary actions are disabled.
+- `act_explore_<direction>` is not part of the active action panel or movement contract.
+- Direct text movement and panel movement use the same canonical `move(state, direction)` path.
 
 ### Map projections
 
@@ -3808,6 +3813,59 @@ The damaged historical prose above is not authoritative where characters were lo
 ### Recovery status
 
 Recovered from runtime symbols: locationExits, generateOpenWorldNode, openWorldTarget, validateOpenWorldGrid, move, mapInfluenceSnapshot, mapFogState, travelPlan, and moveWithinNode. Damaged historical UX wording is superseded by this trace contract.
+## LOCAL CONSTELLATION MAP — CANONICAL FEATURE CONTRACT
+
+This section is the canonical implementation of the former `LOCAL_CONSTELLATION_MAP_DESIGN_PROMPT.md`. The standalone prompt is now only a historical/reference pointer; new map behavior must be updated here first.
+
+### Scope and source of truth
+
+- Local BFS Tree uses a dedicated semantic palette: gold for the current root, cyan/teal for tree structure and known neutral nodes, blue for reachable nodes, lavender for visited nodes, muted navy for fog, amber for important nodes, crimson for danger/events, violet for opportunities/hidden realms, and faction colors only as secondary ownership signals.
+- Local Nearby is rendered as a seeded star field rather than a visible tree: the respawn/current node is the only bright anchor on a fresh game, visited nodes remain lit, and only three directional dots are shown around the current node as movement affordances. Unvisited known signals may remain dim; priority colors are danger red, opportunity violet, event amber, and important gold. Sect/organization nodes and nodes with a `waystation`/`teleport_array` are violet, and the nearest violet destination receives a dashed violet guide route.
+- `WORLD_MAP.locations`, `state.openWorld.coordinates`, and `coordinateIndex` are the spatial sources of truth. UI layout coordinates are derived values only.
+- Runtime Oxy bounds are inclusive `0..100`, giving a theoretical `101 × 101` grid. The engine does not materialize all 10,201 cells; procedural nodes are created lazily.
+- Cardinal topology is fixed: north `(x, y - 1)`, south `(x, y + 1)`, east `(x + 1, y)`, west `(x - 1, y)`.
+- Display placement must preserve relative cardinal direction. It must never be used to decide adjacency, travel availability, or node generation.
+
+### Local selection and stable layout
+
+- The Local view renders at most 39 nodes, including the current node.
+- Selection starts from the current node and expands through the real gameplay graph using deterministic BFS; it does not fill the viewport with distance-only nodes.
+- Current node is always centered. Visited, unvisited, fog, important, teleport and birthplace states remain distinct from node type.
+- Layout is deterministic for the same current node and map state. No per-render random jitter is allowed.
+- The renderer may derive `displayX/displayY` from `worldX/worldY`, but must keep the Oxy/world coordinates unchanged.
+- Required pinned nodes are deduplicated by node ID and may be placed at the correct relative edge with `offscreenPinned`; a pin never creates a travel route.
+
+### Node, fog, and label contract
+
+- Nodes are rendered as minimal circular constellation points; no orbital rings, planet icons, fake graph decorations, or rectangular node cards.
+- Current node uses its own state. Visited nodes use the visited color; unvisited/discovered nodes remain unvisited-colored; locked/fogged nodes remain visually subdued.
+- Node names are shown by default only for the current node or important signal nodes. Other node names belong in hover/focus tooltip.
+- Oxy, distance, visited state, node type, route availability, direction, and pin state belong in the tooltip/detail surface.
+- Oxy is metadata and must never be concatenated into the canonical node name. Legacy suffixes are normalized during runtime migration and UI rendering.
+
+### Real edges and exploration frontier
+
+- `map-path` is rendered only between two materialized nodes whose adjacency is confirmed by `locationExits()`.
+- A nearby screen position is never evidence of an edge. No diagonal or inferred edge may be added.
+- `normal` represents cardinal walk edges. `teleport` represents an existing valid teleport action. `star_path` is reserved and not active until its gameplay contract is implemented.
+- An adjacent Oxy cell without a node is a frontier, not a node and not a real edge. If shown, it must use a distinct frontier marker and must not receive `map-path`.
+- `act_move_<direction>` is always exposed for Bắc/Nam/Đông/Tây. In-bounds actions lazily materialize adjacent Oxy nodes; out-of-bounds actions remain visible but disabled.
+- `act_explore_<direction>` is removed from the active action contract. Direct text `đi <direction>` uses the same canonical movement handler.
+- At the boundary, the outward cardinal action remains visible but disabled; no node or edge is created.
+
+### Interaction and travel safety
+
+- Clicking an adjacent node dispatches the corresponding `act_move_<direction>`; the same action handles a lazy in-bounds node.
+- Pending search, hidden discovery, contested opportunity, and other departure guards remain authoritative before movement. Movement opens the resolution modal when a discovery is pending and resumes only after resolution.
+- Weather, terrain, influence, structure, party/companion and travel type continue to flow through the canonical travel plan; the Local renderer must not duplicate those rules.
+
+### Performance, compatibility, and acceptance
+
+- Never render the full 101 × 101 grid. Render only the selected node set and confirmed visible edges.
+- Layout/selection may be memoized by current node and map-state version; it must not recompute every animation frame.
+- Existing saves without edge metadata continue to read `normal`; coordinate/index migration must reject duplicates, invalid bounds, and non-adjacent exits.
+- Acceptance requires: current node centered; Dynamic Local BFS viewport of at most 39 nodes and 38 tree edges when connected; real edges only; boundary movement blocked; four cardinal actions always visible; pending-discovery modal flow; save/load and four-direction movement preserved.
+
 ## Consolidated addendum: map expansion, actions, armies, and atmosphere
 
 - The map uses deterministic coordinate generation, fog state, directional exits, node discovery, search/collect/investigate actions, and map-event resolution. Existing runtime APIs remain the single implementation path.

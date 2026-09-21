@@ -113,7 +113,7 @@ window.GameUI = (function () {
     const classify = (action) => {
       const id = action.id || "";
       const combat = id === "act_tan_cong_thuong" || id === "act_bo_chay" || id.startsWith("act_skill_");
-      const movement = id.startsWith("act_move_") || id === "act_ve_noi_an_toan";
+      const movement = id.startsWith("act_move_");
       const social = id.startsWith("act_talk_") || id.startsWith("act_exp_npc_");
       const pending = id === "act_exp_opportunity" || id.startsWith("act_opportunity_") || id.startsWith("act_search_") || id === "act_explore_npc_assist" || id === "act_exp_map_event" || id.startsWith("act_ritual_") || id.startsWith("act_chon_") || id.startsWith("act_path_") || id.startsWith("act_faction_");
       const utility = utilityIds.includes(id) || id.startsWith("act_exp_") && !pending && !combat && !social;
@@ -126,12 +126,6 @@ window.GameUI = (function () {
     const unique = new Map();
     (ctx.actions || []).forEach((action, index) => { if (action?.id && !unique.has(action.id)) unique.set(action.id, classify({ ...action, _sourceIndex: index })); });
     let actions = [...unique.values()];
-    const movement = actions.filter((action) => action.category === "movement");
-    if (movement.length > 1) {
-      const first = movement[0];
-      actions = actions.filter((action) => action.category !== "movement");
-      actions.push({ id: "act_move_group", label: "Di Chuyển", aliases: ["di chuyển", "di chuyen"], category: "movement", tier: 2, urgency: 60, surface: "secondary", synthetic: true, movementActions: movement, _sourceIndex: first._sourceIndex });
-    }
     actions.sort((a, b) => a.tier - b.tier || b.urgency - a.urgency || a._sourceIndex - b._sourceIndex);
     if (ctx.forced) return { context: ctx, quick: actions.filter((action) => action.tier === 0 || utilityIds.includes(action.id)), overflow: [] };
     const quick = [];
@@ -140,7 +134,10 @@ window.GameUI = (function () {
     const primary = actions.filter((action) => action.surface === "primary").slice(0, 2);
     const secondaryPool = actions.filter((action) => action.surface === "secondary");
     const pinnedUtilities = secondaryPool.filter((action) => ["act_hanh_trang", "act_trang_thai", "act_nhin"].includes(action.id));
-    const secondary = [...pinnedUtilities, ...secondaryPool.filter((action) => !pinnedUtilities.includes(action))].slice(0, 5);
+    const directional = secondaryPool.filter((action) => action.category === "movement");
+    const social = secondaryPool.filter((action) => action.category === "social" || action.id.startsWith("act_talk_"));
+    const secondaryRemainder = secondaryPool.filter((action) => !pinnedUtilities.includes(action) && !directional.includes(action) && !social.includes(action));
+    const secondary = [...pinnedUtilities, ...social, ...directional, ...secondaryRemainder].slice(0, Math.max(5, pinnedUtilities.length + social.length + directional.length));
     quick.push(...context.slice(0, 6), ...primary, ...secondary);
     const quickIds = new Set(quick.map((action) => action.id));
     actions.filter((action) => !quickIds.has(action.id)).forEach((action) => overflow.push(action));
@@ -218,7 +215,11 @@ window.GameUI = (function () {
   // Legacy saves may contain generated node names with an OXY suffix.
   // Coordinates remain engine metadata and are never shown as the node name.
   function displayNodeName(value) {
-    return String(value || "Chưa rõ").replace(/\s*[·•]\s*-?\d+\s*,\s*-?\d+\s*$/, "").trim() || "Chưa rõ";
+    return String(value || "Chưa rõ")
+      .replace(/\s*[·•]\s*-?\d+\s*[,，]\s*-?\d+\s*$/, "")
+      .replace(/\s*\(\s*-?\d+\s*[,，]\s*-?\d+\s*\)\s*$/, "")
+      .replace(/\s*@\s*-?\d+\s*[,，]\s*-?\d+\s*$/, "")
+      .trim() || "Chưa rõ";
   }
 
   function setSaveIndicator(text) {
@@ -342,11 +343,21 @@ window.GameUI = (function () {
     const recent = (state.guildProjectHistory || []).slice(0, 3).map((entry) => { const oldTemplate = templates.find((item) => item.id === entry.templateId); return '<div class="item-row"><b>' + escapeHtml(oldTemplate?.name || "Công trình cũ") + '</b><small> · ' + escapeHtml(window.GameI18n?.formatStatus(entry.status) || "Đã lưu") + ' · tiến độ ' + Number(entry.progress || 0) + '/' + Number(oldTemplate?.target || 0) + '</small></div>'; }).join("");
     return '<div class="section-title">Công Trình Tông Môn</div>' + (project ? '<div class="detail-block"><b>' + escapeHtml(template?.name || "Công trình đang xây dựng") + '</b><p>Tiến độ: ' + Number(project.progress || 0) + '/' + Number(template?.target || 0) + '</p><p>Đóng góp cá nhân: ' + Number(project.playerContributions?.linh_thach || 0) + ' Linh Thạch</p><p>Hạn ngày: ' + Number(project.endDay || 0) + '</p><p>Trạng thái: ' + escapeHtml(suspended ? "Dự án bị đình chỉ" : window.GameI18n?.formatStatus(project.status) || "Đang chờ") + '</p><p>Phần thưởng: ' + escapeHtml(template?.reward?.cultivationMult ? "Gia trì tu luyện" : template?.reward?.sanDrainMult ? "Hộ tâm giảm hao Thanh Tỉnh" : "Thí luyện truyền thừa") + '</p><div class="item-actions">' + (project.status === "active" && !suspended ? expansionButton("guild_contribute", "Đóng góp 5 Linh Thạch", "5") : "") + '</div></div>' : '<p class="muted">Chưa có công trình đang hoạt động.</p><div class="detail-block">' + choices + '</div>') + (recent ? '<div class="section-title">Lịch sử gần nhất</div>' + recent : '');
   }
-  function renderMapEventModal(state) {
+  function renderMapEventModal(state, moveActionId = "") {
     const pending = state.pendingMapEvent;
     if (!pending) return '<div class="section-title">Phát hiện ẩn</div><p class="muted">Hiện không có phát hiện nào đang chờ xử lý.</p>';
-    const choices = (pending.choices || []).map((choice) => '<div class="item-row"><b>' + escapeHtml(choice.label) + '</b>' + expansionButton("map_event", choice.label, choice.id) + '</div>').join("");
+    const moveAttr = moveActionId ? 'data-pending-move="' + escapeHtml(moveActionId) + '"' : '';
+    const choices = (pending.choices || []).map((choice) => '<div class="item-row"><b>' + escapeHtml(choice.label) + '</b>' + expansionButton("map_event", choice.label, choice.id, moveAttr) + '</div>').join("");
     return '<div class="section-title">Phát hiện ẩn</div><div class="detail-block"><p>Một dấu vết bất thường đang chờ được giải mã.</p>' + choices + '</div>';
+  }
+  function renderPendingDiscoveryModal(state, moveActionId) {
+    const pending = window.GameEngine.pendingExplorationAt?.(state);
+    if (!pending) return '<div class="section-title">Phát hiện</div><p class="muted">Phát hiện đã được xử lý. Có thể tiếp tục di chuyển.</p><button type="button" class="btn btn-primary" data-pending-move-now="' + escapeHtml(moveActionId || '') + '">Tiếp tục di chuyển</button>';
+    const buttons = [];
+    if (pending.findings?.some((finding) => ["resource", "rare"].includes(finding.type))) buttons.push('<button type="button" class="btn btn-primary" data-pending-resolve="act_search_collect" data-pending-move="' + escapeHtml(moveActionId || '') + '">Thu thập và tiếp tục</button>');
+    if (pending.findings?.some((finding) => finding.type === "information")) buttons.push('<button type="button" class="btn btn-primary" data-pending-resolve="act_search_investigate" data-pending-move="' + escapeHtml(moveActionId || '') + '">Điều tra dấu vết</button>');
+    buttons.push('<button type="button" class="btn btn-secondary" data-pending-resolve="act_search_leave" data-pending-move="' + escapeHtml(moveActionId || '') + '">Bỏ qua phát hiện và tiếp tục</button>');
+    return '<div class="section-title">Phát hiện đang chờ</div><div class="detail-block"><p>Ngươi còn một phát hiện chưa xử lý tại node này. Chọn cách xử lý trước khi tiếp tục hành động di chuyển.</p><div class="item-actions pending-discovery-actions">' + buttons.join('') + '</div></div>';
   }
   function renderContestedOpportunityModal(state) {
     const opportunity = state.pendingContestedOpportunity; const rival = opportunity && (window.GameData.NPCS?.[opportunity.rivalId]?.name || window.GameI18n?.formatTarget(opportunity.rivalId, state) || "đối thủ ẩn danh"); const location = opportunity && (window.GameData.LOCATIONS?.[opportunity.nodeId]?.name || window.GameI18n?.formatTarget(opportunity.nodeId, state) || "địa điểm chưa rõ");
@@ -889,36 +900,88 @@ window.GameUI = (function () {
   }
 
   function renderLocalMap(state, data, map) {
-    const coords = state.openWorld?.coordinates || {};
-    const currentCoords = coords[state.locationId] || [0, 0];
+    const localViewport = window.GameEngine.localBfsConstellation?.(state, 39) || { nodeIds: [state.locationId], treeEdges: [], gameplayEdges: [] };
+    const coords = { ...(map.locations || {}) };
+    Object.entries(state.openWorld?.coordinates || {}).forEach(([id, pair]) => {
+      if (Array.isArray(pair) && pair.length >= 2) coords[id] = { x: Number(pair[0]), y: Number(pair[1]), region: coords[id]?.region };
+    });
+    const currentPoint = coords[state.locationId] || { x: 0, y: 0 };
     const visited = new Set(state.visitedLocations || [state.locationId]);
     const current = data.LOCATIONS[state.locationId];
     const exits = window.GameEngine.locationExits(state);
     const directionByTarget = {};
     Object.entries(exits).forEach(([direction, target]) => { if (target) directionByTarget[target] = direction; });
 
-    // Local view is a constellation field, never a route graph. Keep the
-    // current star, known neighbors, and nearby procedural discoveries.
-    const visibleIds = new Set([...visited, state.locationId, ...Object.values(exits).filter(Boolean)]);
-    Object.entries(state.openWorld?.nodes || {}).forEach(([id]) => {
-      if (!coords[id]) return;
-      const distance = Math.abs(Number(coords[id][0]) - Number(currentCoords[0])) + Math.abs(Number(coords[id][1]) - Number(currentCoords[1]));
-      if (distance <= 3) visibleIds.add(id);
+    // BFS selects the data viewport; the visual layer is an organic star field.
+    // Oxy remains metadata for identity/tooltips, never the visual layout.
+    const distance = (id) => {
+      const point = coords[id];
+      return point ? Math.abs(Number(point.x ?? point[0]) - Number(currentPoint.x ?? currentPoint[0])) + Math.abs(Number(point.y ?? point[1]) - Number(currentPoint.y ?? currentPoint[1])) : Infinity;
+    };
+    const localTreeNodes = (localViewport.treeNodes || [{ nodeId: state.locationId, parentNodeId: null, depth: 0, firstDirection: null, discoveryOrder: 0 }]).filter((node) => data.LOCATIONS[node.nodeId]);
+    const mapAddresses = (id) => window.GameEngine.mapAddressesAtNode?.(id) || [];
+    const structuresAt = (id) => (state.mapState?.structures?.[id] || []).filter((item) => item.status !== "dismantled");
+    const isTeleportNode = (id, location) => mapAddresses(id).some((address) => ["guild", "organization", "faction"].includes(address.kind)) || ["organization", "sect", "guild", "capital"].includes(String(location?.mapNodeType || "").toLowerCase()) || structuresAt(id).some((item) => ["waystation", "teleport_array"].includes(item.type));
+    const signalFor = (id, location) => {
+      const hasOpportunity = state.pendingContestedOpportunity?.status === "pending" && state.pendingContestedOpportunity.nodeId === id;
+      const hasEvent = Boolean(state.worldSimulation?.regionState?.[location?.region]?.activeEventId);
+      const hiddenOpen = Object.entries(state.worldSimulation?.hiddenRealms || {}).some(([realmId, runtime]) => runtime.status === "open" && (window.EXPANSION_DATA?.hiddenRealms || []).find((entry) => entry.id === realmId)?.parentNodeId === id);
+      const notable = Object.values(state.worldSimulation?.npcState || {}).some((npc) => npc.status === "alive" && npc.currentNodeId === id);
+      if (hasOpportunity) return "opportunity";
+      if (Number(location?.dangerLevel || 0) >= 4 || location?.enemies?.length) return "danger";
+      if (hasEvent || hiddenOpen) return "event";
+      if (notable || ["capital", "organization", "sect", "guild"].includes(String(location?.mapNodeType || "").toLowerCase())) return "important";
+      return "neutral";
+    };
+    const rawPurpleTarget = localTreeNodes.filter((node) => isTeleportNode(node.nodeId, data.LOCATIONS[node.nodeId])).sort((a, b) => Number(a.depth || 0) - Number(b.depth || 0))[0];
+    const guideNodeIds = new Set();
+    let guideSeed = rawPurpleTarget;
+    while (guideSeed) {
+      guideNodeIds.add(guideSeed.nodeId);
+      guideSeed = localTreeNodes.find((node) => node.nodeId === guideSeed.parentNodeId);
+    }
+    const nodeMeta = Object.fromEntries(localTreeNodes.map((node) => {
+      const location = data.LOCATIONS[node.nodeId];
+      const fogValue = window.GameEngine.mapFogState?.(state, node.nodeId);
+      const fogLevel = (typeof fogValue === "number" ? fogValue : fogValue?.level) ?? (node.nodeId === state.locationId ? 3 : visited.has(node.nodeId) ? 2 : 0);
+      const signal = signalFor(node.nodeId, location);
+      const teleport = isTeleportNode(node.nodeId, location);
+      return [node.nodeId, { location, fogLevel, signal, teleport, visible: node.nodeId === state.locationId || visited.has(node.nodeId) || fogLevel > 0 || signal !== "neutral" || teleport || guideNodeIds.has(node.nodeId) }];
+    }));
+    const visibleTreeNodes = localTreeNodes.filter((node) => nodeMeta[node.nodeId]?.visible);
+    const stableJitter = (id) => {
+      let hash = 2166136261;
+      for (const char of String(id)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+      return { x: (((hash >>> 0) % 2001) / 1000 - 1) * 0.8, y: ((((hash >>> 11) % 2001) / 1000) - 1) * 0.8 };
+    };
+    const points = Object.fromEntries(visibleTreeNodes.map((node) => {
+      if (node.nodeId === state.locationId) return [node.nodeId, { x: 50, y: 50 }];
+      const jitter = stableJitter(node.nodeId);
+      let hash = 2166136261;
+      for (const char of String(node.nodeId)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+      const angle = ((hash >>> 0) % 360) * Math.PI / 180;
+      const radius = 14 + ((hash >>> 8) % 30);
+      return [node.nodeId, { x: Math.max(6, Math.min(94, 50 + Math.cos(angle) * radius + jitter.x)), y: Math.max(6, Math.min(94, 50 + Math.sin(angle) * radius + jitter.y)) }];
+    }));
+
+    const localRoutePairs = visibleTreeNodes.filter((node) => node.parentNodeId && points[node.parentNodeId] && points[node.nodeId] && (visited.has(node.nodeId) || visited.has(node.parentNodeId))).map((node) => ({ key: node.parentEdgeId, from: node.parentNodeId, to: node.nodeId, kind: "constellation" }));
+    const treeKeys = new Set(localRoutePairs.map((pair) => [pair.from, pair.to].sort().join("|")));
+    Object.values(exits).filter(Boolean).forEach((to) => {
+      if (points[state.locationId] && points[to] && !treeKeys.has([state.locationId, to].sort().join("|"))) localRoutePairs.push({ key: "supplemental-" + to, from: state.locationId, to, kind: "supplemental" });
     });
-    const localIds = [...visibleIds].filter((id) => data.LOCATIONS[id]);
-    const points = { [state.locationId]: { x: 50, y: 50 } };
-    const rings = [24, 37, 47];
-    localIds.filter((id) => id !== state.locationId).sort((a, b) => {
-      const da = coords[a] ? Math.abs(coords[a][0] - currentCoords[0]) + Math.abs(coords[a][1] - currentCoords[1]) : 99;
-      const db = coords[b] ? Math.abs(coords[b][0] - currentCoords[0]) + Math.abs(coords[b][1] - currentCoords[1]) : 99;
-      return da - db || a.localeCompare(b);
-    }).forEach((id, index) => {
-      const ring = Math.min(rings.length - 1, Math.floor(index / 6));
-      const slot = index % 6;
-      const count = Math.min(6, localIds.length - 1 - ring * 6);
-      const angle = (Math.PI * 2 * slot / Math.max(1, count)) - Math.PI / 2;
-      points[id] = { x: 50 + Math.cos(angle) * rings[ring], y: 50 + Math.sin(angle) * rings[ring] };
-    });
+    const purpleTarget = visibleTreeNodes.filter((node) => node.nodeId !== state.locationId && nodeMeta[node.nodeId]?.teleport).sort((a, b) => Number(a.depth || 0) - Number(b.depth || 0))[0];
+    const guideIds = new Set();
+    const guidePairs = [];
+    let guideCursor = purpleTarget;
+    while (guideCursor?.parentNodeId && points[guideCursor.nodeId] && points[guideCursor.parentNodeId]) {
+      guidePairs.push({ from: guideCursor.parentNodeId, to: guideCursor.nodeId, kind: "guide" });
+      guideIds.add(guideCursor.nodeId); guideIds.add(guideCursor.parentNodeId);
+      guideCursor = visibleTreeNodes.find((node) => node.nodeId === guideCursor.parentNodeId);
+    }
+    const localRoutes = localRoutePairs.concat(guidePairs).map(({ from, to, kind }) => {
+      const explored = visited.has(from) && visited.has(to) ? " explored" : "";
+      return '<line class="map-path ' + kind + '-edge' + explored + '" x1="' + points[from].x + '" y1="' + points[from].y + '" x2="' + points[to].x + '" y2="' + points[to].y + '"></line>';
+    }).join("");
 
     const nodes = Object.entries(points).map(([id, point]) => {
       const location = data.LOCATIONS[id];
@@ -927,10 +990,12 @@ window.GameUI = (function () {
       const isCurrent = id === state.locationId;
       const isVisited = visited.has(id);
       const isReachable = Boolean(direction);
-      const fogValue = window.GameEngine.mapFogState?.(state, id);
-      const fogLevel = (typeof fogValue === "number" ? fogValue : fogValue?.level) ?? (isCurrent ? 3 : isVisited ? 2 : isReachable ? 1 : 0);
+      const meta = nodeMeta[id] || { fogLevel: 0, signal: "neutral", teleport: false };
+      const fogLevel = meta.fogLevel;
       const influenceSnapshot = window.GameEngine.mapInfluenceSnapshot?.(state, id) || { discovered: false };
       const classes = ["map-node"];
+      const ownerFaction = (data.WORLD_MAP?.factions || []).find((faction) => faction.id === (influenceSnapshot.ownerFactionId || location.organizationId));
+      const alignment = String(ownerFaction?.alignment || "").toLowerCase();
       const notableCount = Object.values(state.worldSimulation?.npcState || {}).filter((npc) => npc.status === "alive" && npc.currentNodeId === id).length;
       const hiddenOpen = Object.entries(state.worldSimulation?.hiddenRealms || {}).some(([realmId, runtime]) => runtime.status === "open" && (window.EXPANSION_DATA?.hiddenRealms || []).find((entry) => entry.id === realmId)?.parentNodeId === id);
       const hasOpportunity = state.pendingContestedOpportunity?.status === "pending" && state.pendingContestedOpportunity.nodeId === id;
@@ -943,30 +1008,58 @@ window.GameUI = (function () {
       else if (isReachable) classes.push("reachable");
       else if (isVisited) classes.push("visited");
       else classes.push("unknown");
+      if (guideIds.has(id)) classes.push("route-guide");
+      if (meta.teleport) classes.push("teleport-node");
+      classes.push("signal-" + meta.signal);
       classes.push("fog-" + fogLevel);
       if (location.openWorld) classes.push("procedural");
       if (location.enemies?.length) classes.push("dangerous");
       if (influenceSnapshot.contested) classes.push("contested");
+      if (fogLevel <= 0) classes.push("fog-hidden");
+      else if (alignment.includes("chính") || alignment.includes("chinh")) classes.push("faction-righteous");
+      else if (alignment.includes("tà") || alignment.includes("ta")) classes.push("faction-evil");
+      else classes.push("discovered-neutral");
+      if (Number(location.dangerLevel || 0) >= 4) classes.push("danger-zone");
+      if (notableCount || hasOpportunity || hasEvent || hiddenOpen || location.mapNodeType === "capital") classes.push("important-node");
       const displayName = displayNodeName(location.name);
       if (location.name !== displayName) location.name = displayName;
-      const label = fogLevel >= 2 ? displayName : fogLevel === 1 ? "?" : "·";
-      const detail = [direction ? "Đi " + direction : "", notableCount ? "NPC " + notableCount : "", hasOpportunity ? "Có cơ duyên" : "", hasEvent ? "Có biến cố" : "", hiddenOpen ? "Bí cảnh mở" : ""].filter(Boolean).join(" · ");
+      const oxyPoint = coords[id];
+      const oxy = oxyPoint ? Number(oxyPoint.x ?? oxyPoint[0]) + "," + Number(oxyPoint.y ?? oxyPoint[1]) : "chưa rõ";
+      const label = isCurrent || notableCount || hasOpportunity || hasEvent || hiddenOpen ? displayName : (fogLevel >= 1 ? "✦" : "·");
+      const detail = ["Oxy " + oxy, "Khoảng cách " + distance(id), isVisited ? "Đã đi qua" : "Chưa đi qua", direction ? "Có thể đi " + direction : "Chưa có tuyến trực tiếp", notableCount ? "NPC " + notableCount : "", hasOpportunity ? "Có cơ duyên" : "", hasEvent ? "Có biến cố" : "", hiddenOpen ? "Bí cảnh mở" : ""].filter(Boolean).join(" · ");
       const action = direction ? ' data-map-dir="' + direction + '"' : "";
-      return '<button class="' + classes.join(" ") + '" style="left:' + point.x + '%;top:' + point.y + '%"' + action + ' aria-label="' + escapeHtml(location.name + (detail ? " · " + detail : "")) + '" title="' + escapeHtml(location.name + (detail ? " · " + detail : "")) + '"><span class="map-star-glyph">✦</span><span class="map-node-label">' + escapeHtml(label) + '</span></button>';
+      return '<button class="' + classes.join(" ") + '" style="left:' + point.x + '%;top:' + point.y + '%"' + action + ' aria-label="' + escapeHtml(displayName + " · " + detail) + '" title="' + escapeHtml(displayName + " · " + detail) + '"><span class="map-star-glyph">✦</span><span class="map-node-label">' + escapeHtml(label) + '</span></button>';
     }).join("");
 
     const directionLabels = { bac: "Bắc", nam: "Nam", dong: "Đông", tay: "Tây" };
+    const directionDelta = { bac: [0, -1], nam: [0, 1], dong: [1, 0], tay: [-1, 0] };
     const horizonAngles = { bac: -90, dong: 0, nam: 90, tay: 180 };
-    const unexploredNodes = Object.entries(horizonAngles).map(([direction, degrees]) => {
+    const reverseDirection = ({ bac: "nam", nam: "bac", dong: "tay", tay: "dong" }[state.flags?.lastMoveDirection] || "");
+    const candidateDirections = Object.keys(horizonAngles).filter((direction) => {
+      if (direction === reverseDirection) return false;
+      const delta = directionDelta[direction];
+      const nextX = Number(currentPoint.x ?? currentPoint[0]) + delta[0], nextY = Number(currentPoint.y ?? currentPoint[1]) + delta[1];
+      return nextX >= 0 && nextX <= 100 && nextY >= 0 && nextY <= 100;
+    }).slice(0, 3);
+    let unexploredNodes = candidateDirections.map((direction) => {
+      const degrees = horizonAngles[direction];
       if (exits[direction]) return "";
+      const delta = directionDelta[direction], nextX = Number(currentPoint.x ?? currentPoint[0]) + delta[0], nextY = Number(currentPoint.y ?? currentPoint[1]) + delta[1];
+      if (nextX < 0 || nextX > 100 || nextY < 0 || nextY > 100) return "";
       const angle = degrees * Math.PI / 180;
       const x = 50 + Math.cos(angle) * 38;
       const y = 50 + Math.sin(angle) * 38;
-      return '<button class="map-node reachable unknown-exit" style="left:' + x + '%;top:' + y + '%" data-map-dir="' + direction + '" title="Mở đường về hướng ' + directionLabels[direction] + '"><span class="map-star-glyph">✦</span><span class="map-node-label">Chưa khám phá · ' + directionLabels[direction] + '</span></button>';
+      return '<button class="map-node reachable unknown-exit exploration-frontier" style="left:' + x + '%;top:' + y + '%" data-map-explore-dir="' + direction + '" title="Khám phá ô Oxy kế bên về hướng ' + directionLabels[direction] + '"><span class="map-star-glyph">✦</span><span class="map-node-label">Khám phá · ' + directionLabels[direction] + '</span></button>';
     }).join("");
+    const directionNodes = candidateDirections.map((direction) => {
+      const degrees = horizonAngles[direction], angle = degrees * Math.PI / 180;
+      const x = 50 + Math.cos(angle) * 38, y = 50 + Math.sin(angle) * 38;
+      return '<button class="map-node direction-dot ' + (exits[direction] ? "direction-known" : "direction-unknown") + '" style="left:' + x + '%;top:' + y + '%" ' + (exits[direction] ? 'data-map-dir="' + direction + '"' : 'data-map-explore-dir="' + direction + '"') + ' aria-label="Direction ' + direction + '" title="Direction ' + direction + '"><span class="map-star-glyph">·</span></button>';
+    }).join("");
+    unexploredNodes += directionNodes;
     const region = map.regions.find((item) => item.id === current?.region);
     return '<div class="map-heading"><b>' + map.name + '</b><small>' + (region ? region.name + " — " + (region.desc || "Một vùng đất đang được ghi chép.") : "") + '</small></div>' +
-      '<div class="world-map constellation-map local-constellation" role="region" aria-label="Bản đồ tinh tú khu vực hiện tại"><div class="map-corner-label">LOCAL CONSTELLATION · ' + escapeHtml(current?.name || "UNKNOWN") + '</div><div class="map-compass" aria-hidden="true"><span>N</span><i></i><span>S</span></div><div class="constellation-cluster-label">Khu vực lân cận · ' + escapeHtml(region?.name || "Vùng chưa định danh") + '</div><div class="constellation-field"><div class="constellation-core" aria-hidden="true"></div>' + nodes + unexploredNodes + '</div></div>' +
+      '<div class="world-map constellation-map local-constellation" role="region" aria-label="Bản đồ tinh tú khu vực hiện tại"><div class="map-corner-label">LOCAL CONSTELLATION · ' + escapeHtml(current?.name || "UNKNOWN") + '</div><div class="map-compass" aria-hidden="true"><span>N</span><i></i><span>S</span></div><div class="constellation-cluster-label">Khu vực lân cận · ' + escapeHtml(region?.name || "Vùng chưa định danh") + '</div><div class="constellation-field"><svg class="local-route-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">' + localRoutes + '</svg><div class="constellation-core" aria-hidden="true"></div>' + nodes + unexploredNodes + '</div></div>' +
       '<p class="map-legend"><span class="dot current"></span> Hiện tại <span class="dot reachable"></span> Có thể đi <span class="dot visited"></span> Đã khám phá <span class="dot npc"></span> NPC <span class="dot event"></span> Biến cố <span class="dot opportunity"></span> Cơ duyên</p>';
   }
 
@@ -1309,7 +1402,7 @@ window.GameUI = (function () {
   return {
     showScreen, addStory, renderStoryWindow, clearStory, renderChoices, clearChoices, actionPresentation, renderActions, renderOriginChoice,
     setLocation, setSaveIndicator, renderPanel, setMapView, adjustMapCamera, panMapCamera, setActiveTab,
-    renderFateDetail, renderFateSlotChooser, renderFateReplacementChooser, renderFateUpgradeChooser, renderPendingFateChooser, renderRitualModal, renderRewardSummary, renderTechniqueDetail, renderRealmDetail, renderMapDetail, renderMapFactionDetail, renderMarket, renderBlackMarket, renderQintian, renderInventoryModal, renderExpansion, renderWorld, renderStructures, renderStructureOwnershipPolicy, renderOddities, renderDiThe, renderProfessionSection, renderTechniqueEvolutionSection, renderFateEvolutionModal, renderGuildProjectModal, renderContestedOpportunityModal, renderMapEventModal,
+    renderFateDetail, renderFateSlotChooser, renderFateReplacementChooser, renderFateUpgradeChooser, renderPendingFateChooser, renderRitualModal, renderRewardSummary, renderTechniqueDetail, renderRealmDetail, renderMapDetail, renderMapFactionDetail, renderMarket, renderBlackMarket, renderQintian, renderInventoryModal, renderExpansion, renderWorld, renderStructures, renderStructureOwnershipPolicy, renderOddities, renderDiThe, renderProfessionSection, renderTechniqueEvolutionSection, renderFateEvolutionModal, renderGuildProjectModal, renderContestedOpportunityModal, renderMapEventModal, renderPendingDiscoveryModal,
     openOverlay, closeOverlay, bindOverlay, escapeHtml, openEquipmentPicker
   };
 })();

@@ -270,7 +270,8 @@
   function ensure(state) {
     if (!state || !state.player) return state;
     // Canonical rare-progression state; additive for pre-v2 saves.
-    state.pathState = state.pathState || { schemaVersion: 1, primaryPathId: state.player.pathId || null, secondaryPathId: state.player.secondaryPathId || null, hiddenPathId: state.player.hiddenPathId || null, dormant: {}, history: [] };
+    state.pathState = state.pathState || { schemaVersion: 2, primaryPathId: state.player.pathId || null, secondaryPathId: state.player.secondaryPathId || null, hiddenPathId: state.player.hiddenPathId || null, dormant: {}, history: [] };
+    state.pathState.schemaVersion = Math.max(2, Number(state.pathState.schemaVersion || 1));
     state.pathState.primaryPathId = state.pathState.primaryPathId || state.player.pathId || null;
     state.pathState.secondaryPathId = state.pathState.secondaryPathId || state.player.secondaryPathId || null;
     state.pathState.hiddenPathId = state.pathState.hiddenPathId || state.player.hiddenPathId || null;
@@ -279,7 +280,8 @@
     state.player.pathId = state.player.pathId || state.pathState.primaryPathId;
     state.player.secondaryPathId = state.player.secondaryPathId || state.pathState.secondaryPathId;
     state.player.hiddenPathId = state.player.hiddenPathId || state.pathState.hiddenPathId;
-    state.specialPhysiqueState = state.specialPhysiqueState || { schemaVersion: 1, activeId: null, candidates: {}, progress: {}, history: [], rejectedIds: [] };
+    state.specialPhysiqueState = state.specialPhysiqueState || { schemaVersion: 2, activeId: null, candidates: {}, progress: {}, history: [], rejectedIds: [] };
+    state.specialPhysiqueState.schemaVersion = Math.max(2, Number(state.specialPhysiqueState.schemaVersion || 1));
     state.specialPhysiqueState.progress = state.specialPhysiqueState.progress || {};
     state.specialPhysiqueState.candidates = state.specialPhysiqueState.candidates || {};
     state.specialPhysiqueState.history = Array.isArray(state.specialPhysiqueState.history) ? state.specialPhysiqueState.history : [];
@@ -345,7 +347,8 @@
     });
     state.professionItemState = state.professionItemState || {};
     state.meta.featureVersions.professionItems = Math.max(Number(state.meta.featureVersions.professionItems || 1), Number(window.PROFESSION_ITEMS_SCHEMA_VERSION || 1));
-    state.hiddenProfessionState = state.hiddenProfessionState || { clues: {}, attempts: {}, branches: {}, failures: [], unlocked: {} };
+    state.hiddenProfessionState = state.hiddenProfessionState || { schemaVersion: 2, clues: {}, attempts: {}, branches: {}, failures: [], unlocked: {} };
+    state.hiddenProfessionState.schemaVersion = Math.max(2, Number(state.hiddenProfessionState.schemaVersion || 1));
     state.hiddenProfessionState.unlocked = state.hiddenProfessionState.unlocked || {};
     if (!state.hiddenProfessionGraph || Object.values(state.hiddenProfessionGraph).some((graph) => Number(graph?.schemaVersion || 0) < 2)) state.hiddenProfessionGraph = Object.fromEntries(Object.entries(X.hiddenProfessions || {}).map(([id, def], index) => {
       const codex = (X.codexDefinitions || []).find((entry) => (entry.unlocksHiddenProfession || []).includes(id));
@@ -416,7 +419,8 @@
     state.questState = state.questState || { available: {}, active: {}, completed: {}, failed: {}, npcIndex: {} };
     state.questState.available ||= {}; state.questState.active ||= {}; state.questState.completed ||= {}; state.questState.failed ||= {}; state.questState.npcIndex ||= {};
     Object.entries(state.questState.npcIndex).forEach(([npcId, questIds]) => { state.questState.npcIndex[npcId] = [...new Set((Array.isArray(questIds) ? questIds : []).filter(Boolean))]; });
-    state.professionState = state.professionState || { primaryId: null, secondaryId: null, hiddenId: null, professions: {} };
+    state.professionState = state.professionState || { schemaVersion: 2, primaryId: null, secondaryId: null, hiddenId: null, hiddenIds: [], professions: {} };
+    state.professionState.schemaVersion = Math.max(2, Number(state.professionState.schemaVersion || 1));
     // Canonical migration: a hidden profession is always the secondary slot.
     // Older saves used hiddenProfession/hiddenId (and occasionally secondaryId)
     // interchangeably; never allow a normal profession to occupy that slot.
@@ -431,6 +435,7 @@
     state.professionState.hiddenIds = Array.from(new Set((Array.isArray(state.professionState.hiddenIds) ? state.professionState.hiddenIds : []).filter((id) => hiddenIds.has(id)).concat(state.professionState.secondaryId || [])));
     state.professionState.selectionLocked = Boolean(state.professionState.primaryId);
     state.player.hiddenProfession = state.professionState.secondaryId || null;
+    state.player.hiddenProfessionCandidate = state.player.hiddenProfessionCandidate || null;
     state.contractBoard = state.contractBoard || { generatedDay: 0, offers: {}, accepted: {} };
     state.prisoners = state.prisoners || {};
     state.intel = state.intel || {};
@@ -871,7 +876,8 @@
     ensure(state); const companion = normalizeCompanion(state.companion); const target = selectCompanionTarget(state) || E.aliveEnemies(state)[0]?.[0];
     if (!companion || !target) return { success: false, reason: "Dị Thú chưa có mục tiêu." };
     const damage = Math.max(1, Math.round(Number(companion.attack || 8) + Number(companion.loyalty || 0) * 0.08));
-    const entity = E.combatEntity(state, target); if (entity) { entity.hp = Math.max(0, Number(entity.hp || 0) - damage); }
+    if (typeof E.applyPlayerDamage === "function") E.applyPlayerDamage(state, target, damage);
+    else state.enemies[target] = Math.max(0, Number(state.enemies[target] || 0) - damage);
     companion.skillMastery[skillId] = Number(companion.skillMastery[skillId] || 0) + 1;
     return { success: true, damage, targetId: target, skillId };
   }
@@ -1310,6 +1316,20 @@
       if (npc.status !== "alive") return;
       npc.needs ||= { shelter: 0, social: 0, duty: 0 };
       npc.needs.duty = clamp(Number(npc.needs.duty || 0) + 1, 0, 100);
+      const npcRegionId = D.WORLD_MAP?.locations?.[npc.currentNodeId]?.region || D.LOCATIONS?.[npc.currentNodeId]?.region || currentRegion(state);
+      const weatherId = normalizeWeatherId(state.worldSimulation.regionState?.[npcRegionId]?.weather || "quang");
+      const needsShelter = Boolean(WEATHER_EFFECTS[weatherId]?.npcShelter);
+      npc.shelterState ||= { inShelter: false, lastTransitionDay: 0, exitAfterDay: 0 };
+      if (needsShelter) {
+        npc.needs.shelter = clamp(Number(npc.needs.shelter || 0) + 10, 0, 100);
+        npc.shelterState.inShelter = true; npc.shelterState.lastTransitionDay ||= day; npc.shelterState.exitAfterDay = day + 1;
+        npc.aiState = "shelter"; npc.nextMoveDay = Math.max(Number(npc.nextMoveDay || day + 1), day + 1); return;
+      }
+      if (npc.shelterState.inShelter) {
+        npc.needs.shelter = Math.max(0, Number(npc.needs.shelter || 0) - 5);
+        if (day < Number(npc.shelterState.exitAfterDay || 0)) { npc.aiState = "shelter"; return; }
+        npc.shelterState.inShelter = false; npc.shelterState.lastTransitionDay = day;
+      }
       if (npc.scheduleType === "static" || day < npc.nextMoveDay) { npc.aiState = npc.scheduleType === "static" ? "present" : "idle"; return; }
       const currentLoc = D.LOCATIONS[npc.currentNodeId];
       const exits = Object.values(currentLoc?.exits || {}).filter((id) => D.LOCATIONS[id]);
@@ -1358,6 +1378,7 @@
       if (npc?.travelTo && !Object.values(D.LOCATIONS[npc.travelFrom]?.exits || {}).includes(npc.travelTo)) errors.push(String(npc.npcId) + ":edge");
       if (npc?.queueNodeId && npc.queueNodeId !== npc.currentNodeId) errors.push(String(npc.npcId) + ":queue-node");
       if (npc?.queueRank !== undefined && (!Number.isInteger(Number(npc.queueRank)) || Number(npc.queueRank) < 1)) errors.push(String(npc.npcId) + ":queue-rank");
+      if (npc?.shelterState && (typeof npc.shelterState.inShelter !== "boolean" || !Number.isFinite(Number(npc.shelterState.lastTransitionDay || 0)) || !Number.isFinite(Number(npc.shelterState.exitAfterDay || 0)))) errors.push(String(npc.npcId) + ":shelter-state");
       const subLocations = D.LOCATIONS[npc.currentNodeId]?.subLocations || [];
       if (npc?.currentSubLocationId && npc.currentSubLocationId !== "main" && !subLocations.some((entry) => entry.id === npc.currentSubLocationId)) errors.push(String(npc.npcId) + ":sub-location");
       if (!Number.isFinite(Number(npc?.nextMoveDay || 0))) errors.push(String(npc.npcId) + ":next-move");
@@ -1511,6 +1532,10 @@
       const localCorruption = Number(D.LOCATIONS?.[state.locationId]?.corruption || 0) + (activeRegionEvent(state) ? 1 : 0);
       state.companion.corruption = clamp(Number(state.companion.corruption || 0) + Math.max(0, localCorruption - 2), 0, 100);
       if (state.companion.corruption >= 60) { state.companion.state = "mutated"; state.companion.mutationPending = true; history(state, "warn", "× " + state.companion.customName + " đang Dị Biến; cần cứu chữa hoặc chấp nhận biến chất."); }
+      if (state._offlineSimulation && Number(state.companion.lastOfflineCombatDay || 0) < day) {
+        state.companion.lastOfflineCombatDay = day;
+        simulateOfflineCompanionCombat(state, day);
+      }
     }
     if (state.pendingContestedOpportunity && day > state.pendingContestedOpportunity.expiresDay) {
       state.pendingContestedOpportunity.status = "expired"; recordContestedOpportunity(state, state.pendingContestedOpportunity); state.pendingContestedOpportunity = null;
@@ -1675,9 +1700,46 @@
   function npcTalk(state, npcId) {
     ensureNpcWorldState(state); const npc = state.worldSimulation.npcState[npcId];
     if (!npc || npc.status !== "alive" || npc.currentNodeId !== state.locationId || (npc.currentSubLocationId && npc.currentSubLocationId !== state.currentSubLocationId)) return { success: false, reason: "NPC không ở đúng địa điểm này." };
-    state.dialogueState = { profileId: npc.dialogueProfileId, npcId, lastDay: absoluteDay(state.gameClock) };
+    const quest = npcQuestStatus(state, npcId)[0] || state.questState?.active?.["npc_quest_" + npcId] || null;
+    state.dialogueState = { schemaVersion: 1, phase: quest?.status === "active" ? "PROGRESS" : "CHECK", profileId: npc.dialogueProfileId, npcId, questId: quest?.id || null, lastDay: absoluteDay(state.gameClock), history: Array.isArray(state.dialogueState?.history) ? state.dialogueState.history.slice(-12) : [] };
     history(state, "narr", "Ánh mắt " + (npc.name || npcId) + " dừng lại nơi ngươi; câu chuyện mở ra giữa những điều chưa được nói hết.");
-    return { success: true, profileId: npc.dialogueProfileId };
+    state.dialogueState.history.push({ phase: state.dialogueState.phase, day: absoluteDay(state.gameClock) });
+    return { success: true, profileId: npc.dialogueProfileId, phase: state.dialogueState.phase, quest };
+  }
+  function npcDialogueAction(state, npcId, action = "check") {
+    ensureNpcWorldState(state);
+    const open = npcTalk(state, npcId);
+    if (!open.success) return open;
+    const dialogue = state.dialogueState, questId = dialogue.questId || "npc_quest_" + npcId;
+    if (action === "offer") {
+      const quest = npcQuestStatus(state, npcId)[0] || state.questState.available?.[questId];
+      dialogue.phase = quest ? "OFFER" : "CHECK";
+      return { success: Boolean(quest), phase: dialogue.phase, quest: quest || null, reason: quest ? null : "NPC chưa có lời nhờ mới." };
+    }
+    if (action === "accept") {
+      const result = acceptNpcQuest(state, questId);
+      if (result.success) { dialogue.phase = "PROGRESS"; dialogue.questId = questId; }
+      return { ...result, phase: dialogue.phase };
+    }
+    if (action === "progress") {
+      const quest = state.questState.active?.[questId];
+      if (!quest) return { success: false, reason: "Chưa có nhiệm vụ đang thực hiện." };
+      quest.objectives = Array.isArray(quest.objectives) ? quest.objectives : [];
+      quest.objectives.forEach((objective) => { objective.done = true; });
+      quest.progressDay = absoluteDay(state.gameClock); dialogue.phase = "TURN_IN";
+      return { success: true, phase: dialogue.phase, quest };
+    }
+    if (action === "turn_in") {
+      const quest = state.questState.active?.[questId];
+      if (!quest) return { success: false, reason: "Không có nhiệm vụ để giao trả." };
+      if ((quest.objectives || []).some((objective) => !objective.done)) return { success: false, reason: "Mục tiêu nhiệm vụ chưa hoàn tất." };
+      delete state.questState.active[questId]; quest.status = "completed"; quest.completedDay = absoluteDay(state.gameClock); state.questState.completed[questId] = quest;
+      grantCanonicalReward(state, "npc-quest:" + questId, { exp: 15, merit: 2 }, "npc-quest:" + questId);
+      recordRelationshipEvent(state, npcId, "kept_promise", { questId, uniqueKey: "npc-quest-turn-in:" + questId });
+      dialogue.phase = "CHECK"; dialogue.questId = null;
+      return { success: true, phase: dialogue.phase, quest };
+    }
+    return { success: true, phase: dialogue.phase, quest: state.questState?.available?.[questId] || state.questState?.active?.[questId] || null };
   }
   function ensureMapState(state) { ensure(state); state.mapState ||= { version: 2, structures: {}, invalidExits: [], journal: [], fastTravel: {}, teleportAnchors: {}, tradeRoutes: {}, outposts: {}, eventInfluence: {}, influenceCache: {}, influenceRevision: 1, invalidationCount: 0, lastInvalidation: null }; state.mapState.version = Math.max(2, Number(state.mapState.version || 1)); state.mapState.structures ||= {}; state.mapState.invalidExits ||= []; state.mapState.journal ||= []; state.mapState.fastTravel ||= {}; state.mapState.teleportAnchors ||= {}; state.mapState.tradeRoutes ||= {}; state.mapState.outposts ||= {}; state.mapState.eventInfluence ||= {}; state.mapState.influenceCache ||= {}; state.mapState.influenceRevision = Number(state.mapState.influenceRevision || 1); state.mapState.invalidationCount = Number(state.mapState.invalidationCount || 0); return state.mapState; }
   function invalidateMapInfluence(state, nodeId) { const map = ensureMapState(state); map.influenceRevision += 1; map.invalidationCount += 1; map.lastInvalidation = { nodeId: nodeId || null, revision: map.influenceRevision, day: absoluteDay(state.gameClock) }; map.influenceCache = {}; if (nodeId) { const node = mapNode(state, nodeId); if (node) node.influenceRevision = map.influenceRevision; } return map.influenceRevision; }
@@ -2112,6 +2174,9 @@
       if (seen.has(key)) errors.push(key + ":duplicated");
       seen.add(key);
     }));
+    const dialoguePhase = state.dialogueState?.phase;
+    if (dialoguePhase && !["CHECK", "OFFER", "PROGRESS", "TURN_IN"].includes(dialoguePhase)) errors.push("dialogue:phase");
+    if (state.dialogueState?.history && !Array.isArray(state.dialogueState.history)) errors.push("dialogue:history");
     return { ok: errors.length === 0, errors };
   }
 
@@ -2166,10 +2231,12 @@
   function simulateWorldUntil(state, targetDay, options = {}) {
     const startedAt = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
     ensure(state);
+    const previousOfflineFlag = Boolean(state._offlineSimulation);
+    if (options.offline) state._offlineSimulation = true;
     const sim = state.worldSimulation;
     const target = Math.max(sim.lastProcessedDay, Math.floor(Number(targetDay || absoluteDay(state.gameClock))));
     const start = sim.lastProcessedDay;
-    if (target <= start) { state.runtimeMetrics.offline.calls += 1; state.runtimeMetrics.offline.totalMs += (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now()) - startedAt; return { processed: 0, mode: "idempotent", detailed: 0, aggregate: 0 }; }
+    if (target <= start) { state._offlineSimulation = previousOfflineFlag; state.runtimeMetrics.offline.calls += 1; state.runtimeMetrics.offline.totalMs += (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now()) - startedAt; return { processed: 0, mode: "idempotent", detailed: 0, aggregate: 0 }; }
     const detailedWindow = Math.max(1, Number(sim.offlinePolicy?.detailedWindowDays || 30));
     const detailedStart = Math.max(start + 1, target - detailedWindow + 1);
     let aggregate = 0;
@@ -2188,6 +2255,7 @@
     }
     const result = { processed: target - start, detailed: target - detailedStart + 1, aggregate, mode: aggregate ? "aggregate_then_actor_window" : "actor_window" };
     sim.lastOfflineAudit = { ...result, targetDay: target, source: options.offline || state._offlineSimulation ? "offline" : "catch_up" };
+    state._offlineSimulation = previousOfflineFlag;
     state.runtimeMetrics.offline.calls += 1; state.runtimeMetrics.offline.totalMs += (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now()) - startedAt;
     return result;
   }
@@ -2216,6 +2284,8 @@
   }
   function validateExpansionState(state) {
     ensure(state); const errors = [], sim = state.worldSimulation;
+    const namespaceAudit = validateCanonicalNamespaces(state);
+    if (!namespaceAudit.ok) namespaceAudit.errors.forEach((error) => errors.push("namespace:" + error));
     const actionPriorityAudit = typeof E.validateActionPriorityMatrix === "function" ? E.validateActionPriorityMatrix(state) : { ok: false, issues: ["action-priority-validator-missing"] };
     if (!actionPriorityAudit.ok) actionPriorityAudit.issues.forEach((error) => errors.push("actionPriority:" + error));
     if (!sim || !Number.isFinite(Number(sim.lastProcessedDay))) errors.push("worldSimulation.lastProcessedDay");
@@ -2511,6 +2581,22 @@
     Object.entries(state.professionItemState || {}).forEach(([key, record]) => { if (!record || !Number.isFinite(Number(record.charges)) || Number(record.charges) < 0 || !Number.isFinite(Number(record.uses)) || Number(record.uses) < 0) errors.push("item-state:" + key); });
     return { ok: errors.length === 0, primaryId: ps.primaryId || null, secondaryId: ps.secondaryId || null, errors };
   }
+  function validateCanonicalNamespaces(state) {
+    ensure(state);
+    const errors = [], path = state.pathState || {}, profession = state.professionState || {}, physique = state.specialPhysiqueState || {};
+    if (Number(path.schemaVersion || 0) < 2) errors.push("path:schemaVersion");
+    if (Number(profession.schemaVersion || 0) < 2) errors.push("profession:schemaVersion");
+    if (Number(physique.schemaVersion || 0) < 2) errors.push("diThe:schemaVersion");
+    if ((path.primaryPathId || null) !== (state.player.pathId || null)) errors.push("path:primaryAlias");
+    if ((path.secondaryPathId || null) !== (state.player.secondaryPathId || null)) errors.push("path:secondaryAlias");
+    if ((path.hiddenPathId || null) !== (state.player.hiddenPathId || null)) errors.push("path:hiddenAlias");
+    if ((profession.hiddenId || null) !== (profession.secondaryId || null)) errors.push("profession:hiddenAlias");
+    if ((profession.secondaryId || null) !== (state.player.hiddenProfession || null)) errors.push("profession:legacyAlias");
+    if ((physique.activeId || null) !== (state.player.specialPhysique || null)) errors.push("diThe:activeAlias");
+    if (profession.primaryId && profession.secondaryId && profession.primaryId === profession.secondaryId) errors.push("profession:duplicate");
+    if (path.primaryPathId && path.primaryPathId === path.secondaryPathId) errors.push("path:duplicate");
+    return { ok: errors.length === 0, errors, versions: { path: Number(path.schemaVersion || 0), profession: Number(profession.schemaVersion || 0), diThe: Number(physique.schemaVersion || 0) } };
+  }
   function hasProfession(state, id) { return state.professionState?.primaryId === id || state.professionState?.secondaryId === id; }
   function professionAvailability(state, id) {
     ensure(state); const definition = professionDefinition(id);
@@ -2608,6 +2694,18 @@
     if (professionId === "nguoi_giu_cua") state.flags.hiddenGateSealUntilDay = day + 3;
     if (professionId === "thay_tuong_menh") state.divinationHint = { text: "Một mệnh tuyến ẩn đang hội tụ quanh khu vực hiện tại.", direction: "Theo linh cơ", acquiredDay: day, expiresDay: day + 4, confidence: "rõ" };
     if (professionId === "hanh_gia_vo_danh") state.flags.namelessCultivationUntilDay = day + 3;
+    if (definition.kind === "tu_tich") {
+      state.hiddenProfessionEffects ||= {};
+      const effect = state.hiddenProfessionEffects[professionId] ||= { uses: 0, lastUseDay: -999999, scars: 0 };
+      effect.uses += 1; effect.lastUseDay = day;
+      if (definition.passive?.dialoguePressure) state.dialogueState ||= { schemaVersion: 1, phase: "CHECK", history: [] }, state.dialogueState.pressure = clamp(Number(state.dialogueState.pressure || 0) + Number(definition.passive.dialoguePressure), 0, 1);
+      if (definition.passive?.nodeCorruptionSense) state.flags.tuTichCorruptionSenseUntilDay = day + 3;
+      if (definition.passive?.illusionAvoidance) state.flags.tuTichIllusionAvoidanceUntilDay = day + 3;
+      if (definition.passive?.memoryRiskReduction) state.flags.tuTichMemoryGuardUntilDay = day + 3;
+      if (definition.failPolicy === "false_clue") state.flags.tuTichFalseClueUntilDay = day + 2;
+      if (definition.failPolicy === "corruption_scar") effect.scars += 1;
+      if (definition.failPolicy === "memory_scar") state.flags.tuTichMemoryScar = Number(state.flags.tuTichMemoryScar || 0) + 1;
+    }
     record.uses += 1; record.lastUseDay = day; record.lastResult = definition.actionName; state.hiddenProfessionActions[professionId] = record;
     const mastery = professionRecord(state, professionId); mastery.masteryExp += 12; mastery.masteryStage = mastery.masteryExp >= 300 ? 3 : mastery.masteryExp >= 100 ? 2 : mastery.masteryExp >= 25 ? 1 : 0; mastery.lastActionDay = day;
     history(state, "sys", "✦ Thi triển nghề ẩn: " + definition.actionName + "."); E.updateDerived(state);
@@ -3056,7 +3154,7 @@
       return organizationInteract(state, match[2], match[1] === "status" ? "status" : match[1]);
     }
     if (actionId.startsWith("act_exp_npc_talk_")) return npcTalk(state, actionId.slice("act_exp_npc_talk_".length));
-    if (actionId.startsWith("act_exp_npc_dialogue_")) return npcTalk(state, actionId.slice("act_exp_npc_dialogue_".length));
+    if (actionId.startsWith("act_exp_npc_dialogue_")) return npcDialogueAction(state, actionId.slice("act_exp_npc_dialogue_".length), "check");
     if (actionId === "act_exp_divine") return divine(state);
     if (actionId === "act_exp_scout") return scoutWithCompanion(state);
     if (actionId === "act_exp_capture") return captureTarget(state);
@@ -3077,6 +3175,10 @@
 
   function postAction(state, actionId, before) {
     ensure(state); simulateWorldUntil(state, absoluteDay(state.gameClock)); ensureTechniqueTrials(state);
+    if ((actionId === "act_tan_cong_thuong" || actionId.startsWith("act_skill_")) && E.aliveEnemies(state).length && state.companion && ["active", "mutated"].includes(state.companion.state)) {
+      const companionResult = useCompanionSkill(state, state.companion.role === "scout" ? "scout_strike" : "guard_bite");
+      if (companionResult.success) history(state, "sys", "Dị Thú đồng hành phối hợp tấn công, gây " + companionResult.damage + " sát thương.");
+    }
     const afterEnemies = E.aliveEnemies(state).length;
     if (/tu_luyen|be_quan/.test(actionId)) advanceTechniqueTrials(state, "cultivation");
     if (before.enemyCount > afterEnemies) {
@@ -3382,7 +3484,7 @@
       hidden_profession_action: () => useHiddenProfessionAction(state, arg), path_fusion: () => transitionSecondaryPath(state, arg, options),
       map_event: () => E.resolveMapEvent(state, arg),
       build_structure: () => buildMapStructure(state, arg || state.locationId, arg2 || "teleport_array"), structure_repair: () => repairMapStructure(state, arg || state.locationId, arg2), structure_upgrade: () => upgradeMapStructure(state, arg || state.locationId, arg2), structure_disable: () => disableMapStructure(state, arg || state.locationId, arg2, options.reason || "manual"), structure_dismantle: () => dismantleMapStructure(state, arg || state.locationId, arg2), structure_transfer: () => transferMapStructure(state, arg || state.locationId, arg2, options.npcId || options.targetNpcId), claim_outpost: () => claimOutpost(state, arg || state.locationId), petition_outpost: () => petitionOutpostToFaction(state, arg || state.locationId),
-      bounty: () => placeBounty(state, arg, Number(arg2 || 10)), auction_bid: () => bidAuction(state, arg, Number(arg2)), item_awaken: () => awakenItem(state, arg), heirloom: () => markHeirloom(state, arg), heirloom_repair: () => repairHeirloom(state, arg), prisoner_resolve: () => resolvePrisoner(state, arg, arg2), companion_mutation: () => resolveCompanionMutation(state, arg), opportunity: () => resolveContestedOpportunity(state, arg), read_npc: () => readNpc(state, arg), war: () => participateWar(state, arg), army: () => armyAction(state, arg, arg2, options), tournament: () => joinTournament(state), codex: () => inspectCodex(state, arg, arg2 || "investigate"), hidden_clue: () => hiddenProfessionClue(state, arg, arg2 || "lead")
+      bounty: () => placeBounty(state, arg, Number(arg2 || 10)), auction_bid: () => bidAuction(state, arg, Number(arg2)), item_awaken: () => awakenItem(state, arg), heirloom: () => markHeirloom(state, arg), heirloom_repair: () => repairHeirloom(state, arg), prisoner_resolve: () => resolvePrisoner(state, arg, arg2), companion_mutation: () => resolveCompanionMutation(state, arg), opportunity: () => resolveContestedOpportunity(state, arg), read_npc: () => readNpc(state, arg), npc_dialogue: () => npcDialogueAction(state, arg, arg2 || "check"), war: () => participateWar(state, arg), army: () => armyAction(state, arg, arg2, options), tournament: () => joinTournament(state), codex: () => inspectCodex(state, arg, arg2 || "investigate"), hidden_clue: () => hiddenProfessionClue(state, arg, arg2 || "lead")
     };
     const result = table[command] ? table[command]() : { success: false, reason: "Lệnh mở rộng không hợp lệ." };
     E.updateDerived(state); return result;
@@ -3420,12 +3522,12 @@
   Object.assign(E, {
     ensureExpansionState: ensure, ensureNpcWorldState, ensureMapState, mapNode, mapInfluenceSnapshot, resolveMapInfluence: mapInfluenceSnapshot, refreshMapInfluence, recordMapEventInfluence, mapFogState, moveWithinNode, appendNodeHistory, nodeResonance, mapCompletion, mapCompletionDetailed, buildMapStructure, repairMapStructure, upgradeMapStructure, disableMapStructure, dismantleMapStructure, transferMapStructure, teleportAnchorEligibility, travelPlan: canonicalTravelPlan, travelWeightSnapshot, claimOutpost, petitionOutpostToFaction, createTradeRoute, updateTradeRoutes, validateTradeRouteState, repairInvalidMapExits, wardProtectionAtNode, ensureWorldSimulation, validateExpansionState, validateCacheInvalidationState, validateReplayEnvelope, gameDayOrdinal: absoluteDay, worldRandom: seeded, simulateWorldUntil, simulateWorldAggregate, scheduleWorldTask, cancelWorldTask, processScheduledWorldTasks, resolveOfflineNpcEncounters, actorHistorySnapshot, rehydrateUnknownContent, worldSimulationSummary, getWorldModifiers, setWeather, weatherCatalog, weatherSnapshot, validateWeatherRuntimeState, validateStructureRuntimeState, validateGuildProjectState, worldModifierPreview, resolveNpcWeatherReaction, activeRegionEvent, startWorldEvent, resolveWorldEventChoice,
     recordRelationshipEvent, relationshipTier, relationshipBreakdown, relationshipPolicySnapshot, validateRelationshipPolicy, validateRelationshipRuntimeState, organizationSnapshot, organizationInteract, ensureOrganizationState, validateOrganizationState, sendMail, refreshContracts, acceptContract, grantCanonicalReward, captureTarget, interrogate, tamePrisoner, scoutWithCompanion, normalizeCompanion, validateCompanionState, validatePrisonerState, validateContestedOpportunity, validateHiddenRealmRuntimeState, ensureArmyState, createArmy, armySnapshot, armyAction, updateArmies, productPolicySnapshot, validateProductPolicies, structureManagerDecision, selectCompanionTarget, useCompanionSkill, recordCompanionDamage, simulateOfflineCompanionCombat, recoverCompanion, reviveCompanion,
-    discover, verifyDiscovery, collectDiscovery, rewardDiscovery, discoveryStatusSummary, validateDiscoveryLifecycle, divine, survivalProjection, setPlayerMark, progressionNamespaceSnapshot, pathFusionAffinity, transitionSecondaryPath, chooseProfessionLocked, professionAvailability, practiceProfession, recipeDefinition, recipeCatalog: () => copy(RECIPE_CATALOG), structureCatalog, validateStructureRuntimeState, validateGuildProjectState, rewardPolicySnapshot, validateRewardPolicy, brewPill, useProfessionItem, rechargeProfessionItem, useHiddenProfessionAction, placeFormation, readNpc,
+    discover, verifyDiscovery, collectDiscovery, rewardDiscovery, discoveryStatusSummary, validateDiscoveryLifecycle, divine, survivalProjection, setPlayerMark, progressionNamespaceSnapshot, validateCanonicalNamespaces, pathFusionAffinity, transitionSecondaryPath, chooseProfessionLocked, professionAvailability, practiceProfession, recipeDefinition, recipeCatalog: () => copy(RECIPE_CATALOG), structureCatalog, validateStructureRuntimeState, validateGuildProjectState, rewardPolicySnapshot, validateRewardPolicy, brewPill, useProfessionItem, rechargeProfessionItem, useHiddenProfessionAction, placeFormation, readNpc,
     ensureTechniqueTrials, validateTechniqueRuntimeState, validateCharacterRuntimeState, chooseTechniqueEvolution, techniqueEvolutionModifiers,
     fateEvolutionEligibility, startFateEvolutionTrial, recordFateEvolutionProgress, fateEvolutionCandidates, fateEvolutionPreview, evolveFate, applyFateEvolutionOps, fateEvolutionScoreDelta,
     awakenItem, markHeirloom, repairHeirloom, startGuildProject, contributeGuildProject, hiddenRealmEnter, claimHiddenRealmCore, exitHiddenRealm, validateReincarnationRuntimeState, prepareTribulation, chooseTribulation, chooseLegacy, visitTomb,
     beforeReincarnation, afterReincarnation, afterBreakthrough, afterBreakthroughAttempt,
-    expansionActions, expansionSummary, createCoverIdentity, retireCoverIdentity, counterIntelResponse, buyIntel, placeBounty, refreshAuction, bidAuction, validateAuctionState, refreshContracts, acceptContract, validateContractBoardState, craftArtifact, resolvePrisoner, resolveCompanionMutation, createContestedOpportunity, resolveContestedOpportunity, recordContestedOpportunity, rollMapEvent: E.rollMapEvent, resolveMapEvent: E.resolveMapEvent, participateWar, joinTournament, runExpansionCommand, inspectCodex, codexProgress, hiddenProfessionClue, npcWorldContext, factionBulletin, warFrontSnapshot, validateWarState, validateWorldEventState, rumorBulletinSnapshot, resolveNpcWorldReaction, resolveNpcWeatherReaction, validateNpcQuestState, npcQuestStatus, npcTalk, acceptNpcQuest, performPathRitualStep, pathRitualStatus, registerCollection, unlockAchievements, equipmentSetModifiers, setWeather, worldModifierPreview, chooseProfessionLocked, validateProfessionNamespace, techniqueDisplayInfo, specialPhysiqueCatalog, specialPhysiqueModifiers, specialPhysiqueOutcome, recordSpecialPhysiqueProgress, claimSpecialPhysique
+    expansionActions, expansionSummary, createCoverIdentity, retireCoverIdentity, counterIntelResponse, buyIntel, placeBounty, refreshAuction, bidAuction, validateAuctionState, refreshContracts, acceptContract, validateContractBoardState, craftArtifact, resolvePrisoner, resolveCompanionMutation, createContestedOpportunity, resolveContestedOpportunity, recordContestedOpportunity, rollMapEvent: E.rollMapEvent, resolveMapEvent: E.resolveMapEvent, participateWar, joinTournament, runExpansionCommand, inspectCodex, codexProgress, hiddenProfessionClue, npcWorldContext, factionBulletin, warFrontSnapshot, validateWarState, validateWorldEventState, rumorBulletinSnapshot, resolveNpcWorldReaction, resolveNpcWeatherReaction, validateNpcQuestState, npcQuestStatus, npcTalk, npcDialogueAction, acceptNpcQuest, performPathRitualStep, pathRitualStatus, registerCollection, unlockAchievements, equipmentSetModifiers, setWeather, worldModifierPreview, chooseProfessionLocked, validateProfessionNamespace, techniqueDisplayInfo, specialPhysiqueCatalog, specialPhysiqueModifiers, specialPhysiqueOutcome, recordSpecialPhysiqueProgress, claimSpecialPhysique
   });
   E.gameDayOrdinal = gameDayOrdinal;
   E.validateSpecialPhysiqueCatalog = validateSpecialPhysiqueCatalog;
