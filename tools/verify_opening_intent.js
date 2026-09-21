@@ -24,7 +24,7 @@ const newState = (regionId, background) => {
 };
 
 for (const regionId of regions) {
-  const familyAvailable = hasKind(regionId, /the gia|gia toc|vuong trieu|co toc|bo toc|phu gia/);
+  const familyAvailable = hasKind(regionId, /the gia|gia toc|vuong trieu|phu gia/);
   const sectAvailable = hasKind(regionId, /tong mon|dao tong|kiem tong|dan tong|ma dao|phat tong|quy tong|giao phai|dao thong|phai/);
   const normal = newState(regionId, "Thế Gia");
   assert.strictEqual(E.contextState(normal).state, "JOURNEY_INTENT_CHOICE");
@@ -98,4 +98,8 @@ assert.strictEqual(E.refuseGuild(restored, "thế gia"), true);
 assert.strictEqual(restored.flags.guildDecision, "journey:quy_tong:declined");
 assert.strictEqual(E.resolveAction(restored, "act_journey_tu_lap").success, false);
 
+const legacyInvitationSave = JSON.parse(E.serialize(persistence));
+delete legacyInvitationSave.pendingGuildChoice;
+const migratedInvitation = E.deserialize(JSON.stringify(legacyInvitationSave));
+assert.strictEqual(migratedInvitation.pendingGuildChoice, true, "migration must restore a missing stage-2 invitation flag");
 console.log("OK: all journey intents, UTF-8 background branches, regional targets, independent scenes, state isolation, failed-action clock safety, and persistence");
