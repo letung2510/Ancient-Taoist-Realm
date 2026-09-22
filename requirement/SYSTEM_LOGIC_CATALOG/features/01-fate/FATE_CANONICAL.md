@@ -2166,3 +2166,7 @@ Visual screenshot trên browser thật chưa được xác nhận do môi trư�
 ## Ngh?ch M?nh - hard use cap
 
 Each Hung Fate instance may resolve `defyFate` at most five times over its lifetime. Canonical counter: `player.fateDefiance[fateId]`; missing values normalize to zero. Resolver checks ownership, Hung sign, current count `< 5`, and SAN >= 15 before mutation. A rejected sixth attempt changes neither SAN nor counter and returns a max-use failure. Successful use increments once. UI derives remaining uses from the same counter; save validation rejects negative, fractional, or >5 values. This does not reset daily.
+
+## Runtime reconciliation — 2026-09-22
+
+This current-status section supersedes earlier historical rows in this consolidated file that label advanced Phase 3 actions as unimplemented. Runtime provides `defyFate`, `suppressFate`, `heavenlyOmen`, and `transformFate`; `verify_review_batches.js` covers the five-use Nghịch Mệnh cap, suppression expiry/effect isolation, omen cooldown, transform preview/commit, namespaces and save round-trip. Trấn Mệnh duration is now read only from `FATE_ADVANCED_ACTION_CATALOG.tranMenh.durationTurns` (3 turns); repeated use while the suppression window is active is rejected without another SAN charge. The API no longer accepts caller-selected duration. Browser visual QA remains open; runtime regression is green.

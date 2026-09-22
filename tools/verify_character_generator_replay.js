@@ -21,4 +21,7 @@ const second = generateCharacter({ ...input, rng: makeRng() });
 first.createdAt = null;
 second.createdAt = null;
 assert.deepStrictEqual(second, first, "character generator must be deterministic with injected RNG");
+const anonymousFirst = generateCharacter({ ...input, id: undefined, rng: makeRng() });
+const anonymousSecond = generateCharacter({ ...input, id: undefined, rng: makeRng() });
+assert.strictEqual(anonymousSecond.id, anonymousFirst.id, "generated character IDs must also replay deterministically when omitted");
 console.log("OK: character generator deterministic replay");

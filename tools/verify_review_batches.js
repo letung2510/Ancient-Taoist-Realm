@@ -220,6 +220,19 @@ function testActionPriority() {
   assert(!invalid.ok && invalid.issues.some((issue) => /duplicate action id|invalid priority|ambiguous alias/.test(issue)));
 }
 
+function testSafeActionDoesNotAdvanceTurn() {
+  const ids = ["act_nhin", "act_hanh_trang", "act_trang_thai", "act_nhiem_vu", "act_menh", "act_cong_phap", "act_ban_do", "act_to_chuc", "act_giup"];
+  ids.forEach((id) => {
+    const state = makeState();
+    const turn = state.meta.turn;
+    const result = E.submitActionId(state, id);
+    assert(result !== false, "safe informational action should resolve: " + id);
+    assert.strictEqual(state.meta.turn, turn, "informational action must not advance the game turn: " + id);
+    assert(state.history.some((entry) => entry.type === "COMMAND_ECHO"), "system diagnostics retain the dispatched command");
+    assert(!E.novelLogParagraphs(state).some((paragraph) => paragraph.events.some((entry) => entry.type === "COMMAND_ECHO")), "command echo must stay out of the player story log");
+  });
+}
+
 function testCombatTranscriptReplay() {
   const seed = makeState();
   assert(sandbox.window.GameExpansion.validateReplayEnvelope(seed).ok);
@@ -672,7 +685,10 @@ function testFateAdvancedActionNamespace() {
   const cappedDefiance = E.defyFate(state, hung.id);
   assert(!cappedDefiance.success && cappedDefiance.code === "MAX_USES" && state.player.san === sanAtCap, "sixth Nghịch Mệnh must fail without consuming SAN");
   state.player.san = 100;
-  assert(E.suppressFate(state, hung.id, 2).success);
+  const suppression = E.suppressFate(state, hung.id);
+  assert(suppression.success && suppression.untilTurn === state.meta.turn + 3);
+  const sanDuringSuppression = state.player.san;
+  assert(!E.suppressFate(state, hung.id).success && state.player.san === sanDuringSuppression, "Trấn Mệnh cannot charge repeatedly while its fixed window is active");
   assert(E.heavenlyOmen(state).success);
   assert(state.player.fateAdvancedActions[hung.id].nghichMenh);
   assert(state.player.fateAdvancedActions[hung.id].tranMenh);
@@ -758,7 +774,25 @@ function testTechniqueResonanceAndReplayFloor() {
   assert(!replay.success && replay.duplicate && state.player.qi === qiAfter, "evicted cast receipt cannot be replayed after save/load-style ledger loss");
 }
 
+function testWorldEventRewardReplayBoundary() {
+  const state = makeState();
+  const regionId = E.locationForState(state, state.locationId)?.region || "trung_vuc";
+  const started = sandbox.window.GameExpansion.startWorldEvent(state, "huyet_nguyet", regionId, E.gameDayOrdinal(state));
+  assert(started.success, "world-event fixture starts in the player region");
+  const relief = sandbox.window.EXPANSION_DATA.worldEvents.find((entry) => entry.id === "huyet_nguyet").choices.find((entry) => entry.id === "relief");
+  const priorItemCost = relief.itemCost; relief.itemCost = { linh_thach: 2 }; state.inventory.linh_thach = 10;
+  const first = sandbox.window.GameExpansion.resolveWorldEventChoice(state, started.event.id, "relief");
+  assert(first.success, "world-event choice commits");
+  const merit = Number(state.player.merit || 0), contribution = started.event.playerContribution;
+  const itemCount = Number(state.inventory.linh_thach || 0);
+  started.event.choiceHistory = [];
+  const replay = sandbox.window.GameExpansion.resolveWorldEventChoice(state, started.event.id, "relief");
+  assert(!replay.success && replay.duplicate && Number(state.player.merit || 0) === merit && started.event.playerContribution === contribution && Number(state.inventory.linh_thach || 0) === itemCount, "reward receipt blocks replay without a second item-cost deduction even if choice-history marker is absent");
+  if (priorItemCost === undefined) delete relief.itemCost; else relief.itemCost = priorItemCost;
+}
+
 testTechniqueResonanceAndReplayFloor();
+testWorldEventRewardReplayBoundary();
 testMapCanonical();
 testInfluenceOfflineAndInvalidation();
 testStructureOwnershipLifecycle();
@@ -769,6 +803,7 @@ testActorHistoryOfflineProjection();
 testNodeHistoryProjection();
 testLegacyLogRoundTrip();
 testActionPriority();
+testSafeActionDoesNotAdvanceTurn();
 testCombatTranscriptReplay();
 testDiscoveryReplay();
 testCharacterCreationReplayBoundary();

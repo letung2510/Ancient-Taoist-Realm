@@ -538,14 +538,14 @@ function verifyBrowserEngine(sandbox) {
   const lookTurn = state.meta.turn;
   const lookHistory = state.history.length;
   E.submitActionId(state, "act_nhin");
-  assert.strictEqual(state.meta.turn, lookTurn + 1);
+  assert.strictEqual(state.meta.turn, lookTurn);
   assert.strictEqual(state.history.length, lookHistory + 2);
 
   const commandState = E.createState({ character });
   assert(E.chooseJourneyIntent(commandState, "tu_lap").success);
   const commandTurn = commandState.meta.turn;
   E.submitTurn(commandState, { text: "look" });
-  assert.strictEqual(commandState.meta.turn, commandTurn + 1);
+  assert.strictEqual(commandState.meta.turn, commandTurn);
   assert(commandState.history.some((entry) => entry.text.includes(sandbox.window.GameData.LOCATIONS[commandState.locationId].desc)));
 
   const legacyOriginState = E.createState({ character: E.createCharacter({ name: "Tán Tu", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });

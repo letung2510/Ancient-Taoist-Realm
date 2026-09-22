@@ -4293,3 +4293,27 @@ This section is the current source of truth for the seven completion tasks below
 | Canonical audit | **Updated** | This status block supersedes stale historical status rows; no Git push or commit was performed. |
 
 Open gates are now limited to broader device-matrix performance sampling and exploratory visual review beyond the deterministic Chrome flow; the requested content, path-fusion, large-save, UI-surface and producer checks have automated coverage.
+
+## Review batch: full runtime regression and technique cross-feature fixes (2026-09-22)
+
+- Implemented canonical Fate resonance policy for combat techniques, including explicit path affinity and shared cap; added path-affinity catalog validation.
+- Implemented source-tracked guild formation combat support and suspension/expiry gates, with preview reporting.
+- Hardened shared technique eligibility against duplicate, missing, suppressed Fate IDs and inactive membership.
+- Added monotonic replay guard for generated technique action IDs after bounded receipt eviction.
+- Fixed static map-catalog mutation, tournament pre-registration bracket validation, and stale deep-test fixtures in the earlier review batches; retained catalog immutability assertion.
+- Follow-up Fate audit: Trấn Mệnh now uses fixed catalog duration and rejects a repeated charge while suppression is active. Regression exercises this boundary.
+- Verification: `node tools/run_regression_suite.js` — 13/13 checks passed before this follow-up; `node tools/verify_review_batches.js` PASS after it. Long simulation `node tools/verify_expansion_stress.js --runs=25 --days=365` passed.
+- Browser visual QA remains unavailable in this environment; automated UI surface contract passed.
+
+## Sequential review continuation — 2026-09-22
+
+Completed 13 sequential review batches after pushing the previously staged review commit. Batches 1–10 audited individual feature surfaces (Fate, character creation, progression/path/profession/Dị Thể, map, world/weather/offline, NPC/relationships, organizations/tournament, companions, discovery/rewards, and action/log projection). Batches 11–13 audited cross-feature transactions and player command/log behavior (World Event × Map × NPC × Character; Character × Actions × Log; safe actions across UI and text-command dispatch).
+
+- Character factory and generator IDs now derive from the injected RNG when callers omit an ID, preserving deterministic replay.
+- Companion skills resolve through a validated role-specific catalog; unknown skills and incompatible roles reject before damage or mastery changes.
+- World-event reward receipts are checked before item costs are charged, so replay after a missing choice-history marker cannot charge twice.
+- Read-only actions (`look`, inventory, status, quests, Fate, techniques, map, organization and help) declare `consumesTurn: false`; both action-ID and text-command dispatch honor the declaration. They still emit diagnostic command history, while `COMMAND_ECHO` remains excluded from Player Log.
+- Fate Trấn Mệnh uses the catalog’s fixed three-turn duration and rejects repeat charging while active; Nghịch Mệnh remains capped at five successful uses per instance.
+- The retained audit backlog in `09_IMPLEMENTATION_GAPS_AND_DECISIONS.md` was restored after removing a misplaced duplicate batch note; this audit is the canonical record of execution results.
+
+Verification: `node tools/run_regression_suite.js` — all 13/13 checks passed after the final safe-action changes; `node tools/verify_review_batches.js`, `node tools/verify_game.js`, `node tools/verify_log_narrative.js`, and `node tools/verify_log_producers.js` also passed. Deterministic stress runs in the earlier batches passed at 10×180, 8×120, and 25×365 days. Automated UI surface checks passed; visual browser review remains open.
