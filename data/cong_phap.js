@@ -9,7 +9,7 @@
   const techniques = {
     kiem_khi_so_cap: {
       id: "kiem_khi_so_cap", name: "Kiếm Khí Sơ Cấp", category: "chieu_thuc", family: "thuong",
-      grade: "pham", quality: "ha", element: "kim", minRealmLevel: 1,
+      grade: "pham", quality: "ha", element: "kim", pathAffinity: ["kiem_dao"], minRealmLevel: 1,
       spiritualRootRequirements: [], isCore: false,
       visibleStats: { powerCoefficient: 0.6, manaCost: 12, staminaCost: 5, corruptionCost: 0, sanCost: 0, lifespanCost: 0, cooldownSeconds: 10, castTimeSeconds: 1, baseEffect: "Kiếm khí trực tiếp" },
       hiddenAttributes: [], corruptionProfile: null, mastery: { stage: 0, exp: 0, usageCount: 0 }, evolutionPaths: []
@@ -23,7 +23,7 @@
     },
     hon_hoa_chuong: {
       id: "hon_hoa_chuong", name: "Hồn Hỏa Chưởng", category: "chieu_thuc", family: "thuong",
-      grade: "hoang", quality: "trung", element: "hoa", minRealmLevel: 2,
+      grade: "hoang", quality: "trung", element: "hoa", pathAffinity: ["dan_dao", "phu_dao"], minRealmLevel: 2,
       spiritualRootRequirements: [], isCore: true,
       visibleStats: { powerCoefficient: 1.1, manaCost: 20, staminaCost: 7, corruptionCost: 0, sanCost: 0, lifespanCost: 0, cooldownSeconds: 15, castTimeSeconds: 2, baseEffect: "Hỏa diễm thiêu đốt" },
       hiddenAttributes: [{ revealCondition: { masteryStageAtLeast: 2 }, attribute: "Đòn đánh gây thêm thiêu đốt", isBeneficial: true }],
@@ -31,7 +31,7 @@
     },
     than_phap_phi_van: {
       id: "than_phap_phi_van", name: "Thân Pháp Phi Vân", category: "than_phap", family: "thuong",
-      grade: "pham", quality: "ha", element: "moc", minRealmLevel: 1,
+      grade: "pham", quality: "ha", element: "moc", pathAffinity: ["mong_canh_dao", "ngu_thu_dao"], minRealmLevel: 1,
       spiritualRootRequirements: [], isCore: false,
       visibleStats: { powerCoefficient: 0.6, manaCost: 10, staminaCost: 4, corruptionCost: 0, sanCost: 0, lifespanCost: 0, cooldownSeconds: 15, castTimeSeconds: 1, baseEffect: "Tăng né tránh trong một lượt" },
       hiddenAttributes: [], corruptionProfile: null, mastery: { stage: 0, exp: 0, usageCount: 0 }, evolutionPaths: []
@@ -66,7 +66,7 @@
     },
     thanh_phong_kiem_quyet: {
       id: "thanh_phong_kiem_quyet", name: "Thanh Phong Kiếm Quyết", category: "chieu_thuc", family: "thuong",
-      grade: "hoang", quality: "trung", element: "kim", minRealmLevel: 2,
+      grade: "hoang", quality: "trung", element: "kim", pathAffinity: ["kiem_dao", "khoi_loi_dao"], minRealmLevel: 2,
       spiritualRootRequirements: [], isCore: true,
       visibleStats: { powerCoefficient: 1.25, manaCost: 16, staminaCost: 6, corruptionCost: 0, sanCost: 0, lifespanCost: 0, cooldownSeconds: 12, castTimeSeconds: 1, baseEffect: "Kiếm thế thanh linh, lấy nhanh phá chậm." },
       hiddenAttributes: [], corruptionProfile: null, mastery: { stage: 0, exp: 0, usageCount: 0 }, evolutionPaths: []
@@ -80,7 +80,7 @@
     },
     huyen_mon_tran_giai: {
       id: "huyen_mon_tran_giai", name: "Huyền Môn Trận Giải", category: "tran_phap", family: "thuong",
-      grade: "hoang", quality: "trung", element: "tho", minRealmLevel: 2,
+      grade: "hoang", quality: "trung", element: "tho", pathAffinity: ["phong_thuy_dao", "phu_dao"], minRealmLevel: 2,
       spiritualRootRequirements: [], isCore: true,
       visibleStats: { powerCoefficient: 1.1, manaCost: 20, staminaCost: 4, corruptionCost: 0, sanCost: 0, lifespanCost: 0, cooldownSeconds: 18, castTimeSeconds: 2, baseEffect: "Lấy trận văn dẫn địa khí, thủ thế rồi phản kích." },
       hiddenAttributes: [], corruptionProfile: null, mastery: { stage: 0, exp: 0, usageCount: 0 }, evolutionPaths: []
@@ -94,5 +94,6 @@
     }
   };
 
-  window.CONG_PHAP_DATA = { techniques, masteryStages, masteryMultipliers, masteryThresholds };
+  window.CONG_PHAP_DATA = { techniques, masteryStages, masteryMultipliers, masteryThresholds,
+    resonancePolicy: { version: 1, perMatchingFatePct: 1, totalCapPct: 5, activeOnly: true, suppressed: false } };
 })();

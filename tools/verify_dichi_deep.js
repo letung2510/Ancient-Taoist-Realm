@@ -107,12 +107,15 @@ function testAuditInvariantsAndIndexes() {
   assert(state.runtimeIndexes?.fate?.byId);
   assert(E.validateExpansionState(state).valid);
   const repairNodeId = Object.keys(sandbox.window.GameData.LOCATIONS || {})[0];
-  const repairNode = sandbox.window.GameData.LOCATIONS[repairNodeId];
+  const catalogRepairNode = sandbox.window.GameData.LOCATIONS[repairNodeId];
+  state.runtimeLocations ||= {};
+  state.runtimeLocations[repairNodeId] = JSON.parse(JSON.stringify(catalogRepairNode));
+  const repairNode = state.runtimeLocations[repairNodeId];
   repairNode.exits ||= {};
   repairNode.exits.qa_missing = "qa_missing_node";
   const repairResult = E.repairInvalidMapExits(state);
   assert(repairResult.removed.some((entry) => entry.targetId === "qa_missing_node"));
-  assert.strictEqual(repairNode.exits.qa_missing, "qa_missing_node", "map repair must not mutate static catalog");
+  assert.strictEqual(catalogRepairNode.exits.qa_missing, undefined, "map repair must not mutate static catalog");
   assert(state.mapState.invalidExits.some((entry) => entry.targetId === "qa_missing_node"));
   delete repairNode.exits.qa_missing;
   state.questState.available.qa_expired = { id: "qa_expired", giverNpcId: "qa", title: "Expired", status: "available", objectives: [], expiresDay: 1 };

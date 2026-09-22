@@ -122,7 +122,7 @@ function npcHourlyRoutineAndOrganizationProgression() {
   const state = makeState();
   X.ensureNpcWorldState(state);
   const npc = Object.values(state.worldSimulation.npcState)[0];
-  const node = sandbox.window.GameData.LOCATIONS[state.locationId];
+  const node = E.locationForState(state, state.locationId) || sandbox.window.GameData.LOCATIONS[state.locationId];
   state.currentSubLocationId = node.subLocations?.[0]?.id || "main";
   npc.currentNodeId = state.locationId;
   npc.currentSubLocationId = state.currentSubLocationId;
@@ -139,7 +139,7 @@ function npcHourlyRoutineAndOrganizationProgression() {
   assert(guildAddress, "test fixture needs an addressed guild");
   const guildId = guildAddress.refId;
   state.locationId = guildAddress.nodeId;
-  state.currentSubLocationId = sandbox.window.GameData.LOCATIONS[state.locationId].subLocations?.[0]?.id || "main";
+  state.currentSubLocationId = (E.locationForState(state, state.locationId) || sandbox.window.GameData.LOCATIONS[state.locationId])?.subLocations?.[0]?.id || "main";
   X.ensureOrganizationState(state);
   state.guildMembership = { guildId, rank: "Ngoại Môn", rankId: "outer", rankIndex: 0, contribution: 100 };
   state.player.realmId = "hoa_than";
@@ -228,7 +228,7 @@ function mapAndOrganizationRemainders() {
   assert(seer && seer.role === "thầy bói" && seer.status === "alive", "event omen should bring a traveling seer into the region");
   const orgAddress = sandbox.window.GameData.WORLD_MAP.addresses.organizations.find((address) => sandbox.window.GameData.GUILDS.some((guild) => guild.id === address.refId));
   assert(orgAddress);
-  state.locationId = orgAddress.nodeId; state.currentSubLocationId = sandbox.window.GameData.LOCATIONS[state.locationId].subLocations?.[0]?.id || "main";
+  state.locationId = orgAddress.nodeId; E.validateOpenWorldGrid(state); state.currentSubLocationId = (E.locationForState(state, state.locationId) || sandbox.window.GameData.LOCATIONS[state.locationId])?.subLocations?.[0]?.id || "main";
   const guildId = orgAddress.refId;
   state.guildMembership = { guildId, rankId: "disciple", rankIndex: 2, rank: "Chân Truyền Đệ Tử", contribution: 500 };
   const vault = X.guildVaultSnapshot(state, guildId);
@@ -266,7 +266,7 @@ function organizationDiplomacyAndDefection() {
   assert(!X.resolveAllianceMediation(state, factions[0], factions[1]).success, "mediation should be a one-time attempt per faction pair");
 
   const guildAddress = sandbox.window.GameData.WORLD_MAP.addresses.organizations.find((address) => sandbox.window.GameData.GUILDS.some((guild) => guild.id === address.refId));
-  state.locationId = guildAddress.nodeId; state.currentSubLocationId = sandbox.window.GameData.LOCATIONS[state.locationId].subLocations?.[0]?.id || "main";
+  state.locationId = guildAddress.nodeId; E.validateOpenWorldGrid(state); state.currentSubLocationId = (E.locationForState(state, state.locationId) || sandbox.window.GameData.LOCATIONS[state.locationId])?.subLocations?.[0]?.id || "main";
   const guildId = guildAddress.refId;
   state.guildMembership = { guildId, rankId: "outer", rankIndex: 0, rank: "Ngoại Môn", contribution: 1000 };
   state.player.merit = 1000;
@@ -325,6 +325,7 @@ function npcMapAndPoliticsSimulation() {
   const factionAddress = sandbox.window.GameData.WORLD_MAP.addresses.factions.find((address) => address.refId === factionId);
   assert(factionAddress, "political crisis fixture needs an addressed faction");
   politicsState.locationId = factionAddress.nodeId;
+  E.validateOpenWorldGrid(politicsState);
   const elders = Object.values(politicsState.worldSimulation.npcState).slice(0, 2);
   elders.forEach((npc) => { npc.factionId = factionId; npc.role = "Trưởng Lão"; npc.age = 95; npc.birthAge = 95; npc.birthDay = 1; npc.maxLifespan = 100; });
   politicsState.guildMembership = { guildId: factionId, rankId: "elder", rankIndex: 3, rank: "Trưởng Lão", contribution: 1000 };

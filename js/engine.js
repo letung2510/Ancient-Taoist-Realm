@@ -5,6 +5,42 @@
 window.GameEngine = (function () {
   "use strict";
   const D = () => window.GameData;
+  const runtimeLocationPoolCache = new WeakMap();
+  function runtimeLocationPool(state) {
+    if (!state || typeof state !== "object") return D().LOCATIONS || {};
+    const cached = runtimeLocationPoolCache.get(state);
+    if (cached) return cached;
+    state.runtimeLocations ||= {};
+    const staticPool = D().LOCATIONS || {}, runtime = state.runtimeLocations;
+    const pool = new Proxy(staticPool, {
+      get(target, key, receiver) {
+        if (typeof key === "string") return runtime[key] || state.openWorld?.nodePool?.[key] || state.openWorld?.nodes?.[key] || Reflect.get(target, key, receiver);
+        return Reflect.get(target, key, receiver);
+      },
+      set(_target, key, value) {
+        if (typeof key !== "string") return false;
+        runtime[key] = value;
+        if (value?.openWorld) {
+          state.openWorld ||= { coordinates: {}, nodes: {}, exits: {}, nodePool: {}, coordinateIndex: {} };
+          state.openWorld.nodes ||= {};
+          state.openWorld.nodePool ||= {};
+          state.openWorld.nodes[key] = value;
+          state.openWorld.nodePool[key] = value;
+        }
+        return true;
+      },
+      ownKeys(target) { return [...new Set([...Reflect.ownKeys(target), ...Object.keys(runtime), ...Object.keys(state.openWorld?.nodes || {}), ...Object.keys(state.openWorld?.nodePool || {})])]; },
+      getOwnPropertyDescriptor(target, key) {
+        const own = Reflect.getOwnPropertyDescriptor(target, key);
+        if (own) return { ...own, configurable: true };
+        const value = typeof key === "string" ? (runtime[key] || state.openWorld?.nodePool?.[key] || state.openWorld?.nodes?.[key]) : undefined;
+        return value === undefined ? undefined : { configurable: true, enumerable: true, writable: true, value };
+      }
+    });
+    runtimeLocationPoolCache.set(state, pool);
+    return pool;
+  }
+  function locationForState(state, id) { return id ? runtimeLocationPool(state)[id] || null : null; }
   // The only non-replay entropy boundary. Gameplay code should use replayRandom
   // or an injected rng; this fallback exists for standalone character creation.
   const entropyRandom = () => Math.random();
@@ -954,7 +990,7 @@ window.GameEngine = (function () {
     return clamp(Math.round(distance * 0.35 + Number(p.corruptionRating || 0) * 0.4 + (1 - sanRatio) * 35), 0, 100);
   }
   function subLocationWrongness(state, subLocationId = null) {
-    const node = D().WORLD_MAP?.locations?.[state?.locationId] || D().LOCATIONS?.[state?.locationId];
+    const node = D().WORLD_MAP?.locations?.[state?.locationId] || runtimeLocationPool(state)?.[state?.locationId];
     const sub = (node?.subLocations || []).find((entry) => entry.id === subLocationId) || null;
     const override = state?.mapState?.subLocationWrongnessOverride?.[subLocationId];
     const local = Number(sub?.wrongness ?? sub?.corruptionLevel ?? 0);
@@ -1496,6 +1532,7 @@ window.GameEngine = (function () {
   function validateTechniqueCatalog() {
     const errors = [];
     const catalog = techniqueCatalog();
+    const validPathIds = new Set(Object.keys(window.PATH_FATE_RELATIONS?.paths || {}));
     const nonNegativeKeys = ["mana", "stamina", "san", "corruption", "lifespan", "cooldownTurns", "castTimeSeconds"];
     Object.entries(catalog).forEach(([id, technique]) => {
       if (!technique || technique.id !== id || !technique.name || !technique.category || !technique.family) errors.push("technique:" + id + ":identity");
@@ -1510,7 +1547,10 @@ window.GameEngine = (function () {
       if (risk.corruptionProfile && (!Number.isFinite(Number(risk.corruptionProfile.baseCorruptionGainPerUse)) || Number(risk.corruptionProfile.baseCorruptionGainPerUse) < 0)) errors.push("technique:" + id + ":corruption");
       if (!Number.isInteger(Number(technique.minRealmLevel || 1)) || Number(technique.minRealmLevel || 1) < 1) errors.push("technique:" + id + ":realm");
       if (!Array.isArray(technique.evolutionPaths)) errors.push("technique:" + id + ":evolution");
+      if (technique.pathAffinity != null && (!Array.isArray(technique.pathAffinity) || technique.pathAffinity.some((pathId) => !validPathIds.has(pathId)))) errors.push("technique:" + id + ":path-affinity");
     });
+    const resonancePolicy = window.CONG_PHAP_DATA?.resonancePolicy || { perMatchingFatePct: 1, totalCapPct: 5 };
+    if (!Number.isFinite(Number(resonancePolicy.perMatchingFatePct)) || Number(resonancePolicy.perMatchingFatePct) <= 0 || !Number.isFinite(Number(resonancePolicy.totalCapPct)) || Number(resonancePolicy.totalCapPct) < Number(resonancePolicy.perMatchingFatePct) || Number(resonancePolicy.totalCapPct) > 5) errors.push("technique:resonance-policy");
     return { ok: errors.length === 0 && Object.keys(catalog).length > 0, count: Object.keys(catalog).length, errors };
   }
   function initialTechniqueProgress(technique) {
@@ -1615,6 +1655,21 @@ window.GameEngine = (function () {
     return { manaCost, staminaCost, sanCost, lifespanCost, corruptionCost, dangerous: technique.family === "cam_thuat" || sanCost > 0 || lifespanCost > 0 || corruptionCost > 0 };
   }
 
+  function techniqueFateResonance(state, technique) {
+    const turn = Number(state.meta?.turn || 0), pathId = state.player.pathId || state.pathId || null;
+    const ids = [...new Set(state.player.fates || [])].filter((id) => typeof id === "string" && id && Number(state.player.suppressedFates?.[id]?.untilTurn || 0) <= turn);
+    const fates = ids.map((id) => D().FATE_PATTERNS.find((item) => item.id === id)).filter(Boolean);
+    const isCombatTechnique = ["chieu_thuc", "cam_thuat"].includes(technique.category);
+    const elementFates = isCombatTechnique ? fates.filter((fate) => technique.element && technique.element !== "vo_he" && technique.element !== "di_he" && fateElement(fate) === technique.element) : [];
+    const allowedPaths = Array.isArray(technique.pathAffinity) ? technique.pathAffinity : [];
+    const pathFates = isCombatTechnique && pathId && allowedPaths.includes(pathId) ? fates.filter((fate) => {
+      const affinity = fatePathAffinity(fate);
+      return affinity.lead.includes(pathId) || affinity.support.includes(pathId);
+    }) : [];
+    const policy = window.CONG_PHAP_DATA?.resonancePolicy || { perMatchingFatePct: 1, totalCapPct: 5 };
+    const bonusPct = Math.min(Number(policy.totalCapPct || 5), (elementFates.length + pathFates.filter((fate) => !elementFates.some((entry) => entry.id === fate.id)).length) * Number(policy.perMatchingFatePct || 1));
+    return { bonusPct, elementFateIds: elementFates.map((fate) => fate.id), pathFateIds: pathFates.map((fate) => fate.id), pathId, techniquePathAffinity: allowedPaths.slice() };
+  }
   function techniqueCombatProjection(state, technique, progress, stance = "steady", enemy = null, statsOverride = null, corruptionOverride = null) {
     const stats = statsOverride || computeStats(state.player), visible = technique.visibleStats || {};
     const corruptionRating = corruptionOverride == null ? Number(state.player.corruptionRating || 0) : Number(corruptionOverride);
@@ -1627,16 +1682,18 @@ window.GameEngine = (function () {
     const family = technique.family || "thuong"; let familyMult = enemy ? familyMatchup(family, enemy.family || "thuong") : 1;
     const ownsCommon = Object.keys(state.player.techniques || {}).some((tid) => techniqueCatalog()[tid]?.family === "thuong");
     if (ownsCommon && ["nguyen_thuat", "thien_dao_thuat"].includes(family)) familyMult *= 1.1;
-    const resonanceFates = [...new Set(state.player.fates || [])].filter((fid) => { const fate = D().FATE_PATTERNS.find((item) => item.id === fid); return fate && Number(state.player.suppressedFates?.[fid]?.untilTurn || 0) <= Number(state.meta?.turn || 0) && fateElement(fate) === technique.element; }).slice(0, 5);
-    const fateElementMult = 1 + resonanceFates.length * 0.01;
+    const resonance = techniqueFateResonance(state, technique);
+    const fateElementMult = 1 + resonance.bonusPct / 100;
     const corruptionPenalty = corruptionRating > 70 ? Math.min(0.15, (corruptionRating - 70) / 200) : 0;
     const worldElementPower = window.GameExpansion?.getWorldModifiers ? Number(window.GameExpansion.getWorldModifiers(state, { activity: "combat", element: technique.element }).combatPowerByElement?.[technique.element] || 1) : 1;
     const stancePower = stance === "burst" ? 1.2 : stance === "guarded" ? 0.85 : 1;
     const evolvedPower = Number(visible.powerCoefficient || 1) * Number(evolution.powerMult || 1) * worldElementPower * stancePower;
     const power = family === "cam_thuat" ? evolvedPower * (1 + corruptionRating / 50) : evolvedPower;
+    const guildCombat = window.GameExpansion?.guildTechniqueCombatBonus?.(state, technique) || { powerPct: 0, sourceIds: [] };
+    const guildCombatMult = 1 + Number(guildCombat.powerPct || 0) / 100;
     const originDamageMult = 1 + Number(stats.eff?.combatDamagePct || 0) / 100;
-    const rawDamage = stats.mag * power * mastery * elementMult * (1 + Number(state.player.comprehension || 0) / 200) * fateElementMult * familyMult * (1 - corruptionPenalty) * originDamageMult;
-    return { rawDamage, minDamage: Math.max(1, Math.round(rawDamage)), maxDamage: Math.max(1, Math.round(rawDamage + 6)), combatPowerMultiplier: power * mastery * elementMult * fateElementMult * familyMult * (1 - corruptionPenalty) * originDamageMult, mastery, elementMult, familyMult, fateElementMult, worldElementPower, stancePower, evolutionPower: Number(evolution.powerMult || 1), resonanceFates: resonanceFates.map((fateId) => ({ fateId, element: technique.element })) };
+    const rawDamage = stats.mag * power * mastery * elementMult * (1 + Number(state.player.comprehension || 0) / 200) * fateElementMult * guildCombatMult * familyMult * (1 - corruptionPenalty) * originDamageMult;
+    return { rawDamage, minDamage: Math.max(1, Math.round(rawDamage)), maxDamage: Math.max(1, Math.round(rawDamage + 6)), combatPowerMultiplier: power * mastery * elementMult * fateElementMult * guildCombatMult * familyMult * (1 - corruptionPenalty) * originDamageMult, mastery, elementMult, familyMult, fateElementMult, fateResonancePct: resonance.bonusPct, guildCombatPowerPct: guildCombat.powerPct, guildCombatSources: guildCombat.sourceIds, worldElementPower, stancePower, evolutionPower: Number(evolution.powerMult || 1), resonanceFates: [...resonance.elementFateIds, ...resonance.pathFateIds].map((fateId) => ({ fateId, element: technique.element, pathId: resonance.pathId })) };
   }
 
   function techniquePreview(state, id, options = {}) {
@@ -1666,6 +1723,8 @@ window.GameEngine = (function () {
     const previewEnemy = previewEnemyId && combatEntity(state, previewEnemyId);
     const combatPreview = previewEnemy && ["chieu_thuc", "cam_thuat"].includes(technique.category) ? techniqueCombatProjection(state, technique, progress, stance, previewEnemy, stats, clamp(Number(state.player.corruptionRating || 0) + corruptionCost, 0, 100)) : null;
     const resourceBlockers = [];
+    const fateResonance = techniqueFateResonance(state, technique);
+    const guildCombatPreview = window.GameExpansion?.guildTechniqueCombatBonus?.(state, technique) || { powerPct: 0, sourceIds: [] };
     [["qi", manaCost, "Linh Khí"], ["stamina", staminaCost, "Thể Lực"], ["san", sanCost, "Thanh Tỉnh"], ["lifespan", lifespanCost, "Thọ Nguyên"]].forEach(([key, cost, label]) => { const available = Number(state.player[key] || 0); if (key === "lifespan" ? available <= cost : available < cost) resourceBlockers.push({ code: "RESOURCE_SHORTAGE", resource: key, message: "Thiếu " + label + " (cần " + cost + ", có " + available + ".)" }); });
     return {
       success: true, id, name: technique.name, family: technique.family, category: technique.category,
@@ -1674,9 +1733,10 @@ window.GameEngine = (function () {
       costs: { manaCost, staminaCost, sanCost, lifespanCost, corruptionCost },
       worldModifiers,
       stance,
-      fateResonanceFates: [...new Set(state.player.fates || [])].filter((fid) => { const fate = D().FATE_PATTERNS.find((item) => item.id === fid); return fate && Number(state.player.suppressedFates?.[fid]?.untilTurn || 0) <= Number(state.meta?.turn || 0) && fateElement(fate) === technique.element; }).slice(0, 5),
+      fateResonanceFates: [...new Set([...fateResonance.elementFateIds, ...fateResonance.pathFateIds])], fateResonancePct: fateResonance.bonusPct, pathResonanceFates: fateResonance.pathFateIds, pathId: fateResonance.pathId,
+      guildCombatPowerPct: guildCombatPreview.powerPct, guildCombatSources: guildCombatPreview.sourceIds,
       stancePowerMultiplier: stance === "burst" ? 1.2 : stance === "guarded" ? 0.85 : 1,
-      powerMultiplier: combatPreview?.combatPowerMultiplier || Number(worldModifiers.combatPowerByElement?.[technique.element] || 1) * (stance === "burst" ? 1.2 : stance === "guarded" ? 0.85 : 1) * (1 + Math.min(5, [...new Set(state.player.fates || [])].filter((fid) => { const fate = D().FATE_PATTERNS.find((item) => item.id === fid); return fate && Number(state.player.suppressedFates?.[fid]?.untilTurn || 0) <= Number(state.meta?.turn || 0) && fateElement(fate) === technique.element; }).length) * 0.01),
+      powerMultiplier: combatPreview?.combatPowerMultiplier || Number(worldModifiers.combatPowerByElement?.[technique.element] || 1) * (stance === "burst" ? 1.2 : stance === "guarded" ? 0.85 : 1) * (1 + fateResonance.bonusPct / 100) * (1 + guildCombatPreview.powerPct / 100),
       combatPreview: combatPreview ? { targetId: previewEnemyId, damageMin: combatPreview.minDamage, damageMax: combatPreview.maxDamage, factors: combatPreview } : null
     };
   }
@@ -1691,7 +1751,9 @@ window.GameEngine = (function () {
     const stance = options.stance || "steady";
     if (!["steady", "burst", "guarded"].includes(stance)) return { success: false, reason: "Thế vận công không hợp lệ." };
     const actionKey = String(options.actionId || ("turn:" + Number(state.meta?.turn || 0) + ":technique:" + id));
+    const uiSequence = /^technique-ui:(\d+)$/.exec(actionKey);
     state.player.techniqueActionReceipts ||= {};
+    if (uiSequence && Number(uiSequence[1]) <= Number(state.player.techniqueActionReceiptHighWater || 0) && !state.player.techniqueActionReceipts[actionKey]) return { success: false, duplicate: true, reason: "Action thi triển cũ đã được xử lý; không thể phát lại." };
     const priorReceipt = state.player.techniqueActionReceipts[actionKey];
     if (priorReceipt) { if (priorReceipt.techniqueId !== id || priorReceipt.stance !== stance) return { success: false, duplicate: true, reason: "Action ID đã được dùng cho một thao tác khác." }; const receipt = copy(priorReceipt); return { success: receipt.success !== false, duplicate: true, receipt }; }
     const cooldownUntil = state.player.techniqueCooldowns?.[id] || 0;
@@ -1712,6 +1774,7 @@ window.GameEngine = (function () {
     if (state.player.san < sanCost) return { success: false, reason: "Thanh Tỉnh không đủ để trả giá." };
     if (state.player.lifespan <= lifespanCost) return { success: false, reason: "Thọ Nguyên không đủ để trả giá." };
     const actionReceipt = state.player.techniqueActionReceipts[actionKey] = { actionId: actionKey, techniqueId: id, stance, status: "committed", turn: Number(state.meta?.turn || 0), costs: { manaCost, staminaCost, sanCost, lifespanCost, corruptionCost } };
+    if (uiSequence) state.player.techniqueActionReceiptHighWater = Number(uiSequence[1]);
     const receiptKeys = Object.keys(state.player.techniqueActionReceipts);
     if (receiptKeys.length > 64) delete state.player.techniqueActionReceipts[receiptKeys[0]];
     state.player.stamina -= staminaCost;
@@ -1740,7 +1803,7 @@ window.GameEngine = (function () {
       state.player.hp = clamp(state.player.hp + recovery, 0, state.player.maxHp);
       pushHistory(state, { type: "sys", text: "§ " + technique.name + " hồi phục " + recovery + " Khí Huyết." });
     } else if (technique.category === "tran_phap") {
-      state.flags.activeFormation = { techniqueId: id, untilTurn: state.meta.turn + Math.max(1, cooldown) };
+      state.flags.activeFormation = { techniqueId: id, sourceGuildId: technique.sourceGuildId || null, untilTurn: state.meta.turn + Math.max(1, cooldown) };
       pushHistory(state, { type: "sys", text: "§ Đã triển khai trận pháp " + technique.name + "." });
     } else {
       if (!enemy) {
@@ -2529,7 +2592,7 @@ window.GameEngine = (function () {
     if (state.flags.dynamicQuestCooldown > Number(state.meta.turn || 0)) return;
     const activeDynamic = Object.values(state.quests || {}).some((q) => q.id.startsWith("dynamic_") && q.status === "active");
     if (activeDynamic || replayRandom(state, "dynamic-quest:" + Number(state.meta.turn || 0)) >= 0.2) return;
-    const loc = D().LOCATIONS[state.locationId]; if (!loc) return;
+    const loc = runtimeLocationPool(state)[state.locationId]; if (!loc) return;
     const id = "dynamic_trace_" + state.meta.turn;
     const title = "Dấu Chân Chưa Khép · " + loc.name;
     D().QUESTS[id] = { id, title, kind: "co_duyen", priority: 2, objectives: [{ id: "observe", label: "Quan Sát hoặc Tìm Kiếm tại khu vực này", check: (st) => Number(st.flags.searches?.[st.locationId] || 0) > 0 || st.flags.lastCombatOutcome === "fled" }], reward: { exp: 25, merit: 3 } };
@@ -2608,8 +2671,8 @@ window.GameEngine = (function () {
     ];
   }
   function safeTravelDestination(state) {
-    const hubs = travelHubCatalog().filter((hub) => D().LOCATIONS[hub.id]);
-    const home = state.homeLocationId && D().LOCATIONS[state.homeLocationId] ? state.homeLocationId : (state.startLocationId && D().LOCATIONS[state.startLocationId] ? state.startLocationId : null);
+    const hubs = travelHubCatalog().filter((hub) => runtimeLocationPool(state)[hub.id]);
+    const home = state.homeLocationId && runtimeLocationPool(state)[state.homeLocationId] ? state.homeLocationId : (state.startLocationId && runtimeLocationPool(state)[state.startLocationId] ? state.startLocationId : null);
     const homeHub = home && hubs.find((hub) => hub.id === home);
     if (homeHub && homeHub.id !== state.locationId) return { ...homeHub, reason: "Trở về điểm neo hành trình của ngươi." };
     const regional = hubs.find((hub) => hub.region_id === currentRegionId(state) && hub.id !== state.locationId);
@@ -2755,8 +2818,8 @@ window.GameEngine = (function () {
       return false;
     }
     const guildAddress = mapAddressCatalog().organizations.find((address) => address.refId === guild.id || address.id === guild.id);
-    const guildNodeId = guildAddress?.nodeId || Object.keys(D().LOCATIONS || {}).find((nodeId) => D().LOCATIONS[nodeId]?.organizationId === guild.id) || null;
-    if (!guildNodeId || !D().LOCATIONS[guildNodeId]) {
+    const guildNodeId = guildAddress?.nodeId || Object.keys(runtimeLocationPool(state) || {}).find((nodeId) => runtimeLocationPool(state)[nodeId]?.organizationId === guild.id) || null;
+    if (!guildNodeId || !runtimeLocationPool(state)[guildNodeId]) {
       pushHistory(state, { type: "warn", text: "× Chưa xác lập được địa chỉ bản đồ của " + guild.name + "; chưa thể hoàn tất nhập môn." });
       return false;
     }
@@ -3597,7 +3660,7 @@ window.GameEngine = (function () {
     (state.player.fates || []).forEach((fateId) => recordFateBehavior(state, fateId, { kind: "cultivation", aligned: true }));
 
     // corruption SAN risk
-    const loc = D().LOCATIONS[state.locationId];
+    const loc = runtimeLocationPool(state)[state.locationId];
     const rawCorruption = loc ? loc.corruption : 1;
     const corruption = Math.max(0.5, rawCorruption * (1 - guildBenefits.cityPenaltyReductionPct / 100));
     const sanCheckRes = sanCheck(state.player, corruption, state, "cultivate-san-check:" + Number(state.meta?.turn || 0));
@@ -3725,7 +3788,7 @@ window.GameEngine = (function () {
   // bounded to a short session so it cannot bypass encounters or unattended SAN
   // consequences. One hour represents six cultivation/rest cycles.
   function secludedCultivation(state, hours = 1) {
-    const loc = D().LOCATIONS[state.locationId];
+    const loc = runtimeLocationPool(state)[state.locationId];
     const duration = clamp(Math.floor(Number(hours) || 1), 1, 8);
     if (aliveEnemies(state).length || state.pendingEnding) {
       return { success: false, completed: 0, reason: "Không thể bế quan khi đang giao chiến hoặc hành trình đã kết thúc." };
@@ -3817,19 +3880,22 @@ window.GameEngine = (function () {
   }
   function getNodeAtCoordinate(state, x, y) {
     const world = ensureOpenWorld(state), id = world.coordinateIndex[coordinateKey(x, y)];
-    return id && D().LOCATIONS[id] ? id : null;
+    return id && runtimeLocationPool(state)[id] ? id : null;
   }
-  function ensureOrganizationNodes() {
+  function ensureOrganizationNodes(state) {
     const map = D().WORLD_MAP;
     if (!map?.addresses) return;
-    map.locations ||= {};
+    state.openWorld ||= { coordinates: {}, nodes: {}, exits: {}, nodePool: {}, coordinateIndex: {} };
+    state.openWorld.coordinates ||= {};
+    state.openWorld.coordinateIndex ||= {};
     const addresses = [...(map.addresses.factions || []), ...(map.addresses.organizations || [])];
     addresses.forEach((address) => {
       if (!address.nodeId || !Number.isFinite(Number(address.oxyNode?.x)) || !Number.isFinite(Number(address.oxyNode?.y))) return;
       const x = Number(address.oxyNode.x), y = Number(address.oxyNode.y);
-      map.locations[address.nodeId] ||= { x, y, region: address.regionId, kind: address.kind, refId: address.refId };
-      if (D().LOCATIONS[address.nodeId]) return;
-      D().LOCATIONS[address.nodeId] = {
+      state.openWorld.coordinates[address.nodeId] ||= [x, y];
+      state.openWorld.coordinateIndex[x + "," + y] ||= address.nodeId;
+      if (runtimeLocationPool(state)[address.nodeId]) return;
+      runtimeLocationPool(state)[address.nodeId] = {
         id: address.nodeId, name: address.name, desc: "Địa điểm đại diện của " + address.name + ".",
         corruption: 1, x, y, region: address.regionId, regionId: address.regionId,
         mapNodeType: address.kind === "guild" ? "organization" : "faction",
@@ -3845,7 +3911,7 @@ window.GameEngine = (function () {
     return h >>> 0;
   }
   function ensureOpenWorld(state) {
-    ensureOrganizationNodes();
+    ensureOrganizationNodes(state);
     state.openWorld = state.openWorld || { coordinates: {}, nodes: {}, exits: {}, nodePool: {}, coordinateIndex: {} };
     state.openWorld.coordinates = state.openWorld.coordinates || {};
     state.openWorld.nodes = state.openWorld.nodes || {};
@@ -3863,7 +3929,7 @@ window.GameEngine = (function () {
     // saves only indexed the current node, which made a later move create a
     // duplicate node at an already occupied coordinate.
     Object.entries(D().WORLD_MAP?.locations || {}).forEach(([id, point]) => {
-      if (!D().LOCATIONS[id]) return;
+      if (!runtimeLocationPool(state)[id]) return;
       if (!Array.isArray(state.openWorld.coordinates[id]) && Number.isFinite(Number(point?.x)) && Number.isFinite(Number(point?.y))) state.openWorld.coordinates[id] = [Number(point.x), Number(point.y)];
       const coordinates = state.openWorld.coordinates[id];
       if (Array.isArray(coordinates) && coordinates.length >= 2) state.openWorld.coordinateIndex[coordinates.slice(0, 2).join(",")] ||= id;
@@ -3874,12 +3940,9 @@ window.GameEngine = (function () {
       node.regionId = node.regionId || node.region;
       node.subLocations = Array.isArray(node.subLocations) ? node.subLocations : [{ id: "main", type: "main", displayName: node.name || id, actions: ["look", "search"], npcsPresent: node.npcs || [] }];
       state.openWorld.exits[id] = { ...(node.exits || {}), ...(state.openWorld.exits[id] || {}) };
-      D().LOCATIONS[id] = node;
+      runtimeLocationPool(state)[id] = node;
       state.openWorld.nodePool[id] = node;
       if (Array.isArray(state.openWorld.coordinates[id])) state.openWorld.coordinateIndex[state.openWorld.coordinates[id].join(",")] = id;
-    });
-    Object.values(D().LOCATIONS || {}).forEach((node) => {
-      if (node?.name) node.name = normalizeNodeDisplayName(node.name, node.id);
     });
     // Migrate stale saves: an exit that does not land on the adjacent Oxy cell
     // is a legacy shortcut, not a valid open-world edge.
@@ -3897,7 +3960,7 @@ window.GameEngine = (function () {
       Object.entries(exits).forEach(([dir, to]) => {
         const reverse = OPEN_WORLD_OPPOSITE[dir];
         if (!to || !reverse) return;
-        const knownReverse = state.openWorld.exits[to]?.[reverse] || D().LOCATIONS[to]?.exits?.[reverse];
+        const knownReverse = state.openWorld.exits[to]?.[reverse] || runtimeLocationPool(state)[to]?.exits?.[reverse];
         if (!knownReverse) state.openWorld.exits[to] = { ...(state.openWorld.exits[to] || {}), [reverse]: from };
       });
     });
@@ -3905,7 +3968,7 @@ window.GameEngine = (function () {
   }
   function locationExits(state, locationId = state.locationId) {
     const world = ensureOpenWorld(state), coordinates = nodeCoordinates(state, locationId);
-    if (!coordinates) return { ...(D().LOCATIONS[locationId]?.exits || {}), ...(world.exits[locationId] || {}) };
+    if (!coordinates) return { ...(runtimeLocationPool(state)[locationId]?.exits || {}), ...(world.exits[locationId] || {}) };
     const exits = {};
     Object.keys(OPEN_WORLD_DELTAS).forEach((direction) => {
       const target = neighborCoordinate(coordinates.x, coordinates.y, direction);
@@ -3926,8 +3989,8 @@ window.GameEngine = (function () {
     const id = "open_" + x + "_" + y;
     const coordinateKey = x + "," + y;
     const existingId = world.coordinateIndex[coordinateKey];
-    if (existingId && D().LOCATIONS[existingId]) return existingId;
-    if (world.nodes[id]) { D().LOCATIONS[id] = world.nodes[id]; world.coordinates[id] = [x, y]; world.coordinateIndex[coordinateKey] = id; return id; }
+    if (existingId && runtimeLocationPool(state)[existingId]) return existingId;
+    if (world.nodes[id]) { runtimeLocationPool(state)[id] = world.nodes[id]; world.coordinates[id] = [x, y]; world.coordinateIndex[coordinateKey] = id; return id; }
     const hash = openWorldHash(x, y);
     const distance = Math.abs(x) + Math.abs(y);
     const regionAnchors = (D().WORLD_MAP?.regions || []).map((entry) => ({ entry, dx: Number(entry.x || 50) - x, dy: Number(entry.y || 50) - y }));
@@ -3937,7 +4000,7 @@ window.GameEngine = (function () {
     const node = { id, name: names[hash % names.length] + " · " + x + "," + y, x, y, region, regionId: region, mapNodeType: danger >= 4 ? "danger_zone" : "wilderness", corruption: Math.max(1, danger - 1), dangerLevel: danger, linhKhiDensity: Math.max(1, 5 - Math.floor(distance / 12)), npcs: [], enemies: danger >= 3 ? [hash % 2 ? "yeu_thu" : "di_qui"] : [], searchable: ["linh_thach", "tu_khi_dan"], subLocations: [{ id: "main", type: "wild", displayName: "Khoảng hoang địa", actions: ["look", "search"], npcsPresent: [] }], exits: { bac: null, nam: null, dong: null, tay: null }, openWorld: true, desc: "Một khoảng đất chưa từng được ghi vào địa đồ. Linh khí trôi dạt thành những dòng xoáy, còn bóng tối dường như đang học cách gọi tên ngươi." };
     // Oxy belongs to node metadata; keep the display name semantic and stable.
     node.name = names[hash % names.length];
-    D().LOCATIONS[id] = node;
+    runtimeLocationPool(state)[id] = node;
     world.nodes[id] = node;
     world.nodePool[id] = node;
     world.coordinates[id] = [x, y];
@@ -3955,7 +4018,7 @@ window.GameEngine = (function () {
     const candidateCoordinates = target && world.coordinates[target];
     const directionValid = Array.isArray(candidateCoordinates) && candidateCoordinates[0] === x && candidateCoordinates[1] === y;
     if (target && !directionValid) target = null;
-    if (!target || !D().LOCATIONS[target]) {
+    if (!target || !runtimeLocationPool(state)[target]) {
       if (options.create === false) return null;
       target = generateOpenWorldNode(state, x, y);
     }
@@ -3969,7 +4032,7 @@ window.GameEngine = (function () {
     const targetCoordinates = world.coordinates[target];
     if (Array.isArray(targetCoordinates) && targetCoordinates.length >= 2) world.coordinateIndex[targetCoordinates.slice(0, 2).join(",")] ||= target;
     world.exits[state.locationId] = { ...(world.exits[state.locationId] || {}), [dir]: target };
-    const destination = D().LOCATIONS[target];
+    const destination = runtimeLocationPool(state)[target];
     const reverse = OPEN_WORLD_OPPOSITE[dir];
     if (!locationExits(state, target)[reverse]) {
       world.exits[target] = { ...(world.exits[target] || {}), [reverse]: state.locationId };
@@ -4024,12 +4087,12 @@ window.GameEngine = (function () {
   function validateOpenWorldGrid(state) {
     const world = ensureOpenWorld(state), errors = [], seen = new Map();
     Object.entries(world.coordinates || {}).forEach(([nodeId, coordinates]) => {
-      const runtimeHiddenNode = Boolean(D().LOCATIONS[nodeId]?.runtime && D().LOCATIONS[nodeId]?.hiddenRealm);
+      const runtimeHiddenNode = Boolean(runtimeLocationPool(state)[nodeId]?.runtime && runtimeLocationPool(state)[nodeId]?.hiddenRealm);
       if (!Array.isArray(coordinates) || coordinates.length < 2 || (!runtimeHiddenNode && (!Number.isInteger(Number(coordinates[0])) || !Number.isInteger(Number(coordinates[1]))))) { errors.push(nodeId + ":coordinate"); return; }
       const x = Number(coordinates[0]), y = Number(coordinates[1]), key = x + "," + y;
       if (x < OPEN_WORLD_BOUNDS.min || x > OPEN_WORLD_BOUNDS.max || y < OPEN_WORLD_BOUNDS.min || y > OPEN_WORLD_BOUNDS.max) errors.push(nodeId + ":bounds");
       if (seen.has(key) && seen.get(key) !== nodeId) errors.push(key + ":duplicate"); else seen.set(key, nodeId);
-      if (!D().LOCATIONS[nodeId]) errors.push(nodeId + ":missing-location");
+      if (!runtimeLocationPool(state)[nodeId]) errors.push(nodeId + ":missing-location");
     });
     Object.entries(world.nodes || {}).forEach(([nodeId, node]) => { if (!node?.openWorld || !node?.exits || Object.keys(OPEN_WORLD_DELTAS).some((dir) => !(dir in node.exits))) errors.push(nodeId + ":directions"); });
     Object.entries(world.coordinateIndex || {}).forEach(([key, nodeId]) => {
@@ -4055,13 +4118,13 @@ window.GameEngine = (function () {
       if (!options.confirmPendingDeparture) return departureGuard;
       confirmPendingDeparture(state);
     }
-    const loc = D().LOCATIONS[state.locationId];
+    const loc = runtimeLocationPool(state)[state.locationId];
     if (!loc || !loc.exits) {
       pushHistory(state, { type: "warn", text: "× Không thể đi từ đây." });
       return;
     }
     const target = openWorldTarget(state, dir, { create: options.allowGenerate !== false });
-    if (!target || !D().LOCATIONS[target]) {
+    if (!target || !runtimeLocationPool(state)[target]) {
       pushHistory(state, { type: "warn", text: "× Không có lối về hướng đó." });
       return;
     }
@@ -4087,7 +4150,7 @@ window.GameEngine = (function () {
       state.mapEvents.history.push({ ...abandoned, status: "abandoned", resolvedTurn: Number(state.meta?.turn || 0) });
       state.mapEvents.history = state.mapEvents.history.slice(-40);
       state.pendingMapEvent = null;
-      pushHistory(state, { type: "narr", text: "Khi rời khỏi " + (D().LOCATIONS[abandoned.nodeId]?.name || "khu vực ấy") + ", ngươi bỏ lại một phát hiện ẩn; dấu vết mờ dần trong gió." });
+      pushHistory(state, { type: "narr", text: "Khi rời khỏi " + (runtimeLocationPool(state)[abandoned.nodeId]?.name || "khu vực ấy") + ", ngươi bỏ lại một phát hiện ẩn; dấu vết mờ dần trong gió." });
     }
     const previousLocation = state.locationId;
     state.locationId = target;
@@ -4099,7 +4162,7 @@ window.GameEngine = (function () {
     const firstDiscovery = !state.visitedLocations.includes(target);
     if (firstDiscovery) state.visitedLocations.push(target);
     explorationMilestone(state);
-    const newLoc = D().LOCATIONS[target];
+    const newLoc = runtimeLocationPool(state)[target];
     pushHistory(state, { type: "sys", text: weaveAtmosphere(state, "→ Ngươi tiến đến " + newLoc.name + ".", "move:" + target) });
     maybeSpawnDynamicQuest(state);
     // corruption SAN check on entry
@@ -4118,7 +4181,7 @@ window.GameEngine = (function () {
 
   /* ---------- Look ---------- */
   function look(state) {
-    const loc = D().LOCATIONS[state.locationId];
+    const loc = runtimeLocationPool(state)[state.locationId];
     const lines = [];
     lines.push(loc.desc);
     const specialNpcs = presentEntities(state).map((e) => e.name);
@@ -4211,7 +4274,7 @@ window.GameEngine = (function () {
     return { success: true, changed: true };
   }
   function searchStatus(state, locationId = state.locationId) {
-    const loc = D().LOCATIONS[locationId];
+    const loc = runtimeLocationPool(state)[locationId];
     const site = ensureSearchSite(state, locationId);
     const depth = Math.max(0, Number(site.depth || 0));
     const rolls = depth >= 4 ? 3 : depth >= 2 ? 2 : depth > 0 ? 1 : 0;
@@ -4235,7 +4298,7 @@ window.GameEngine = (function () {
     return clamp(0.05 + danger * 0.07 + Number(loc?.corruption || 0) * 0.025 - powerMitigation - originReduction + worldRisk, 0.03, 0.58);
   }
   function ensureSearchChainQuest(state, locationId, requiredSearches) {
-    const loc = D().LOCATIONS[locationId];
+    const loc = runtimeLocationPool(state)[locationId];
     const id = "search_chain_" + locationId;
     const owned = new Set([...(state.player.fates || []), ...(state.fateInventory || [])]);
     const savedRewardId = state.quests?.[id]?.rewardFateId;
@@ -4252,7 +4315,7 @@ window.GameEngine = (function () {
   function search(state) {
     let searchRandomIndex = 0;
     const searchRoll = () => replayRandom(state, "search:" + state.locationId + ":" + Number(state.meta?.turn || 0), searchRandomIndex++);
-    const loc = D().LOCATIONS[state.locationId];
+    const loc = runtimeLocationPool(state)[state.locationId];
     const status = searchStatus(state);
     if (state.pendingSearch) {
       pushHistory(state, { type: "warn", text: "× Hãy xử lý những gì vừa phát hiện trước khi tiếp tục tìm kiếm." });
@@ -4384,7 +4447,7 @@ window.GameEngine = (function () {
       const secretDirection = Object.keys(OPEN_WORLD_DELTAS).find((direction) => !exits[direction]);
       if (secretDirection) {
         const secretId = openWorldTarget(state, secretDirection);
-        const secret = D().LOCATIONS[secretId];
+        const secret = runtimeLocationPool(state)[secretId];
         if (secret?.openWorld) {
           secret.name = "Động Phủ Bị Xóa Tên";
           secret.desc = "Một động phủ bị cạo sạch môn huy và tên chủ nhân. Những vết khắc còn sót lại khớp với dấu chân ngươi vừa lần theo.";
@@ -4485,7 +4548,7 @@ window.GameEngine = (function () {
     return state.dialogueStates[entityId] || "IDLE_GREET";
   }
   function regionOfLocation(state) {
-    return D().WORLD_MAP?.locations?.[state.locationId]?.region || D().LOCATIONS?.[state.locationId]?.region || null;
+    return D().WORLD_MAP?.locations?.[state.locationId]?.region || runtimeLocationPool(state)?.[state.locationId]?.region || null;
   }
   function mapAddressCatalog() {
     const addresses = D().WORLD_MAP?.addresses || {};
@@ -4536,7 +4599,7 @@ window.GameEngine = (function () {
     { id: "co_duyen_ancient_trace", group: "co_duyen", name: "Tàn Quyển Rơi Rớt", text: "Một trang công pháp cũ mắc trong bụi, mép giấy còn vương khí tức của người xưa.", choices: [{ id: "study", label: "Nghiên cứu", effect: "study" }, { id: "leave", label: "Không chạm vào", effect: "ignore" }], cooldown: 30 },
     { id: "dong_phu_hidden_abode", group: "dong_phu", name: "Động Phủ Vô Danh", text: "Đá núi tách ra, để lộ một cửa động phủ chưa từng được ghi trên bản đồ.", choices: [{ id: "enter", label: "Chinh phục Động Phủ", effect: "cave" }, { id: "seal", label: "Đánh dấu và rời đi", effect: "ignore" }], cooldown: 0 }
   ]);
-  function mapEventPoolTag(state, node = D().LOCATIONS[state.locationId]) {
+  function mapEventPoolTag(state, node = runtimeLocationPool(state)[state.locationId]) {
     const id = String(state.locationId || "");
     if (["cam_dia", "co_mieu", "abyss", "u_minh_khoi_diem"].includes(id)) return "cam_dia";
     if (["vo_tan_hai_khoi_diem", "thien_khong_khoi_diem"].includes(id)) return "hai_vuc_khong_vuc";
@@ -4553,7 +4616,7 @@ window.GameEngine = (function () {
     return state.mapEvents.nodes[nodeId] ||= { cooldownUntilTurn: 0, discovered: false, resolvedIds: [] };
   }
   function rollMapEvent(state, trigger = "moving_through") {
-    const node = D().LOCATIONS[state.locationId], record = mapEventRecord(state), turn = Number(state.meta?.turn || 0);
+    const node = runtimeLocationPool(state)[state.locationId], record = mapEventRecord(state), turn = Number(state.meta?.turn || 0);
     if (!node || state.pendingMapEvent || Number(record.cooldownUntilTurn || 0) > turn) return null;
     const firstDiscovery = !record.discovered;
     const chance = trigger === "first_discovery" || firstDiscovery ? 1 : trigger === "explore_action" ? 0.55 : 0.14;
@@ -4611,12 +4674,12 @@ window.GameEngine = (function () {
       rewardText = treasure.name + " · " + yearsLabel(treasure.years) + " · hiệu lực +" + amount + (treasure.stat === "maxQiPct" ? "% Linh Khí tối đa" : "");
       state.mapEvents.treasureReceipts[pending.id] = { eventInstanceId: pending.id, treasureId: treasure.id, years: treasure.years, amount, stat: treasure.stat, claimedTurn: Number(state.meta?.turn || 0) };
     }
-    if (effect === "study") { gainExp(state, 35 + Number(D().LOCATIONS[pending.nodeId]?.dangerLevel || 1) * 8); state.player.comprehension = Number(state.player.comprehension || 0) + 1; }
+    if (effect === "study") { gainExp(state, 35 + Number(runtimeLocationPool(state)[pending.nodeId]?.dangerLevel || 1) * 8); state.player.comprehension = Number(state.player.comprehension || 0) + 1; }
     if (effect === "talk") { state.player.comprehension = Number(state.player.comprehension || 0) + 1; state.flags.hiddenNpcMet = Number(state.flags.hiddenNpcMet || 0) + 1; }
-    if (effect === "cave") { const node = D().LOCATIONS[pending.nodeId]; node.caveAbode ||= { status: "unconquered", discoveredDay: Number(state.gameClock?.currentDay || 1) }; node.mapNodeType = "dong_phu"; node.caveAbode.status = "claimed"; addItem(state, "linh_thach", 5 + Number(node.dangerLevel || 1)); }
+    if (effect === "cave") { const node = runtimeLocationPool(state)[pending.nodeId]; node.caveAbode ||= { status: "unconquered", discoveredDay: Number(state.gameClock?.currentDay || 1) }; node.mapNodeType = "dong_phu"; node.caveAbode.status = "claimed"; addItem(state, "linh_thach", 5 + Number(node.dangerLevel || 1)); }
     const cooldown = Number(event.cooldown || 0); record.cooldownUntilTurn = Number(state.meta?.turn || 0) + cooldown; record.resolvedIds.push(event.id); record.resolvedIds = record.resolvedIds.slice(-12);
     pending.status = "resolved"; pending.choice = choiceId; pending.resolvedTurn = Number(state.meta?.turn || 0); state.mapEvents.history.push({ ...pending }); state.mapEvents.history = state.mapEvents.history.slice(-40); state.pendingMapEvent = null;
-    const nodeName = D().LOCATIONS[pending.nodeId]?.name || "khu vực ấy";
+    const nodeName = runtimeLocationPool(state)[pending.nodeId]?.name || "khu vực ấy";
     pushHistory(state, { type: "narr", text: "Tại " + nodeName + ", ngươi " + choice.label.toLowerCase() + (rewardText ? "; " + rewardText + " thấm vào căn cơ." : ".") + " Dư âm của " + event.name + " lắng xuống, để lại một khoảng im lặng khác thường." }); updateDerived(state);
     return { success: true, event, choice };
   }
@@ -4675,7 +4738,7 @@ window.GameEngine = (function () {
       }
     }
     // Biến cố bản đồ là cơ hội ngẫu nhiên, tăng theo độ nguy hiểm; không ép mỗi lượt.
-    const loc = D().LOCATIONS[state.locationId];
+    const loc = runtimeLocationPool(state)[state.locationId];
     const eventChance = clamp((0.18 + Number(loc?.dangerLevel || loc?.corruption || 1) * 0.08 + Number(worldTravel.travelRiskDelta || 0)) * Number(worldTravel.encounterChanceMult || 1), 0.05, 0.9);
     if (roll() > eventChance) return null;
     state.flags.mapEventCount = Number(state.flags.mapEventCount || 0) + 1;
@@ -4827,7 +4890,7 @@ window.GameEngine = (function () {
   }
 
   function beginCombat(state) {
-    const loc = D().LOCATIONS[state.locationId];
+    const loc = runtimeLocationPool(state)[state.locationId];
     const ids = (loc?.enemies || []).filter((id) => getEntity(id));
     if (!ids.length) {
       pushHistory(state, { type: "sys", text: "Không có kẻ thù ở đây." });
@@ -4862,7 +4925,7 @@ window.GameEngine = (function () {
         pushHistory(state, { type: "warn", text: "Hộ Pháp Huyền Lân gầm lên, chặn đường ngươi." });
       }
     }
-    const loc = D().LOCATIONS[state.locationId];
+    const loc = runtimeLocationPool(state)[state.locationId];
     if (loc?.enemies?.length && !aliveEnemies(state).length && replayRandom(state, "combat-extra:predator:" + state.locationId + ":" + Number(state.meta?.turn || 0)) < Math.min(0.35, 0.08 + Number(loc.dangerLevel || 1) * 0.04)) {
       const predator = loc.enemies.find((id) => getEntity(id));
       if (predator && spawnCombatEntity(state, predator)) {
@@ -4926,7 +4989,7 @@ window.GameEngine = (function () {
 
   function endCombat(state) {
     state.enemies = {};
-    const loc = D().LOCATIONS[state.locationId];
+    const loc = runtimeLocationPool(state)[state.locationId];
     if (loc?.enemies?.length) {
       state.flags.clearedLocations = state.flags.clearedLocations || {};
       state.flags.clearedLocations[state.locationId] = true;
@@ -4947,7 +5010,7 @@ window.GameEngine = (function () {
         pushHistory(state, { type: "warn", text: "× " + found.name + " là Dị Sĩ ngẫu nhiên; chỉ hệ thống mới có thể kích hoạt cuộc gặp." });
         return;
       }
-      const loc = D().LOCATIONS[state.locationId];
+      const loc = runtimeLocationPool(state)[state.locationId];
       const regionId = regionOfLocation(state);
       const isRegionMatch = !special.location_tags?.length || (regionId && special.location_tags.includes(regionId));
       const present = loc && (loc.npcs?.includes(entityId) || isRegionMatch);
@@ -4959,7 +5022,7 @@ window.GameEngine = (function () {
       return;
     }
     const npc = D().NPCS[entityId];
-    const loc = D().LOCATIONS[state.locationId];
+    const loc = runtimeLocationPool(state)[state.locationId];
     const runtimeNpc = state.worldSimulation?.npcState?.[entityId];
     if (runtimeNpc && window.GameExpansion?.npcTalk) {
       const presentation = window.GameExpansion.npcActionPresentation?.(state, entityId, npc?.name || entityId);
@@ -5493,7 +5556,7 @@ window.GameEngine = (function () {
   // cells are generated lazily by move(), while boundary directions remain
   // visible but disabled. This declaration is the canonical panel implementation.
   function moveActions(state) {
-    const loc = D().LOCATIONS[state.locationId], world = ensureOpenWorld(state);
+    const loc = runtimeLocationPool(state)[state.locationId], world = ensureOpenWorld(state);
     const dirMap = { bac: "\u0042\u1eaf\u0063", nam: "\u004e\u0061\u006d", dong: "\u0110\u00f4\u006e\u0067", tay: "\u0054\u00e2\u0079" };
     if (!loc?.exits || !Array.isArray(world.coordinates[state.locationId])) return [];
     const current = world.coordinates[state.locationId], lastMoveDirection = state.flags?.lastMoveDirection;
@@ -5513,7 +5576,7 @@ window.GameEngine = (function () {
     });
   }
   function talkActions(state) {
-    const loc = D().LOCATIONS[state.locationId];
+    const loc = runtimeLocationPool(state)[state.locationId];
     const actions = [];
     (loc?.npcs || []).forEach((npcId) => {
       const npc = D().NPCS[npcId];
@@ -5553,7 +5616,7 @@ window.GameEngine = (function () {
   function contextState(state) {
     const forced = ["ELDRITCH_INTERVENTION", "FATE_BACKFIRE"].includes(state._fateState);
     const inCombat = Object.keys(state.enemies || {}).length > 0;
-    const loc = D().LOCATIONS[state.locationId];
+    const loc = runtimeLocationPool(state)[state.locationId];
     const nearbyEnemies = Boolean(loc?.enemies?.length && !state.flags.clearedLocations?.[state.locationId] && Number(state.flags.fledUntilTurn || 0) <= Number(state.meta?.turn || 0));
     const combatPossible = inCombat || nearbyEnemies;
     if (forced) return { inCombat, forced: true, state: state._fateState, actions: ACTION_DEFINITIONS.filter((a) => a.priority === 0) };
@@ -5924,7 +5987,7 @@ window.GameEngine = (function () {
   }
 
   function resolveFreeAction(state, text) {
-    const loc = D().LOCATIONS[state.locationId];
+    const loc = runtimeLocationPool(state)[state.locationId];
     const stats = computeStats(state.player);
     // heuristics
     if (/trấn tĩnh|bình tâm|hít thở|thiền/.test(text.toLowerCase())) {
@@ -6073,10 +6136,10 @@ window.GameEngine = (function () {
   }
 
   function describeMap(state) {
-    const loc = D().LOCATIONS[state.locationId];
+    const loc = runtimeLocationPool(state)[state.locationId];
     const directions = { bac: "Bắc", nam: "Nam", dong: "Đông", tay: "Tây" };
-    const exits = Object.entries(locationExits(state)).filter(([, id]) => id && D().LOCATIONS[id]).map(([dir, id]) => {
-      return "  " + directions[dir] + " → " + D().LOCATIONS[id].name;
+    const exits = Object.entries(locationExits(state)).filter(([, id]) => id && runtimeLocationPool(state)[id]).map(([dir, id]) => {
+      return "  " + directions[dir] + " → " + runtimeLocationPool(state)[id].name;
     });
     return weaveAtmosphere(state, "§ Bản Đồ — " + (D().WORLD_MAP?.name || "Vạn Giới Lộ") + "\n" +
       "  Hiện tại: " + loc.name + "\n" +
@@ -6367,7 +6430,7 @@ window.GameEngine = (function () {
     fateVaultCapacity, fateCompatibility, fateEnhancementLevel, enhancedFateEffects, fateEffectBreakdown, pathMatchSummary, availablePaths, pathProgression, receiveFate, sacrificeFate, fateVaultSummary, validateFateInventory, swapFateFromVault, fateSwapPreview, storeFateToVault, equipFateFromVault, fateUpgradePreview, upgradeFate, resolvePendingFateReward, dismissPendingFateReward, mergeFates, suggestFateForRealmRequirement, auditFateRolls, buyFateAtMarket, sacrificeLifespanForFate, qintianFateOffers, refreshMarket, marketOffers, buyMarketOffer, refreshBlackMarket, blackMarketOffers, buyBlackMarketOffer, meritFateOffers, buyFateWithMerit, refineAtVoidCauldron,
     cultivationTier, fateRewardWeights, rollFateByProgression, anchorCandidates, establishHumanAnchor, breakthroughRitualPlan, breakthroughRitualStatus, pathRitualStatus: breakthroughRitualStatus, breakthroughRitualGateRequirements, performBreakthroughRitualStep, breakthroughRequirements, getBreakthroughBlockers, getChuyenSinhBlockers, processLuanHoi, processChuyenSinh, chooseTaintedAttention, rollTaintedAttention, chooseTaintedFaction, factionStatus, grantTaintedRewardCanonical, grantQuestMerit, resolveFactionHunt, switchTaintedFaction, selectPath, pathTitle, completeUnboundTrial, canUnlockDevourHeaven, recordTaintedMilestones, normalizeAction, resolveActions, resolveActionSurfaces, validateActionPriorityMatrix,
     elementRelation, familyMatchup, toCanonicalCharacter, fromCanonicalCharacter,
-    gainExp, recordCultivationGain, cultivationVelocityStatus, adjustDaoTam, cultivationJournalPush, enterLuyenKhi, cultivate, autoCultivate, secludedCultivation, rest, doBreakthrough, drainSan, restoreSan, move, locationExits, materializeLocalConstellation, localBfsConstellation, look, ensureSearchSite, pendingExplorationAt, pendingDepartureGuard, confirmPendingDeparture, searchStatus, search, collectSearchFindings, investigateSearchFinding, leaveSearchSession, useItem,
+    gainExp, recordCultivationGain, cultivationVelocityStatus, adjustDaoTam, cultivationJournalPush, enterLuyenKhi, cultivate, autoCultivate, secludedCultivation, rest, doBreakthrough, drainSan, restoreSan, move, locationExits, materializeLocalConstellation, localBfsConstellation, locationPool: runtimeLocationPool, locationForState, look, ensureSearchSite, pendingExplorationAt, pendingDepartureGuard, confirmPendingDeparture, searchStatus, search, collectSearchFindings, investigateSearchFinding, leaveSearchSession, useItem,
     talk, combat, beginCombat, aliveEnemies, firstAliveEnemy, enemyTurn, afterPlayerCombatAction, applyPlayerDamage, endCombat, combatEntity, spawnCombatEntity, maybeSpawnCombatExtras, lootTable, rollEntityLoot, rollDefeatBonus, entityCatalog, getEntity, entityForPlayer, dialogueState, presentEntities, mapAddressCatalog, mapAddressesAtNode, mapOxyAddress, rollMapEvent, resolveMapEvent, validateMapEventState, maybeTriggerRandomEncounter, findEntityByName, interactEntity, monsterAction, useTechnique, techniquePreview, learnTechnique, getKnownTechniques, techniqueCatalog, validateTechniqueCatalog, techniqueStatus, techniqueProgress, contextState, resolveActionPriority, moveActions, talkActions, skillActions, parseAction, resolveAction, submitActionId, submitTurn, describeStatus, describeInventory, describeQuests, coordinateKey, neighborCoordinate, getNodeAtCoordinate, nodeCoordinates, validateOpenWorldGrid,
     describeFate, describeMap, serialize, deserialize, pushMemory, pushHistory, createGameEvent, emitEvent, emitGameEvent, normalizeHistoryEvent, groupIntoScenes, renderGameEvent, renderScene, lintNarrativeText, repairMojibakeText, sanitizeLogUtf8, narrativeSafe, formatPlayerLogText, getGameLog, novelLogParagraphs, validateLogSurfaceState, detectMilestones, formatEventChanges, ensureGameClock, ensureWorldClock, syncWorldClock, clockLabel, worldClockLabel, advanceGameTime, processOnlineFateReward, applyOfflineProgress, GAME_TIME_CONFIG, ERROR_NARRATIVE_MAP, playerFacingReason
   };

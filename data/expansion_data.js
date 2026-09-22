@@ -72,7 +72,8 @@
 
   const guildTechniquePolicies = [
     { id: "guild_manual_training", guildId: "*", revision: 1, rankMin: 0, appliesTo: "guild_taught", modifiers: { masteryGainPct: 5 }, caps: { masteryGainPct: 10 } },
-    { id: "guild_inner_training", guildId: "*", revision: 1, rankMin: 1, modifiers: { masteryGainPct: 5 }, caps: { masteryGainPct: 10 } }
+    { id: "guild_inner_training", guildId: "*", revision: 1, rankMin: 1, modifiers: { masteryGainPct: 5 }, caps: { masteryGainPct: 10 } },
+    { id: "guild_elemental_array_support", guildId: "*", revision: 1, rankMin: 2, appliesTo: "formation_support", elements: ["kim", "moc", "thuy", "hoa", "tho"], modifiers: { combatPowerPct: 5 }, caps: { combatPowerPct: 5 } }
   ];
 
   const heavenlyTreasures = [
