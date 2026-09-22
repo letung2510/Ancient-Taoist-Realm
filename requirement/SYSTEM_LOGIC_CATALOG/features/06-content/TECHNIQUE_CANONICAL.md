@@ -82,3 +82,11 @@ UI shows Prepare, stance, cooldown, cost and effect preview. Combat and duel cal
 
 ## Runtime feature update (2026-09-22)
 The implemented feature is a per-cast stance choice using the existing technique cooldown transaction; it supersedes the earlier proposed separate prepare/channel substate. `steady` uses catalog effects, `burst` raises effect by 20% and corruption cost by 50%, and `guarded` lowers effect by 15% and halves SAN/corruption costs. UI asks for a stance before committing an active-technique action. Invalid stance and resource failures spend nothing. Cooldown and mastery remain resolved by the existing `useTechnique` path.
+
+## Runtime cross-feature additions (2026-09-22)
+
+- Combat Fate resonance counts distinct, catalog-owned, active and unsuppressed Fate IDs. Same-element and explicit `pathAffinity` matches share one catalog policy and a hard +5% power cap; support/passive techniques and unknown/neutral elements receive no Fate bonus. Preview exposes matched IDs and sources.
+- `guild_elemental_array_support` grants +5% power only while a guild-taught formation from the current active guild remains deployed, for a disciple-rank-or-higher member and an allowed technique element. Membership suspension, expiry, mismatched source guild, or invalid formation removes the bonus. The source formation record is captured at deployment; old saves without it receive no bonus.
+- Shared eligibility rechecks active Fate count/element/ID and suspended membership. Realm/path/faction and training location remain blockers as declared by the scope requirements.
+- UI action receipts retain the latest 64 results and a monotonic high-water sequence for generated `technique-ui:N` IDs. A replay after receipt eviction is rejected without costs/effects; retained IDs return their original receipt.
+- Regression coverage exercises duplicate/suppressed Fate handling, path bonus, guild bonus/suspension and evicted-receipt replay.

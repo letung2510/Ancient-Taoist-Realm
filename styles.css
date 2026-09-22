@@ -757,6 +757,9 @@ html, body {
 /* Local constellation field: no graph edges, only radial star clusters. */
 .local-constellation { isolation: isolate; }
 .local-constellation .constellation-field { position: absolute; inset: 0; z-index: 3; overflow: hidden; background: radial-gradient(circle at 50% 50%, rgba(126, 120, 232, .16), transparent 22%), radial-gradient(circle at 24% 18%, rgba(255, 255, 255, .35) 0 1px, transparent 1.5px), radial-gradient(circle at 76% 28%, rgba(255, 255, 255, .24) 0 1px, transparent 1.5px), radial-gradient(circle at 30% 78%, rgba(118, 224, 208, .22) 0 1px, transparent 1.5px), #080e20; }
+.local-constellation .constellation-field { transform: translate(var(--map-pan-x, 0px), var(--map-pan-y, 0px)) scale(var(--map-zoom, 1)); transform-origin: 50% 50%; transition: transform .35s ease; }
+.world-event-choices { margin-top: 8px; }
+.world-event-choice { border-color: rgba(255, 173, 112, .55); background: rgba(120, 56, 35, .28); }
 .local-constellation .constellation-field::before, .local-constellation .constellation-field::after { content: ""; position: absolute; inset: 0; border: 0; pointer-events: none; }
 .local-constellation .local-route-layer { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; pointer-events: none; mix-blend-mode: screen; }
 .local-constellation .local-route-layer .map-path { stroke: #6474a8; stroke-width: .34; stroke-dasharray: 1.2 2.2; opacity: .58; }

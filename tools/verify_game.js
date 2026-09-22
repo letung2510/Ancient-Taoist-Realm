@@ -345,12 +345,12 @@ function verifyExpansionSystems(sandbox) {
   state.worldSimulation.hiddenRealms[hiddenDef.id].cycleIndex = 1;
   assert(E.hiddenRealmEnter(state, hiddenDef.id).success);
   assert(state.locationId.startsWith("hidden:" + hiddenDef.id));
-  assert(sandbox.window.GameData.LOCATIONS[state.locationId]);
+  assert(E.locationForState(state, state.locationId));
   const hiddenSave = E.serialize(state), hiddenLocationId = state.locationId;
-  delete sandbox.window.GameData.LOCATIONS[hiddenLocationId];
+  assert.strictEqual(sandbox.window.GameData.LOCATIONS[hiddenLocationId], undefined, "runtime hidden-realm nodes must not enter the static catalog");
   const hiddenRestored = E.deserialize(hiddenSave);
   assert(hiddenRestored.locationId.startsWith("hidden:" + hiddenDef.id));
-  assert(sandbox.window.GameData.LOCATIONS[hiddenRestored.locationId]);
+  assert(E.locationForState(hiddenRestored, hiddenRestored.locationId));
   assert(E.exitHiddenRealm(hiddenRestored).success);
   assert(E.exitHiddenRealm(state).success);
   assert.strictEqual(state.locationId, hiddenDef.parentNodeId);
@@ -610,7 +610,7 @@ function verifyBrowserEngine(sandbox) {
    E.submitActionId(openWorldState, "act_move_nam");
   const dangerousLocation = openWorldState.locationId;
   assert.notStrictEqual(dangerousLocation, oldLocation);
-  D.LOCATIONS[dangerousLocation].enemies = ["yeu_thu"];
+  E.locationForState(openWorldState, dangerousLocation).enemies = ["yeu_thu"];
   E.beginCombat(openWorldState);
   E.submitActionId(openWorldState, "act_bo_chay");
   assert.strictEqual(openWorldState.locationId, dangerousLocation);
@@ -870,14 +870,16 @@ function verifyMapUI(sandbox) {
   assert(addressCatalog.services.length >= 2, "map must contain market addresses");
   assert(addressCatalog.spawnPoints.length >= 5, "map must contain character spawn/respawn addresses");
   assert(addressCatalog.organizations.length >= 100, "map must contain organization Oxy addresses");
+  const organizationState = E.createState({ character: E.createCharacter({ name: "Organization QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  E.validateOpenWorldGrid(organizationState);
   [...addressCatalog.services, ...addressCatalog.spawnPoints].forEach((address) => {
     assert(address.oxyNode && Number.isFinite(Number(address.oxyNode.x)) && Number.isFinite(Number(address.oxyNode.y)), `invalid Oxy address: ${address.id}`);
   });
   addressCatalog.organizations.forEach((address) => {
-    assert(address.nodeId && sandbox.window.GameData.LOCATIONS[address.nodeId], `organization must resolve to a map node: ${address.id}`);
+    assert(address.nodeId && E.locationForState(organizationState, address.nodeId), `organization must resolve to a runtime map node: ${address.id}`);
+    assert.strictEqual(sandbox.window.GameData.LOCATIONS[address.nodeId], undefined, `runtime organization node leaked into catalog: ${address.id}`);
   });
   const organizationAddress = addressCatalog.organizations[0];
-  const organizationState = E.createState({ character: E.createCharacter({ name: "Organization QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
   organizationState.locationId = organizationAddress.nodeId;
   E.addItem(organizationState, "linh_thach", 20);
   assert(E.organizationSnapshot(organizationState, organizationAddress.refId)?.atNode);
@@ -1075,6 +1077,7 @@ function main() {
   if (process.argv.includes("--update-samples")) updateSamples();
   verifyCharacters();
   const sandbox = loadBrowserGame();
+  const staticLocationCatalog = JSON.stringify(sandbox.window.GameData.LOCATIONS);
   verifyDataIntegrity(sandbox);
   verifyBrowserEngine(sandbox);
   verifyGeneratedItems(sandbox);
@@ -1083,6 +1086,7 @@ function main() {
   verifyMapUI(sandbox);
   verifyDomReferences();
   verifyCreationUI(sandbox);
+  assert.strictEqual(JSON.stringify(sandbox.window.GameData.LOCATIONS), staticLocationCatalog, "runtime map flows must not mutate the shared static location catalog");
   console.log("OK: characters, procedural items, map, data integrity, save migration, UI and DOM");
 }
 

@@ -1,24 +1,24 @@
-﻿# Äáº·c táº£ liÃªn káº¿t CÃ´ng PhÃ¡p Â· Má»‡nh Sá»‘ Â· NhÃ¢n Váº­t Â· TÃ´ng MÃ´n
+# Đặc tả liên kết Công Pháp · Mệnh Số · Nhân Vật · Tông Môn
 
-**Tráº¡ng thÃ¡i:** Ä‘áº·c táº£ review; runtime Ä‘Ã£ Ã¡p dá»¥ng cÃ¡c pháº§n Ä‘Æ°á»£c liá»‡t kÃª á»Ÿ cuá»‘i tÃ i liá»‡u.
-**NgÃ y:** 2026-09-22
-**Pháº¡m vi:** nÄƒm gap 1â€“5 trong rÃ  soÃ¡t runtime. Bá»• sung hÃ nh vi liÃªn feature; khÃ´ng thay schema save hiá»‡n cÃ³ hoáº·c tá»± chá»‰nh catalog Ä‘Ã£ sá»Ÿ há»¯u.
+**Trạng thái:** đặc tả review; runtime đã áp dụng các phần được liệt kê ở cuối tài liệu.
+**Ngày:** 2026-09-22
+**Phạm vi:** năm gap 1–5 trong rà soát runtime. Bổ sung hành vi liên feature; không thay schema save hiện có hoặc tự chỉnh catalog đã sở hữu.
 
-## Má»¥c tiÃªu vÃ  nguyÃªn táº¯c chung
+## Mục tiêu và nguyên tắc chung
 
-Má»i luá»“ng há»c, xem trÆ°á»›c, thi triá»ƒn, luyá»‡n thÃ nh vÃ  tiáº¿n hÃ³a CÃ´ng PhÃ¡p dÃ¹ng cÃ¹ng ngá»¯ cáº£nh nhÃ¢n váº­t vÃ  cÃ¹ng phÃ©p tÃ­nh. Má»‡nh Ä‘ang kÃ­ch hoáº¡t, con Ä‘Æ°á»ng, cáº£nh giá»›i, mastery, evolution vÃ  tÆ° cÃ¡ch TÃ´ng MÃ´n chá»‰ tÃ¡c Ä‘á»™ng khi cÃ³ rule cá»¥ thá»ƒ. Modifier cÃ³ nguá»“n truy váº¿t, giá»›i háº¡n, khÃ´ng sá»­a catalog vÃ  khÃ´ng cá»™ng kÃ©p qua computeStats láº«n cast resolver.
+Mọi luồng học, xem trước, thi triển, luyện thành và tiến hóa Công Pháp dùng cùng ngữ cảnh nhân vật và cùng phép tính. Mệnh đang kích hoạt, con đường, cảnh giới, mastery, evolution và tư cách Tông Môn chỉ tác động khi có rule cụ thể. Modifier có nguồn truy vết, giới hạn, không sửa catalog và không cộng kép qua computeStats lẫn cast resolver.
 
-1. **Catalog báº¥t biáº¿n:** resolver Ä‘á»c theo ID; modifier lÃ  snapshot cá»§a action, khÃ´ng ghi ngÆ°á»£c vÃ o technique catalog, dá»¯ liá»‡u Má»‡nh hay CONG_PHAP_DATA.
-2. **Má»™t nguá»“n sá»± tháº­t:** preview vÃ  commit gá»i cÃ¹ng resolver thuáº§n. Commit lÃ m má»›i context vÃ  kiá»ƒm tra tÃ i nguyÃªn trÆ°á»›c transaction.
-3. **Chá»‰ Má»‡nh kÃ­ch hoáº¡t cá»™ng hÆ°á»Ÿng:** Fate trong kho, Ä‘Ã£ gá»¡, bá»‹ phong áº¥n hay khÃ´ng cÃ²n thuá»™c sá»Ÿ há»¯u khÃ´ng tÄƒng hiá»‡u quáº£. UI nÃªu Fate nguá»“n.
-4. **Quyá»n lá»£i mÃ´n phÃ¡i khÃ´ng pháº£i quyá»n sá»Ÿ há»¯u:** rá»i mÃ´n khÃ´ng xÃ³a CÃ´ng PhÃ¡p/mastery/trial/evolution; chá»‰ access, truyá»n thá»¥, kho vÃ  modifier Ä‘ang cáº¥p bá»‹ thu há»“i.
-5. **KhÃ´ng tá»± há»§y tiáº¿n trÃ¬nh:** Ä‘á»•i path, cáº£nh giá»›i hoáº·c membership khÃ´ng xÃ³a record. Ká»¹ nÄƒng cÃ³ thá»ƒ thÃ nh dormant/blocked kÃ¨m lÃ½ do, rá»“i hoáº¡t Ä‘á»™ng láº¡i khi Ä‘á»§ Ä‘iá»u kiá»‡n.
-6. **Idempotency:** cÃ¹ng actionId/eventId khÃ´ng thá»ƒ trá»« tÃ i nguyÃªn, tÄƒng mastery/trial hay phÃ¡t thÆ°á»Ÿng láº§n hai.
-7. **Thá»© tá»±:** base catalog â†’ mastery â†’ evolution â†’ Má»‡nh cá»™ng hÆ°á»Ÿng â†’ snapshot TÃ´ng MÃ´n â†’ world/combat â†’ stance. Má»—i nhÃ³m cá»™ng pháº§n trÄƒm ná»™i bá»™ rá»“i nhÃ¢n má»™t láº§n; cap Ã¡p dá»¥ng theo nhÃ³m.
+1. **Catalog bất biến:** resolver đọc theo ID; modifier là snapshot của action, không ghi ngược vào technique catalog, dữ liệu Mệnh hay CONG_PHAP_DATA.
+2. **Một nguồn sự thật:** preview và commit gọi cùng resolver thuần. Commit làm mới context và kiểm tra tài nguyên trước transaction.
+3. **Chỉ Mệnh kích hoạt cộng hưởng:** Fate trong kho, đã gỡ, bị phong ấn hay không còn thuộc sở hữu không tăng hiệu quả. UI nêu Fate nguồn.
+4. **Quyền lợi môn phái không phải quyền sở hữu:** rời môn không xóa Công Pháp/mastery/trial/evolution; chỉ access, truyền thụ, kho và modifier đang cấp bị thu hồi.
+5. **Không tự hủy tiến trình:** đổi path, cảnh giới hoặc membership không xóa record. Kỹ năng có thể thành dormant/blocked kèm lý do, rồi hoạt động lại khi đủ điều kiện.
+6. **Idempotency:** cùng actionId/eventId không thể trừ tài nguyên, tăng mastery/trial hay phát thưởng lần hai.
+7. **Thứ tự:** base catalog → mastery → evolution → Mệnh cộng hưởng → snapshot Tông Môn → world/combat → stance. Mỗi nhóm cộng phần trăm nội bộ rồi nhân một lần; cap áp dụng theo nhóm.
 
-## Context vÃ  response dÃ¹ng chung
+## Context và response dùng chung
 
-buildTechniqueContext(state, options) lÃ  hÃ m thuáº§n, chá»‰ chuáº©n hÃ³a vÃ  Ä‘á»c:
+buildTechniqueContext(state, options) là hàm thuần, chỉ chuẩn hóa và đọc:
 
 ```ts
 TechniqueContext {
@@ -38,7 +38,7 @@ TechniqueContext {
 }
 ```
 
-Save cÅ© thiáº¿u field dÃ¹ng trung tÃ­nh: null, [], rankIndex 0, revision 0. Context khÃ´ng gá»i RNG, khÃ´ng sá»­a state/catalog. Káº¿t quáº£ resolver:
+Save cũ thiếu field dùng trung tính: null, [], rankIndex 0, revision 0. Context không gọi RNG, không sửa state/catalog. Kết quả resolver:
 
 ```ts
 TechniqueResolution {
@@ -50,23 +50,23 @@ TechniqueResolution {
 }
 ```
 
-Response clone/Ä‘Ã³ng bÄƒng; khÃ´ng tráº£ tham chiáº¿u nested tá»›i save hay catalog.
+Response clone/đóng băng; không trả tham chiếu nested tới save hay catalog.
 
 ---
 
-## 1. Má»‡nh Sá»‘ â†’ CÃ´ng PhÃ¡p: cá»™ng hÆ°á»Ÿng nguyÃªn tá»‘ vÃ  con Ä‘Æ°á»ng
+## 1. Mệnh Số → Công Pháp: cộng hưởng nguyên tố và con đường
 
-### Gap vÃ  rule
+### Gap và rule
 
-Combat hiá»‡n dÃ¹ng chuá»—i fateTags Ä‘á»ƒ suy ra nguyÃªn tá»‘. Tag chá»§ Ä‘á» khÃ´ng pháº£i element canonical, dá»… bá» sÃ³t Má»‡nh cÃ³ field element, nháº§m alias hoáº·c Ä‘áº¿m Fate dormant. Nguá»“n chuáº©n pháº£i lÃ  fateDefinition/fateElement/fatePathAffinity vÃ  technique catalog.
+Combat hiện dùng chuỗi fateTags để suy ra nguyên tố. Tag chủ đề không phải element canonical, dễ bỏ sót Mệnh có field element, nhầm alias hoặc đếm Fate dormant. Nguồn chuẩn phải là fateDefinition/fateElement/fatePathAffinity và technique catalog.
 
-- Chuáº©n hÃ³a, khá»­ trÃ¹ng láº·p ID tá»« player.fates; chá»‰ xÃ©t Fate Ä‘ang kÃ­ch hoáº¡t, tá»“n táº¡i trong catalog vÃ  khÃ´ng bá»‹ suppress.
-- Äá»‘i chiáº¿u canonical element cá»§a Fate vÃ  technique, khÃ´ng Ä‘á»c tÃªn/mÃ´ táº£/tag tá»± do.
-- Element rá»—ng, vo_he, unknown hoáº·c lá»—i dá»¯ liá»‡u cho káº¿t quáº£ neutral.
-- Má»—i Fate cÃ¹ng element cho +1% power; cap tá»•ng +5% má»—i cast. Chá»‰ Ã¡p dá»¥ng ká»¹ thuáº­t combat cÃ³ element; passive/support máº·c Ä‘á»‹nh khÃ´ng nháº­n.
-- Fate path affinity trÃ¹ng path hiá»‡n hÃ nh vÃ  path affinity cá»§a technique tráº£ thÃ´ng tin resonance trong preview, chÆ°a cá»™ng power á»Ÿ MVP Ä‘á»ƒ trÃ¡nh buff chÆ°a cÃ¢n báº±ng.
-- Fate bá»‹ Tráº¥n Má»‡nh khÃ´ng cáº¥p resonance tÃ­ch cá»±c. Relation generates/overcomes khÃ´ng tá»± táº¡o bonus.
-- Má»™t Fate chá»‰ Ä‘Ã³ng gÃ³p má»™t láº§n; evolution modifier lÃ  nguá»“n riÃªng, khÃ´ng tÃ­nh láº¡i thÃ nh Fate thá»© hai.
+- Chuẩn hóa, khử trùng lặp ID từ player.fates; chỉ xét Fate đang kích hoạt, tồn tại trong catalog và không bị suppress.
+- Đối chiếu canonical element của Fate và technique, không đọc tên/mô tả/tag tự do.
+- Element rỗng, vo_he, unknown hoặc lỗi dữ liệu cho kết quả neutral.
+- Mỗi Fate cùng element cho +1% power; cap tổng +5% mỗi cast. Chỉ áp dụng kỹ thuật combat có element; passive/support mặc định không nhận.
+- Fate path affinity matches the active path and explicit technique `pathAffinity`; eligible matches contribute within the shared +5% Fate-resonance cap and are listed in preview.
+- Fate bị Trấn Mệnh không cấp resonance tích cực. Relation generates/overcomes không tự tạo bonus.
+- Một Fate chỉ đóng góp một lần; evolution modifier là nguồn riêng, không tính lại thành Fate thứ hai.
 
 ```js
 const FATE_TECHNIQUE_RESONANCE = {
@@ -93,9 +93,9 @@ function techniqueFateResonance(state, technique, context) {
 }
 ```
 
-Ãp dá»¥ng bonus vÃ o powerCoefficient Ä‘Ãºng má»™t láº§n trÆ°á»›c khi tÃ¡ch damage components. KhÃ´ng mutate Fate, technique catalog, enemy hay player.stats. Preview hiá»ƒn thá»‹ Fate Ä‘Ã£ khá»›p vÃ  tá»•ng bonus; log chá»‰ nÃªu nguá»“n khi bonus >0.
+Áp dụng bonus vào powerCoefficient đúng một lần trước khi tách damage components. Không mutate Fate, technique catalog, enemy hay player.stats. Preview hiển thị Fate đã khớp và tổng bonus; log chỉ nêu nguồn khi bonus >0.
 
-### Bá»• sung schema CÃ´ng PhÃ¡p
+### Bổ sung schema Công Pháp
 
 ```ts
 TechniqueDefinition {
@@ -106,39 +106,39 @@ TechniqueDefinition {
 }
 ```
 
-Record cÅ© khÃ´ng cáº§n sá»­a: máº·c Ä‘á»‹nh same_element cho combat technique cÃ³ element, none cho passive/support náº¿u chÆ°a khai bÃ¡o. Má»©c bonus náº±m trong policy versioned, khÃ´ng cho tá»«ng record Ä‘áº·t multiplier tá»± do.
+Record cũ không cần sửa: mặc định same_element cho combat technique có element, none cho passive/support nếu chưa khai báo. Mức bonus nằm trong policy versioned, không cho từng record đặt multiplier tự do.
 
-## 2. CÃ´ng PhÃ¡p â†’ NhÃ¢n Váº­t: preview/commit parity
+## 2. Công Pháp → Nhân Vật: preview/commit parity
 
-Thay phÃ©p tÃ­nh tÃ¡ch rá»i trong techniquePreview vÃ  useTechnique báº±ng resolver thuáº§n resolveTechnique(state,id,{phase,stance,confirmed,actionId,targetId}). Resolver kiá»ƒm tra ownership, category, realm, path restrictions, cooldown, target, costs vÃ  modifiers; khÃ´ng mutate. commitTechniqueResolution Ã¡p dá»¥ng transaction sau khi xÃ¡c thá»±c láº¡i.
+Thay phép tính tách rời trong techniquePreview và useTechnique bằng resolver thuần resolveTechnique(state,id,{phase,stance,confirmed,actionId,targetId}). Resolver kiểm tra ownership, category, realm, path restrictions, cooldown, target, costs và modifiers; không mutate. commitTechniqueResolution áp dụng transaction sau khi xác thực lại.
 
 ### Stance matrix
 
-| Tháº¿ | Power | SAN | Corruption | Qi/Stamina/Lifespan | Cooldown |
+| Thế | Power | SAN | Corruption | Qi/Stamina/Lifespan | Cooldown |
 |---|---:|---:|---:|---:|---:|
-| steady | Ã—1.00 | Ã—1.00 | Ã—1.00 | Ã—1.00 | Ã—1.00 |
-| burst | Ã—1.20 | Ã—1.00 | Ã—1.50 | Ã—1.00 | Ã—1.00 |
-| guarded | Ã—0.85 | Ã—0.50 | Ã—0.50 | Ã—1.00 | Ã—1.00 |
+| steady | ×1.00 | ×1.00 | ×1.00 | ×1.00 | ×1.00 |
+| burst | ×1.20 | ×1.00 | ×1.50 | ×1.00 | ×1.00 |
+| guarded | ×0.85 | ×0.50 | ×0.50 | ×1.00 | ×1.00 |
 
-ÄÃ¢y lÃ  cÃ¡ch diá»…n giáº£i runtime addendum hiá»‡n hÃ nh: guarded giáº£m SAN/Corruption cost, khÃ´ng giáº£m incoming damage. Náº¿u cáº§n incomingRiskMultiplier cho duel, Ä‘Ã³ lÃ  field/action pipeline khÃ¡c vÃ  chÆ°a báº­t trong MVP.
+Đây là cách diễn giải runtime addendum hiện hành: guarded giảm SAN/Corruption cost, không giảm incoming damage. Nếu cần incomingRiskMultiplier cho duel, đó là field/action pipeline khác và chưa bật trong MVP.
 
-Cost thá»© tá»± duy nháº¥t: catalog base â†’ mastery cost multiplier â†’ evolution â†’ guild â†’ stance â†’ lÃ m trÃ²n. Qi/stamina dÃ¹ng ceil; SAN/lifespan/corruption lÃ m trÃ²n 2 chá»¯ sá»‘. Preview nÃªu requested/applied corruption náº¿u cháº¡m cap. Power thá»© tá»±: catalog â†’ mastery â†’ evolution â†’ Fate â†’ guild â†’ world â†’ stance â†’ matchup. Percent trong cÃ¹ng nhÃ³m cá»™ng rá»“i nhÃ¢n má»™t láº§n.
+Cost thứ tự duy nhất: catalog base → mastery cost multiplier → evolution → guild → stance → làm tròn. Qi/stamina dùng ceil; SAN/lifespan/corruption làm tròn 2 chữ số. Preview nêu requested/applied corruption nếu chạm cap. Power thứ tự: catalog → mastery → evolution → Fate → guild → world → stance → matchup. Percent trong cùng nhóm cộng rồi nhân một lần.
 
-### Transaction vÃ  lá»—i
+### Transaction và lỗi
 
-- UI cast báº¯t buá»™c actionId á»•n Ä‘á»‹nh; legacy call Ä‘Æ°á»£c cáº¥p ID tá»« sequence theo lÆ°á»£t, khÃ´ng dÃ¹ng timestamp/random.
-- Ledger giá»¯ tá»‘i thiá»ƒu 64 action IDs gáº§n nháº¥t. Duplicate tráº£ receipt cÅ©, khÃ´ng cháº¡y cost/effect láº¡i.
-- Validate toÃ n bá»™ blocker/resource/target/cooldown trÆ°á»›c mutation.
-- Cast lÃ m SAN vá» 0 lÃ  transaction Ä‘Ã£ commit náº¿u madness Ä‘Æ°á»£c kÃ­ch hoáº¡t; tráº£ committed:true, outcome:madness; khÃ´ng Ä‘á»ƒ caller retry.
-- Lá»—i trÆ°á»›c commit khÃ´ng Ä‘á»•i resource/cooldown/mastery.
-- Cooldown 0 khÃ´ng lÆ°u record. Vá»›i cooldown >0 dÃ¹ng readyAtTurn; cast Ä‘Æ°á»£c phÃ©p khi turn >= readyAtTurn.
-- Mastery tÄƒng má»™t láº§n sau khi outcome Ä‘Æ°á»£c quyáº¿t Ä‘á»‹nh; cast khÃ´ng cÃ³ target khÃ´ng tÄƒng combat mastery náº¿u category cáº§n target.
+- UI cast bắt buộc actionId ổn định; legacy call được cấp ID từ sequence theo lượt, không dùng timestamp/random.
+- Ledger giữ tối thiểu 64 action IDs gần nhất. Duplicate trả receipt cũ, không chạy cost/effect lại.
+- Validate toàn bộ blocker/resource/target/cooldown trước mutation.
+- Cast làm SAN về 0 là transaction đã commit nếu madness được kích hoạt; trả committed:true, outcome:madness; không để caller retry.
+- Lỗi trước commit không đổi resource/cooldown/mastery.
+- Cooldown 0 không lưu record. Với cooldown >0 dùng readyAtTurn; cast được phép khi turn >= readyAtTurn.
+- Mastery tăng một lần sau khi outcome được quyết định; cast không có target không tăng combat mastery nếu category cần target.
 
-Preview tráº£ blocker, thiáº¿u bao nhiÃªu resource, cooldown cÃ²n láº¡i, power, costs vÃ  sources. snapshotKey rÃ ng buá»™c technique, character revision, membership revision, equipped Fate IDs vÃ  turn. Náº¿u state Ä‘á»•i trÆ°á»›c click, engine resolve láº¡i; UI xÃ¡c nháº­n láº¡i náº¿u cost/effect Ä‘á»•i.
+Preview trả blocker, thiếu bao nhiêu resource, cooldown còn lại, power, costs và sources. snapshotKey ràng buộc technique, character revision, membership revision, equipped Fate IDs và turn. Nếu state đổi trước click, engine resolve lại; UI xác nhận lại nếu cost/effect đổi.
 
-## 3. CÃ´ng PhÃ¡p â†’ TÃ´ng MÃ´n: catalog quyá»n lá»£i
+## 3. Công Pháp → Tông Môn: catalog quyền lợi
 
-KhÃ´ng cÃ i rule trong UI hoáº·c ghi Ä‘Ã¨ technique khi join. ThÃªm guildTechniquePolicies:
+Không cài rule trong UI hoặc ghi đè technique khi join. Thêm guildTechniquePolicies:
 
 ```ts
 GuildTechniquePolicy {
@@ -155,32 +155,32 @@ GuildTechniquePolicy {
 }
 ```
 
-### Ná»™i dung catalog máº«u Ä‘á»ƒ review
+### Nội dung catalog mẫu để review
 
-| ID máº«u | Scope | Äiá»u kiá»‡n | Hiá»‡u lá»±c Ä‘á» xuáº¥t |
+| ID mẫu | Scope | Điều kiện | Hiệu lực đề xuất |
 |---|---|---|---|
-| guild_common_manual_training | CÃ´ng PhÃ¡p mÃ´n Ä‘Ã£ há»c | membership active | +5% mastery gain |
-| guild_inner_manual_training | Ká»¹ thuáº­t Ä‘Æ°á»£c policy liá»‡t kÃª | rank inner+ | tá»•ng guild mastery cap +10% |
-| guild_elemental_array_support | tran_phap, element cá»§a mÃ´n | rank core+ vÃ  Ä‘á»‹a bÃ n/resource mÃ´n | +5% power, chá»‰ trong tráº­n phÃ¡p |
+| guild_common_manual_training | Công Pháp môn đã học | membership active | +5% mastery gain |
+| guild_inner_manual_training | Kỹ thuật được policy liệt kê | rank inner+ | tổng guild mastery cap +10% |
+| guild_elemental_array_support | tran_phap, element của môn | rank core+ và địa bàn/resource môn | +5% power, chỉ trong trận pháp |
 
-ÄÃ¢y lÃ  má»©c balance Ä‘á» xuáº¥t, khÃ´ng pháº£i claim ráº±ng má»i guild hiá»‡n cÃ³ Ä‘á»§ dá»¯ liá»‡u. Chá»‰ seed khi guild/rank/element Ä‘Æ°á»£c xÃ¡c nháº­n; khÃ´ng cáº¥p combat power toÃ n cá»¥c vÃ¬ membership Ä‘Æ¡n thuáº§n. Catalog validator bÃ¡o policy trá» ID/rank/category khÃ´ng tá»“n táº¡i.
+Đây là mức balance đề xuất, không phải claim rằng mọi guild hiện có đủ dữ liệu. Chỉ seed khi guild/rank/element được xác nhận; không cấp combat power toàn cục vì membership đơn thuần. Catalog validator báo policy trỏ ID/rank/category không tồn tại.
 
-### Snapshot vÃ  vÃ²ng Ä‘á»i membership
+### Snapshot và vòng đời membership
 
-guildTechniqueSnapshot(state,technique,context) tráº£ guildId, rankId, revision, valid, modifiers, sourceIds, blockers. Member há»£p lá»‡ pháº£i cÃ³ guild ID vÃ  rank trong catalog, status active, khÃ´ng suspended. Rank so qua canonical rank index, khÃ´ng so tÃªn hiá»ƒn thá»‹. KhÃ´ng cache qua turn; revision pháº£i tÄƒng á»Ÿ join/leave/promotion/demotion/suspension/reinstatement.
+guildTechniqueSnapshot(state,technique,context) trả guildId, rankId, revision, valid, modifiers, sourceIds, blockers. Member hợp lệ phải có guild ID và rank trong catalog, status active, không suspended. Rank so qua canonical rank index, không so tên hiển thị. Không cache qua turn; revision phải tăng ở join/leave/promotion/demotion/suspension/reinstatement.
 
-Teaching cáº§n cÃ¹ng guildId giá»¯a NPC vÃ  membership, NPC cÃ³ quyá»n dáº¡y, technique á»Ÿ vault snapshot, rank Ä‘á»§ vÃ  cost tráº£ Ä‘Æ°á»£c. Quyá»n dáº¡y khÃ´ng tá»± há»c skill.
+Teaching cần cùng guildId giữa NPC và membership, NPC có quyền dạy, technique ở vault snapshot, rank đủ và cost trả được. Quyền dạy không tự học skill.
 
-Join/leave/rank change/loyalty test Ä‘i qua transitionGuildMembership:
+Join/leave/rank change/loyalty test đi qua transitionGuildMembership:
 
-1. Validate membership/rank, transaction Ä‘ang chá», vÃ  policy.
-2. Ghi transition má»™t láº§n, tÄƒng revision, invalidate snapshot.
-3. Refresh derived stats nhÆ°ng khÃ´ng grant trÃ¹ng vÃ  khÃ´ng xÃ³a mastery/evolution.
-4. Training pending há»§y/hoÃ n theo receipt; project xá»­ lÃ½ theo SYS-02; transaction committed giá»¯ nguyÃªn.
-5. Leave/suspend thu há»“i ngay guild access, vault vÃ  teaching. Formation Ä‘Ã£ Ä‘áº·t cháº¡y Ä‘áº¿n expiry theo record; khÃ´ng cho Ä‘áº·t má»›i.
-6. Grant oncePerMember cÃ³ receipt vÄ©nh viá»…n theo member+guild; rejoin khÃ´ng cáº¥p láº¡i náº¿u policy khÃ´ng quy Ä‘á»‹nh cooldown/regrant.
+1. Validate membership/rank, transaction đang chờ, và policy.
+2. Ghi transition một lần, tăng revision, invalidate snapshot.
+3. Refresh derived stats nhưng không grant trùng và không xóa mastery/evolution.
+4. Training pending hủy/hoàn theo receipt; project xử lý theo SYS-02; transaction committed giữ nguyên.
+5. Leave/suspend thu hồi ngay guild access, vault và teaching. Formation đã đặt chạy đến expiry theo record; không cho đặt mới.
+6. Grant oncePerMember có receipt vĩnh viễn theo member+guild; rejoin không cấp lại nếu policy không quy định cooldown/regrant.
 
-## 4. CÃ´ng PhÃ¡p â†’ Tiáº¿n trÃ¬nh NhÃ¢n Váº­t: evolution trial
+## 4. Công Pháp → Tiến trình Nhân Vật: evolution trial
 
 ### Schema
 
@@ -204,23 +204,23 @@ TechniqueEvolutionDefinition {
 }
 ```
 
-Giá»¯ catalog techniqueEvolutions Ä‘ang cÃ³. Save cÅ© migrate eventKeys=[] vÃ  target theo rule hiá»‡n hÃ nh (elite 2, cultivation 5); khÃ´ng cáº¥p bÃ¹ progress.
+Giữ catalog techniqueEvolutions đang có. Save cũ migrate eventKeys=[] và target theo rule hiện hành (elite 2, cultivation 5); không cấp bù progress.
 
-### Event vÃ  idempotency
+### Event và idempotency
 
-recordTechniqueTrialEvent(state,{type,eventId,techniqueId,source}) lÃ  producer duy nháº¥t. Trial má»Ÿ khi learned, catalog cÃ³ evolution há»£p lá»‡, mastery Ä‘áº¡t threshold hiá»‡n há»¯u (stage 2), status locked. Má»Ÿ UI/load khÃ´ng tÄƒng progress.
+recordTechniqueTrialEvent(state,{type,eventId,techniqueId,source}) là producer duy nhất. Trial mở khi learned, catalog có evolution hợp lệ, mastery đạt threshold hiện hữu (stage 2), status locked. Mở UI/load không tăng progress.
 
-- cultivation: má»™t tick cho action tu luyá»‡n Ä‘Ã£ commit, eventId = cultivationActionId.
-- elite: má»™t tick cho encounter elite Ä‘Ã£ káº¿t thÃºc há»£p lá»‡, eventId = combatEncounterId, khÃ´ng pháº£i animation/turn/cast.
-- Chá»‰ trial cÃ¹ng type tÄƒng. requiresUse=true báº¯t buá»™c event techniqueId khá»›p.
+- cultivation: một tick cho action tu luyện đã commit, eventId = cultivationActionId.
+- elite: một tick cho encounter elite đã kết thúc hợp lệ, eventId = combatEncounterId, không phải animation/turn/cast.
+- Chỉ trial cùng type tăng. requiresUse=true bắt buộc event techniqueId khớp.
 - Duplicate key no-op; action preview/fail no-op.
-- progress = min(target, progress+1); chuyá»ƒn ready vÃ  log Ä‘Ãºng má»™t láº§n khi Ä‘á»§.
-- Trial ready/chosen khÃ´ng nháº­n tick thÃªm. Dá»n ledger sau khi hoÃ n táº¥t nhÆ°ng lÆ°u archive/hash bounded Ä‘á»ƒ ngÄƒn replay.
-- Event legacy thiáº¿u ID láº¥y tá»« canonical action/encounter sequence, khÃ´ng dÃ¹ng Date.now.
+- progress = min(target, progress+1); chuyển ready và log đúng một lần khi đủ.
+- Trial ready/chosen không nhận tick thêm. Dọn ledger sau khi hoàn tất nhưng lưu archive/hash bounded để ngăn replay.
+- Event legacy thiếu ID lấy từ canonical action/encounter sequence, không dùng Date.now.
 
-Chá»n branch cáº§n status ready, branch Ä‘Ãºng technique, requirements cÃ²n há»£p lá»‡ vÃ  actionId má»›i. Preview cho before/after, yÃªu cáº§u membership/path/Fate, irreversible vÃ  modifier bá»‹ cap. Náº¿u requirement máº¥t sau khi chá»n, evolution giá»¯ nguyÃªn nhÆ°ng modifier dormancy cho tá»›i khi Ä‘á»§ Ä‘iá»u kiá»‡n; khÃ´ng xÃ³a Ä‘áº§u tÆ°.
+Chọn branch cần status ready, branch đúng technique, requirements còn hợp lệ và actionId mới. Preview cho before/after, yêu cầu membership/path/Fate, irreversible và modifier bị cap. Nếu requirement mất sau khi chọn, evolution giữ nguyên nhưng modifier dormancy cho tới khi đủ điều kiện; không xóa đầu tư.
 
-## 5. Eligibility liÃªn káº¿t há»c/thi triá»ƒn/luyá»‡n CÃ´ng PhÃ¡p
+## 5. Eligibility liên kết học/thi triển/luyện Công Pháp
 
 ### Schema optional/backward-compatible
 
@@ -239,15 +239,15 @@ useRequirements?: RequirementSet;
 trainingRequirements?: RequirementSet;
 ```
 
-requiredFaction cÅ© tiáº¿p tá»¥c alias cho taintedFactionIds; tuyá»‡t Ä‘á»‘i khÃ´ng map sang guild membership. KhÃ´ng khai bÃ¡o requirements cÃ³ nghÄ©a lÃ  khÃ´ng thÃªm giá»›i háº¡n. fateScope máº·c Ä‘á»‹nh equipped khi rule yÃªu cáº§u Fate, trÃ¡nh Má»‡nh kho cáº¥p buff.
+requiredFaction cũ tiếp tục alias cho taintedFactionIds; tuyệt đối không map sang guild membership. Không khai báo requirements có nghĩa là không thêm giới hạn. fateScope mặc định equipped khi rule yêu cầu Fate, tránh Mệnh kho cấp buff.
 
 ### Scope
 
-- **Learn:** xÃ¡c minh source (grant/loot/teacher), realm, path/Fate/guild/faction vÃ  forbidden knowledge; ghi progress record má»™t láº§n.
-- **Use:** learned, realm, ongoing path/Fate/member rules, target, cooldown, cost. Chá»‰ requirement Ä‘Æ°á»£c khai bÃ¡o trong useRequirements lÃ m ongoing restriction.
-- **Training:** action Ä‘Ã£ commit, training requirements vÃ  action id chÆ°a dÃ¹ng. Guild mastery policy cÃ³ thá»ƒ Ã¡p dá»¥ng, tá»± tu váº«n cÃ³ base progress.
-- Má»—i scope dÃ¹ng cÃ¹ng evaluator, cÃ¹ng blocker shape vÃ  catalog IDs; rule sets cho phÃ©p phÃ¢n biá»‡t Ä‘iá»u kiá»‡n.
-- Ká»¹ nÄƒng learned nhÆ°ng khÃ´ng há»£p Ä‘iá»u kiá»‡n use trá»Ÿ thÃ nh derived dormant/blocked; khÃ´ng xÃ³a record/mastery.
+- **Learn:** xác minh source (grant/loot/teacher), realm, path/Fate/guild/faction và forbidden knowledge; ghi progress record một lần.
+- **Use:** learned, realm, ongoing path/Fate/member rules, target, cooldown, cost. Chỉ requirement được khai báo trong useRequirements làm ongoing restriction.
+- **Training:** action đã commit, training requirements và action id chưa dùng. Guild mastery policy có thể áp dụng, tự tu vẫn có base progress.
+- Mỗi scope dùng cùng evaluator, cùng blocker shape và catalog IDs; rule sets cho phép phân biệt điều kiện.
+- Kỹ năng learned nhưng không hợp điều kiện use trở thành derived dormant/blocked; không xóa record/mastery.
 
 ### Blocker
 
@@ -261,29 +261,29 @@ Blocker {
 }
 ```
 
-Thá»© tá»± á»•n Ä‘á»‹nh: learned â†’ realm â†’ path/Fate â†’ guild/faction â†’ target/cooldown â†’ resource. API giá»¯ code ká»¹ thuáº­t; UI dÃ¹ng playerFacingReason.
+Thứ tự ổn định: learned → realm → path/Fate → guild/faction → target/cooldown → resource. API giữ code kỹ thuật; UI dùng playerFacingReason.
 
-### Recheck khi state Ä‘á»•i
+### Recheck khi state đổi
 
-| Sá»± kiá»‡n | TÃ­nh láº¡i | Giá»¯ nguyÃªn | Hiá»‡u lá»±c |
+| Sự kiện | Tính lại | Giữ nguyên | Hiệu lực |
 |---|---|---|---|
-| Equip/unequip Fate | resonance + Fate requirement | technique progress | cast káº¿ tiáº¿p |
-| Äá»•i path | use eligibility + affinity | ownership/mastery | dormant/blocker náº¿u lá»‡ch |
-| Äá»•i realm | min/max realm | má»i progress | má»Ÿ/khÃ³a táº¡m |
-| Join/rank/leave/suspend mÃ´n | policy snapshot + guild requirement | ownership/mastery | access/bonus tá»©c thÃ¬ |
-| Äá»•i phe tÃ  | tainted faction requirement | guild membership | faction blocker riÃªng |
-| LuÃ¢n Há»“i | transfer policy/preview | chá»‰ record Ä‘Æ°á»£c giá»¯ | khÃ´ng káº¿ thá»«a guild bonus ngáº§m |
+| Equip/unequip Fate | resonance + Fate requirement | technique progress | cast kế tiếp |
+| Đổi path | use eligibility + affinity | ownership/mastery | dormant/blocker nếu lệch |
+| Đổi realm | min/max realm | mọi progress | mở/khóa tạm |
+| Join/rank/leave/suspend môn | policy snapshot + guild requirement | ownership/mastery | access/bonus tức thì |
+| Đổi phe tà | tainted faction requirement | guild membership | faction blocker riêng |
+| Luân Hồi | transfer policy/preview | chỉ record được giữ | không kế thừa guild bonus ngầm |
 
-Character generator cáº¥p starter techniques qua originGrant cÃ³ audit source; grant pháº£i gá»i cÃ¹ng validator á»Ÿ cháº¿ Ä‘á»™ khá»Ÿi táº¡o, khÃ´ng Ä‘Æ°á»£c má»Ÿ lá»— há»•ng cho learn API thÃ´ng thÆ°á»ng.
+Character generator cấp starter techniques qua originGrant có audit source; grant phải gọi cùng validator ở chế độ khởi tạo, không được mở lỗ hổng cho learn API thông thường.
 
-## Migration, validator vÃ  API triá»ƒn khai
+## Migration, validator và API triển khai
 
-- Optional fields/defaults cÃ³ thá»ƒ khÃ´ng tÄƒng save version; action ledger hoáº·c cross-system semantics má»›i pháº£i ghi featureVersions.techniqueCrossSystem=1.
-- Migration chá»‰ táº¡o field rá»—ng/default, khÃ´ng reward, khÃ´ng tÄƒng mastery/trial.
-- Unknown requirement key: catalog diagnostic; production fallback neutral nhÆ°ng dev/regression gate fail.
-- Unknown evolution/policy save: giá»¯ raw progress, modifier dormant, migration note; khÃ´ng xÃ³a mastery.
-- Catalog validator kiá»ƒm tra IDs technique/path/Fate/guild/rank/element, realm range, target dÆ°Æ¡ng, cap há»¯u háº¡n, khÃ´ng NaN/modifier lá»—i.
-- State validator kiá»ƒm tra progress range, event/action ID unique vÃ  bounded, ready Ä‘áº¡t target, chosen cÃ³ evolution há»£p lá»‡, membership rank há»£p lá»‡, snapshot khÃ´ng stale.
+- Optional fields/defaults có thể không tăng save version; action ledger hoặc cross-system semantics mới phải ghi featureVersions.techniqueCrossSystem=1.
+- Migration chỉ tạo field rỗng/default, không reward, không tăng mastery/trial.
+- Unknown requirement key: catalog diagnostic; production fallback neutral nhưng dev/regression gate fail.
+- Unknown evolution/policy save: giữ raw progress, modifier dormant, migration note; không xóa mastery.
+- Catalog validator kiểm tra IDs technique/path/Fate/guild/rank/element, realm range, target dương, cap hữu hạn, không NaN/modifier lỗi.
+- State validator kiểm tra progress range, event/action ID unique và bounded, ready đạt target, chosen có evolution hợp lệ, membership rank hợp lệ, snapshot không stale.
 
 ```js
 buildTechniqueContext(state, options)
@@ -298,69 +298,69 @@ validateTechniqueCrossSystemCatalog()
 validateTechniqueCrossSystemState(state)
 ```
 
-Engine sá»Ÿ há»¯u eligibility, cost/effect resolver vÃ  transaction. Expansion sá»Ÿ há»¯u policy catalog, event producers vÃ  membership hooks. UI chá»‰ render preview DTO rá»“i gá»­i stance/target/action ID. KhÃ´ng tÃ­nh cost/rank/resonance trong UI.
+Engine sở hữu eligibility, cost/effect resolver và transaction. Expansion sở hữu policy catalog, event producers và membership hooks. UI chỉ render preview DTO rồi gửi stance/target/action ID. Không tính cost/rank/resonance trong UI.
 
 ## Acceptance matrix
 
-### 1 â€” Fate resonance
+### 1 — Fate resonance
 
-- Hai Fate equipped cÃ¹ng element = +2%; duplicate ID chá»‰ +1%; cap +5%.
-- Fate trong kho, suppressed hoáº·c unknown element khÃ´ng cáº¥p bonus.
-- Preview vÃ  hit dÃ¹ng cÃ¹ng coefficient; thay Fate giá»¯a preview/commit buá»™c resolve láº¡i.
-- generates/overcomes khÃ´ng cho bonus ngoÃ i policy.
+- Hai Fate equipped cùng element = +2%; duplicate ID chỉ +1%; cap +5%.
+- Fate trong kho, suppressed hoặc unknown element không cấp bonus.
+- Preview và hit dùng cùng coefficient; thay Fate giữa preview/commit buộc resolve lại.
+- generates/overcomes không cho bonus ngoài policy.
 
-### 2 â€” Preview/commit
+### 2 — Preview/commit
 
-- Preview vÃ  receipt cast khá»›p cáº£ ba stance.
-- Invalid stance, resource thiáº¿u, cooldown, target sai: resource/cooldown/mastery khÃ´ng Ä‘á»•i.
-- Retry action ID khÃ´ng láº·p cost/effect; SAN=0 tráº£ committed outcome rÃµ.
-- Evolution/Fate/guild/weather Ä‘Ãºng thá»© tá»±, má»—i nguá»“n Ä‘Ãºng má»™t láº§n.
+- Preview và receipt cast khớp cả ba stance.
+- Invalid stance, resource thiếu, cooldown, target sai: resource/cooldown/mastery không đổi.
+- Retry action ID không lặp cost/effect; SAN=0 trả committed outcome rõ.
+- Evolution/Fate/guild/weather đúng thứ tự, mỗi nguồn đúng một lần.
 
-### 3 â€” Guild policy
+### 3 — Guild policy
 
-- Nonmember/suspended/rank tháº¥p khÃ´ng nháº­n modifier/teaching.
-- Rank change invalidates snapshot tá»©c thÃ¬.
-- Leave thu há»“i quyá»n lá»£i nhÆ°ng giá»¯ skill/mastery/evolution.
-- Rejoin khÃ´ng nháº­n one-time grant hai láº§n; pending training xá»­ lÃ½ qua receipt.
+- Nonmember/suspended/rank thấp không nhận modifier/teaching.
+- Rank change invalidates snapshot tức thì.
+- Leave thu hồi quyền lợi nhưng giữ skill/mastery/evolution.
+- Rejoin không nhận one-time grant hai lần; pending training xử lý qua receipt.
 
-### 4 â€” Trial
+### 4 — Trial
 
-- Event láº·p khÃ´ng tÄƒng; sai type/preview/fail khÃ´ng tÄƒng.
-- Hai elite encounter ID khÃ¡c nhau tÄƒng Ä‘Ãºng 2; gá»i producer láº·p cho má»™t encounter váº«n tÄƒng 1.
-- Progress khÃ´ng vÆ°á»£t target, ready/chosen khÃ´ng tÄƒng tiáº¿p.
-- Save/load giá»¯ idempotency vÃ  ledger bounded.
+- Event lặp không tăng; sai type/preview/fail không tăng.
+- Hai elite encounter ID khác nhau tăng đúng 2; gọi producer lặp cho một encounter vẫn tăng 1.
+- Progress không vượt target, ready/chosen không tăng tiếp.
+- Save/load giữ idempotency và ledger bounded.
 
-### 5 â€” Eligibility
+### 5 — Eligibility
 
-- Learn/use/training Ä‘Æ°á»£c kiá»ƒm tra riÃªng; catalog cÅ© khÃ´ng khai bÃ¡o rule váº«n tÆ°Æ¡ng thÃ­ch.
-- requiredFaction váº«n lÃ  phe tÃ ; guild kiá»ƒm tra riÃªng.
-- Äá»•i path/Fate/realm/membership táº¡o blocker/dormant nhÆ°ng khÃ´ng xÃ³a record.
-- Legacy vÃ  unknown requirement save round-trip an toÃ n, cÃ³ diagnostic.
-- Starter grant cÃ³ provenance vÃ  khÃ´ng bypass learn API.
+- Learn/use/training được kiểm tra riêng; catalog cũ không khai báo rule vẫn tương thích.
+- requiredFaction vẫn là phe tà; guild kiểm tra riêng.
+- Đổi path/Fate/realm/membership tạo blocker/dormant nhưng không xóa record.
+- Legacy và unknown requirement save round-trip an toàn, có diagnostic.
+- Starter grant có provenance và không bypass learn API.
 
 ### End-to-end
 
-Táº¡o nhÃ¢n váº­t â†’ há»c tá»« TÃ´ng MÃ´n â†’ tÄƒng mastery â†’ má»Ÿ trial â†’ nháº­n event duy nháº¥t â†’ chá»n evolution â†’ equip/unequip Fate â†’ preview/cast ba stance â†’ lÃªn/xuá»‘ng háº¡ng/rá»i mÃ´n â†’ Ä‘á»•i path/realm â†’ save/load/luÃ¢n há»“i preview. KhÃ´ng máº¥t mastery, khÃ´ng giá»¯ bonus guild khi háº¿t tÆ° cÃ¡ch vÃ  khÃ´ng cá»™ng trÃ¹ng Fate/evolution.
+Tạo nhân vật → học từ Tông Môn → tăng mastery → mở trial → nhận event duy nhất → chọn evolution → equip/unequip Fate → preview/cast ba stance → lên/xuống hạng/rời môn → đổi path/realm → save/load/luân hồi preview. Không mất mastery, không giữ bonus guild khi hết tư cách và không cộng trùng Fate/evolution.
 
-## Quyáº¿t Ä‘á»‹nh cáº§n review
+## Quyết định cần review
 
-1. Duyá»‡t resonance +1%/Fate cÃ¹ng nguyÃªn tá»‘, cap +5%, chá»‰ combat.
-2. Duyá»‡t guarded giáº£m SAN/Corruption cost, chÆ°a giáº£m incoming damage/risk.
-3. Chá»n báº­t ba guild policy máº«u hay chá»‰ dá»±ng framework trÆ°á»›c khi cÃ¢n báº±ng.
-4. Duyá»‡t ráº±ng guild restriction chá»‰ ongoing náº¿u Ä‘Æ°á»£c khai bÃ¡o trong useRequirements; máº·c Ä‘á»‹nh skill Ä‘Ã£ há»c khÃ´ng tá»± khÃ³a.
-5. Duyá»‡t ledger 64 event/action IDs, migration rá»—ng vÃ  khÃ´ng cáº¥p bÃ¹.
+1. Duyệt resonance +1%/Fate cùng nguyên tố, cap +5%, chỉ combat.
+2. Duyệt guarded giảm SAN/Corruption cost, chưa giảm incoming damage/risk.
+3. Chọn bật ba guild policy mẫu hay chỉ dựng framework trước khi cân bằng.
+4. Duyệt rằng guild restriction chỉ ongoing nếu được khai báo trong useRequirements; mặc định skill đã học không tự khóa.
+5. Duyệt ledger 64 event/action IDs, migration rỗng và không cấp bù.
 
-### Runtime update â€” 2026-09-22
+### Runtime update — 2026-09-22
 
-ÄÃ£ Ã¡p dá»¥ng:
+Đã áp dụng:
 
-- Fate resonance Ä‘á»c element canonical cá»§a Fate Ä‘ang kÃ­ch hoáº¡t, loáº¡i trá»« Má»‡nh cÃ²n bá»‹ Tráº¥n Má»‡nh vÃ  cap á»Ÿ +5% combat power.
-- Stance Ä‘Æ°á»£c chá»n trÆ°á»›c khi xÃ¡c nháº­n; preview hiá»ƒn thá»‹ cost theo stance vÃ  dá»± bÃ¡o sÃ¡t thÆ°Æ¡ng. Preview vÃ  cast gá»i chung combat projection cho mastery, evolution, nguyÃªn tá»‘, resonance, world modifier, stance vÃ  matchup.
-- CÃ³ catalog heavenly treasure riÃªng trong expansion data; map event hiá»‡n há»¯u láº¥y loáº¡i/niÃªn Ä‘áº¡i tá»« catalog. Claim cÃ³ receipt vÃ  validator kiá»ƒm tra ID, stat whitelist, amount, báº£ng niÃªn Ä‘áº¡i/trá»ng sá»‘ vÃ  multiplier.
-- CÃ³ catalog guild technique policies. MVP Ã¡p dá»¥ng mastery bonus giá»›i háº¡n cho technique do Ä‘Ãºng TÃ´ng MÃ´n truyá»n thá»¥; snapshot Ä‘á»c membership/rank hiá»‡n táº¡i vÃ  membership revision tÄƒng khi join/leave/promotion.
-- Trial evolution lÆ°u eventKeys bounded, target rÃµ, deduplicate theo action/encounter ID, cap progress vÃ  validate ngÆ°á»¡ng.
-- Evaluator Ä‘iá»u kiá»‡n learn/use/training há»— trá»£ realm, path ID/tag, Fate ID/element/sá»‘ Má»‡nh, guild/rank, faction tÃ , forbidden knowledge vÃ  vá»‹ trÃ­ luyá»‡n táº­p. Ká»¹ nÄƒng Ä‘Ã£ há»c khÃ´ng bá»‹ xÃ³a khi táº¡m máº¥t Ä‘iá»u kiá»‡n.
+- Fate resonance đọc element canonical của Fate đang kích hoạt, loại trừ Mệnh còn bị Trấn Mệnh và cap ở +5% combat power.
+- Stance được chọn trước khi xác nhận; preview hiển thị cost theo stance và dự báo sát thương. Preview và cast gọi chung combat projection cho mastery, evolution, nguyên tố, resonance, world modifier, stance và matchup.
+- Có catalog heavenly treasure riêng trong expansion data; map event hiện hữu lấy loại/niên đại từ catalog. Claim có receipt và validator kiểm tra ID, stat whitelist, amount, bảng niên đại/trọng số và multiplier.
+- Có catalog guild technique policies. MVP áp dụng mastery bonus giới hạn cho technique do đúng Tông Môn truyền thụ; snapshot đọc membership/rank hiện tại và membership revision tăng khi join/leave/promotion.
+- Trial evolution lưu eventKeys bounded, target rõ, deduplicate theo action/encounter ID, cap progress và validate ngưỡng.
+- Evaluator điều kiện learn/use/training hỗ trợ realm, path ID/tag, Fate ID/element/số Mệnh, guild/rank, faction tà, forbidden knowledge và vị trí luyện tập. Kỹ năng đã học không bị xóa khi tạm mất điều kiện.
 
-ChÆ°a báº­t trong MVP: path resonance má»›i hiá»ƒn thá»‹ affinity, chÆ°a cá»™ng power; chÆ°a cÃ³ guild power bonus tráº­n phÃ¡p; chÆ°a cÃ³ má»™t hÃ m resolver bao trÃ¹m toÃ n bá»™ Ä‘iá»u kiá»‡n learn/use/training/cast. RiÃªng cost Ä‘Ã£ dÃ¹ng chung resolver cho preview vÃ  cast. Cast cÃ³ action receipt trong save, giá»¯ tá»‘i Ä‘a 64 action gáº§n nháº¥t; receipt chá»‘ng retry trong save hiá»‡n táº¡i nhÆ°ng khÃ´ng chá»‘ng replay náº¿u táº£i láº¡i save Ä‘Æ°á»£c táº¡o trÆ°á»›c cast. CÃ¡c pháº§n cÃ²n thiáº¿u nÃ y giá»¯ trong Ä‘áº·c táº£ Ä‘á»ƒ review trÆ°á»›c khi má»Ÿ rá»™ng.
+Implementation update (2026-09-22): combat resonance now counts unique active, unsuppressed Fate IDs and shares one +5% cap between canonical same-element and explicit path-affinity matches. Guild-taught formations snapshot their source guild; an active formation grants +5% combat power only for an active disciple-rank-or-higher member, with the policy sourced and capped by catalog. Eligibility rechecks unique active Fate requirements and suspended membership; preview/cast share the technique cost resolver. UI-generated technique action IDs carry a monotonic sequence and save a high-water mark, so an evicted receipt cannot be replayed. Legacy saves without that marker retain neutral behavior and learned progress.
 
-ÄÃ£ cháº¡y regression suite: cÃ¡c kiá»ƒm tra gameplay, UI contract, log vÃ  catalog Ä‘á»u pass. Hai gate encoding cÃ²n fail trÃªn hai tÃ i liá»‡u constellation cÅ© Ä‘Ã£ Ä‘Æ°á»£c giá»¯ nguyÃªn theo yÃªu cáº§u; Ä‘Ã¢y khÃ´ng pháº£i file do patch nÃ y sá»­a.
+Cập nhật 2026-09-22: runtime resonance, quyền lợi trận pháp và replay guard đã được áp dụng; xem phụ lục triển khai cuối tài liệu. Trạng thái regression suite được xác nhận riêng theo lượt chạy mới nhất.

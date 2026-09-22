@@ -482,7 +482,8 @@ function testMultiVersionMigrationFixtures() {
   assert(v7Audit.valid, "v7 migration must satisfy current expansion invariants: " + JSON.stringify(v7Audit.errors));
   const roundTrip = E.deserialize(E.serialize(restoredV7));
   assert.strictEqual(roundTrip.professionState.secondaryId, restoredV7.professionState.secondaryId);
-  assert(E.validateExpansionState(roundTrip).valid, "migrated state must remain valid after canonical round-trip");
+  const roundTripAudit = E.validateExpansionState(roundTrip);
+  assert(roundTripAudit.valid, "migrated state must remain valid after canonical round-trip: " + JSON.stringify(roundTripAudit.errors));
 }
 
 function testWeatherCatalogTransitions() {
@@ -537,10 +538,10 @@ function testWarCascadeAndOfflineDeterminism() {
 function testTravelPreviewCommitParity() {
   const state = makeState();
   const direction = "bac";
-  const probe = makeState();
-  sandbox.window.GameEngine.move(probe, direction);
-  const target = probe.locationId;
-  assert(target && target !== state.locationId, "QA start node must have a valid Oxy neighbor");
+  sandbox.window.GameEngine.localBfsConstellation(state, 39);
+  const origin = state.locationId;
+  const target = sandbox.window.GameEngine.locationExits(state)[direction];
+  assert(target && target !== origin, "QA start node must have a valid Oxy neighbor");
   const preview = sandbox.window.GameExpansion.travelPlan(state, state.locationId, target, "walk");
   assert(preview.success, JSON.stringify(preview));
   assert(preview.influence && Number.isFinite(preview.risk));
@@ -666,7 +667,7 @@ function testFateAdvancedActionNamespace() {
   state.player.fates[0] = hung.id; state.player.san = 100;
   E.updateDerived(state);
   assert(E.defyFate(state, hung.id).success);
-  for (let use = 1; use < 5; use += 1) assert(E.defyFate(state, hung.id).success, "Nghịch Mệnh should allow the first five uses");
+  for (let use = 1; use < 5; use += 1) { state.player.san = 100; assert(E.defyFate(state, hung.id).success, "Nghịch Mệnh should allow the first five uses"); }
   const sanAtCap = state.player.san;
   const cappedDefiance = E.defyFate(state, hung.id);
   assert(!cappedDefiance.success && cappedDefiance.code === "MAX_USES" && state.player.san === sanAtCap, "sixth Nghịch Mệnh must fail without consuming SAN");
@@ -721,6 +722,43 @@ function testProfessionCanonicalReadBoundary() {
   assert(!sandbox.window.GameExpansion.validateProfessionNamespace(state).ok, "hidden profession cannot occupy primary slot");
 }
 
+function testTechniqueResonanceAndReplayFloor() {
+  const state = makeState();
+  const id = "kiem_khi_so_cap", technique = E.techniqueCatalog()[id];
+  state.player.pathId = "kiem_dao";
+  state.player.techniques[id] = { masteryExp: 0, masteryStage: 0, usageCount: 0 };
+  const fate = sandbox.window.GameData.FATE_PATTERNS.find((entry) => E.fatePathAffinity(entry).lead.includes("kiem_dao") || E.fatePathAffinity(entry).support.includes("kiem_dao"));
+  assert(fate, "catalog includes path-affinity Fate for resonance coverage");
+  state.player.fates = [fate.id, fate.id];
+  state.guildMembership = { guildId: "thien_huyen_tong", rankId: "disciple", status: "active" };
+  state.flags.activeFormation = { techniqueId: "huyen_mon_tran_giai", sourceGuildId: "thien_huyen_tong", untilTurn: state.meta.turn + 3 };
+  assert.strictEqual(sandbox.window.GameExpansion.guildTechniqueCombatBonus(state, technique).powerPct, 5, "guild taught active formation grants capped combat support at disciple rank");
+  state.guildMembership.suspended = true;
+  assert.strictEqual(sandbox.window.GameExpansion.guildTechniqueCombatBonus(state, technique).powerPct, 0, "suspended membership loses formation support");
+  state.guildMembership.suspended = false;
+  state.flags.activeFormation.sourceGuildId = "other_guild";
+  assert.strictEqual(sandbox.window.GameExpansion.guildTechniqueCombatBonus(state, technique).powerPct, 0, "formation from another guild grants no support");
+  state.flags.activeFormation.sourceGuildId = "thien_huyen_tong";
+  state.flags.activeFormation.untilTurn = state.meta.turn - 1;
+  assert.strictEqual(sandbox.window.GameExpansion.guildTechniqueCombatBonus(state, technique).powerPct, 0, "expired formation grants no support");
+  state.flags.activeFormation.untilTurn = state.meta.turn + 3;
+  const preview = E.techniquePreview(state, id);
+  assert(preview.success && preview.pathResonanceFates.includes(fate.id), "path resonance includes active matching Fate");
+  assert.strictEqual(preview.guildCombatPowerPct, 5, "preview includes active guild formation bonus");
+  assert(preview.fateResonancePct <= 1, "duplicate Fate IDs only count once");
+  state.player.suppressedFates ||= {};
+  state.player.suppressedFates[fate.id] = { untilTurn: state.meta.turn + 10 };
+  assert(!E.techniquePreview(state, id).pathResonanceFates.includes(fate.id), "suppressed Fate cannot grant path resonance");
+  delete state.player.suppressedFates[fate.id];
+  const first = E.useTechnique(state, id, { actionId: "technique-ui:1", confirmed: true });
+  assert(first.success, "first sequenced cast resolves");
+  const qiAfter = state.player.qi;
+  delete state.player.techniqueActionReceipts["technique-ui:1"];
+  const replay = E.useTechnique(state, id, { actionId: "technique-ui:1", confirmed: true });
+  assert(!replay.success && replay.duplicate && state.player.qi === qiAfter, "evicted cast receipt cannot be replayed after save/load-style ledger loss");
+}
+
+testTechniqueResonanceAndReplayFloor();
 testMapCanonical();
 testInfluenceOfflineAndInvalidation();
 testStructureOwnershipLifecycle();

@@ -34,7 +34,8 @@ function main() {
     assert(actorRecords.length > 0, "detailed actor window must retain actor history");
     assert(actorRecords.every((entry) => entry.day && entry.nodeId !== undefined && entry.aiState), "actor history record must expose state projection");
     assert(Object.values(actorHistory).every((entries) => entries.length <= 30), "actor history retention exceeded detailed window");
-    assert(E.validateExpansionState(state).valid);
+    const stateAudit = E.validateExpansionState(state);
+    assert(stateAudit.valid, JSON.stringify(stateAudit.errors));
     const inventoryAfterOffline = JSON.stringify(state.inventory);
     Object.values(state.inventory || {}).forEach((quantity) => assert(Number.isFinite(Number(quantity)) && Number(quantity) >= 0, "offline simulation produced invalid inventory"));
     E.simulateWorldUntil(state, target, { offline: true });

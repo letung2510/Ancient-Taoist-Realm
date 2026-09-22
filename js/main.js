@@ -340,6 +340,14 @@
         else alert("Hành động này hiện không còn khả dụng trong bối cảnh hiện tại.");
         return;
       }
+      const worldEventChoice = event.target.closest("[data-world-event-action]");
+      if (worldEventChoice && state && !worldEventChoice.disabled) {
+        const actionId = worldEventChoice.dataset.worldEventAction;
+        const actionButton = [...document.querySelectorAll("#action-list [data-action-id]")].find((button) => button.dataset.actionId === actionId);
+        if (actionButton) actionButton.click();
+        else alert("Lựa chọn biến cố không còn khả dụng trong pha hiện tại.");
+        return;
+      }
       const modalButton = event.target.closest("[data-expansion-modal]");
       if (modalButton && state) {
         const type = modalButton.dataset.expansionModal;
@@ -978,6 +986,8 @@
     if (preview.combatPreview) lines.push("Sát thương dự kiến: " + preview.combatPreview.damageMin + "–" + preview.combatPreview.damageMax);
     if (preview.fateResonanceFates?.length) lines.push("Cộng hưởng Mệnh: " + preview.fateResonanceFates.length + " Mệnh đang kích hoạt");
     if (preview.family === "cam_thuat") lines.push("", "⚠ CẤM THUẬT — thi triển sẽ gây phản phệ. Xác nhận?"); else lines.push("", "Xác nhận thi triển?");
+    if (preview.pathResonanceFates?.length) lines.push("Cộng hưởng Con Đường: " + preview.pathResonanceFates.length + " Mệnh · +" + preview.fateResonancePct + "% uy lực");
+    if (preview.guildCombatPowerPct > 0) lines.push("Trận pháp Tông Môn: +" + preview.guildCombatPowerPct + "% uy lực (" + (preview.guildCombatSources || []).join(", ") + ")");
     if (!confirm(lines.join("\n"))) return;
     state.player.techniqueActionSequence = Number(state.player.techniqueActionSequence || 0) + 1;
     const actionId = "technique-ui:" + state.player.techniqueActionSequence;

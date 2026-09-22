@@ -16,7 +16,8 @@
   const GRADE_RANK = { pham: 1, phan: 1, linh: 2, huyen: 3, dia: 4, thien: 5, tien: 6 };
   const clamp = (value, min, max) => Math.max(min, Math.min(max, Number(value) || 0));
   const copy = (value) => JSON.parse(JSON.stringify(value));
-  const currentRegion = (state) => D.WORLD_MAP?.locations?.[state.locationId]?.region || D.LOCATIONS?.[state.locationId]?.region || "trung_vuc";
+  const runtimeLocationPool = (state) => E.locationPool ? E.locationPool(state) : (D.LOCATIONS || {});
+  const currentRegion = (state) => D.WORLD_MAP?.locations?.[state.locationId]?.region || runtimeLocationPool(state)?.[state.locationId]?.region || "trung_vuc";
   const absoluteDay = (clock) => {
     const playerDay = (Number(clock?.currentYear || 1) - 1) * 360 + (Number(clock?.currentMonth || 1) - 1) * 30 + Number(clock?.currentDay || 1);
     const mirroredWorldDay = Number(clock?.worldAbsoluteDay || 0);
@@ -27,10 +28,10 @@
   const gameDayOrdinal = (stateOrClock) => absoluteDay(stateOrClock?.gameClock || stateOrClock);
   const playerDay = (state) => Math.max(1, (Number(state?.gameClock?.currentYear || 1) - 1) * 360 + (Number(state?.gameClock?.currentMonth || 1) - 1) * 30 + Number(state?.gameClock?.currentDay || 1));
   const pairKey = (a, b) => [String(a), String(b)].sort().join("::");
-  function normalizeNpcRoutine(routine, npc) {
+  function normalizeNpcRoutine(routine, npc, state) {
     const valid = Array.isArray(routine) ? routine.filter((entry) => Number.isFinite(Number(entry.hourStart)) && Number.isFinite(Number(entry.hourEnd)) && entry.subLocationId && entry.activity) : [];
     if (valid.length) return valid.map((entry) => ({ ...entry, hourStart: clamp(Math.floor(Number(entry.hourStart)), 0, 23), hourEnd: clamp(Math.floor(Number(entry.hourEnd)), 0, 24) }));
-    const node = D.LOCATIONS?.[npc?.homeNodeId || npc?.currentNodeId], spots = node?.subLocations || [];
+    const node = runtimeLocationPool(state)?.[npc?.homeNodeId || npc?.currentNodeId], spots = node?.subLocations || [];
     const findSpot = (pattern) => spots.find((spot) => pattern.test(String(spot.type || "") + " " + String(spot.displayName || spot.name || spot.id || "")))?.id || spots[0]?.id || "main";
     const role = String(npc?.role || "").toLowerCase(), merchant = /merchant|thương|buôn|shop/.test(role), guard = /guard|patrol|hộ|tuần/.test(role), cultivator = /cultiv|tu_si|tu sĩ|disciple/.test(role);
     const daytime = merchant ? findSpot(/market|shop|sạp|quán|buôn/i) : guard ? findSpot(/gate|wall|cổng|tuần|ngoài/i) : cultivator ? findSpot(/training|courtyard|sân|luyện|tĩnh|tu hành/i) : findSpot(/public|main|chính|quán|điểm/i);
@@ -45,11 +46,11 @@
   }
   function npcHour(state) { return (8 + Math.floor(clamp(Number(state.gameClock?.dayProgress || 0), 0, 0.999999) * 24)) % 24; }
   function npcRoutineAt(state, npc) {
-    const hour = npcHour(state), routine = normalizeNpcRoutine(npc?.dailyRoutine, npc);
+    const hour = npcHour(state), routine = normalizeNpcRoutine(npc?.dailyRoutine, npc, state);
     return routine.find((entry) => entry.hourStart <= hour && hour < entry.hourEnd) || routine[0] || { activity: "present", subLocationId: npc?.currentSubLocationId || "main", hourStart: hour, hourEnd: hour + 1 };
   }
   function syncNpcRoutine(state, npc) {
-    const routine = npcRoutineAt(state, npc), spots = D.LOCATIONS?.[npc.currentNodeId]?.subLocations || [];
+    const routine = npcRoutineAt(state, npc), spots = runtimeLocationPool(state)?.[npc.currentNodeId]?.subLocations || [];
     const woken = npc.wokenAtDay === absoluteDay(state.gameClock) && routine.activity === "ngu";
     npc.currentActivity = woken ? "awake" : routine.activity;
     if (routine.activity === "ngu" && !woken) npc.aiState = "sleeping";
@@ -195,7 +196,7 @@
       if (snapshot.organization.organizationKind !== "faction" || relation.reputation < 10) return { success: false, reason: "Chỉ có thể điều đình với faction khi đã có danh tiếng." };
       record({ reputation: 3, trust: 5, favor: 2 });
     } else return { success: false, reason: "Tương tác tổ chức không hợp lệ." };
-    const nodeName = D.LOCATIONS?.[snapshot.address?.nodeId]?.name || snapshot.organization.name;
+    const nodeName = runtimeLocationPool(state)?.[snapshot.address?.nodeId]?.name || snapshot.organization.name;
     const coordinate = snapshot.address?.oxyNode ? " tại tọa độ " + snapshot.address.oxyNode.x + ", " + snapshot.address.oxyNode.y : "";
     const actionText = { donate: "dâng lễ vật để đổi lấy thiện cảm", request_aid: "cầu viện trợ", commission: "nhận một ủy thác thường", commission_special: "nhận một ủy thác đặc biệt", commission_life: "nhận một ủy thác sinh tử", share_intel: "trao một tin tình báo", mediate: "đứng ra điều đình" }[action] || "xem xét quan hệ";
     history(state, "narr", "Tại " + nodeName + coordinate + ", ngươi " + actionText + " cho " + snapshot.organization.name + ". Mối quan hệ hiện ở trạng thái " + organizationSnapshot(state, organizationId).relation.status + ".");
@@ -383,9 +384,9 @@
   const fateName = (id) => fateDef(id)?.name || "Mệnh Số chưa định danh";
   const CONTRACT_LABELS = { hunt: "Truy Săn", escort: "Hộ Tống", retrieve: "Thu Hồi", investigate: "Điều Tra", capture: "Bắt Sống" };
   function formatContractName(contract) { return CONTRACT_LABELS[contract?.templateId] || "Khế Ước"; }
-  function formatContractTarget(contract) {
+  function formatContractTarget(contract, state = null) {
     if (contract?.targetEntityId) return D.NPCS?.[contract.targetEntityId]?.name || D.ENTITIES?.[contract.targetEntityId]?.name || "mục tiêu được chỉ định";
-    if (contract?.targetLocationId) return D.LOCATIONS?.[contract.targetLocationId]?.name || "khu vực được chỉ định";
+    if (contract?.targetLocationId) return (state ? runtimeLocationPool(state)?.[contract.targetLocationId] : D.LOCATIONS?.[contract.targetLocationId])?.name || "khu vực được chỉ định";
     if (contract?.targetItemId) return itemName(contract.targetItemId);
     return "mục tiêu theo dấu";
   }
@@ -543,7 +544,7 @@
       sim.factionState[faction.id] = sim.factionState[faction.id] || { factionId: faction.id, power: Math.max(1, Number(faction.scale || 3) * 10), resources: 100, stability: 70, reputationWithPlayer: 0, ownedNodeIds: [], traits: (faction.traits || []).slice(), lastInternalEventDay: 0, activeProjectId: null };
     });
     Object.keys(D.NPCS || {}).slice(0, 20).forEach((npcId, index) => {
-      const home = Object.keys(D.LOCATIONS || {}).find((locId) => D.LOCATIONS[locId]?.npcs?.includes(npcId)) || state.homeLocationId || state.locationId;
+      const home = Object.keys(runtimeLocationPool(state) || {}).find((locId) => runtimeLocationPool(state)[locId]?.npcs?.includes(npcId)) || state.homeLocationId || state.locationId;
       const definition = D.NPCS[npcId] || {}; const traits = Array.isArray(definition.traits) ? definition.traits : [];
       const mobileTrait = traits.some((trait) => /du hành|thương|wander|merchant|itinerant/i.test(String(trait))) || /merchant|thương nhân|lữ khách|du hành/i.test(String(definition.role || definition.title || ""));
       const scheduleType = mobileTrait ? "itinerant" : traits.some((trait) => /tuần tra|patrol/i.test(String(trait))) ? "patrol" : index % 4 === 0 ? "patrol" : "static";
@@ -551,7 +552,7 @@
       const runtime = sim.npcState[npcId];
       runtime.aiState ||= "idle"; runtime.rumorLedger ||= {}; runtime.needs ||= { shelter: 0, social: 0, duty: 0 };
       runtime.name ||= definition.name || npcId; runtime.role ||= definition.role || definition.dialogueProfileId || "traveler";
-      runtime.dailyRoutine = normalizeNpcRoutine(runtime.dailyRoutine || definition.dailyRoutine, runtime);
+      runtime.dailyRoutine = normalizeNpcRoutine(runtime.dailyRoutine || definition.dailyRoutine, runtime, state);
       sim.npcState[npcId].rumors = (Array.isArray(sim.npcState[npcId].rumors) ? sim.npcState[npcId].rumors : []).map((rumor) => ({ ...rumor, confidence: clamp(Number(rumor.confidence ?? 0.7), RUMOR_POLICY.minConfidence, 1), priority: Number(rumor.priority || 1), expiresDay: Number(rumor.expiresDay || absoluteDay(state.gameClock) + RUMOR_POLICY.defaultTtlDays), sourceNpcId: rumor.sourceNpcId || npcId })).slice(-RUMOR_POLICY.maxRumorsPerNpc);
     });
     (X.hiddenRealms || []).forEach((realm) => {
@@ -657,11 +658,11 @@
     state.openWorld ||= {};
     state.openWorld.coordinates ||= {};
     const used = new Set(Object.values(state.openWorld.coordinates).filter((value) => Array.isArray(value) && value.length >= 2).map((value) => Number(value[0]) + "," + Number(value[1])));
-    Object.values(D.LOCATIONS || {}).filter((node) => node?.runtime && node.hiddenRealm).forEach((node) => {
+    Object.values(runtimeLocationPool(state) || {}).filter((node) => node?.runtime && node.hiddenRealm).forEach((node) => {
       if (Array.isArray(state.openWorld.coordinates[node.id])) return;
       const definition = (X.hiddenRealms || []).find((entry) => entry.id === node.hiddenRealm);
       const parentId = definition?.parentNodeId;
-      const parent = state.openWorld.coordinates[parentId] || [Number(D.LOCATIONS?.[parentId]?.x || 50), Number(D.LOCATIONS?.[parentId]?.y || 50)];
+      const parent = state.openWorld.coordinates[parentId] || [Number(runtimeLocationPool(state)?.[parentId]?.x || 50), Number(runtimeLocationPool(state)?.[parentId]?.y || 50)];
       const roleOffset = node.hiddenRealmCore ? 0.03 : String(node.id).endsWith(":path") ? 0.02 : 0.01;
       let x = Math.max(0, Math.min(100, Number(parent[0]) + roleOffset));
       let y = Math.max(0, Math.min(100, Number(parent[1]) + roleOffset));
@@ -1081,7 +1082,7 @@
     ensure(state); const companion = normalizeCompanion(state.companion);
     if (!companion || companion.state !== "recovering") return { success: false, reason: "Dị Thú không cần hồi phục." };
     const day = absoluteDay(state.gameClock);
-    const safe = Boolean(options.safeNode || D.LOCATIONS?.[state.locationId]?.safe_for_ritual || D.LOCATIONS?.[state.locationId]?.safe);
+    const safe = Boolean(options.safeNode || runtimeLocationPool(state)?.[state.locationId]?.safe_for_ritual || runtimeLocationPool(state)?.[state.locationId]?.safe);
     if (!safe && day < companion.recoveryUntilDay) return { success: false, reason: "Cần nghỉ đủ 3 ngày hoặc đến một cứ điểm an toàn.", recoveryUntilDay: companion.recoveryUntilDay };
     companion.hp = Math.max(1, Math.ceil(companion.hpMax * 0.5)); companion.state = "active"; companion.recoveryUntilDay = 0;
     history(state, "sys", "◇ " + (companion.customName || "Dị Thú") + " đã hồi phục và có thể đồng hành trở lại.");
@@ -1091,7 +1092,7 @@
   function reviveCompanion(state) {
     ensure(state); const companion = normalizeCompanion(state.companion);
     if (!companion || !["dead", "recovering"].includes(companion.state)) return { success: false, reason: "Không có Dị Thú cần cứu sinh." };
-    const safe = Boolean(D.LOCATIONS?.[state.locationId]?.safe_for_ritual || D.LOCATIONS?.[state.locationId]?.safe);
+    const safe = Boolean(runtimeLocationPool(state)?.[state.locationId]?.safe_for_ritual || runtimeLocationPool(state)?.[state.locationId]?.safe);
     if (!safe) return { success: false, reason: "Chỉ có thể cứu sinh tại cứ điểm an toàn." };
     if (Number(state.inventory?.linh_thach || 0) < 3) return { success: false, reason: "Cần 3 Linh Thạch để cứu sinh." };
     removeItem(state, "linh_thach", 3); companion.hp = Math.max(1, Math.ceil(companion.hpMax * 0.25)); companion.state = "active"; companion.reviveCount += 1; companion.recoveryUntilDay = 0;
@@ -1352,9 +1353,9 @@
     const phase = template.phases[0];
     state.worldSimulation.events[id] = { id, templateId, regionId, phaseIndex: 0, startedDay: day, phaseStartedDay: day, phaseEndsDay: day + phase.durationDays, seed: hash(state.worldSimulation.seed + id), playerContribution: 0, choiceHistory: [], status: "active", outcomeId: null, announced: false };
     region.activeEventId = id; region.lastEventDay = day;
-    const omenNode = Object.keys(D.LOCATIONS || {}).find((nodeId) => (D.LOCATIONS[nodeId]?.region || D.WORLD_MAP?.locations?.[nodeId]?.region) === regionId) || state.locationId;
+    const omenNode = Object.keys(runtimeLocationPool(state) || {}).find((nodeId) => (runtimeLocationPool(state)[nodeId]?.region || D.WORLD_MAP?.locations?.[nodeId]?.region) === regionId) || state.locationId;
     const seerId = "event_seer:" + id;
-    state.worldSimulation.npcState[seerId] = { npcId: seerId, name: "Tử Vi Du Nhân", role: "thầy bói", traits: ["du hành", "thien_tuong"], scheduleType: "itinerant", status: "alive", factionId: null, currentNodeId: omenNode, homeNodeId: omenNode, currentSubLocationId: D.LOCATIONS[omenNode]?.subLocations?.[0]?.id || "main", nextMoveDay: day + 1, eventId: id, dialogueProfileId: "traveler", memoryWithPlayer: [], mailbox: [], rumors: [{ key: "omen:" + id, text: "Một biến cố lớn đang chuyển mình trong vùng này.", confidence: 0.9, priority: 2, expiresDay: day + RUMOR_POLICY.defaultTtlDays, sourceNpcId: seerId }], relationshipsWithNpcs: {} };
+    state.worldSimulation.npcState[seerId] = { npcId: seerId, name: "Tử Vi Du Nhân", role: "thầy bói", traits: ["du hành", "thien_tuong"], scheduleType: "itinerant", status: "alive", factionId: null, currentNodeId: omenNode, homeNodeId: omenNode, currentSubLocationId: runtimeLocationPool(state)[omenNode]?.subLocations?.[0]?.id || "main", nextMoveDay: day + 1, eventId: id, dialogueProfileId: "traveler", memoryWithPlayer: [], mailbox: [], rumors: [{ key: "omen:" + id, text: "Một biến cố lớn đang chuyển mình trong vùng này.", confidence: 0.9, priority: 2, expiresDay: day + RUMOR_POLICY.defaultTtlDays, sourceNpcId: seerId }], relationshipsWithNpcs: {} };
     discover(state, "worldEvents", templateId, "world_tick");
     if (regionId === currentRegion(state)) history(state, "warn", "☄ Điềm báo tại " + regionId + ": " + phase.text);
     return { success: true, event: state.worldSimulation.events[id] };
@@ -1473,7 +1474,7 @@
     });
     npcs.forEach((source) => {
       (source.rumors || []).filter((rumor) => Number(rumor.expiresDay || day + 1) >= day).forEach((rumor) => {
-        const neighbors = Object.values(D.LOCATIONS?.[source.currentNodeId]?.exits || {});
+        const neighbors = Object.values(runtimeLocationPool(state)?.[source.currentNodeId]?.exits || {});
         npcs.filter((target) => target.npcId !== source.npcId && (target.currentNodeId === source.currentNodeId || neighbors.includes(target.currentNodeId))).forEach((target) => {
           target.rumorLedger ||= {};
         const key = String(rumor.key || rumor.text); const confidence = clamp(Number(rumor.confidence ?? 0.55) - (target.currentNodeId === source.currentNodeId ? RUMOR_POLICY.sameNodeConfidenceLoss : RUMOR_POLICY.adjacentNodeConfidenceLoss), RUMOR_POLICY.minConfidence, 1);
@@ -1505,7 +1506,7 @@
           ["spring_trade", "trade_hub"], ["summer_market", "event_market", "event_gathering"],
           ["autumn_harvest", "trade_hub"], ["winter_market", "winter_supply", "winter_shelter"]
         ][season];
-        const eligibleTargets = seasonalDestinationSnapshot(seasonTags).filter((id) => id !== npc.currentNodeId);
+    const eligibleTargets = seasonalDestinationSnapshot(seasonTags, state).filter((id) => id !== npc.currentNodeId);
         npc.seasonRoute = season === 3 ? "winter_market_and_shelter" : season === 1 ? "event_gathering" : season === 2 ? "autumn_harvest" : "spring_trade";
         const roll = seeded(state, "npc-season-route:" + npc.npcId + ":" + seasonIds[season], day);
         npc.migrationTargetNodeId = eligibleTargets[Math.floor(roll * eligibleTargets.length)] || null;
@@ -1517,7 +1518,7 @@
         state.pendingNpcPursuit ||= { npcId: npc.npcId, factionId: npc.factionId, nodeId: state.locationId, createdDay: day, status: "pending" };
         npc.aiState = "combat"; return;
       }
-      const npcRegionId = D.WORLD_MAP?.locations?.[npc.currentNodeId]?.region || D.LOCATIONS?.[npc.currentNodeId]?.region || currentRegion(state);
+      const npcRegionId = D.WORLD_MAP?.locations?.[npc.currentNodeId]?.region || runtimeLocationPool(state)?.[npc.currentNodeId]?.region || currentRegion(state);
       const weatherId = normalizeWeatherId(state.worldSimulation.regionState?.[npcRegionId]?.weather || "quang");
       const needsShelter = Boolean(WEATHER_EFFECTS[weatherId]?.npcShelter);
       npc.shelterState ||= { inShelter: false, lastTransitionDay: 0, exitAfterDay: 0 };
@@ -1536,8 +1537,8 @@
         else npc.aiState = "idle";
         return;
       }
-      const currentLoc = D.LOCATIONS[npc.currentNodeId];
-      const exits = Object.values(currentLoc?.exits || {}).filter((id) => D.LOCATIONS[id]);
+      const currentLoc = runtimeLocationPool(state)[npc.currentNodeId];
+      const exits = Object.values(currentLoc?.exits || {}).filter((id) => runtimeLocationPool(state)[id]);
       if (!exits.length) { npc.aiState = "shelter"; npc.nextMoveDay = day + 1; return; }
       let preferred = null;
       if (npc.source === "defection" && npc.targetPlayerId === state.player.id) {
@@ -1550,7 +1551,7 @@
         while (chaseQueue.length && !preferred) {
           const [candidate, firstStep] = chaseQueue.shift(); if (candidate === targetNode) { preferred = firstStep; break; }
           if (chaseSeen.has(candidate)) continue; chaseSeen.add(candidate);
-          Object.values(D.LOCATIONS?.[candidate]?.exits || {}).filter((id) => D.LOCATIONS?.[id] && !chaseSeen.has(id)).forEach((id) => chaseQueue.push([id, firstStep]));
+          Object.values(runtimeLocationPool(state)?.[candidate]?.exits || {}).filter((id) => runtimeLocationPool(state)?.[id] && !chaseSeen.has(id)).forEach((id) => chaseQueue.push([id, firstStep]));
         }
       }
       if (!preferred) preferred = exits.includes(npc.migrationTargetNodeId) ? npc.migrationTargetNodeId : null;
@@ -1559,12 +1560,12 @@
         while (queue.length && !preferred) {
           const [candidate, firstStep] = queue.shift(); if (candidate === npc.migrationTargetNodeId) { preferred = firstStep; break; }
           if (visited.has(candidate)) continue; visited.add(candidate);
-          Object.values(D.LOCATIONS?.[candidate]?.exits || {}).filter((id) => D.LOCATIONS?.[id] && !visited.has(id)).forEach((id) => queue.push([id, firstStep]));
+          Object.values(runtimeLocationPool(state)?.[candidate]?.exits || {}).filter((id) => runtimeLocationPool(state)?.[id] && !visited.has(id)).forEach((id) => queue.push([id, firstStep]));
         }
       }
       const next = preferred || exits[Math.floor(seeded(state, "npc-route:" + npc.npcId, day, index) * exits.length)];
       if (!next || !Object.values(currentLoc?.exits || {}).includes(next)) { npc.aiState = "shelter"; npc.nextMoveDay = day + 1; return; }
-      npc.aiState = "travel"; npc.travelFrom = npc.currentNodeId; npc.travelTo = next; npc.currentNodeId = next; npc.currentSubLocationId = D.LOCATIONS[next]?.subLocations?.[0]?.id || "main"; npc.nextMoveDay = day + 2 + index % 3; npc.needs.duty = Math.max(0, npc.needs.duty - 5);
+      npc.aiState = "travel"; npc.travelFrom = npc.currentNodeId; npc.travelTo = next; npc.currentNodeId = next; npc.currentSubLocationId = runtimeLocationPool(state)[next]?.subLocations?.[0]?.id || "main"; npc.nextMoveDay = day + 2 + index % 3; npc.needs.duty = Math.max(0, npc.needs.duty - 5);
       state.worldSimulation.npcFootprints ||= {};
       state.worldSimulation.npcFootprints[npc.travelFrom] ||= [];
       state.worldSimulation.npcFootprints[npc.travelFrom].push({ npcId: npc.npcId, departedDay: day, destinationHint: next, trailId: "trail:" + npc.npcId + ":" + day });
@@ -1572,7 +1573,7 @@
       if (npc.scheduleType === "itinerant") {
         npc.nodeVisits ||= {};
         npc.nodeVisits[next] = Number(npc.nodeVisits[next] || 0) + 1;
-        const loc = D.LOCATIONS[next];
+        const loc = runtimeLocationPool(state)[next];
         if (loc && !loc.organizationId && npc.nodeVisits[next] >= 8 && !state.worldSimulation.settlements?.[next] && seeded(state, "settlement:" + npc.npcId + ":" + next) < 0.2) {
           state.worldSimulation.settlements ||= {};
           state.worldSimulation.settlements[next] = { id: "settlement:" + next, founderNpcId: npc.npcId, foundedDay: day, name: "Quầy Lưu Lạc", status: "active" };
@@ -1614,10 +1615,11 @@
     });
     propagateNpcRumors(state, day);
   }
-  function seasonalDestinationSnapshot(tags = []) {
+  function seasonalDestinationSnapshot(tags = [], state = null) {
     const wanted = new Set((Array.isArray(tags) ? tags : [tags]).map((tag) => String(tag).toLowerCase()));
-    return Object.keys(D.LOCATIONS || {}).filter((id) => {
-      const node = D.LOCATIONS[id], mapNodeData = D.WORLD_MAP?.locations?.[id];
+    const locations = state ? runtimeLocationPool(state) : (D.LOCATIONS || {});
+    return Object.keys(locations).filter((id) => {
+      const node = locations[id], mapNodeData = D.WORLD_MAP?.locations?.[id];
       const nodeTags = [...(node?.seasonalTags || []), ...(mapNodeData?.seasonalTags || [])].map((tag) => String(tag).toLowerCase());
       return wanted.size ? nodeTags.some((tag) => wanted.has(tag)) : nodeTags.length > 0;
     });
@@ -1625,13 +1627,13 @@
   function validateNpcScheduler(state) {
     ensure(state); const errors = [], allowed = new Set(["idle", "travel", "present", "interact", "sleeping", "shelter", "combat", "queued"]);
     Object.values(state.worldSimulation.npcState || {}).forEach((npc) => {
-      if (!npc?.npcId || !D.LOCATIONS?.[npc.currentNodeId]) errors.push(String(npc?.npcId || "unknown") + ":node");
+      if (!npc?.npcId || !runtimeLocationPool(state)?.[npc.currentNodeId]) errors.push(String(npc?.npcId || "unknown") + ":node");
       if (npc?.aiState && !allowed.has(npc.aiState)) errors.push(String(npc.npcId) + ":state");
-      if (npc?.travelTo && !Object.values(D.LOCATIONS[npc.travelFrom]?.exits || {}).includes(npc.travelTo)) errors.push(String(npc.npcId) + ":edge");
+      if (npc?.travelTo && !Object.values(runtimeLocationPool(state)[npc.travelFrom]?.exits || {}).includes(npc.travelTo)) errors.push(String(npc.npcId) + ":edge");
       if (npc?.queueNodeId && npc.queueNodeId !== npc.currentNodeId) errors.push(String(npc.npcId) + ":queue-node");
       if (npc?.queueRank !== undefined && (!Number.isInteger(Number(npc.queueRank)) || Number(npc.queueRank) < 1)) errors.push(String(npc.npcId) + ":queue-rank");
       if (npc?.shelterState && (typeof npc.shelterState.inShelter !== "boolean" || !Number.isFinite(Number(npc.shelterState.lastTransitionDay || 0)) || !Number.isFinite(Number(npc.shelterState.exitAfterDay || 0)))) errors.push(String(npc.npcId) + ":shelter-state");
-      const subLocations = D.LOCATIONS[npc.currentNodeId]?.subLocations || [];
+      const subLocations = runtimeLocationPool(state)[npc.currentNodeId]?.subLocations || [];
       if (npc?.currentSubLocationId && npc.currentSubLocationId !== "main" && !subLocations.some((entry) => entry.id === npc.currentSubLocationId)) errors.push(String(npc.npcId) + ":sub-location");
       if (!Array.isArray(npc.dailyRoutine) || npc.dailyRoutine.some((entry) => !Number.isFinite(Number(entry.hourStart)) || !Number.isFinite(Number(entry.hourEnd)) || Number(entry.hourStart) < 0 || Number(entry.hourEnd) > 24 || Number(entry.hourStart) >= Number(entry.hourEnd) || !entry.subLocationId || !entry.activity)) errors.push(String(npc.npcId) + ":daily-routine");
       if (!Number.isFinite(Number(npc?.nextMoveDay || 0))) errors.push(String(npc.npcId) + ":next-move");
@@ -1646,7 +1648,7 @@
     state.contractBoard.offers = {};
     const templates = X.contractTemplates || [];
     const enemies = Object.keys(D.ENEMIES || {});
-    const locations = Object.keys(D.LOCATIONS || {}).filter((id) => id !== state.locationId);
+    const locations = Object.keys(runtimeLocationPool(state) || {}).filter((id) => id !== state.locationId);
     const items = Object.keys(D.ITEMS || {}).filter((id) => D.ITEMS[id]?.kind !== "quest");
     for (let i = 0; i < Math.min(3, templates.length); i += 1) {
       const template = templates[(Math.floor(seeded(state, "contract-template", day, i) * templates.length) + i) % templates.length];
@@ -1793,7 +1795,7 @@
     if (state.guildProject?.status === "active" && day > state.guildProject.endDay) { state.guildProject.status = "failed"; history(state, "warn", "× Công trình tông môn hết hạn trước khi hoàn thành."); }
     if (state.companion?.state === "recovering" && day >= Number(state.companion.recoveryUntilDay || Infinity)) recoverCompanion(state, { safeNode: true });
     if (state.companion?.state === "active" || state.companion?.state === "mutated") {
-      const localCorruption = Number(D.LOCATIONS?.[state.locationId]?.corruption || 0) + (activeRegionEvent(state) ? 1 : 0);
+      const localCorruption = Number(runtimeLocationPool(state)?.[state.locationId]?.corruption || 0) + (activeRegionEvent(state) ? 1 : 0);
       state.companion.corruption = clamp(Number(state.companion.corruption || 0) + Math.max(0, localCorruption - 2), 0, 100);
       if (state.companion.corruption >= 60) { state.companion.state = "mutated"; state.companion.mutationPending = true; history(state, "warn", "× " + state.companion.customName + " đang Dị Biến; cần cứu chữa hoặc chấp nhận biến chất."); }
       if (state._offlineSimulation && Number(state.companion.lastOfflineCombatDay || 0) < day) {
@@ -1820,7 +1822,7 @@
     if (weather === "suong") state.player.san = clamp(Number(state.player.san || 0) - 1, 0, Number(state.player.maxSan || 100));
     Object.values(state.worldSimulation.npcState || {}).forEach((npc) => {
       if (npc.status !== "alive") return;
-      const npcRegionId = D.WORLD_MAP?.locations?.[npc.currentNodeId]?.region || D.LOCATIONS?.[npc.currentNodeId]?.region || currentRegion(state);
+      const npcRegionId = D.WORLD_MAP?.locations?.[npc.currentNodeId]?.region || runtimeLocationPool(state)?.[npc.currentNodeId]?.region || currentRegion(state);
       const npcWeather = state.worldSimulation.regionState[npcRegionId]?.weather || "quang";
       npc.worldCondition = npcWeather;
       if (npcWeather === "mua") npc.scheduleDelayDays = 1;
@@ -1846,7 +1848,7 @@
     const startedAt = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
     ensure(state); const npc = state.worldSimulation.npcState?.[npcId];
     if (!npc) return { npcId, found: false, weather: "quang", mood: "không rõ", regionId: null, relationship: null, mailbox: 0, rumors: [] };
-    const regionId = D.WORLD_MAP?.locations?.[npc.currentNodeId]?.region || D.LOCATIONS?.[npc.currentNodeId]?.region || currentRegion(state);
+    const regionId = D.WORLD_MAP?.locations?.[npc.currentNodeId]?.region || runtimeLocationPool(state)?.[npc.currentNodeId]?.region || currentRegion(state);
     const region = state.worldSimulation.regionState?.[regionId];
     const wars = Object.values(state.worldSimulation.wars || {}).filter((war) => war.status === "active" && (!npc.factionId || war.factionA === npc.factionId || war.factionB === npc.factionId));
     state.runtimeMetrics.npcView.calls += 1; state.runtimeMetrics.npcView.totalMs += (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now()) - startedAt;
@@ -1939,19 +1941,19 @@
   }
   function ensureNpcWorldState(state) {
     ensure(state);
-    const node = D.LOCATIONS?.[state.locationId];
+    const node = runtimeLocationPool(state)?.[state.locationId];
     state.currentSubLocationId = state.currentSubLocationId || node?.subLocations?.[0]?.id || "main";
     Object.entries(state.worldSimulation.npcState || {}).forEach(([id, npc]) => {
       npc.npcId ||= id; npc.status ||= "alive"; npc.currentNodeId ||= state.locationId;
       const definition = D.NPCS?.[id];
       if (definition) { npc.name ||= definition.name; npc.role ||= definition.title; npc.isImportant ||= /chưởng môn|sư phụ|đại sư huynh|trưởng lão|mentor|master/i.test(String(definition.title || "")); npc.canTeachRareTechnique ||= /chưởng môn|sư phụ|trưởng lão/i.test(String(definition.title || "")); }
-      npc.currentSubLocationId ||= D.LOCATIONS?.[npc.currentNodeId]?.subLocations?.[0]?.id || "main";
+      npc.currentSubLocationId ||= runtimeLocationPool(state)?.[npc.currentNodeId]?.subLocations?.[0]?.id || "main";
       npc.homeNodeId ||= npc.currentNodeId; npc.scheduleType ||= "static";
       npc.dialogueProfileId ||= npc.role === "merchant" ? "merchant" : npc.role === "guard" ? "guard" : "traveler";
       npc.relationshipsWithNpcs ||= {}; npc.memoryWithPlayer ||= []; npc.mailbox ||= []; npc.rumors ||= [];
       npc.preferences ||= /merchant|thương|buôn/i.test(String(npc.role || "")) ? ["currency", "trade"] : /orphan|trẻ|y_quan/i.test(String(npc.role || "")) ? ["food", "medicine"] : ["medicine", "cultivation"];
       npc.corruptionTolerance = clamp(Number(npc.corruptionTolerance ?? (/chính|orthodox/i.test(String(npc.alignment || "")) ? 25 : 55)), 0, 100);
-      npc.dailyRoutine = normalizeNpcRoutine(npc.dailyRoutine, npc);
+    npc.dailyRoutine = normalizeNpcRoutine(npc.dailyRoutine, npc, state);
       syncNpcRoutine(state, npc);
     });
     return state.worldSimulation.npcState;
@@ -2211,10 +2213,21 @@
     return active;
   }
   function nodeIsDiscovered(state, nodeId) { const node = mapNode(state, nodeId); return Boolean(node && (nodeId === state.locationId || Number(node.fogState || 0) >= 2 || state.visitedLocations?.includes(nodeId))); }
+  function mutableMapNode(state, nodeId) {
+    if (!nodeId) return null;
+    if (state.openWorld?.nodePool?.[nodeId]) return state.openWorld.nodePool[nodeId];
+    state.runtimeLocations ||= {};
+    if (!state.runtimeLocations[nodeId]) {
+      const source = runtimeLocationPool(state)?.[nodeId];
+      if (!source) return null;
+      state.runtimeLocations[nodeId] = JSON.parse(JSON.stringify(source));
+    }
+    return state.runtimeLocations[nodeId];
+  }
   function mapNode(state, nodeId = state.locationId) {
-    ensure(state); const node = state.openWorld?.nodePool?.[nodeId] || D.LOCATIONS?.[nodeId];
+    ensure(state); const node = mutableMapNode(state, nodeId);
     if (!node) return null;
-    node.regionId ||= node.region || D.WORLD_MAP?.locations?.[nodeId]?.region || D.LOCATIONS?.[nodeId]?.region || currentRegion(state); node.mapNodeType ||= node.openWorld ? "wilderness" : "location";
+    node.regionId ||= node.region || D.WORLD_MAP?.locations?.[nodeId]?.region || runtimeLocationPool(state)?.[nodeId]?.region || currentRegion(state); node.mapNodeType ||= node.openWorld ? "wilderness" : "location";
     node.subLocations = Array.isArray(node.subLocations) ? node.subLocations : [{ id: "main", type: "indoor", displayName: node.name || nodeId, actions: ["look", "search"], npcsPresent: [] }];
     node.influenceMap ||= {}; node.history = Array.isArray(node.history) ? node.history : [];
     node.fogState = clamp(node.fogState ?? (state.visitedLocations?.includes(nodeId) ? 2 : 0), 0, 3);
@@ -2223,14 +2236,14 @@
     return node;
   }
   function nodeCoordinates(state, nodeId) {
-    const node = mapNode(state, nodeId); const mapLocation = D.WORLD_MAP?.locations?.[nodeId];
+    const node = state.openWorld?.nodePool?.[nodeId] || state.runtimeLocations?.[nodeId]; const mapLocation = D.WORLD_MAP?.locations?.[nodeId];
     const candidates = [state.openWorld?.coordinates?.[nodeId], node && [node.x, node.y], mapLocation && [mapLocation.x, mapLocation.y]];
     const coordinates = candidates.find((value) => Array.isArray(value) && value.length >= 2 && value.every((entry) => Number.isFinite(Number(entry))));
     return coordinates ? coordinates.slice(0, 2).map(Number) : null;
   }
   function validateMapCoordinates(state) {
     ensure(state);
-    const ids = new Set([...Object.keys(state.openWorld?.nodePool || {}), ...Object.keys(D.LOCATIONS || {}), ...Object.keys(D.WORLD_MAP?.locations || {})]);
+    const ids = new Set([...Object.keys(state.openWorld?.nodePool || {}), ...Object.keys(runtimeLocationPool(state) || {}), ...Object.keys(D.WORLD_MAP?.locations || {})]);
     const missing = [], outOfBounds = [], duplicates = [], seen = new Map();
     ids.forEach((nodeId) => {
       const coordinates = nodeCoordinates(state, nodeId);
@@ -2246,7 +2259,7 @@
   function validateMapCanonicalState(state) {
     ensure(state); const errors = [], coordinateAudit = validateMapCoordinates(state), map = ensureMapState(state);
     if (!coordinateAudit.valid) errors.push("coordinates");
-    const ids = [...new Set([...Object.keys(D.LOCATIONS || {}), ...Object.keys(D.WORLD_MAP?.locations || {}), ...Object.keys(state.openWorld?.nodePool || {})])];
+    const ids = [...new Set([...Object.keys(runtimeLocationPool(state) || {}), ...Object.keys(D.WORLD_MAP?.locations || {}), ...Object.keys(state.openWorld?.nodePool || {})])];
     ids.filter((id) => nodeIsDiscovered(state, id)).forEach((id) => {
       const snapshot = mapInfluenceSnapshot(state, id);
       if (!snapshot || snapshot.nodeId !== id || !snapshot.influenceMap || !Number.isFinite(Number(snapshot.pressure)) || !Number.isFinite(Number(snapshot.confidence)) || snapshot.revision !== map.influenceRevision) errors.push("influence:" + id);
@@ -2306,7 +2319,7 @@
     node.influenceMap = influenceMap; node.contested = contested; node.ownerFactionId = result.ownerFactionId; map.influenceCache[nodeId] = { revision: map.influenceRevision, snapshot: copy(result) }; state.runtimeMetrics.mapInfluence.totalMs += (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now()) - startedAt; return result;
   }
   function refreshMapInfluence(state) {
-    ensure(state); const ids = new Set([...Object.keys(state.openWorld?.nodePool || {}), ...Object.keys(D.LOCATIONS || {})]);
+    ensure(state); const ids = new Set([...Object.keys(state.openWorld?.nodePool || {}), ...Object.keys(runtimeLocationPool(state) || {})]);
     const snapshots = {}; ids.forEach((id) => { snapshots[id] = mapInfluenceSnapshot(state, id); }); return snapshots;
   }
   function runtimeBudgetSnapshot(state) {
@@ -2380,7 +2393,7 @@
   }
   function validateNodeHistory(state, nodeId = null) {
     ensure(state);
-    const nodes = nodeId ? [mapNode(state, nodeId)].filter(Boolean) : Object.keys(D.LOCATIONS || {}).map((id) => mapNode(state, id)).filter(Boolean);
+    const nodes = nodeId ? [mapNode(state, nodeId)].filter(Boolean) : Object.keys(runtimeLocationPool(state) || {}).map((id) => mapNode(state, id)).filter(Boolean);
     const errors = [];
     nodes.forEach((node) => {
       const keys = new Set();
@@ -2402,14 +2415,14 @@
     return clamp(base + physiqueResonance, 0, 1);
   }
   function mapCompletion(state, regionId = currentRegion(state)) {
-    const knownIds = new Set([...Object.keys(state.openWorld?.nodePool || {}), ...Object.keys(D.LOCATIONS || {})]); const known = [...knownIds].filter((id) => mapNode(state, id)?.regionId === regionId); const visited = known.filter((id) => state.visitedLocations?.includes(id));
+    const knownIds = new Set([...Object.keys(state.openWorld?.nodePool || {}), ...Object.keys(runtimeLocationPool(state) || {})]); const known = [...knownIds].filter((id) => mapNode(state, id)?.regionId === regionId); const visited = known.filter((id) => state.visitedLocations?.includes(id));
     const percent = known.length ? Math.round(visited.length / known.length * 100) : 0; const title = percent >= 80 ? "Người Vẽ Bản Đồ " + regionId : null;
     if (title) state.achievements ||= {}, state.achievements["cartographer_" + regionId] ||= { name: title, unlockedDay: absoluteDay(state.gameClock) };
     const subLocationsVisited = known.reduce((sum, id) => sum + Number(mapNode(state, id)?.history?.some((entry) => entry.type === "sub_location") ? 1 : 0), 0); const structuresBuilt = known.reduce((sum, id) => sum + (ensureMapState(state).structures[id] || []).length, 0);
     return { regionId, known: known.length, visited: visited.length, subLocationsVisited, structuresBuilt, percent, title };
   }
   function mapCompletionDetailed(state, regionId = currentRegion(state)) {
-    const base = mapCompletion(state, regionId), knownIds = [...new Set([...Object.keys(state.openWorld?.nodePool || {}), ...Object.keys(D.LOCATIONS || {})])];
+    const base = mapCompletion(state, regionId), knownIds = [...new Set([...Object.keys(state.openWorld?.nodePool || {}), ...Object.keys(runtimeLocationPool(state) || {})])];
     const nodes = knownIds.map((id) => mapNode(state, id)).filter((node) => node?.regionId === regionId);
     const layers = { visited: 0, subLocation: 0, structure: 0, weather: 0, actor: 0, faction: 0 };
     const historyTypeByLayer = { subLocation: "sub_location", structure: "structure", weather: "weather", actor: "actor", faction: "faction_change" };
@@ -2565,7 +2578,7 @@
     ensure(state); const map = ensureMapState(state), errors = [], pairs = new Set();
     Object.entries(map.tradeRoutes || {}).forEach(([key, route]) => {
       if (!route || route.id !== key) errors.push(key + ":identity");
-      if (!route || !D.LOCATIONS?.[route.fromNodeId] || !D.LOCATIONS?.[route.toNodeId] || route.fromNodeId === route.toNodeId) errors.push(key + ":nodes");
+      if (!route || !runtimeLocationPool(state)?.[route.fromNodeId] || !runtimeLocationPool(state)?.[route.toNodeId] || route.fromNodeId === route.toNodeId) errors.push(key + ":nodes");
       if (!route || !["active", "closed"].includes(route.status)) errors.push(key + ":status");
       if (!route || !Number.isFinite(Number(route.distance)) || Number(route.distance) < 1 || !Number.isFinite(Number(route.progress)) || Number(route.progress) < 0 || Number(route.progress) >= Math.max(1, Number(route.distance))) errors.push(key + ":progress");
       if (!route || !Number.isFinite(Number(route.createdDay))) errors.push(key + ":createdDay");
@@ -2585,8 +2598,8 @@
   }
   function repairInvalidMapExits(state) {
     ensure(state); const mapState = ensureMapState(state); const removed = [];
-    Object.entries(D.LOCATIONS || {}).forEach(([nodeId, node]) => Object.entries(node?.exits || {}).forEach(([direction, targetId]) => {
-      if (!targetId || D.LOCATIONS[targetId]) return;
+    Object.entries(runtimeLocationPool(state) || {}).forEach(([nodeId, node]) => Object.entries(node?.exits || {}).forEach(([direction, targetId]) => {
+      if (!targetId || runtimeLocationPool(state)[targetId]) return;
       const record = { nodeId, direction, targetId, day: absoluteDay(state.gameClock) };
       if (!mapState.invalidExits.some((entry) => entry.nodeId === nodeId && entry.direction === direction && entry.targetId === targetId)) mapState.invalidExits.push(record);
       if (state.openWorld?.exits?.[nodeId]?.[direction] === targetId) delete state.openWorld.exits[nodeId][direction];
@@ -2694,7 +2707,8 @@
     if (!Number.isFinite(Number(tournament.startDay)) || !Number.isFinite(Number(tournament.endDay))) errors.push("dates");
     if (tournament.joined && !tournament.legacyResult && !Array.isArray(tournament.rounds)) errors.push("rounds-missing");
     if (Array.isArray(tournament.rounds)) {
-      if (tournament.rounds.length !== 4 || !Number.isInteger(Number(tournament.currentRound)) || tournament.currentRound < 0 || tournament.currentRound > 3) errors.push("bracket-shape");
+      if (tournament.joined && !tournament.legacyResult && (tournament.rounds.length !== 4 || !Number.isInteger(Number(tournament.currentRound)) || tournament.currentRound < 0 || tournament.currentRound > 3)) errors.push("bracket-shape");
+      if (!tournament.joined && tournament.rounds.length !== 0) errors.push("unjoined-bracket");
       tournament.rounds.forEach((round, index) => {
         if (!round.id || !round.opponentId || !["pending", "won", "lost"].includes(round.status)) errors.push("round:" + index);
         if (index < tournament.currentRound && round.status !== "won") errors.push("round-order:" + index);
@@ -3314,6 +3328,14 @@
     if (rankRequirement != null && (!guild || rankRequirement < 0 || rank < rankRequirement)) blockers.push({ code: "GUILD_RANK_REQUIRED", message: "Chức vị Tông Môn chưa đủ." });
     const faction = player.tainted?.faction, factionIds = requirements.taintedFactionIds || (technique.requiredFaction ? [technique.requiredFaction] : []);
     if (factionIds.length && !factionIds.includes(faction) && !E.factionStatus?.(state)?.forbiddenTechniqueBypass) blockers.push({ code: "FACTION_REQUIRED", message: "Phe phái hiện tại không thể sử dụng Công Pháp này." });
+    const activeFateIds = [...new Set((player.fates || []).filter((id) => typeof id === "string" && id))].filter((id) => (D.FATE_PATTERNS || []).some((fate) => fate.id === id) && Number(player.suppressedFates?.[id]?.untilTurn || 0) <= Number(state.meta?.turn || 0));
+    if (Number(requirements.minActiveFates || 0) > activeFateIds.length && !blockers.some((blocker) => blocker.code === "FATE_REQUIRED")) blockers.push({ code: "FATE_REQUIRED", message: "Active Fate requirement is not met." });
+    if (Array.isArray(requirements.fateElementsAny) && requirements.fateElementsAny.length) {
+      const activeElements = activeFateIds.map((id) => E.fateElement?.((D.FATE_PATTERNS || []).find((fate) => fate.id === id))).filter(Boolean);
+      if (!requirements.fateElementsAny.some((element) => activeElements.includes(element)) && !blockers.some((blocker) => blocker.code === "FATE_REQUIRED")) blockers.push({ code: "FATE_REQUIRED", message: "Required active Fate element is not equipped." });
+    }
+    if (requirements.fateScope !== "owned" && Array.isArray(requirements.fateIdsAny) && requirements.fateIdsAny.length && !requirements.fateIdsAny.some((id) => activeFateIds.includes(id)) && !blockers.some((blocker) => blocker.code === "FATE_REQUIRED")) blockers.push({ code: "FATE_REQUIRED", message: "Required Fate is not actively equipped." });
+    if (guild && (guild.suspended || ["suspended", "expelled", "left", "inactive"].includes(String(guild.status || "active"))) && !blockers.some((blocker) => ["GUILD_REQUIRED", "GUILD_RANK_REQUIRED"].includes(blocker.code))) blockers.push({ code: "GUILD_REQUIRED", message: "Guild membership is not active." });
     return { ok: blockers.length === 0, blockers, scope, techniqueId };
   }
   function guildTechniqueSnapshot(state, technique) {
@@ -3329,6 +3351,16 @@
     return { valid: true, guildId: membership.guildId, rankId: membership.rankId || null, revision: Number(membership.revision || 0), masteryGainPct: Math.min(cap, masteryGainPct), sourceIds, techniqueId: technique?.id || null };
   }
 
+  function guildTechniqueCombatBonus(state, technique) {
+    const membership = state.guildMembership, formation = state.flags?.activeFormation, turn = Number(state.meta?.turn || 0);
+    if (!membership || membership.suspended || String(membership.status || "active") !== "active" || !formation || Number(formation.untilTurn || 0) < turn) return { powerPct: 0, sourceIds: [] };
+    const rank = memberRankIndex(membership), formationTechnique = E.techniqueCatalog?.()?.[formation.techniqueId];
+    if (!formationTechnique || formationTechnique.category !== "tran_phap" || formation.sourceGuildId !== membership.guildId || rank < 2) return { powerPct: 0, sourceIds: [] };
+    const policies = (X.guildTechniquePolicies || []).filter((policy) => (policy.guildId === "*" || policy.guildId === membership.guildId) && policy.appliesTo === "formation_support" && rank >= Number(policy.rankMin || 0) && (!Array.isArray(policy.elements) || policy.elements.includes(technique?.element)));
+    const raw = policies.reduce((sum, policy) => sum + Number(policy.modifiers?.combatPowerPct || 0), 0);
+    const cap = Math.max(0, ...policies.map((policy) => Number(policy.caps?.combatPowerPct || 0)));
+    return { powerPct: Math.min(cap, raw), sourceIds: policies.map((policy) => policy.id), guildId: membership.guildId, formationTechniqueId: formation.techniqueId };
+  }
   function ensureTechniqueTrials(state) {
     ensure(state);
     Object.entries(state.player.techniques || {}).forEach(([id, progress]) => {
@@ -3576,10 +3608,10 @@
   function rebuildHiddenRealmNodes(state, realmId, cycleIndex) {
     const definition = (X.hiddenRealms || []).find((entry) => entry.id === realmId); if (!definition) return {};
     const prefix = "hidden:" + realmId + ":" + cycleIndex, entry = prefix + ":entry", path = prefix + ":path", core = prefix + ":core";
-    const region = D.LOCATIONS?.[definition.parentNodeId]?.region || "trung_vuc";
-    D.LOCATIONS[entry] ||= { id: entry, name: definition.name + " · Cổng", region, corruption: 1, dangerLevel: 2, linhKhiDensity: 4, npcs: [], enemies: [], searchable: ["linh_thach"], exits: { dong: path }, hiddenRealm: realmId, runtime: true };
-    D.LOCATIONS[path] ||= { id: path, name: definition.name + " · U Kính", region, corruption: 2, dangerLevel: 3, linhKhiDensity: 5, npcs: [], enemies: ["di_qui"], searchable: ["linh_thach", "tu_khi_dan"], exits: { tay: entry, dong: core }, hiddenRealm: realmId, runtime: true };
-    D.LOCATIONS[core] ||= { id: core, name: definition.name + " · Cơ Duyên", region, corruption: 3, dangerLevel: 4, linhKhiDensity: 5, npcs: [], enemies: ["yeu_thu"], searchable: ["linh_thach"], exits: { tay: path }, hiddenRealm: realmId, hiddenRealmCore: true, runtime: true };
+    const region = runtimeLocationPool(state)?.[definition.parentNodeId]?.region || "trung_vuc";
+    runtimeLocationPool(state)[entry] ||= { id: entry, name: definition.name + " · Cổng", region, corruption: 1, dangerLevel: 2, linhKhiDensity: 4, npcs: [], enemies: [], searchable: ["linh_thach"], exits: { dong: path }, hiddenRealm: realmId, runtime: true };
+    runtimeLocationPool(state)[path] ||= { id: path, name: definition.name + " · U Kính", region, corruption: 2, dangerLevel: 3, linhKhiDensity: 5, npcs: [], enemies: ["di_qui"], searchable: ["linh_thach", "tu_khi_dan"], exits: { tay: entry, dong: core }, hiddenRealm: realmId, runtime: true };
+    runtimeLocationPool(state)[core] ||= { id: core, name: definition.name + " · Cơ Duyên", region, corruption: 3, dangerLevel: 4, linhKhiDensity: 5, npcs: [], enemies: ["yeu_thu"], searchable: ["linh_thach"], exits: { tay: path }, hiddenRealm: realmId, hiddenRealmCore: true, runtime: true };
     return { entry, path, core };
   }
   function claimHiddenRealmCore(state) {
@@ -3592,7 +3624,7 @@
   }
   function exitHiddenRealm(state) {
     ensure(state); const active = state.activeHiddenRealm; if (!active) return { success: false, reason: "Không ở trong Bí Cảnh." };
-    state.locationId = D.LOCATIONS[active.parentNodeId] ? active.parentNodeId : (state.homeLocationId || Object.keys(D.LOCATIONS)[0]); state.activeHiddenRealm = null;
+    state.locationId = runtimeLocationPool(state)[active.parentNodeId] ? active.parentNodeId : (state.homeLocationId || Object.keys(runtimeLocationPool(state))[0]); state.activeHiddenRealm = null;
     history(state, "narr", "Ngươi bước ra khỏi Bí Cảnh; gió ngoài thế giới lại tìm thấy vạt áo."); return { success: true, locationId: state.locationId };
   }
 
@@ -3635,7 +3667,7 @@
     ensure(state); const legacy = state.reincarnationLegacy, lifeId = "life_" + legacy.generation;
     legacy.previousLives.push({ id: lifeId, name: state.player.name, deathDay: absoluteDay(state.gameClock), deathLocationId: state.locationId, pathId: state.player.pathId, highestRealm: E.cultivationTier(state), signatureFateId: retainedFateId || null, signatureTechniqueId: Object.keys(state.player.techniques || {}).sort((a, b) => Number(state.player.techniques[b].masteryExp || 0) - Number(state.player.techniques[a].masteryExp || 0))[0] || null, summaryKeys: [] });
     if (legacy.previousLives.length > 3) legacy.previousLives.shift();
-    legacy.tombs.push({ id: "tomb_" + lifeId, lifeId, locationId: D.LOCATIONS[state.locationId] ? state.locationId : state.homeLocationId, visited: false });
+    legacy.tombs.push({ id: "tomb_" + lifeId, lifeId, locationId: runtimeLocationPool(state)[state.locationId] ? state.locationId : state.homeLocationId, visited: false });
     legacy.pendingChoices = ["technique_memory", "fate_affinity", "human_debt"]; legacy.generation += 1;
     Object.values(state.generatedItems || {}).forEach((item) => { if (item.legacy?.heirloom) { item.legacy.reincarnations = Number(item.legacy.reincarnations || 0) + 1; item.legacy.wear = clamp(Number(item.legacy.wear || 0) + 5, 0, 25); syncHeirloomWear(item); } });
     return legacy;
@@ -3703,7 +3735,7 @@
     if (!combat && event && template?.phases?.[event.phaseIndex]?.id === "active") template.choices.filter((choice) => !event.choiceHistory.some((entry) => entry.choiceId === choice.id)).forEach((choice) => actions.push({ id: "act_exp_world_" + event.id + "_" + choice.id, label: choice.label, aliases: [choice.label], priority: 1, category: "interaction" }));
     if (!combat) {
       Object.entries(state.npcTrustTrials || {}).filter(([npcId, trial]) => trial.status === "active" && day >= trial.startedDay + 1 && state.locationId === trial.targetNodeId && state.worldSimulation.npcState[npcId]?.currentNodeId === state.locationId).forEach(([npcId]) => actions.push({ id: "act_exp_npc_trial_resolve_" + npcId, label: "Hoàn Thành Thử Thách Lòng Tin", aliases: ["hoàn thành thử thách"], priority: 1, category: "interaction" }));
-      const organizationId = D.LOCATIONS?.[state.locationId]?.organizationId;
+      const organizationId = runtimeLocationPool(state)?.[state.locationId]?.organizationId;
       if (organizationId) {
         const organization = organizationDefinitions().find((entry) => entry.id === organizationId);
         if (organization) {
@@ -3737,7 +3769,7 @@
         }
       }
       ensureNpcWorldState(state);
-      const localNpcIds = new Set(D.LOCATIONS?.[state.locationId]?.npcs || []);
+      const localNpcIds = new Set(runtimeLocationPool(state)?.[state.locationId]?.npcs || []);
       Object.values(state.worldSimulation.npcState).filter((npc) => npc.status === "alive" && npc.currentNodeId === state.locationId && npc.currentSubLocationId === state.currentSubLocationId).slice(0, 8).forEach((npc) => {
         syncNpcRoutine(state, npc); const npcName = npc.name || npc.npcId;
         actions.push({ id: "act_exp_npc_talk_" + npc.npcId, label: npc.currentActivity === "ngu" ? "Đánh Thức · " + npcName : "Nói chuyện với " + npcName, aliases: ["nói chuyện", "gặp npc", "đánh thức"], priority: 1, category: "interaction" });
@@ -3837,7 +3869,7 @@
       const trail = (state.worldSimulation.npcFootprints?.[state.locationId] || []).filter((entry) => absoluteDay(state.gameClock) - entry.departedDay <= 3 && !entry.followed).sort((a, b) => b.departedDay - a.departedDay)[0];
       if (!trail) return { success: false, reason: "Dấu vết đã phai." };
       trail.followed = true; const falseLead = seeded(state, trail.trailId, "false") < 0.2;
-      history(state, "narr", falseLead ? "Dấu chân đột ngột hòa vào con đường đông người; hướng lần theo có thể đã sai." : "Mảnh vải và dấu chân dẫn về hướng " + (D.LOCATIONS[trail.destinationHint]?.name || "một lối mòn") + ", nhưng người kia hẳn đã đi xa.");
+      history(state, "narr", falseLead ? "Dấu chân đột ngột hòa vào con đường đông người; hướng lần theo có thể đã sai." : "Mảnh vải và dấu chân dẫn về hướng " + (runtimeLocationPool(state)[trail.destinationHint]?.name || "một lối mòn") + ", nhưng người kia hẳn đã đi xa.");
       return { success: true, destinationHint: falseLead ? null : trail.destinationHint, uncertain: true };
     }
     if (actionId.startsWith("act_exp_org_politics:")) {
@@ -3898,7 +3930,7 @@
       if (companionResult.success) history(state, "sys", "Dị Thú đồng hành phối hợp tấn công, gây " + companionResult.damage + " sát thương.");
     }
     const afterEnemies = E.aliveEnemies(state).length;
-    if (before.enemyCount > afterEnemies && before.enemyExp >= 100) publishPlayerRumor(state, "player-victory:" + before.enemyId + ":" + absoluteDay(state.gameClock), "Người chơi đã đánh bại một cường địch tại " + (D.LOCATIONS?.[state.locationId]?.name || "một vùng đất xa"), "heroic", 2);
+    if (before.enemyCount > afterEnemies && before.enemyExp >= 100) publishPlayerRumor(state, "player-victory:" + before.enemyId + ":" + absoluteDay(state.gameClock), "Người chơi đã đánh bại một cường địch tại " + (runtimeLocationPool(state)?.[state.locationId]?.name || "một vùng đất xa"), "heroic", 2);
     if (/breakthrough|dot_pha/.test(actionId)) publishPlayerRumor(state, "player-breakthrough:" + absoluteDay(state.gameClock), "Một tu sĩ vừa đột phá cảnh giới; tin tức đang lan theo đường thương lộ.", "heroic", 2);
     if (/act_hidden_profession|forbidden|cam_thuat/.test(actionId)) publishPlayerRumor(state, "player-forbidden:" + absoluteDay(state.gameClock), "Có lời đồn về một tu sĩ sử dụng thuật pháp bị cấm.", "villainous", 3);
     if (/tu_luyen|be_quan/.test(actionId)) advanceTechniqueTrials(state, "cultivation", "cultivation:" + actionId + ":" + state.meta.turn);
@@ -3940,7 +3972,7 @@
       day: absoluteDay(state.gameClock), season: seasonInfo(state), weather: region?.weather || "quang",
       weatherUntilDay: Number(region?.weatherUntilDay || 0), weatherSeverity: Number(region?.weatherSeverity || 0),
       weatherHistory: copy((region?.weatherHistory || []).slice(-5)),
-      event: event ? { ...event, name: template?.name, phase: template?.phases?.[event.phaseIndex]?.id } : null,
+      event: event ? { ...event, name: template?.name, phase: template?.phases?.[event.phaseIndex]?.id, choices: template?.phases?.[event.phaseIndex]?.id === "active" ? (template.choices || []).filter((choice) => !(event.choiceHistory || []).some((entry) => entry.choiceId === choice.id)).map((choice) => ({ id: choice.id, label: choice.label, actionId: "act_exp_world_" + event.id + "_" + choice.id })) : [] } : null,
       contracts: Object.values(state.contractBoard.offers), acceptedContracts: Object.values(state.contractBoard.accepted),
       wars: Object.values(state.worldSimulation.wars).filter((war) => war.status === "active"), warFronts: warFrontSnapshot(state), rumorBulletin: rumorBulletinSnapshot(state), companion: state.companion,
       professions: state.professionState, codex: state.codexState, codexProgress: codexProgress(state), collections: state.collectionRegistry, achievements: unlockAchievements(state), discoveries: Object.values(state.discoveries).reduce((sum, bucket) => sum + Object.keys(bucket).length, 0),
@@ -4122,7 +4154,7 @@
     if (active) {
       const definition = definitions.find((entry) => entry.id === active.realmId), runtime = runtimeMap[active.realmId];
       if (!definition || !runtime || runtime.status !== "open" || Number(active.cycleIndex) !== Number(runtime.cycleIndex)) errors.push("active:reference");
-      if (!active.entryNodeId || !active.coreNodeId || !D.LOCATIONS?.[active.entryNodeId] || !D.LOCATIONS?.[active.coreNodeId]) errors.push("active:nodes");
+      if (!active.entryNodeId || !active.coreNodeId || !runtimeLocationPool(state)?.[active.entryNodeId] || !runtimeLocationPool(state)?.[active.coreNodeId]) errors.push("active:nodes");
       const expectedPrefix = "hidden:" + active.realmId + ":" + active.cycleIndex + ":";
       if (state.locationId !== active.entryNodeId && state.locationId !== active.coreNodeId && !String(state.locationId || "").startsWith(expectedPrefix)) errors.push("active:location");
     }
@@ -4178,7 +4210,7 @@
     Object.values(armies).forEach((army) => {
       if (army.lastUpdatedDay >= day) return;
       const days = Math.min(30, Math.max(0, day - Number(army.lastUpdatedDay || day)));
-      const node = D.LOCATIONS?.[army.nodeId];
+      const node = runtimeLocationPool(state)?.[army.nodeId];
       const corruption = Number(node?.corruptionLevel || node?.corruption || 0);
       if (corruption >= 3 && army.status === "marching") army.morale = clamp(army.morale - days * Math.max(1, corruption - 2), 0, 100);
       if (army.morale <= 20 && army.status !== "routed") { army.status = "routed"; army.soldierCount = Math.max(1, Math.floor(army.soldierCount * 0.85)); }
@@ -4244,7 +4276,7 @@
     ensureExpansionState: ensure, ensureNpcWorldState, ensureMapState, mapNode, mapInfluenceSnapshot, resolveMapInfluence: mapInfluenceSnapshot, refreshMapInfluence, recordMapEventInfluence, mapFogState, moveWithinNode, appendNodeHistory, nodeResonance, mapCompletion, mapCompletionDetailed, buildMapStructure, repairMapStructure, upgradeMapStructure, disableMapStructure, dismantleMapStructure, transferMapStructure, teleportAnchorEligibility, travelPlan: canonicalTravelPlan, travelWeightSnapshot, claimOutpost, petitionOutpostToFaction, createTradeRoute, updateTradeRoutes, validateTradeRouteState, repairInvalidMapExits, wardProtectionAtNode, ensureWorldSimulation, validateExpansionState, validateCacheInvalidationState, validateReplayEnvelope, gameDayOrdinal: absoluteDay, worldRandom: seeded, simulateWorldUntil, simulateWorldAggregate, updateNpcSchedules, updateFactionInternalEvents, seasonalDestinationSnapshot, scheduleWorldTask, cancelWorldTask, processScheduledWorldTasks, resolveOfflineNpcEncounters, actorHistorySnapshot, rehydrateUnknownContent, worldSimulationSummary, getWorldModifiers, setWeather, weatherCatalog, weatherSnapshot, validateWeatherRuntimeState, validateStructureRuntimeState, validateGuildProjectState, worldModifierPreview, resolveNpcWeatherReaction, activeRegionEvent, startWorldEvent, resolveWorldEventChoice,
     recordRelationshipEvent, relationshipTier, relationshipBreakdown, relationshipPolicySnapshot, validateRelationshipPolicy, validateRelationshipRuntimeState, npcActionPresentation, npcRoutineAt, giftNpc, intimidateNpc, publishPlayerRumor, beginTrustTrial, resolveTrustTrial, updateNpcBetrayals, resolveNpcSuccession, guildVaultSnapshot, resolveOrganizationDefection, resolveAllianceMediation, resolveLoyaltyTest, organizationSnapshot, organizationInteract, promoteGuildMember, guildPromotionStatus, resolveOrganizationCommission, advanceOrganizationCommissions, ensureOrganizationState, validateOrganizationState, sendMail, refreshContracts, acceptContract, grantCanonicalReward, captureTarget, interrogate, tamePrisoner, scoutWithCompanion, normalizeCompanion, validateCompanionState, validatePrisonerState, validateContestedOpportunity, validateHiddenRealmRuntimeState, ensureArmyState, createArmy, armySnapshot, armyAction, updateArmies, productPolicySnapshot, validateProductPolicies, structureManagerDecision, selectCompanionTarget, useCompanionSkill, recordCompanionDamage, simulateOfflineCompanionCombat, recoverCompanion, reviveCompanion,
     discover, verifyDiscovery, collectDiscovery, rewardDiscovery, discoveryStatusSummary, validateDiscoveryLifecycle, divine, survivalProjection, setPlayerMark, progressionNamespaceSnapshot, validateCanonicalNamespaces, pathFusionAffinity, transitionSecondaryPath, chooseProfessionLocked, professionAvailability, practiceProfession, recipeDefinition, recipeCatalog: () => copy(RECIPE_CATALOG), structureCatalog, validateStructureRuntimeState, validateGuildProjectState, rewardPolicySnapshot, validateRewardPolicy, brewPill, useProfessionItem, rechargeProfessionItem, useHiddenProfessionAction, placeFormation, readNpc,
-    ensureTechniqueTrials, validateTechniqueRuntimeState, validateCharacterRuntimeState, chooseTechniqueEvolution, techniqueEvolutionModifiers, techniqueEligibility, guildTechniqueSnapshot,
+    ensureTechniqueTrials, validateTechniqueRuntimeState, validateCharacterRuntimeState, chooseTechniqueEvolution, techniqueEvolutionModifiers, techniqueEligibility, guildTechniqueSnapshot, guildTechniqueCombatBonus,
     fateEvolutionEligibility, startFateEvolutionTrial, recordFateEvolutionProgress, fateEvolutionCandidates, fateEvolutionPreview, evolveFate, applyFateEvolutionOps, fateEvolutionScoreDelta,
     awakenItem, markHeirloom, repairHeirloom, startGuildProject, contributeGuildProject, hiddenRealmEnter, claimHiddenRealmCore, exitHiddenRealm, validateReincarnationRuntimeState, prepareTribulation, chooseTribulation, chooseLegacy, visitTomb,
     beforeReincarnation, afterReincarnation, afterBreakthrough, afterBreakthroughAttempt,
