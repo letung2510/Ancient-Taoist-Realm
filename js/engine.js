@@ -48,7 +48,7 @@ window.GameEngine = (function () {
     u_minh_gioi: [["Ma Tộc", 50], ["Cổ Tộc", 20], ["Yêu Tộc", 15], ["Linh Tộc", 10], ["Nhân Tộc", 5]]
   };
   const START_LOCATIONS = {
-    trung_vuc: "son_mon", dong_hoang: "hac_lam", tay_mac: "tay_mac_khoi_diem",
+    trung_vuc: "truyen_phap", dong_hoang: "hac_lam", tay_mac: "tay_mac_khoi_diem",
     nam_chuong: "linh_dien", bac_nguyen: "bac_nguyen_khoi_diem", vo_tan_hai: "vo_tan_hai_khoi_diem",
     thien_khong_vuc: "thien_khong_khoi_diem", u_minh_gioi: "u_minh_khoi_diem"
   };
@@ -1039,6 +1039,7 @@ window.GameEngine = (function () {
       if (e.hpRegen) eff.hpRegen = true;
       if (e.sanDrainMult) eff.sanDrainMult += e.sanDrainMult;
     });
+    eff.maxQiPct += Number(character.maxQiBonusPct || 0);
     Object.keys(character.fateAdvancedActions || {}).filter((fateId) => (character.fates || []).includes(fateId)).forEach((fateId) => {
       const advanced = fateAdvancedEffectBreakdown(character, fateId);
       if (!advanced.suppressed) eff.allStatMult += advanced.allStatMult;
@@ -1758,8 +1759,8 @@ window.GameEngine = (function () {
     // state in another save, breaking deterministic resolver behavior.
     const character = canonicalInput ? fromCanonicalCharacter(canonicalInput) : (input.character ? JSON.parse(JSON.stringify(input.character)) : createCharacter(input));
     character.realmId = realmById(character.realmId).id;
-    const requestedStart = input.locationId || input.startLocationId || character.startLocationId || "son_mon";
-    const startLocation = D().WORLD_MAP?.locations?.[requestedStart] ? requestedStart : "son_mon";
+    const requestedStart = input.locationId || input.startLocationId || character.startLocationId || START_LOCATIONS[character.startRegionId || input.startRegionId || "trung_vuc"] || "truyen_phap";
+    const startLocation = D().WORLD_MAP?.locations?.[requestedStart] ? requestedStart : (START_LOCATIONS[character.startRegionId || input.startRegionId || "trung_vuc"] || "truyen_phap");
     const startPoint = D().WORLD_MAP?.locations?.[startLocation] || { x: 48, y: 78 };
     const state = {
       meta: {
@@ -2565,17 +2566,13 @@ window.GameEngine = (function () {
   }
   function safeTravelDestination(state) {
     const hubs = travelHubCatalog().filter((hub) => D().LOCATIONS[hub.id]);
-    const ritual = breakthroughRitualStatus(state);
-    const needsHuman = Boolean(ritual?.remaining?.length) || Boolean(state.flags?.originChoicePending);
-    const home = state.homeLocationId && D().LOCATIONS[state.homeLocationId] ? state.homeLocationId : "son_mon";
-    if (needsHuman) {
-      const ritualHub = hubs.find((hub) => hub.safe_for_ritual && hub.human_npc && hub.id !== state.locationId);
-      if (ritualHub) return { ...ritualHub, reason: "Nghi thức cần nhân vật và không gian an toàn." };
-    }
+    const home = state.homeLocationId && D().LOCATIONS[state.homeLocationId] ? state.homeLocationId : (state.startLocationId && D().LOCATIONS[state.startLocationId] ? state.startLocationId : null);
+    const homeHub = home && hubs.find((hub) => hub.id === home);
+    if (homeHub && homeHub.id !== state.locationId) return { ...homeHub, reason: "Trở về điểm neo hành trình của ngươi." };
     const regional = hubs.find((hub) => hub.region_id === currentRegionId(state) && hub.id !== state.locationId);
     if (regional) return { ...regional, reason: "Điểm trú ẩn gần nhất trong khu vực." };
-    const homeHub = hubs.find((hub) => hub.id === home && hub.id !== state.locationId) || hubs.find((hub) => hub.id === "son_mon");
-    return homeHub ? { ...homeHub, reason: "Trở về điểm neo hành trình." } : null;
+    const safeHub = hubs.find((hub) => hub.id !== state.locationId && hub.safe_for_ritual && hub.human_npc) || hubs.find((hub) => hub.id !== state.locationId);
+    return safeHub ? { ...safeHub, reason: "Không tìm thấy điểm neo trong vùng; tới nơi trú ẩn gần nhất." } : null;
   }
   function travelToSafeHub(state, options = {}) {
     const departureGuard = pendingDepartureGuard(state, "act_ve_noi_an_toan");
@@ -2646,7 +2643,7 @@ window.GameEngine = (function () {
     if (guild?.id) ids.push("guild_signature_" + guild.id + "_support");
     if (/kiếm|kiem/.test(source) && !ids.includes("thanh_phong_kiem_quyet")) ids.push("thanh_phong_kiem_quyet");
     if (/đan|duoc|dược/.test(source) && !ids.includes("bich_moc_hoi_xuan")) ids.push("bich_moc_hoi_xuan");
-    if ((rankName === "Chân Truyền" || rankName === "Trưởng Lão") && guild?.id) ids.push("guild_signature_" + guild.id + "_secret");
+    if (/Chân Truyền|Trưởng Lão|Chưởng Môn/.test(rankName) && guild?.id) ids.push("guild_signature_" + guild.id + "_secret");
     return ids;
   }
 
@@ -2669,7 +2666,15 @@ window.GameEngine = (function () {
     if (!membership) return { guild: null, expBonusPct: 0, cityPenaltyReductionPct: 0 };
     const guild = D().GUILDS.find((item) => item.id === membership.guildId);
     if (!guild) return { guild: null, expBonusPct: 0, cityPenaltyReductionPct: 0 };
-    const rank = guildRank(membership.contribution || 0);
+    const rankId = membership.rankId, rankIndex = Number.isInteger(Number(membership.rankIndex)) ? Number(membership.rankIndex) : -1;
+    const rankTable = [
+      { name: "Ngoại Môn", factor: 0.35 },
+      { name: "Nội Môn", factor: 0.6 },
+      { name: "Chân Truyền Đệ Tử", factor: 0.8 },
+      { name: "Trưởng Lão", factor: 1 },
+      { name: "Chưởng Môn", factor: 1 }
+    ];
+    const rank = rankTable[rankIndex] || (rankId && rankTable.find((entry) => entry.name.toLowerCase() === String(membership.rank || "").toLowerCase())) || guildRank(membership.contribution || 0);
     const interpolate = (range) => range.min + (range.max - range.min) * rank.factor;
     return {
       guild,
@@ -2706,12 +2711,30 @@ window.GameEngine = (function () {
       pushHistory(state, { type: "warn", text: "× " + eligibility.rule.name + " chưa chấp nhận mệnh cách của ngươi: " + eligibility.reasons.join(" · ") + "." });
       return false;
     }
+    const guildAddress = mapAddressCatalog().organizations.find((address) => address.refId === guild.id || address.id === guild.id);
+    const guildNodeId = guildAddress?.nodeId || Object.keys(D().LOCATIONS || {}).find((nodeId) => D().LOCATIONS[nodeId]?.organizationId === guild.id) || null;
+    if (!guildNodeId || !D().LOCATIONS[guildNodeId]) {
+      pushHistory(state, { type: "warn", text: "× Chưa xác lập được địa chỉ bản đồ của " + guild.name + "; chưa thể hoàn tất nhập môn." });
+      return false;
+    }
     state.guildMembership = {
       guildId: guild.id,
       contribution: 0,
       rank: "Ngoại Môn",
+      rankId: "outer",
+      rankIndex: 0,
       joinedAtTurn: state.meta.turn
     };
+    state.locationId = guildNodeId;
+    state.homeLocationId = guildNodeId;
+    state.flags = state.flags || {};
+    state.flags.lastMoveFrom = null; state.flags.lastMoveTo = guildNodeId; state.flags.lastMoveDirection = null;
+    state.visitedLocations = Array.isArray(state.visitedLocations) ? state.visitedLocations : [];
+    if (!state.visitedLocations.includes(guildNodeId)) state.visitedLocations.push(guildNodeId);
+    if (Array.isArray(state.openWorld?.coordinates?.[guildNodeId]) === false) {
+      const point = D().WORLD_MAP.locations[guildNodeId];
+      if (point) state.openWorld.coordinates[guildNodeId] = [Number(point.x), Number(point.y)];
+    }
     state.pendingGuildChoice = false;
     state.flags.guildDecision = "guild:" + guild.id;
     const learnedTechniques = grantGuildTechniques(state);
@@ -2721,7 +2744,7 @@ window.GameEngine = (function () {
       pushHistory(state, { type: "sys", text: "§ Tông môn truyền thụ công pháp: " + names.join(", ") + ". Có thể mở mục Công Pháp để luyện và xem hiệu ứng." });
     }
     pushMemory(state, "Gia nhập " + guild.name + ".");
-    pushHistory(state, { type: "sys", text: "§ Ngươi đã gia nhập " + guild.name + " với thân phận Ngoại Môn." });
+    pushHistory(state, { type: "sys", text: "§ Ngươi đã gia nhập " + guild.name + " với thân phận Ngoại Môn; truyền tống trận hộ tống ngươi tới sơn môn và lập nơi này làm điểm neo hồi quy." });
     checkQuestObjectives(state, "chon_dao_lo");
     return true;
   }
@@ -2976,7 +2999,7 @@ window.GameEngine = (function () {
     }
     if (step === "omen") {
       const level = Number(status.next.level || 8);
-      const chance = clamp(82 - Math.max(0, level - 8) * 8 + (Number(state.player.aptitude || 0) - 50) * 0.5 + (Number(state.player.comprehension || 0) - 50) * 0.3, 10, 95);
+      const chance = clamp(82 - Math.max(0, level - 8) * 8 + (Number(state.player.aptitude || 0) - 50) * 0.5 + (Number(state.player.comprehension || 0) - 50) * 0.3 + Number(state.player.lightningTribulationBonus || 0), 10, 95);
       const success = replayInt(state, "breakthrough-omen:" + status.next.id, 1, 100) <= chance;
       if (!success) {
         const sanCost = replayInt(state, "breakthrough-omen-san:" + status.next.id, 1, 100) <= Math.min(80, 25 + level * 3) ? 3 : 0;
@@ -3455,7 +3478,7 @@ window.GameEngine = (function () {
     const mind = ritualFlags.bodyMindPassed ? { success: true } : skillCheck(Number(state.player.comprehension || 0), difficulty, state, "breakthrough-mind:" + next.id);
     const pendingTribulation = state.pendingTribulation;
     const tribulationBonus = pendingTribulation?.status === "resolved" && Number(pendingTribulation.targetRealmLevel) === Number(next.level) ? Number(pendingTribulation.result?.bonus || 0) : 0;
-    const chance = clamp(35 + state.player.aptitude * 0.25 + state.player.comprehension * 0.20 + Math.min(20, Math.max(0, fate.effective - minTotal) * 0.05) - state.player.corruptionRating * 0.15 + tribulationBonus, 5, 95);
+    const chance = clamp(35 + state.player.aptitude * 0.25 + state.player.comprehension * 0.20 + Math.min(20, Math.max(0, fate.effective - minTotal) * 0.05) - state.player.corruptionRating * 0.15 + tribulationBonus + Number(state.player.lightningTribulationBonus || 0), 5, 95);
     const chanceRoll = replayInt(state, "breakthrough-chance:" + next.id, 1, 100);
     if (!body.success || !mind.success || chanceRoll > chance) {
       const expLoss = Math.ceil(state.player.exp * replayInt(state, "breakthrough-exp-loss:" + next.id, 5, 15) / 100);
@@ -4462,7 +4485,8 @@ window.GameEngine = (function () {
   });
   const MAP_EVENT_TEMPLATES = Object.freeze([
     { id: "npc_hidden_traveler", group: "npc", name: "Lữ Khách Che Mặt", text: "Một lữ khách đứng dưới bóng node, giọng nói như vọng qua hai lớp thời gian.", choices: [{ id: "talk", label: "Hỏi chuyện", effect: "talk" }, { id: "ignore", label: "Bỏ qua", effect: "ignore" }], cooldown: 5 },
-    { id: "co_duyen_linh_spring", group: "co_duyen", name: "Linh Tuyền Ẩn Hiện", text: "Một mạch nước linh khí rạn ra giữa đất đá, chỉ tồn tại trong vài nhịp thở.", choices: [{ id: "drink", label: "Uống linh tuyền", effect: "spring" }, { id: "leave", label: "Ghi nhớ rồi rời đi", effect: "ignore" }], cooldown: 30 },
+    { id: "co_duyen_linh_spring", group: "co_duyen", name: "Linh Tuyền Ẩn Hiện", text: "Một mạch nước linh khí rạn ra giữa đất đá, chỉ tồn tại trong vài nhịp thở.", choices: [{ id: "drink", label: "Uống linh tuyền", effect: "spring" }, { id: "leave", label: "Ghi nhớ rồi rời đi", effect: "ignore" }], cooldown: 90 },
+    { id: "co_duyen_heavenly_treasure", group: "co_duyen", name: "Thiên Tài Địa Bảo", text: "Một linh vật cổ xưa tỏa dị quang giữa khe đá; niên đại của nó đã vượt xa phàm phẩm.", choices: [{ id: "claim", label: "Tiếp nhận linh vận", effect: "treasure" }, { id: "leave", label: "Để lại dấu ấn rồi rời đi", effect: "ignore" }], cooldown: 120 },
     { id: "co_duyen_ancient_trace", group: "co_duyen", name: "Tàn Quyển Rơi Rớt", text: "Một trang công pháp cũ mắc trong bụi, mép giấy còn vương khí tức của người xưa.", choices: [{ id: "study", label: "Nghiên cứu", effect: "study" }, { id: "leave", label: "Không chạm vào", effect: "ignore" }], cooldown: 30 },
     { id: "dong_phu_hidden_abode", group: "dong_phu", name: "Động Phủ Vô Danh", text: "Đá núi tách ra, để lộ một cửa động phủ chưa từng được ghi trên bản đồ.", choices: [{ id: "enter", label: "Chinh phục Động Phủ", effect: "cave" }, { id: "seal", label: "Đánh dấu và rời đi", effect: "ignore" }], cooldown: 0 }
   ]);
@@ -4486,7 +4510,7 @@ window.GameEngine = (function () {
     const node = D().LOCATIONS[state.locationId], record = mapEventRecord(state), turn = Number(state.meta?.turn || 0);
     if (!node || state.pendingMapEvent || Number(record.cooldownUntilTurn || 0) > turn) return null;
     const firstDiscovery = !record.discovered;
-    const chance = trigger === "first_discovery" || firstDiscovery ? 1 : trigger === "explore_action" ? 0.9 : 0.25;
+    const chance = trigger === "first_discovery" || firstDiscovery ? 1 : trigger === "explore_action" ? 0.55 : 0.14;
     if (replayRandom(state, "map-event-chance:" + state.locationId + ":" + trigger + ":" + turn) >= chance) return null;
     const tag = mapEventPoolTag(state, node), weights = { ...(MAP_EVENT_GROUP_WEIGHTS[tag] || MAP_EVENT_GROUP_WEIGHTS.linh_vuc) };
     if (firstDiscovery) weights.monster = 0;
@@ -4499,7 +4523,25 @@ window.GameEngine = (function () {
     const pool = candidates.length ? candidates : fallback;
     if (!pool.length) return null;
     const event = pool[Math.floor(replayRandom(state, "map-event-pick:" + state.locationId + ":" + turn) * pool.length)];
-    state.pendingMapEvent = { id: event.id + ":" + turn, eventId: event.id, nodeId: state.locationId, regionId: regionOfLocation(state), trigger, poolTag: tag, createdTurn: turn, choices: event.choices.map((choice) => ({ ...choice })), status: "pending" };
+    const pending = { id: event.id + ":" + turn, eventId: event.id, nodeId: state.locationId, regionId: regionOfLocation(state), trigger, poolTag: tag, createdTurn: turn, choices: event.choices.map((choice) => ({ ...choice })), status: "pending" };
+    if (event.id === "co_duyen_heavenly_treasure") {
+      const kinds = [
+        { id: "linh_tuyen", name: "Linh Tuyền", stat: "comprehension", base: 2 },
+        { id: "dia_nhu", name: "Địa Nhũ", stat: "basePhy", base: 2 },
+        { id: "nhan_sam", name: "Nhân Sâm", stat: "lifespanConsumableBonus", base: 5 },
+        { id: "bach_bang", name: "Bạch Băng", stat: "san", base: 10 },
+        { id: "loi_truc", name: "Lôi Trúc", stat: "lightningTribulationBonus", base: 3 },
+        { id: "tu_dan", name: "Tử Đàn", stat: "daoTam", base: 3 },
+        { id: "bat_than_moc", name: "Bát Thần Mộc", stat: "maxQiPct", base: 2 }
+      ];
+      const kind = kinds[Math.floor(replayRandom(state, "treasure-kind:" + pending.id) * kinds.length)];
+      const roll = replayRandom(state, "treasure-age:" + pending.id);
+      const years = roll < 0.72 ? 100 : roll < 0.96 ? 1000 : 10000;
+      const multiplier = years === 100 ? 1 : years === 1000 ? 2.5 : 5;
+      pending.treasure = { ...kind, years, amount: Math.round(kind.base * multiplier), name: kind.name + " · " + (years >= 10000 ? "Vạn Niên" : years >= 1000 ? "Thiên Niên" : "Bách Niên") };
+      pending.choices[0].label = "Tiếp nhận " + pending.treasure.name;
+    }
+    state.pendingMapEvent = pending;
     record.discovered = true;
     pushHistory(state, { type: "narr", text: "Giữa " + (node.name || "vùng đất chưa gọi tên") + ", một phát hiện hiện ra — " + event.text });
     return state.pendingMapEvent;
@@ -4511,14 +4553,26 @@ window.GameEngine = (function () {
     const choice = event.choices.find((entry) => entry.id === choiceId);
     if (!choice) return { success: false, reason: "Lựa chọn phát hiện không hợp lệ." };
     const record = mapEventRecord(state, pending.nodeId), effect = choice.effect;
-    if (effect === "spring") { state.player.san = clamp(Number(state.player.san || 0) + 12, 0, state.player.maxSan || 100); state.player.qi = clamp(Number(state.player.qi || 0) + 12, 0, state.player.maxQi || 100); }
+    let rewardText = "";
+    if (effect === "spring") { state.player.comprehension = Number(state.player.comprehension || 0) + 1; rewardText = "Ngộ tính +1"; }
+    if (effect === "treasure" && pending.treasure) {
+      const treasure = pending.treasure, amount = Number(treasure.amount || 0);
+      if (treasure.stat === "comprehension") state.player.comprehension = Number(state.player.comprehension || 0) + amount;
+      else if (treasure.stat === "basePhy") state.player.basePhy = Number(state.player.basePhy || 0) + amount;
+      else if (treasure.stat === "lifespanConsumableBonus") { state.player.lifespanConsumableBonus = Number(state.player.lifespanConsumableBonus || 0) + amount; state.player.lifespan = Number(state.player.lifespan || 0) + amount; }
+      else if (treasure.stat === "san") state.player.san = clamp(Number(state.player.san || 0) + amount, 0, Number(state.player.maxSan || 100));
+      else if (treasure.stat === "lightningTribulationBonus") state.player.lightningTribulationBonus = Number(state.player.lightningTribulationBonus || 0) + amount;
+      else if (treasure.stat === "daoTam") adjustDaoTam(state, amount, "Thiên tài địa bảo · " + treasure.name);
+      else if (treasure.stat === "maxQiPct") state.player.maxQiBonusPct = Number(state.player.maxQiBonusPct || 0) + amount;
+      rewardText = treasure.name + " · hiệu lực +" + amount + (treasure.stat === "maxQiPct" ? "% Linh Khí tối đa" : "");
+    }
     if (effect === "study") { gainExp(state, 35 + Number(D().LOCATIONS[pending.nodeId]?.dangerLevel || 1) * 8); state.player.comprehension = Number(state.player.comprehension || 0) + 1; }
     if (effect === "talk") { state.player.comprehension = Number(state.player.comprehension || 0) + 1; state.flags.hiddenNpcMet = Number(state.flags.hiddenNpcMet || 0) + 1; }
     if (effect === "cave") { const node = D().LOCATIONS[pending.nodeId]; node.caveAbode ||= { status: "unconquered", discoveredDay: Number(state.gameClock?.currentDay || 1) }; node.mapNodeType = "dong_phu"; node.caveAbode.status = "claimed"; addItem(state, "linh_thach", 5 + Number(node.dangerLevel || 1)); }
     const cooldown = Number(event.cooldown || 0); record.cooldownUntilTurn = Number(state.meta?.turn || 0) + cooldown; record.resolvedIds.push(event.id); record.resolvedIds = record.resolvedIds.slice(-12);
     pending.status = "resolved"; pending.choice = choiceId; pending.resolvedTurn = Number(state.meta?.turn || 0); state.mapEvents.history.push({ ...pending }); state.mapEvents.history = state.mapEvents.history.slice(-40); state.pendingMapEvent = null;
     const nodeName = D().LOCATIONS[pending.nodeId]?.name || "khu vực ấy";
-    pushHistory(state, { type: "narr", text: "Tại " + nodeName + ", ngươi " + choice.label.toLowerCase() + ". Dư âm của " + event.name + " lắng xuống, để lại một khoảng im lặng khác thường." }); updateDerived(state);
+    pushHistory(state, { type: "narr", text: "Tại " + nodeName + ", ngươi " + choice.label.toLowerCase() + (rewardText ? "; " + rewardText + " thấm vào căn cơ." : ".") + " Dư âm của " + event.name + " lắng xuống, để lại một khoảng im lặng khác thường." }); updateDerived(state);
     return { success: true, event, choice };
   }
   function validateMapEventState(state) {
@@ -4844,6 +4898,13 @@ window.GameEngine = (function () {
     }
     const npc = D().NPCS[entityId];
     const loc = D().LOCATIONS[state.locationId];
+    const runtimeNpc = state.worldSimulation?.npcState?.[entityId];
+    if (runtimeNpc && window.GameExpansion?.npcTalk) {
+      const presentation = window.GameExpansion.npcActionPresentation?.(state, entityId, npc?.name || entityId);
+      if (!presentation?.available) { pushHistory(state, { type: "warn", text: "Người ấy hiện không ở tiểu cảnh này." }); return; }
+      window.GameExpansion.npcTalk(state, entityId);
+      return;
+    }
     const present = loc && loc.npcs && loc.npcs.includes(entityId);
     if (!present) {
       pushHistory(state, { type: "warn", text: "× " + npc.name + " không có ở đây." });
@@ -5171,41 +5232,28 @@ window.GameEngine = (function () {
     if (match) return match[0].replace(/\s+/g, " ").trim();
     return clock.split(/ngày/i)[0].trim() || clock.slice(0, 10);
   }
-  function novelLogParagraphs(state, events = null) {
-    const source = Array.isArray(events) ? events : getGameLog(state);
-    const groups = [];
-    const byDay = new Map();
-    source.filter((event) => event && event.type !== "COMMAND_ECHO" && !event.debugOnly).forEach((event) => {
-      const key = gameLogDayKey(event);
-      let group = byDay.get(key);
-      if (!group) { group = { dayKey: key, entry: event, events: [], texts: [] }; byDay.set(key, group); groups.push(group); }
-      const text = formatPlayerLogText(state, event);
-      if (text) { group.events.push(event); group.texts.push(text); }
-    });
-    return groups.flatMap((group) => group.events.map((event, index) => ({
-      dayKey: group.dayKey,
-      clock: event.clock || event.timestamp || group.entry.clock || group.entry.timestamp || "",
-      text: group.texts[index] || "",
-      events: [event],
-      statDisplay: Array.isArray(event.statDisplay) ? [...new Set(event.statDisplay)] : [],
-      portrait: event.portrait || null
-    })));
-  }
   // Unified scene projection: one player-facing paragraph per causal scene.
   function groupIntoScenes(history) {
     const scenes = [];
-    const byKey = new Map();
+    const scenesByEventId = new Map();
     (Array.isArray(history) ? history : []).forEach((event) => {
       if (!event || event.debugOnly || event.playerVisible === false || event.type === "COMMAND_ECHO") return;
-      const key = event.sceneId || (gameLogDayKey(event) + "|" + String(event.locationId || ""));
-      let scene = byKey.get(key);
-      if (!scene) {
-        scene = { sceneId: key, dayKey: gameLogDayKey(event), clock: event.clock || event.timestamp || "", events: [], texts: [], stats: [] };
-        byKey.set(key, scene); scenes.push(scene);
+      const dayKey = gameLogDayKey(event);
+      const locationId = String(event.locationId || "");
+      const parentScene = event.relation === "result" && event.causedBy ? scenesByEventId.get(event.causedBy) : null;
+      const requestedSceneId = String(event.sceneId || (dayKey + "|" + locationId));
+      const previous = scenes[scenes.length - 1];
+      const sameScene = previous && previous.dayKey === dayKey && previous.locationId === locationId &&
+        (previous.sceneId === requestedSceneId || (parentScene === previous));
+      let scene = sameScene ? previous : null;
+      if (!sameScene) {
+        scene = { sceneId: parentScene && parentScene.dayKey === dayKey && parentScene.locationId === locationId ? parentScene.sceneId : requestedSceneId, dayKey, locationId, clock: event.clock || event.timestamp || "", events: [], texts: [], stats: [] };
+        scenes.push(scene);
       }
       const text = formatPlayerLogText(null, event);
       if (text && !scene.texts.includes(text)) { scene.texts.push(text); scene.events.push(event); }
-      scene.stats.push(...(Array.isArray(event.statDisplay) ? event.statDisplay : []), ...(Array.isArray(event.stats) ? event.stats : []));
+      scene.stats.push(...(Array.isArray(event.statDisplay) && event.statDisplay.length ? event.statDisplay : (Array.isArray(event.stats) ? event.stats : [])));
+      if (event.id) scenesByEventId.set(event.id, scene);
     });
     return scenes;
   }
@@ -5244,29 +5292,6 @@ window.GameEngine = (function () {
     const vars = { ...(event.context || {}), ...(event.result || {}) };
     let text = template.replace(/\{(\w+)\}/g, (_, key) => logValue(vars[key], key === "text" ? event.text : "—"));
     return narrativeSafe(text, event);
-  }
-  function renderScene(state, events = []) {
-    const list = (Array.isArray(events) ? events : []).filter((event) => event && event.type !== "COMMAND_ECHO" && !event.debugOnly);
-      if (!list.length) return "";
-      const dateKey = (event) => {
-        const clock = String(event.clock || event.timestamp || "");
-        const match = clock.match(/Năm\s*[^,·]+[,·]\s*Tháng\s*[^,·]+[,·]?\s*Ngày\s*[^,·]+/i);
-        return match ? match[0].replace(/\s+/g, " ").trim() : clock.split(/Ngày/i)[0].trim();
-      };
-      // Novel contract: one paragraph per in-game day, even across node/sub-location changes.
-      const sceneKey = (event) => dateKey(event);
-    const groups = [];
-    list.forEach((event) => {
-      const previous = groups[groups.length - 1];
-      const sameScene = previous && sceneKey(event) === sceneKey(previous[0]);
-      if (sameScene) previous.push(event); else groups.push([event]);
-    });
-    return groups.map((group) => {
-      const timestamp = group[0].clock || group[0].timestamp || "";
-      const body = group.map((event) => renderGameEvent(state, event)).filter(Boolean).join(" ");
-      const stats = group.flatMap((event) => Array.isArray(event.statDisplay) ? event.statDisplay : [formatEventChanges(event.changes)]).filter(Boolean);
-      return "【" + timestamp + "】\n\n" + narrativeSafe(body, group[0]) + (stats.length ? "\n◇ " + [...new Set(stats)].join(" · ") : "");
-    }).join("\n\n");
   }
   // Final renderer entry point: every visible history item is projected
   // through the same causal-scene grouper used by the story window.
@@ -5346,9 +5371,7 @@ window.GameEngine = (function () {
     if (event.narrative?.text !== undefined) event.narrative.text = sanitizeLogUtf8(event.narrative.text);
     return event;
   }
-  function emitEvent(state, input) { return pushHistory(state, input); }
-  function emitGameEvent(state, input) { return emitEvent(state, input); }
-  function pushHistory(state, entry = {}) {
+  function emitEvent(state, entry = {}) {
     if (state._suppressHistory) return null;
     const event = normalizeHistoryEvent(state, entry.id && entry.timestamp && entry.context && entry.result ? { ...entry } : createGameEvent(state, entry));
     if (event?.text !== undefined) event.text = sanitizeLogUtf8(event.text);
@@ -5359,6 +5382,10 @@ window.GameEngine = (function () {
     if (state.history.length > 300) state.history.splice(0, state.history.length - 300);
     return event;
   }
+  function emitGameEvent(state, input) { return emitEvent(state, input); }
+  // Compatibility alias for legacy producers. All history writes still pass
+  // through the unified event envelope and persistence gateway above.
+  function pushHistory(state, entry = {}) { return emitEvent(state, entry); }
   function getGameLog(state, filter = {}) {
     const list = Array.isArray(state?.history) ? state.history : [];
     return list.filter((event) => (!filter.type || event.type === canonicalLogType(filter.type)) && (!filter.severity || event.severity === filter.severity) && (!filter.importance || (LOG_IMPORTANCE[event.importance] || 0) >= (LOG_IMPORTANCE[filter.importance] || 0)));
@@ -5429,11 +5456,15 @@ window.GameEngine = (function () {
     (loc?.npcs || []).forEach((npcId) => {
       const npc = D().NPCS[npcId];
       if (!npc) return;
-      actions.push({ id: "act_talk_" + npcId, label: "Nói chuyện với " + npc.name, aliases: ["nói chuyện " + npc.name, "noi chuyen " + npc.name], priority: 1 });
+      const presentation = typeof window !== "undefined" ? window.GameExpansion?.npcActionPresentation?.(state, npcId, npc.name) : null;
+      if (presentation && !presentation.available) return;
+      const npcName = npc.name && npc.name !== npcId ? npc.name : (typeof window !== "undefined" ? window.GameI18n?.lookup?.(state, npcId) : null) || npcId.replace(/_/g, " ");
+      actions.push({ id: "act_talk_" + npcId, label: presentation?.label || "Nói chuyện với " + npcName, aliases: ["nói chuyện " + npcName, "noi chuyen " + npcName, "đánh thức " + npcName], priority: 1 });
     });
     presentEntities(state).forEach((entity) => {
       if (loc?.npcs?.includes(entity.id)) return;
-      actions.push({ id: "act_talk_" + entity.id, label: "Nói chuyện với " + entity.name, aliases: ["gặp " + entity.name, "gap " + entity.name, "nói chuyện " + entity.name], priority: 1 });
+      const entityName = entity.name && entity.name !== entity.id ? entity.name : (typeof window !== "undefined" ? window.GameI18n?.lookup?.(state, entity.id) : null) || entity.id.replace(/_/g, " ");
+      actions.push({ id: "act_talk_" + entity.id, label: "Nói chuyện với " + entityName, aliases: ["gặp " + entityName, "gap " + entityName, "nói chuyện " + entityName], priority: 1 });
     });
     return actions;
   }
@@ -6268,7 +6299,7 @@ window.GameEngine = (function () {
     rnd, clamp, computeFate, fateState, fateStatusLabel, drawInitialFates, rollCharacterCreation, rollSpiritualRootBranch, spiritualRootProfile, startRegionEligibility, availableStartRegions, computeStats, computeRelationshipEffects, validateFateEffectComposition, skillCheck, sanCheck, sanStatus, fortuneStatus, worldviewWrongness, subLocationWrongness, weaveAtmosphere, perceivedValue, realmLore, getPathDisplayName, spiritualRootGrade,
     createCharacter, createState, updateDerived, originOptions, journeyIntentOptions, chooseJourneyIntent, chooseOrigin, chooseOriginBranch,
     addItem, removeItem, registerGeneratedItem, createLootItem, activateQuest, trackQuest, abandonQuest, checkQuestObjectives, failQuest,
-    getGuildBenefits, guildTierInfo, guildEligibility, guildExitCost, joinGuild, refuseGuild, leaveGuild, describeGuild, travelHubCatalog, safeTravelDestination, travelToSafeHub,
+    getGuildBenefits, guildTierInfo, guildEligibility, guildExitCost, joinGuild, refuseGuild, leaveGuild, describeGuild, grantGuildTechniques, travelHubCatalog, safeTravelDestination, travelToSafeHub,
     normalizeEquipment, equippedItemIds, equippedItemQuantity, freeItemQuantity, equipmentCategory, equipmentCategoryLabel, equipmentSummary, equipmentEligibility, protectionSlot, equipItem, inventoryActions, handleInventoryAction, cauldronItemSafety,
     GRADE_TO_TIER, TIER_TO_GRADE, SIGN_TO_TYPE_LABEL, TYPE_LABEL_TO_SIGN, fateDefinition, fateElement, fatePathAffinity, splitFateEffects, fateRelationshipsFor, fateCombosFor, fateFusionRecipesFor, fateRelationshipStatus, fateAdvancedActionRecord, fateAdvancedActionCatalog, validateFateAdvancedActionState, fateAdvancedEffectBreakdown, canonicalHiddenProfessionId, nurtureFate, resonateFate, revealFateInsight, releaseStagnantFate, defyFate, suppressFate, heavenlyOmen, transformFate, meritFateOffers, buyFateWithMerit,
     fateVaultCapacity, fateCompatibility, fateEnhancementLevel, enhancedFateEffects, fateEffectBreakdown, pathMatchSummary, availablePaths, pathProgression, receiveFate, sacrificeFate, fateVaultSummary, validateFateInventory, swapFateFromVault, fateSwapPreview, storeFateToVault, equipFateFromVault, fateUpgradePreview, upgradeFate, resolvePendingFateReward, dismissPendingFateReward, mergeFates, suggestFateForRealmRequirement, auditFateRolls, buyFateAtMarket, sacrificeLifespanForFate, qintianFateOffers, refreshMarket, marketOffers, buyMarketOffer, refreshBlackMarket, blackMarketOffers, buyBlackMarketOffer, meritFateOffers, buyFateWithMerit, refineAtVoidCauldron,

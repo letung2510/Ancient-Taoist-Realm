@@ -4,6 +4,19 @@
 
 ## Consolidated logic
 
+### Unified novel-style event log
+
+Source of truth: [`NOVEL_STYLE_LOG_UNIFIED_FLOW.md`](../../../NOVEL_STYLE_LOG_UNIFIED_FLOW.md).
+
+- Every history producer enters through `emitEvent()`; `pushHistory()` remains a compatibility alias and uses the same normalization/persistence gateway.
+- The persisted envelope retains raw text, error code, event relation, scene/location, visibility, context, and structured stats. Player Log is a projection; it must never erase diagnostic data from `state.history`.
+- Player Log groups adjacent events only when their in-game day, location, and `sceneId` match. Causal result events therefore share one paragraph and timestamp; a new location or scene starts a new paragraph.
+- `COMMAND_ECHO`, debug-only, and non-player-visible events are excluded from the player projection. System Log/diagnostic history retains them.
+- Narrative lint runs at build/test and render boundaries. Unsafe or unmapped technical text is replaced with neutral prose; structured stat display stays separate from the paragraph.
+- `verify_log_narrative.js` and `verify_log_producers.js` are part of `tools/run_regression_suite.js`.
+
+Related world producers are specified in [`WORLD_SIMULATION_CANONICAL.md`](../04-world/WORLD_SIMULATION_CANONICAL.md), [`NPC_CANONICAL.md`](../05-interaction/NPC_CANONICAL.md), and [`WEATHER_CANONICAL.md`](../04-world/WEATHER_CANONICAL.md); they use the same event gateway and do not render directly.
+
 
 ### Source: `archive-requirements\logic-history\03-world\ORGANIZATION_INTERACTION_SYSTEM.md`
 

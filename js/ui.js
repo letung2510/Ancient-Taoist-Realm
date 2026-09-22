@@ -156,7 +156,7 @@ window.GameUI = (function () {
       btn.type = "button";
       btn.className = "action-chip action-category-" + action.category + (action.priority === 0 ? " danger" : "");
       btn.dataset.actionId = action.id;
-      btn.textContent = action.label;
+      btn.textContent = window.GameI18n?.formatHistory?.(action.label, state) || action.label;
       if (action.description) btn.title = action.description;
       if ((action.disabled_reason || action.disabledReason || action.disabled || action.enabled === false) && !action.open_only) {
         btn.disabled = true;
@@ -228,7 +228,7 @@ window.GameUI = (function () {
 
   function renderPinnedCharacterSummary(state) {
     const p = state?.player || {}, pct = (value, max) => Math.max(0, Math.min(100, Math.round(Number(value || 0) / Math.max(1, Number(max || 1)) * 100)));
-    const meter = (label, value, max, cls) => '<div class="pinned-stat"><div><span>' + label + '</span><b>' + Number(value || 0) + '/' + Number(max || 0) + '</b></div><div class="pinned-meter ' + cls + '"><i style="width:' + pct(value, max) + '%"></i></div></div>';
+    const meter = (label, value, max, cls) => '<div class="pinned-stat pinned-stat--' + cls + '"><div><span>' + label + '</span><b>' + Number(value || 0) + '/' + Number(max || 0) + '</b></div><div class="' + (cls === "hp" ? "hp-bar" : cls === "mana" ? "qi-bar" : "progress-bar") + '"><span style="width:' + pct(value, max) + '%"></span></div></div>';
     return '<aside class="pinned-character-summary" data-pinned-character-summary><div class="pinned-character-heading"><span class="pinned-avatar">' + escapeHtml(String(p.name || 'Vô Danh').slice(0, 1)) + '</span><div><b>' + escapeHtml(p.name || 'Vô Danh') + '</b><small>' + escapeHtml(window.GameEngine.pathTitle?.(state) || p.background || 'Tu sĩ vô danh') + '</small></div></div>' + meter('Khí Huyết', p.hp, p.maxHp, 'hp') + meter('Linh Khí', p.qi, p.maxQi, 'mana') + meter('Thanh Tỉnh', p.san, p.maxSan, 'san') + '</aside>';
   }
 
@@ -308,7 +308,7 @@ window.GameUI = (function () {
     let defs = base.concat(hidden);
     const lockedIds = new Set([state.professionState?.primaryId, state.professionState?.secondaryId].filter(Boolean));
     if (state.professionState?.secondaryId) defs = defs.filter((definition) => lockedIds.has(definition.id));
-    else if (state.professionState?.primaryId) defs = defs.filter((definition) => definition.id === state.professionState.primaryId || window.GameEngine.professionAvailability?.(state, definition.id)?.visible);
+    else if (state.professionState?.primaryId) defs = defs.filter((definition) => definition.id === state.professionState.primaryId || (window.EXPANSION_DATA?.hiddenProfessions?.[definition.id] && window.GameEngine.professionAvailability?.(state, definition.id)?.selectable));
     const selectedProfessionIds = new Set([state.professionState?.primaryId, state.professionState?.secondaryId].filter(Boolean));
     const items = Object.values({ ...(window.EXPANSION_DATA?.professionItems || {}), ...(window.PROFESSION_ITEMS || {}) }).filter((item) => !selectedProfessionIds.size || selectedProfessionIds.has(item.professionId));
     const selectionLabel = state.professionState?.primaryId ? (state.professionState?.secondaryId ? "Nghề chính và Nghề Ẩn đã cố định" : "Nghề chính đã khóa; chỉ Nghề Ẩn mở bằng Cổ Tịch Tà Thần mới được chọn") : "Chưa chọn nghề chính";
@@ -695,6 +695,7 @@ window.GameUI = (function () {
         helpLabel("Tín", "Mức độ nhân vật tin cậy mệnh nhân.") + ': ' + r.trust + ' · ' +
         helpLabel("Sợ", "Mức độ nhân vật sợ hãi uy thế của mệnh nhân.") + ': ' + r.fear + ' · ' +
         helpLabel("Kính", "Mức độ kính trọng danh vọng và hành vi của mệnh nhân.") + ': ' + r.respect + ' · ' +
+        helpLabel("Thiện cảm", "Mức độ quý mến cá nhân; độc lập với lòng tin và sự kính trọng.") + ': ' + Number(r.affection || 0) + ' · ' +
         helpLabel("Nghi", "Mức độ hoài nghi; quá cao có thể khóa đối thoại hoặc dẫn tới phản bội.") + ': ' + r.suspicion + ' · ' + helpLabel("Trung thành", "Mức độ sẵn sàng giữ lời, bảo vệ và tiếp tục đứng về phía nhân vật; khác với Tín và Điểm quan hệ.") + ': ' + Number(r.loyalty || 0) + "</small></div>";
     }).join("") || '<p class="muted">Chưa kết giao ai.</p>';
     const prisoners = Object.values(state.prisoners || {}).filter((p) => p.status === "held").map((p) => '<div class="item-row"><b>Tù binh · ' + escapeHtml(window.GameData.ENTITIES?.[p.entityId]?.name || window.GameI18n?.formatTarget(p.entityId, state) || "Thực thể chưa định danh") + '</b><div class="item-actions">' + expansionButton("interrogate", "Thuyết phục", p.id, 'data-expansion-arg2="persuade"') + expansionButton("prisoner_resolve", "Phóng thích", p.id, 'data-expansion-arg2="released"') + '</div></div>').join("") || '<p class="muted">Không có tù binh đang giữ.</p>';
@@ -702,8 +703,10 @@ window.GameUI = (function () {
     const localNpcIds = window.GameData.LOCATIONS?.[state.locationId]?.npcs || [];
     const correspondence = localNpcIds.map((npcId) => '<div class="item-row"><b>' + escapeHtml(window.GameData.NPCS?.[npcId]?.name || window.GameI18n?.formatTarget(npcId, state) || "Nhân vật chưa định danh") + '</b><div class="item-actions">' + expansionButton("mail", "Gửi Truyền Thư", npcId, 'data-expansion-arg2="Bình an, hữu duyên tái ngộ."') + expansionButton("bounty", "Treo Thưởng · 10", npcId, 'data-expansion-arg2="10"') + '</div></div>').join("") || '<p class="muted">Không có đối tượng liên hệ trong khu vực.</p>';
     const bounties = (state.worldSimulation?.scheduledTasks || []).filter((task) => task.type === "bounty" && task.status === "pending").map((task) => '<div class="item-row"><b>Truy nã · ' + escapeHtml(window.GameI18n?.formatTarget(task.entityId, state) || "Mục tiêu được chỉ định") + '</b><small> · dự kiến hồi báo ngày ' + Number(task.dueDay || 0) + '</small></div>').join("");
+    const commissions = Object.values(state.organizationState?.activeRequests || {}).filter((request) => ["open", "ready"].includes(request.status)).map((request) => '<div class="item-row"><b>Ủy thác ' + escapeHtml(request.tier || "thường") + '</b><small> · Tiến độ ' + Number(request.progress || 0) + '/' + Number(request.targetProgress || 0) + ' · Hạn ngày ' + Number(request.expiresDay || 0) + (request.status === "ready" ? ' · Có thể giao nộp tại tổ chức' : '') + '</small></div>').join("") || '<p class="muted">Không có ủy thác tổ chức đang thực hiện.</p>';
+    const membership = (state.guildMembership ? '<div class="section-title">Thân Phận Tổ Chức</div><div class="item-row"><b>' + escapeHtml(state.guildMembership.rank || "Ngoại Môn") + '</b><small> · Cống hiến ' + Number(state.guildMembership.contribution || 0) + '</small></div>' : '') + (Object.values(state.organizationState?.activeRequests || {}).some((request) => ["open", "ready"].includes(request.status)) ? '<div class="section-title">Ủy Thác Tổ Chức</div>' + commissions : '');
     const intelCount = Object.keys(state.intel || {}).length; const cover = state.coverIdentity ? "Đang dùng thân phận bí mật" : "Chưa lập thân phận bí mật";
-    return '<div class="section-title">Nhân duyên</div>' + relations + renderNpcWorldSignals(state) + renderFactionBulletin(state) + '<div class="section-title">Tù Binh & Dị Thú</div>' + prisoners + (state.companion ? '<div class="item-row"><b>Dị Thú đồng hành · ' + escapeHtml(state.companion.customName || window.GameI18n?.formatTarget(state.companion.entityId, state) || "Dị Thú") + '</b><small> · Trung thành ' + Number(state.companion.loyalty || 0) + '/100</small></div>' : '<p class="muted">Chưa có Dị Thú đồng hành.</p>') + '<div class="section-title">Truyền Thư</div>' + correspondence + '<div class="section-title">Truy Nã</div>' + (bounties || '<p class="muted">Không có truy nã đang chờ.</p>') + '<div class="section-title">Tình Báo / Thân Phận</div><p>' + escapeHtml(cover) + ' · ' + intelCount + ' đầu mối.</p>' + expansionButton("intel_buy", "Mua tin tức · 5 Linh Thạch") + '<div class="section-title">Khế Ước</div>' + contracts;
+    return '<div class="section-title">Nhân duyên</div>' + relations + membership + renderNpcWorldSignals(state) + renderFactionBulletin(state) + '<div class="section-title">Tù Binh & Dị Thú</div>' + prisoners + (state.companion ? '<div class="item-row"><b>Dị Thú đồng hành · ' + escapeHtml(state.companion.customName || window.GameI18n?.formatTarget(state.companion.entityId, state) || "Dị Thú") + '</b><small> · Trung thành ' + Number(state.companion.loyalty || 0) + '/100</small></div>' : '<p class="muted">Chưa có Dị Thú đồng hành.</p>') + '<div class="section-title">Truyền Thư</div>' + correspondence + '<div class="section-title">Truy Nã</div>' + (bounties || '<p class="muted">Không có truy nã đang chờ.</p>') + '<div class="section-title">Tình Báo / Thân Phận</div><p>' + escapeHtml(cover) + ' · ' + intelCount + ' đầu mối.</p>' + expansionButton("intel_buy", "Mua tin tức · 5 Linh Thạch") + '<div class="section-title">Khế Ước</div>' + contracts;
   }
 
   function renderMemory(state) {
@@ -964,7 +967,7 @@ window.GameUI = (function () {
       return [node.nodeId, { x: Math.max(6, Math.min(94, 50 + Math.cos(angle) * radius + jitter.x)), y: Math.max(6, Math.min(94, 50 + Math.sin(angle) * radius + jitter.y)) }];
     }));
 
-    const localRoutePairs = visibleTreeNodes.filter((node) => node.parentNodeId && points[node.parentNodeId] && points[node.nodeId] && (visited.has(node.nodeId) || visited.has(node.parentNodeId))).map((node) => ({ key: node.parentEdgeId, from: node.parentNodeId, to: node.nodeId, kind: "constellation" }));
+    const localRoutePairs = visibleTreeNodes.filter((node) => node.parentNodeId && points[node.parentNodeId] && points[node.nodeId] && (visited.has(node.nodeId) || visited.has(node.parentNodeId))).map((node) => ({ key: node.parentEdgeId, from: node.parentNodeId, to: node.nodeId, kind: "tree" }));
     const treeKeys = new Set(localRoutePairs.map((pair) => [pair.from, pair.to].sort().join("|")));
     Object.values(exits).filter(Boolean).forEach((to) => {
       if (points[state.locationId] && points[to] && !treeKeys.has([state.locationId, to].sort().join("|"))) localRoutePairs.push({ key: "supplemental-" + to, from: state.locationId, to, kind: "supplemental" });
@@ -1397,7 +1400,56 @@ window.GameUI = (function () {
   }
 
   const renderWorldBase = renderWorld;
-  renderWorld = function (state) { return renderWorldBase(state) + renderStructureOwnershipPolicy(state); };
+  renderWorld = function (state) {
+    let html = renderWorldBase(state) + renderStructureOwnershipPolicy(state);
+    const summary = window.GameEngine.expansionSummary?.(state);
+    if (summary) {
+      const clock = state.gameClock || {};
+      const playerDate = "Năm " + Number(clock.currentYear || 1) + " · Tháng " + Number(clock.currentMonth || 1) + " · Ngày " + Number(clock.currentDay || 1);
+      html = html.replace(/Thế Sự · Ngày \d+/, "Thế Sự · " + playerDate);
+      const weatherLabel = window.GameI18n?.weather?.(summary.weather) || summary.weather;
+      html = html.replace(/(<span>Mùa<\/span><b>)[^<]*(<\/b>)/, "$1" + escapeHtml(summary.season?.name || "Chưa rõ") + "$2");
+      html = html.replace(/(<span>Thời tiết<\/span><b>)[^<]*(<\/b>)/, "$1" + escapeHtml((summary.season?.name ? summary.season.name + " · " : "") + weatherLabel) + "$2");
+      const weatherDays = Math.max(0, Number(summary.weatherUntilDay || 0) - Number(summary.day || 0));
+      html = html.replace(/<small>Mức độ [\s\S]*?<\/small><br>/, '<small>Thiên tượng còn hiệu lực ' + weatherDays + ' ngày</small><br>');
+      const changes = (summary.weatherHistory || []).filter((entry) => Number(entry.day || 0) >= Number(summary.day || 0) - 1 && Number(entry.day || 0) <= Number(summary.day || 0));
+      const historyText = changes.length ? '<small>Chuyển thiên tượng · ' + changes.map((entry) => {
+        const when = Number(entry.day) === Number(summary.day) ? "Hôm nay" : "Hôm qua";
+        return when + ": " + (window.GameI18n?.weather?.(entry.from) || entry.from) + " → " + (window.GameI18n?.weather?.(entry.to) || entry.to);
+      }).join(" · ") + '</small>' : '<small>Không đổi trong hôm qua và hôm nay.</small>';
+      html = html.replace(/<small>Chuyển thiên tượng gần đây:[\s\S]*?<\/small>/, historyText);
+    }
+    return html;
+  };
+
+  renderQintian = function (state) {
+    const labels = { phan: "Phàm Phẩm", linh: "Linh Phẩm", hoang: "Hoàng Phẩm", huyen: "Huyền Phẩm", dia: "Địa Phẩm", thien: "Thiên Phẩm", thanh: "Thánh Phẩm", tien: "Tiên Phẩm" };
+    return (function (base) {
+      return base.replace(/Neo phẩm:\s*(phan|linh|hoang|huyen|dia|thien|thanh|tien)/g, (_match, grade) => "Phẩm trật neo: " + labels[grade]);
+    })(window.GameEngine.qintianFateOffers ? (function () { return '<div class="section-title">Khâm Thiên Giám</div>' + window.GameEngine.qintianFateOffers(state).map((offer) => '<div class="market-card"><b>' + escapeHtml(offer.label) + '</b><small>' + escapeHtml(offer.desc) + '<br>Phẩm trật neo: ' + escapeHtml(labels[offer.dominantGrade] || "Phàm Phẩm") + '</small><button class="guild-action" data-qintian-method="' + escapeHtml(offer.method) + '">Hiến ' + Number(offer.cost) + ' năm · Khai đàn</button></div>').join("") + '</div>'; })() : renderQintian(state));
+  };
+
+  renderQuests = function (state) {
+    const statuses = { active: "Đang tiến hành", completed: "Đã hoàn thành", failed: "Đã thất bại" };
+    const quests = Object.values(state.quests || {}).filter((quest) => quest.status !== "available").sort((a, b) => Number(Boolean(b.tracked)) - Number(Boolean(a.tracked)) || Number(b.priority || 0) - Number(a.priority || 0));
+    const tracked = quests.find((quest) => quest.tracked && quest.status === "active");
+    if (!quests.length) return '<div class="section-title">Nhiệm vụ · Nhật ký hành trình</div><p class="muted">Chưa có nhiệm vụ được khám phá.</p>';
+    const banner = tracked ? '<article class="quest-tracked-banner"><small>ĐANG THEO DẤU</small><b>' + escapeHtml(tracked.title || tracked.id) + '</b><span>' + escapeHtml(tracked.objectives?.find((objective) => !objective.done)?.label || "Mọi mục tiêu đã hoàn tất") + '</span></article>' : '';
+    return '<div class="section-title">Nhiệm vụ · Nhật ký hành trình</div>' + banner + quests.map((quest) => {
+      const definition = window.GameData.QUESTS?.[quest.id] || quest;
+      const objectives = (quest.objectives || []).map((objective) => '<div class="quest-objective ' + (objective.done ? "done" : "pending") + '">' + (objective.done ? "✓" : "○") + ' ' + escapeHtml(objective.label || "Mục tiêu") + '</div>').join("");
+      const controls = quest.status === "active" ? '<div class="quest-controls"><button class="guild-action" data-quest-track="' + escapeHtml(quest.id) + '">' + (quest.tracked ? "Đang theo dấu" : "Theo dấu") + '</button><button class="guild-action" data-quest-abandon="' + escapeHtml(quest.id) + '">Từ bỏ</button></div>' : '';
+      return '<article class="quest-row quest-card ' + escapeHtml(quest.status || "") + (quest.tracked ? " quest-tracked" : "") + '"><header><span class="quest-mark">' + (quest.status === "completed" ? "✓" : quest.status === "failed" ? "×" : "✦") + '</span><div><b>' + escapeHtml(definition.title || quest.title || quest.id) + '</b><small>' + escapeHtml(statuses[quest.status] || "Đang chờ") + '</small></div></header><div class="quest-objectives">' + objectives + '</div>' + controls + '</article>';
+    }).join("");
+  };
+
+  renderMemory = function (state) {
+    const recent = (state.memory?.shortTerm || []).slice().reverse();
+    const memories = recent.length ? recent : (state.memory?.longTerm || []).slice(-10).reverse().map((summary) => ({ summary, turn: 0 }));
+    if (!memories.length) return '<div class="section-title">Ký ức · Thiên chương</div><p class="muted">Trang ký ức còn trắng; những dấu mốc sẽ được ghi lại theo hành trình.</p>';
+    const kind = (text) => /nhiệm vụ|quest/i.test(text) ? "Mệnh tuyến" : /gia nhập|tông môn|tổ chức/i.test(text) ? "Nhân duyên" : /đột phá|tu luyện|cảnh giới/i.test(text) ? "Tu hành" : /phát hiện|cơ duyên|bí cảnh/i.test(text) ? "Dị sự" : "Hành trình";
+    return '<div class="section-title">Ký ức · Thiên chương</div><div class="novel-memory-list">' + memories.map((memory) => '<article class="novel-memory"><div class="novel-memory-meta"><span>' + kind(memory.summary || "") + '</span><small>' + (memory.turn ? "Lượt " + Number(memory.turn) : "Dấu mốc đã lưu") + '</small></div><p>' + escapeHtml(memory.summary || "") + '</p></article>').join("") + '</div>';
+  };
 
   return {
     showScreen, addStory, renderStoryWindow, clearStory, renderChoices, clearChoices, actionPresentation, renderActions, renderOriginChoice,

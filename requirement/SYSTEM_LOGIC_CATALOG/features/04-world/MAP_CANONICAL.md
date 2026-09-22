@@ -4,6 +4,10 @@
 
 ## Consolidated logic
 
+### Cross-system world events
+
+World interconnection requirements are sourced from [`WORLD_INTERCONNECTION_SYSTEM.md`](../../../WORLD_INTERCONNECTION_SYSTEM.md) and coordinated in [`WORLD_SIMULATION_CANONICAL.md`](WORLD_SIMULATION_CANONICAL.md). Map-generated arrivals, discoveries, faction changes, and travel results use the shared [`novel log event contract`](../07-ui/UI_ACTION_LOG_CANONICAL.md#unified-novel-style-event-log); player-facing text is a scene projection, while coordinates and diagnostic payloads remain metadata.
+
 
 ### Source: `archive-requirements\logic-history\03-world\MAP_CANONICAL_VALIDATION_GATE_2026-09-17.md`
 
