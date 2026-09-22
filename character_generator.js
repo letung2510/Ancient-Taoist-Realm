@@ -95,7 +95,7 @@ function generateCharacter(input = {}) {
   const equippedIds = fates.map((fate) => fate.id);
   const rootRoll = input.spiritualRoots ? { elements: input.spiritualRoots.slice(), branch: null } : rollSpiritualRootBranch(rng);
   return {
-    id: input.id || `char_${Date.now()}_${rand(1000, 9999, rng)}`,
+    id: input.id || `char_${rand(0, 0xffffffff, rng).toString(36)}`,
     name: input.name || "Vô Danh",
     origin: { regionId, locationId: START_LOCATIONS[regionId], race: input.race || weightedValue(REGION_RACE_WEIGHTS[regionId], rng), background: input.background || BACKGROUNDS[rand(0, BACKGROUNDS.length - 1, rng)], personality: input.personalityTraits || sampleDistinct(TRAITS, 2, rng), hiddenGoal: input.hiddenGoal || GOALS[rand(0, GOALS.length - 1, rng)], spiritualRoots: rootRoll.elements, spiritualRootBranch: rootRoll.branch },
     realm: { id: "di_menh", level: 1, title: "Di Mệnh Cảnh", exp: 0 },

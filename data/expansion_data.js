@@ -151,6 +151,10 @@
     profession_tuong_su: { id: "profession_tuong_su", name: "Thông Thiên Tướng Nhãn", type: "profession", professionId: "tuong_su", masteryStage: 3 },
     codex_complete: { id: "codex_complete", name: "Bảy Quyển Tà Thần", type: "collection", target: 7 }
   };
+  const companionSkills = {
+    guard_bite: { id: "guard_bite", roles: ["striker"], powerMultiplier: 1, loyaltyDamagePct: 8, description: "Đòn cận chiến ổn định, tăng nhẹ theo trung thành." },
+    scout_strike: { id: "scout_strike", roles: ["scout"], powerMultiplier: 0.9, loyaltyDamagePct: 10, description: "Đòn đánh nhanh của trinh sát, tăng theo trung thành." }
+  };
 
   window.EXPANSION_DATA = {
     version: 1,
@@ -167,6 +171,7 @@
     hiddenProfessions,
     professionItems,
     achievementDefinitions,
+    companionSkills,
     seasons: [
       { id: "xuan", name: "Xuân", element: "moc" },
       { id: "ha", name: "Hạ", element: "hoa" },

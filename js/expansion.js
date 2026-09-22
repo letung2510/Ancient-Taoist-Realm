@@ -1047,9 +1047,12 @@
     return E.aliveEnemies(state).map(([id]) => id).sort((a, b) => companionTargetScore(state, b, options) - companionTargetScore(state, a, options))[0] || null;
   }
   function useCompanionSkill(state, skillId = "guard_bite") {
-    ensure(state); const companion = normalizeCompanion(state.companion); const target = selectCompanionTarget(state) || E.aliveEnemies(state)[0]?.[0];
+    ensure(state); const companion = normalizeCompanion(state.companion), skill = X.companionSkills?.[skillId];
+    if (!companion || !skill) return { success: false, reason: "Kỹ năng Dị Thú không tồn tại.", code: "UNKNOWN_COMPANION_SKILL" };
+    if (!skill.roles?.includes(companion.role)) return { success: false, reason: "Vai trò Dị Thú không thể dùng kỹ năng này.", code: "COMPANION_ROLE_MISMATCH" };
+    const target = selectCompanionTarget(state) || E.aliveEnemies(state)[0]?.[0];
     if (!companion || !target) return { success: false, reason: "Dị Thú chưa có mục tiêu." };
-    const damage = Math.max(1, Math.round(Number(companion.attack || 8) + Number(companion.loyalty || 0) * 0.08));
+    const damage = Math.max(1, Math.round((Number(companion.attack || 8) + Number(companion.loyalty || 0) * Number(skill.loyaltyDamagePct || 0) / 100) * Number(skill.powerMultiplier || 1)));
     if (typeof E.applyPlayerDamage === "function") E.applyPlayerDamage(state, target, damage);
     else state.enemies[target] = Math.max(0, Number(state.enemies[target] || 0) - damage);
     companion.skillMastery[skillId] = Number(companion.skillMastery[skillId] || 0) + 1;
@@ -1370,8 +1373,10 @@
     if (event.regionId !== currentRegion(state)) return { success: false, reason: "Ngươi phải có mặt tại vùng đang xảy ra biến cố." };
     if (event.choiceHistory.some((entry) => entry.choiceId === choiceId)) return { success: false, reason: "Lựa chọn này đã được thực hiện." };
     for (const [id, quantity] of Object.entries(choice.itemCost || {})) if (Number(state.inventory?.[id] || 0) < quantity) return { success: false, reason: "Thiếu " + itemName(id) + "." };
+    const rewardKey = event.id + ":" + choiceId;
+    if (state.rewardLedger?.[rewardKey]) return { success: false, duplicate: true, reason: "Duplicate world-event reward." };
     Object.entries(choice.itemCost || {}).forEach(([id, quantity]) => removeItem(state, id, quantity));
-    const rewardGrant = grantCanonicalReward(state, "world_event:" + event.id, { item: choice.item || null, quantity: Number(choice.quantity || 0), exp: Number(choice.exp || 0), merit: Number(choice.merit || 0) }, event.id + ":" + choiceId);
+    const rewardGrant = grantCanonicalReward(state, "world_event:" + event.id, { item: choice.item || null, quantity: Number(choice.quantity || 0), exp: Number(choice.exp || 0), merit: Number(choice.merit || 0) }, rewardKey);
     if (!rewardGrant.success) return { success: false, reason: rewardGrant.duplicate ? "Lựa chọn biến cố đã nhận thưởng." : "Không thể nhận phần thưởng biến cố." };
     state.player.san = clamp(Number(state.player.san || 0) + Number(choice.san || 0), 0, state.player.maxSan || 100);
     state.player.corruptionRating = clamp(Number(state.player.corruptionRating || 0) + Number(choice.corruption || 0), 0, 100);

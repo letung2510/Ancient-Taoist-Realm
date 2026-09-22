@@ -680,12 +680,14 @@ window.GameEngine = (function () {
     pushHistory(state, { type: "warn", text: "Nghịch Mệnh: đã chống lại bản chất Hung của " + fate.name + "." }); updateDerived(state);
     return { success: true, cost, defianceCount: state.player.fateDefiance[fateId] };
   }
-  function suppressFate(state, fateId, duration = 3) {
+  function suppressFate(state, fateId) {
     const fate = D().FATE_PATTERNS.find((item) => item.id === fateId);
+    const now = Number(state.meta?.turn || 0), currentSuppression = Number(state.player.suppressedFates?.[fateId]?.untilTurn || 0);
+    if (currentSuppression > now) return { success: false, reason: "Trấn Mệnh đang còn hiệu lực.", cooldownUntil: currentSuppression };
     if (!fate || !(state.player.fates || []).includes(fateId)) return { success: false, reason: "Mệnh phải đang kích hoạt." };
     if (Number(state.player.san || 0) < 8) return { success: false, reason: "Cần Thanh Tỉnh ≥ 8." };
     drainSan(state, 8, "Trấn Mệnh"); state.player.suppressedFates = state.player.suppressedFates || {};
-    state.player.suppressedFates[fateId] = { untilTurn: Number(state.meta?.turn || 0) + Math.max(1, Number(duration || 3)) };
+    state.player.suppressedFates[fateId] = { untilTurn: now + Number(FATE_ADVANCED_ACTION_CATALOG.tranMenh.durationTurns) };
     const advanced = fateAdvancedActionRecord(state.player, fateId, "tranMenh"); advanced.uses = Number(advanced.uses || 0) + 1; advanced.untilTurn = state.player.suppressedFates[fateId].untilTurn;
     pushHistory(state, { type: "warn", text: "Trấn Mệnh: hiệu ứng nguy hiểm của " + fate.name + " tạm thời bị khóa." }); updateDerived(state);
     return { success: true, untilTurn: state.player.suppressedFates[fateId].untilTurn };
@@ -1382,7 +1384,7 @@ window.GameEngine = (function () {
     const realmId = realmById(input.realmId || "di_menh").id;
     const fates = input.fates || [];
     const character = {
-      id: input.id || "char_" + Date.now() + "_" + randomInt(rng, 1000, 9999),
+      id: input.id || "char_" + randomInt(rng, 0, 0xffffffff).toString(36),
       name: input.name || "Vô Danh",
       archetypeId: arch.id,
       portrait: arch.portrait,
@@ -5528,17 +5530,17 @@ window.GameEngine = (function () {
     { id: "act_tu_luyen_tu_dong", label: "Tự Động Tu Luyện ×5", aliases: ["tu luyen tu dong", "tu luyện tự động", "auto cultivate"], priority: 1 },
     { id: "act_be_quan", label: "Bế Quan Tu Luyện", aliases: ["be quan", "bế quan", "be quan tu luyen", "bế quan tu luyện", "afk"], priority: 1 },
     { id: "act_tan_cong_thuong", label: "Tấn Công Thường", aliases: ["a", "atk", "danh", "tan cong", "tấn công"], priority: 1 },
-    { id: "act_nhin", label: "Quan Sát", aliases: ["nhin", "nhìn", "look"], priority: 1 },
-    { id: "act_hanh_trang", label: "Hành Trang", aliases: ["inventory", "hanh trang", "hành trang"], priority: 1 },
-    { id: "act_trang_thai", label: "Trạng Thái", aliases: ["trang thai", "trạng thái", "status"], priority: 1 },
-    { id: "act_nhiem_vu", label: "Nhiệm Vụ", aliases: ["nhiem vu", "nhiệm vụ", "quest"], priority: 1 },
-    { id: "act_menh", label: "Tử Vi Mệnh Số", aliases: ["menh", "mệnh", "fate", "tử vi"], priority: 1 },
-    { id: "act_cong_phap", label: "Công Pháp", aliases: ["cong phap", "công pháp", "kỹ năng", "ky nang", "skills"], priority: 1 },
-    { id: "act_ban_do", label: "Bản Đồ", aliases: ["ban do", "bản đồ", "map"], priority: 1 },
+    { id: "act_nhin", label: "Quan Sát", aliases: ["nhin", "nhìn", "look"], priority: 1, consumesTurn: false },
+    { id: "act_hanh_trang", label: "Hành Trang", aliases: ["inventory", "hanh trang", "hành trang"], priority: 1, consumesTurn: false },
+    { id: "act_trang_thai", label: "Trạng Thái", aliases: ["trang thai", "trạng thái", "status"], priority: 1, consumesTurn: false },
+    { id: "act_nhiem_vu", label: "Nhiệm Vụ", aliases: ["nhiem vu", "nhiệm vụ", "quest"], priority: 1, consumesTurn: false },
+    { id: "act_menh", label: "Tử Vi Mệnh Số", aliases: ["menh", "mệnh", "fate", "tử vi"], priority: 1, consumesTurn: false },
+    { id: "act_cong_phap", label: "Công Pháp", aliases: ["cong phap", "công pháp", "kỹ năng", "ky nang", "skills"], priority: 1, consumesTurn: false },
+    { id: "act_ban_do", label: "Bản Đồ", aliases: ["ban do", "bản đồ", "map"], priority: 1, consumesTurn: false },
     { id: "act_ve_noi_an_toan", label: "Về Thành / Tông Môn", aliases: ["ve thanh", "về thành", "ve tong mon", "về tông môn", "tro ve noi an toan", "trở về nơi an toàn"], priority: 1 },
-    { id: "act_to_chuc", label: "Tổ Chức", aliases: ["to chuc", "tổ chức", "guild", "môn phái", "mon phai"], priority: 1 },
+    { id: "act_to_chuc", label: "Tổ Chức", aliases: ["to chuc", "tổ chức", "guild", "môn phái", "mon phai"], priority: 1, consumesTurn: false },
     { id: "act_tim_tong_mon", label: "Tìm Tông Môn", aliases: ["tìm tông môn", "tim tong mon"], priority: 1 },
-    { id: "act_giup", label: "Giúp", aliases: ["giup", "giúp", "help"], priority: 1 },
+    { id: "act_giup", label: "Giúp", aliases: ["giup", "giúp", "help"], priority: 1, consumesTurn: false },
     { id: "act_tim_kiem", label: "Tìm Kiếm", aliases: ["tim kiem", "tìm kiếm", "tìm", "search"], priority: 1 },
     { id: "act_dot_pha", label: "Đột Phá", aliases: ["dot pha", "đột phá", "breakthrough"], priority: 1 },
     { id: "act_ritual_call_fate", label: "Nghi Thức · Gọi Mệnh", aliases: ["gọi mệnh", "goi menh"], priority: 1 },
@@ -5894,7 +5896,7 @@ window.GameEngine = (function () {
       checkAllQuests(state);
       return journeyResult;
     }
-    state.meta.turn += 1;
+    if (action.consumesTurn !== false) state.meta.turn += 1;
     state.meta.updatedAt = new Date().toISOString();
     pushHistory(state, { type: "COMMAND_ECHO", debugOnly: true, text: "> [" + action.label + "]" });
     const result = resolveAction(state, actionId, options);
@@ -5902,8 +5904,8 @@ window.GameEngine = (function () {
       pushHistory(state, { type: "warn", text: result?.reason || "Hành động khép lại trước khi tạo ra biến chuyển; hãy thử lại khi hoàn cảnh đổi khác." });
     }
     updateDerived(state);
-    checkAllQuests(state);
-    if (checkEndings(state)) return result;
+    if (action.consumesTurn !== false) checkAllQuests(state);
+    if (action.consumesTurn !== false && checkEndings(state)) return result;
     updateDerived(state);
     return result;
   }
@@ -5921,17 +5923,21 @@ window.GameEngine = (function () {
       const departureGuard = pendingDepartureGuard(state, "act_move_" + commandDirection);
       if (!departureGuard.allowed && !options.confirmPendingDeparture) return departureGuard;
     }
-    state.meta.turn += 1;
-    state.meta.updatedAt = new Date().toISOString();
     pushHistory(state, { type: "action", text: "> " + text });
     const available = contextState(state).actions;
     const parsed = parseAction(text, available);
     if (parsed && !/^dùng |^dung |^đi |^di |^nói |^noi |^gia nhập |^gia nhap /.test(norm)) {
+      const action = available.find((item) => item.id === parsed.actionId);
+      if (action?.consumesTurn !== false) state.meta.turn += 1;
+      state.meta.updatedAt = new Date().toISOString();
       resolveAction(state, parsed.actionId, options);
       if (parsed.suggestion) pushHistory(state, { type: "sys", text: parsed.suggestion });
       updateDerived(state);
       return;
     }
+    const informationalCommand = /^(giúp|giup|help|nhìn|nhin|quan sát|quan sat|look|trạng thái|trang thai|status|hành trang|hanh trang|inventory|túi|nhiệm vụ|nhiem vu|quest|mệnh|menh|fate|tử vi|công pháp|cong phap|kỹ năng|ky nang|skills|bản đồ|ban do|map|môn phái|mon phai|tổ chức|to chuc|guild|lưu|luu|save|tải|tai|load)$/.test(norm);
+    if (!informationalCommand) state.meta.turn += 1;
+    state.meta.updatedAt = new Date().toISOString();
 
     // command dispatch
     if (/^(giúp|giup|help)$/.test(norm)) { pushHistory(state, { type: "sys", text: D().HELP_TEXT }); return; }
