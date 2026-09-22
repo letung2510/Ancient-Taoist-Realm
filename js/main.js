@@ -920,8 +920,14 @@
         UI.openOverlay("Nghi Thức Đột Phá", UI.renderRitualModal(state, gate, action));
         return;
       }
+      let actionOptions = departure;
+      if (action.id.startsWith("act_skill_")) {
+        const selected = prompt("Thế vận công: nhập steady (ổn định), burst (bạo phát), hoặc guarded (thủ ngự).", "steady");
+        if (selected === null) return;
+        actionOptions = { ...(departure || {}), stance: String(selected).trim().toLowerCase() };
+      }
       enqueueAction(() => {
-        submitUiAction(action.id, departure);
+        submitUiAction(action.id, actionOptions);
         renderAfterTurn();
       });
     });
@@ -960,35 +966,26 @@
   }
 
   function confirmTechniqueAction(action) {
-    const preview = action.preview || E.techniquePreview(state, action.id.slice("act_skill_".length));
-    if (!preview || !preview.success) {
-      alert(preview?.reason || "Không thể thi triển công pháp này.");
-      return;
-    }
+    const techniqueId = action.id.slice("act_skill_".length);
+    const stanceInput = prompt("Thế vận công: steady (ổn định), burst (uy lực +20%, Tà Nhiễm +50%), guarded (uy lực -15%, giảm nửa phí Thanh Tỉnh/Tà Nhiễm).", "steady");
+    if (stanceInput === null) return;
+    const stance = String(stanceInput).trim().toLowerCase();
+    const preview = E.techniquePreview(state, techniqueId, { stance });
+    if (!preview || !preview.success) { alert(preview?.reason || "Không thể thi triển công pháp này."); return; }
+    if (preview.resourcesReady === false) { alert(preview.blockers.map((entry) => entry.message).join("\n")); return; }
     const c = preview.costs;
-    const lines = [
-      "Công pháp: " + preview.name,
-      "Loại: " + preview.family,
-      "Giá phải trả:",
-      "  Linh Khí: " + c.manaCost,
-      "  Thể Lực: " + c.staminaCost,
-      "  Thanh Tỉnh: " + c.sanCost,
-      "  Thọ Nguyên: " + c.lifespanCost,
-      "  Tà Nhiễm: " + c.corruptionCost
-    ];
-    if (preview.family === "cam_thuat") {
-      lines.push("", "⚠ CẤM THUẬT — thi triển sẽ gây phản phệ vĩnh viễn hoặc khó hồi phục. Xác nhận?");
-    } else {
-      lines.push("", "Xác nhận thi triển?");
-    }
-    if (confirm(lines.join("\n"))) {
-      enqueueAction(() => {
-        E.submitActionId(state, action.id, { confirmed: true });
-        renderAfterTurn();
-      });
-    }
+    const lines = ["Công pháp: " + preview.name, "Loại: " + preview.family + " · Thế: " + stance, "Giá phải trả:", "  Linh Khí: " + c.manaCost, "  Thể Lực: " + c.staminaCost, "  Thanh Tỉnh: " + c.sanCost, "  Thọ Nguyên: " + c.lifespanCost, "  Tà Nhiễm: " + c.corruptionCost];
+    if (preview.combatPreview) lines.push("Sát thương dự kiến: " + preview.combatPreview.damageMin + "–" + preview.combatPreview.damageMax);
+    if (preview.fateResonanceFates?.length) lines.push("Cộng hưởng Mệnh: " + preview.fateResonanceFates.length + " Mệnh đang kích hoạt");
+    if (preview.family === "cam_thuat") lines.push("", "⚠ CẤM THUẬT — thi triển sẽ gây phản phệ. Xác nhận?"); else lines.push("", "Xác nhận thi triển?");
+    if (!confirm(lines.join("\n"))) return;
+    state.player.techniqueActionSequence = Number(state.player.techniqueActionSequence || 0) + 1;
+    const actionId = "technique-ui:" + state.player.techniqueActionSequence;
+    enqueueAction(() => {
+      E.submitActionId(state, action.id, { confirmed: true, stance, actionId });
+      renderAfterTurn();
+    });
   }
-
   function flashSave(text) {
     UI.setSaveIndicator(text);
     setTimeout(() => UI.setSaveIndicator("—"), 1500);

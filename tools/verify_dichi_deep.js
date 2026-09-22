@@ -68,6 +68,7 @@ function testCompanionSkillAndPhysiqueTrigger() {
   const catalog = E.specialPhysiqueCatalog();
   const catalogAudit = E.validateSpecialPhysiqueCatalog();
   assert(catalogAudit.ok && catalogAudit.count === Object.keys(catalog).length && catalogAudit.errors.length === 0);
+  assert(catalog.qing_luan_bone && catalog.ming_yang_spirit_root && catalog.xuan_ming_scale, "new special physique content records are missing");
   const fusionAudit = E.validatePathFusionCatalog();
   assert(fusionAudit.ok && fusionAudit.count >= 5 && fusionAudit.pairCount > 0 && fusionAudit.errors.length === 0);
   const worldCatalogAudit = E.validateWorldCatalogs();

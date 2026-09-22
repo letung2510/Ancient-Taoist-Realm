@@ -70,6 +70,21 @@
     ]
   };
 
+  const guildTechniquePolicies = [
+    { id: "guild_manual_training", guildId: "*", revision: 1, rankMin: 0, appliesTo: "guild_taught", modifiers: { masteryGainPct: 5 }, caps: { masteryGainPct: 10 } },
+    { id: "guild_inner_training", guildId: "*", revision: 1, rankMin: 1, modifiers: { masteryGainPct: 5 }, caps: { masteryGainPct: 10 } }
+  ];
+
+  const heavenlyTreasures = [
+    { id: "linh_tuyen", name: "Linh Tuyền", element: "thuy", rarity: "uncommon", baseAmount: 2, stat: "comprehension", years: [100, 1000, 10000], yearWeights: [72, 24, 4], tierMultipliers: { 100: 1, 1000: 2.5, 10000: 5 }, minRealmLevel: 1 },
+    { id: "dia_nhu", name: "Địa Nhũ", element: "tho", rarity: "uncommon", baseAmount: 2, stat: "basePhy", years: [100, 1000, 10000], yearWeights: [72, 24, 4], tierMultipliers: { 100: 1, 1000: 2.5, 10000: 5 }, minRealmLevel: 1 },
+    { id: "nhan_sam", name: "Nhân Sâm", element: "moc", rarity: "uncommon", baseAmount: 5, stat: "lifespanConsumableBonus", years: [100, 1000, 10000], yearWeights: [72, 24, 4], tierMultipliers: { 100: 1, 1000: 2.5, 10000: 5 }, minRealmLevel: 1 },
+    { id: "bach_bang", name: "Bách Băng", element: "thuy", rarity: "uncommon", baseAmount: 10, stat: "san", years: [100, 1000, 10000], yearWeights: [72, 24, 4], tierMultipliers: { 100: 1, 1000: 2.5, 10000: 5 }, minRealmLevel: 1 },
+    { id: "loi_truc", name: "Lôi Trúc", element: "hoa", rarity: "rare", baseAmount: 3, stat: "lightningTribulationBonus", years: [100, 1000, 10000], yearWeights: [72, 24, 4], tierMultipliers: { 100: 1, 1000: 2.5, 10000: 5 }, minRealmLevel: 1 },
+    { id: "tu_dan", name: "Tử Đàn", element: "tho", rarity: "rare", baseAmount: 3, stat: "daoTam", years: [100, 1000, 10000], yearWeights: [72, 24, 4], tierMultipliers: { 100: 1, 1000: 2.5, 10000: 5 }, minRealmLevel: 1 },
+    { id: "bat_than_moc", name: "Bát Thần Mộc", element: "moc", rarity: "rare", baseAmount: 2, stat: "maxQiPct", years: [100, 1000, 10000], yearWeights: [72, 24, 4], tierMultipliers: { 100: 1, 1000: 2.5, 10000: 5 }, minRealmLevel: 1 }
+  ];
+
   const professionDefinitions = {
     luyen_dan: { id: "luyen_dan", name: "Luyện Đan Sư", relatedPaths: ["dan_dao"], recipes: ["tu_khi_dan", "hoan_huyet_dan", "dien_tho_dan_ha"] },
     luyen_khi: { id: "luyen_khi", name: "Luyện Khí Sư", relatedPaths: ["kiem_dao", "khoi_loi_dao"], recipes: ["procedural_artifact", "repair_heirloom"] },
@@ -140,6 +155,8 @@
     version: 1,
     worldEvents,
     techniqueEvolutions,
+    guildTechniquePolicies,
+    heavenlyTreasures,
     professionDefinitions,
     contractTemplates,
     fateEvolutionBranches,

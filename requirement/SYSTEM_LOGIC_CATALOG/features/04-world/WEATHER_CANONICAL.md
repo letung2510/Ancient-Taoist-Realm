@@ -6,7 +6,7 @@
 
 ### Weather narration and world integration
 
-Weather simulation and its interaction with factions/NPC schedules are coordinated by [`WORLD_INTERCONNECTION_SYSTEM.md`](../../../WORLD_INTERCONNECTION_SYSTEM.md) and [`WORLD_SIMULATION_CANONICAL.md`](WORLD_SIMULATION_CANONICAL.md). Weather/NPC log producers follow [`NOVEL_STYLE_LOG_UNIFIED_FLOW.md`](../../../NOVEL_STYLE_LOG_UNIFIED_FLOW.md) through the [`UI_ACTION_LOG_CANONICAL.md`](../07-ui/UI_ACTION_LOG_CANONICAL.md#unified-novel-style-event-log): preserve weather context in event metadata and emit a player-safe scene narrative, never a raw system announcement.
+Weather simulation and its interaction with factions/NPC schedules are coordinated by [`WORLD_SIMULATION_CANONICAL.md`](WORLD_SIMULATION_CANONICAL.md). Weather/NPC log producers follow the shared scene contract in [`UI_ACTION_LOG_CANONICAL.md`](../07-ui/UI_ACTION_LOG_CANONICAL.md#unified-novel-style-event-log): preserve weather context in event metadata and emit a player-safe scene narrative, never a raw system announcement.
 
 
 ### Source: `archive-requirements\logic-history\03-world\NODE_WEATHER_RUMOR_HISTORY_COVERAGE_2026-09-17.md`

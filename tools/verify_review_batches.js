@@ -571,12 +571,12 @@ function testNpcRumorMultiNodeExpiry() {
   E.simulateWorldUntil(state, now + 1);
   assert(relay.rumorLedger["qa:war"] && relay.rumorLedger["qa:war"].confidence === 0.8, JSON.stringify({ source: source.npcId, sourceNode: source.currentNodeId, relay: relay.npcId, relayNode: relay.currentNodeId, ledger: relay.rumorLedger, statuses: npcs.map((npc) => npc.status) }));
   const rumorPolicy = sandbox.window.GameExpansion.rumorPolicySnapshot();
-  assert(rumorPolicy.defaultTtlDays === 14 && sandbox.window.GameExpansion.validateRumorPolicy(state).ok);
+  assert(rumorPolicy.defaultTtlDays === 30 && sandbox.window.GameExpansion.validateRumorPolicy(state).ok);
   state.worldSimulation.lastProcessedDay = now + 1;
   E.simulateWorldUntil(state, now + 2);
   assert(witness.rumorLedger["qa:war"], "rumor must cross a second valid edge");
   state.worldSimulation.lastProcessedDay = now + 2;
-  E.simulateWorldUntil(state, now + 4);
+  E.simulateWorldUntil(state, now + 31);
   assert(!relay.rumorLedger["qa:war"] && !witness.rumorLedger["qa:war"], "expired rumor must be removed");
 }
 
@@ -605,7 +605,7 @@ function testNpcCongestionQueue() {
   E.simulateWorldUntil(state, E.gameDayOrdinal(state) + 1);
   const queued = npcs.filter((npc) => npc.aiState === "queued");
   assert(queued.length >= 1 && queued.every((npc) => npc.queueNodeId === "son_mon" && npc.queueRank >= 1));
-  assert(sandbox.window.GameExpansion.validateNpcScheduler(state).ok);
+  assert(sandbox.window.GameExpansion.validateNpcScheduler(state).ok, JSON.stringify(sandbox.window.GameExpansion.validateNpcScheduler(state)));
   npcs[0].travelFrom = "son_mon"; npcs[0].travelTo = "missing_node";
   assert(!sandbox.window.GameExpansion.validateNpcScheduler(state).ok, "NPC scheduler must reject invalid topology edge");
 }
@@ -666,6 +666,11 @@ function testFateAdvancedActionNamespace() {
   state.player.fates[0] = hung.id; state.player.san = 100;
   E.updateDerived(state);
   assert(E.defyFate(state, hung.id).success);
+  for (let use = 1; use < 5; use += 1) assert(E.defyFate(state, hung.id).success, "Nghịch Mệnh should allow the first five uses");
+  const sanAtCap = state.player.san;
+  const cappedDefiance = E.defyFate(state, hung.id);
+  assert(!cappedDefiance.success && cappedDefiance.code === "MAX_USES" && state.player.san === sanAtCap, "sixth Nghịch Mệnh must fail without consuming SAN");
+  state.player.san = 100;
   assert(E.suppressFate(state, hung.id, 2).success);
   assert(E.heavenlyOmen(state).success);
   assert(state.player.fateAdvancedActions[hung.id].nghichMenh);

@@ -6,7 +6,7 @@
 
 ### Cross-system world events
 
-World interconnection requirements are sourced from [`WORLD_INTERCONNECTION_SYSTEM.md`](../../../WORLD_INTERCONNECTION_SYSTEM.md) and coordinated in [`WORLD_SIMULATION_CANONICAL.md`](WORLD_SIMULATION_CANONICAL.md). Map-generated arrivals, discoveries, faction changes, and travel results use the shared [`novel log event contract`](../07-ui/UI_ACTION_LOG_CANONICAL.md#unified-novel-style-event-log); player-facing text is a scene projection, while coordinates and diagnostic payloads remain metadata.
+World interconnection requirements are sourced from [`WORLD_SIMULATION_CANONICAL.md`](WORLD_SIMULATION_CANONICAL.md) and coordinated in [`WORLD_SIMULATION_CANONICAL.md`](WORLD_SIMULATION_CANONICAL.md). Map-generated arrivals, discoveries, faction changes, and travel results use the shared [`novel log event contract`](../07-ui/UI_ACTION_LOG_CANONICAL.md#unified-novel-style-event-log); player-facing text is a scene projection, while coordinates and diagnostic payloads remain metadata.
 
 
 ### Source: `archive-requirements\logic-history\03-world\MAP_CANONICAL_VALIDATION_GATE_2026-09-17.md`
@@ -3819,7 +3819,7 @@ The damaged historical prose above is not authoritative where characters were lo
 Recovered from runtime symbols: locationExits, generateOpenWorldNode, openWorldTarget, validateOpenWorldGrid, move, mapInfluenceSnapshot, mapFogState, travelPlan, and moveWithinNode. Damaged historical UX wording is superseded by this trace contract.
 ## LOCAL CONSTELLATION MAP — CANONICAL FEATURE CONTRACT
 
-This section is the canonical implementation of the former `LOCAL_CONSTELLATION_MAP_DESIGN_PROMPT.md`. The standalone prompt is now only a historical/reference pointer; new map behavior must be updated here first.
+This section is the canonical home for local constellation behavior. The former standalone pointer and design sources were consolidated here; new map behavior must be updated here first.
 
 ### Scope and source of truth
 
@@ -3869,6 +3869,15 @@ This section is the canonical implementation of the former `LOCAL_CONSTELLATION_
 - Layout/selection may be memoized by current node and map-state version; it must not recompute every animation frame.
 - Existing saves without edge metadata continue to read `normal`; coordinate/index migration must reject duplicates, invalid bounds, and non-adjacent exits.
 - Acceptance requires: current node centered; Dynamic Local BFS viewport of at most 39 nodes and 38 tree edges when connected; real edges only; boundary movement blocked; four cardinal actions always visible; pending-discovery modal flow; save/load and four-direction movement preserved.
+
+### Local constellation density and visual encoding
+
+- Target 30–39 materialized nodes when the reachable gameplay graph contains that many. The hard cap is 39 including the current node; a small or disconnected graph renders fewer. Never pad with fabricated nodes or generate gameplay nodes as a render side effect. Expand by deterministic BFS over confirmed `locationExits()` edges. Tie-break neighbors by N, E, S, W, then node ID. If capped, retain current, visited, discovered, pinned, and important nodes first, then nearest remaining BFS nodes; never random-sample.
+- An unmaterialized adjacent Oxy cell is shown only as a frontier affordance. It is not counted as a node, has no node identity, and becomes a real node only through the canonical directional movement resolver. Rendering must not change save data, RNG state, fog, discovery, or gameplay reachability.
+- Derive screen position from actual coordinate deltas: `screenX = centerX + (node.x - current.x) * scale`, `screenY = centerY + (node.y - current.y) * scale`. Apply the current zoom scale uniformly to both axes and clamp only the viewport transform, never individual node positions. Deterministic, node-ID-seeded jitter may be at most 4 px per axis and must be disabled if it reverses the ordering of two nodes on either axis; no render-time random jitter.
+- At the target density, ordinary node core diameter is 45% of the former default (baseline 1.0 → 0.45); halo radius scales by the same factor. Current node remains the largest anchor at 1.0. Reduce core/halo together and keep a minimum 12 px hit target through an invisible hit area. Labels are limited to current, selected/focused, nearby important, or pinned nodes; all others use tooltip/focus detail.
+- Color is a semantic token, not a single fog color: current `#F4C95D`; undiscovered fog `#53616C` without glow; discovered neutral `#D6E4E8`; visited `#A6C8D8`; orthodox owner `#4A91D9`; demonic/evil owner `#C34F74`; neutral organization `#9A8AAE`; important landmark `#E7B95A`; high-danger node `#D94B62`; rumor-only `#AAB6C2` with a faint name and no glow. Danger/event/opportunity may add a distinct border/icon, but cannot erase the ownership or fog token. Pair every color with shape, border, or accessible text so state is not color-only.
+- If location metadata conflicts, precedence is current > fog privacy > danger/event/opportunity > important landmark > ownership > neutral/visited. Do not expose hidden node type, owner, or danger in a tooltip before discovery. Acceptance: coordinate distance is monotonic with screen distance at fixed zoom (within the bounded jitter); identical state yields identical layout; all eight semantic states above are visually distinguishable; labels and hit targets remain usable at 39 nodes.
 
 ## Consolidated addendum: map expansion, actions, armies, and atmosphere
 

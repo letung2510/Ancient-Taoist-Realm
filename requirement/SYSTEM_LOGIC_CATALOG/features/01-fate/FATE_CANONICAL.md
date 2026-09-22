@@ -2162,3 +2162,7 @@ Visual screenshot trên browser thật chưa được xác nhận do môi trư�
 - Fate insight is permanently stored on the relationship record. It unlocks at comprehension >= 60 or relationship stage >= 2. A Hung fate increments forbidden-knowledge tracking once.
 - Each active fate increments `stagnantDays` during a game-day tick. At 60 days, release removes the active instance and grants excess essence without reputation or cost penalty.
 - Grade `tien` ownership is unique within the current save. Server-wide ownership requires an authoritative backend and is not claimed by the local runtime.
+
+## Ngh?ch M?nh - hard use cap
+
+Each Hung Fate instance may resolve `defyFate` at most five times over its lifetime. Canonical counter: `player.fateDefiance[fateId]`; missing values normalize to zero. Resolver checks ownership, Hung sign, current count `< 5`, and SAN >= 15 before mutation. A rejected sixth attempt changes neither SAN nor counter and returns a max-use failure. Successful use increments once. UI derives remaining uses from the same counter; save validation rejects negative, fractional, or >5 values. This does not reset daily.

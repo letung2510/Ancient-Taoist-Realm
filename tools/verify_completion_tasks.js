@@ -200,6 +200,7 @@ function npcRelationshipAndLifecycleExpansion() {
   X.recordRelationshipEvent(state, npcId, "saved", { uniqueKey: "post-intimidation-rescue" });
   assert.strictEqual(state.relationships[npcId].affection, 0, "later positive events must not restore affection after permanent coercion");
 
+  npc.isImportant = true;
   const trial = X.beginTrustTrial(state, npcId);
   assert(trial.success && X.resolveTrustTrial(state, npcId, true).success);
   const rumorKey = "qa-rumor";
@@ -236,6 +237,15 @@ function mapAndOrganizationRemainders() {
   assert.strictEqual(X.resolveLoyaltyTest(state, guildId, "investigate").phase, "decision");
   assert.strictEqual(X.resolveLoyaltyTest(state, guildId, "spare").status, "passed");
 
+  const tournamentDay = X.gameDayOrdinal(state);
+  state.worldSimulation.tournament = { id: "qa_tournament", startDay: tournamentDay, registrationEndDay: tournamentDay + 3, endDay: tournamentDay + 10, status: "registration", joined: false };
+  assert(X.joinTournament(state).success, "eligible member should be able to register for the bracket");
+  X.simulateWorldUntil(state, tournamentDay + 4);
+  assert.strictEqual(state.worldSimulation.tournament.status, "in_progress", "registered entrant should advance into the first round after registration closes");
+  const firstRound = X.resolveTournamentRound(state, "read");
+  assert(firstRound.success && ["in_progress", "eliminated"].includes(firstRound.status), "round action should resolve exactly one bracket round");
+  assert(X.validateTournamentState(state).ok, JSON.stringify(X.validateTournamentState(state)));
+
   const npcId = Object.keys(state.worldSimulation.npcState)[0], npc = state.worldSimulation.npcState[npcId];
   npc.status = "alive"; npc.role = "Trưởng Lão"; npc.currentNodeId = state.locationId; npc.currentSubLocationId = state.currentSubLocationId;
   npc.age = 120; npc.maxLifespan = 120; npc.masterNpcId = null;
@@ -248,10 +258,10 @@ function organizationDiplomacyAndDefection() {
   const state = makeState(); X.ensureOrganizationState(state);
   const factions = sandbox.window.GameData.WORLD_MAP.factions.slice(0, 2).map((entry) => entry.id);
   assert.strictEqual(factions.length, 2);
-  factions.forEach((id) => { state.organizationState.relations[id].reputation = 50; });
+  factions.forEach((id) => { state.organizationState.relations[id].reputation = 60; });
   const pair = factions.slice().sort().join("::");
   state.worldSimulation.diplomacy[pair] = { tension: 80, status: "thu_dich" };
-  state.player.reputation = 100; state.player.daoTam = 100;
+  state.player.reputation = 100; state.player.daoTam = 100; state.player.daoHeart = 100;
   assert(X.resolveAllianceMediation(state, factions[0], factions[1]).success, "qualified mediator should reduce high faction tension");
   assert(!X.resolveAllianceMediation(state, factions[0], factions[1]).success, "mediation should be a one-time attempt per faction pair");
 
