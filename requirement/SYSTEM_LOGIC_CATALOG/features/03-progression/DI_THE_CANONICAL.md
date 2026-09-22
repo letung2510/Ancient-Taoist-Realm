@@ -47,3 +47,12 @@ later stages scale it by `stage / maxStage`. UI may display the projection but
 must not mutate the claim/history record.
 
 
+
+## Content design: D? Th? catalog expansion
+
+Add three distinct data-driven physiques using supported effect keys: `qing_luan_bone` (poison resistance and stealth), `ming_yang_spirit_root` (SAN recovery and Fate resonance), and `xuan_ming_scale` (corruption resistance and one bounded revive). Each has three stage thresholds, explicit activation cost, branch, ending tags, and faction affinity. None excludes a path/profession by default; D? Th? remains independent from Con -u?ng/Ngh?. Eligibility is trigger-based and deterministic. Claim checks active slot, candidate/rejected state, stage threshold, and costs atomically. Stage effects are applied only through `specialPhysiqueModifiers`; no direct duplicate stat application.
+
+Acceptance: validator accepts unique IDs/effect keys/stages; migration preserves legacy IDs as history without applying unsupported effects; rejected claims spend nothing; replay cannot duplicate history/modifiers. Numbers are initial balance values for later playtest.
+
+## Runtime content update (2026-09-22)
+The catalog now includes Thanh Loan Linh Cot (`survive_storms`), Minh Duong Linh Can (`restore_san`), and Huyen Minh Lan Giap (`survive_corruption`). Each uses supported staged effects and costs 12 SAN to claim. Once-per-game-day event keys prevent repeated post-action progress farming; claims atomically validate and consume SAN. The progress ledger is separate from active-physique claim history so save validation can distinguish progress from claims.

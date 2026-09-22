@@ -6,8 +6,8 @@
 
 ### Live-world interaction and unified event log
 
-- The detailed cross-system world simulation source is [`WORLD_INTERCONNECTION_SYSTEM.md`](../../../WORLD_INTERCONNECTION_SYSTEM.md). Its map, faction, NPC, weather, and scheduled-world changes are represented by the feature canonicals linked below; this file remains the canonical home for world-tick orchestration.
-- Player-facing narration for world-tick results follows [`NOVEL_STYLE_LOG_UNIFIED_FLOW.md`](../../../NOVEL_STYLE_LOG_UNIFIED_FLOW.md) and the [`UI_ACTION_LOG_CANONICAL.md`](../07-ui/UI_ACTION_LOG_CANONICAL.md) event/scene contract. Producers emit structured history events; they do not write to the DOM or bypass `emitEvent()`.
+- The detailed cross-system world simulation source is [`WORLD_SIMULATION_CANONICAL.md`](WORLD_SIMULATION_CANONICAL.md). Its map, faction, NPC, weather, and scheduled-world changes are represented by the feature canonicals linked below; this file remains the canonical home for world-tick orchestration.
+- Player-facing narration for world-tick results follows [`UI_ACTION_LOG_CANONICAL.md`](../07-ui/UI_ACTION_LOG_CANONICAL.md) and the [`UI_ACTION_LOG_CANONICAL.md`](../07-ui/UI_ACTION_LOG_CANONICAL.md) event/scene contract. Producers emit structured history events; they do not write to the DOM or bypass `emitEvent()`.
 - Map transitions/events: [`MAP_CANONICAL.md`](MAP_CANONICAL.md). Weather history and its narrative context: [`WEATHER_CANONICAL.md`](WEATHER_CANONICAL.md). NPC schedules and reactions: [`NPC_CANONICAL.md`](../05-interaction/NPC_CANONICAL.md). Inter-NPC ties: [`RELATIONSHIP_CANONICAL.md`](../05-interaction/RELATIONSHIP_CANONICAL.md).
 
 
@@ -638,3 +638,14 @@ Recovered from runtime symbols: weatherSnapshot, travelPlan, mapInfluenceSnapsho
 - NPC records may carry schedules, current node/sub-location, relationships, rumors, and bounded memory with the player.
 - Hidden realms use a sealed/omen/open lifecycle with cycle index, opening/closing day, competitors, claim ledger, and active entry/core node links.
 - World events may update region corruption, faction resources/stability, map influence, rumors, and contested opportunities; consumers read the current state rather than static icons.
+
+### NPC lifecycle and organization consequences
+
+- The absolute game-day tick is the only clock for NPC aging, schedule changes, seasonal routes, rumor propagation, succession, and commission expiry. Each system uses a stable `(systemId, entityId, day, ordinal)` idempotency key; replaying or catching up the same interval cannot duplicate an event or reward.
+- Resolve NPC schedules from game hour without advancing simulation state. Age/death checks, route movement, footprint creation, and settlement growth run once per absolute day in a fixed order: expire records; resolve lifespan; resolve world-event couriers; move scheduled/itinerant NPCs; emit footprints; evaluate settlement growth; propagate rumors; then resolve organization crises and deadlines. A deceased NPC is excluded from later phases that day.
+- World-tick outputs are structured events consumed by NPC history, node history, organization state, map projections, and the novel-log producer. The tick must not write UI text directly. Rumor source/confidence/expiry and event origin remain inspectable to explain later NPC reactions.
+- NPC/map/organization rules and thresholds are specified in [`NPC_CANONICAL.md`](../05-interaction/NPC_CANONICAL.md); relationship dimensions and event-only mutation are specified in [`RELATIONSHIP_CANONICAL.md`](../05-interaction/RELATIONSHIP_CANONICAL.md). A feature may add a tick phase only with a stable order, deterministic input, idempotency key, and bounded offline behavior.
+
+## Rumor lifetime and propagation
+
+All significant deed rumors, including player-originated rumors and NPC copies, use a 30 game-day lifetime measured from creation. Propagation never refreshes `createdDay` or `expiresDay`. Each world tick expires records when `day > expiresDay`, propagates each fact at most one valid map edge, reduces confidence by 20 percentage points per edge, and deduplicates by stable event/fact key. Ignore expired or confidence-below-20 rumors. First-meeting attitude may change once by at most -10 total; direct relationship events take precedence. Apply this to every producer so no 14/30/120-day variants remain.

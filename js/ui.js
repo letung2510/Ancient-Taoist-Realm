@@ -285,9 +285,15 @@ window.GameUI = (function () {
     const node = E.mapNode?.(state, state.locationId);
     const nodeHistory = (node?.history || []).slice(-6).reverse();
     const historyLabels = { weather: "Thiên tượng", sub_location: "Điểm nhỏ", structure: "Công trình", structure_transfer: "Chuyển chủ", faction_change: "Thế lực", actor: "Nhân vật", completion: "Khám phá" };
-    const historyHtml = '<div class="section-title">Dấu vết gần đây tại node</div>' + (nodeHistory.length
+    let historyHtml = '<div class="section-title">Dấu vết gần đây tại node</div>' + (nodeHistory.length
       ? '<div class="detail-block node-history location-history">' + nodeHistory.map((entry) => '<div class="item-row"><b>' + escapeHtml(historyLabels[entry.type] || entry.type || "Biến chuyển") + '</b><small> · Ngày ' + Number(entry.day || 0) + ' · ' + escapeHtml(entry.summary || "Một biến chuyển vừa được ghi nhận.") + '</small></div>').join("") + '</div>'
       : '<p class="muted">Chưa có biến chuyển cục bộ nào được ghi lại.</p>');
+    const tournament = s.tournament;
+    if (tournament) {
+      const roundNames = ["Sơ tuyển", "Tứ kết", "Bán kết", "Chung kết"];
+      const roundRows = (tournament.rounds || []).map((round, index) => '<div class="item-row"><b>' + roundNames[index] + '</b><small> · Đối thủ ' + escapeHtml(round.opponentId || "chưa xếp") + ' · ' + escapeHtml(round.status || "pending") + (round.choice ? ' · chiến thuật ' + escapeHtml(round.choice) : '') + (round.result ? ' · ' + (round.result.won ? 'thắng' : 'thua') : '') + '</small></div>').join("");
+      historyHtml += '<div class="section-title">Tông Môn Đại Hội · ' + escapeHtml(tournament.status) + '</div><div class="detail-block"><p>Đăng ký đến ngày ' + Number(tournament.registrationEndDay || 0) + ' · vòng ' + (Number(tournament.currentRound || 0) + 1) + '/4</p>' + roundRows + '</div>';
+    }
     const event = s.event ? '<div class="detail-block"><b>☄ ' + escapeHtml(s.event.name || "Dị Triều") + '</b><br>Pha hiện tại: ' + escapeHtml(s.event.phase || "đang diễn ra") + ' · kết thúc ngày ' + s.event.phaseEndsDay + '</div>' : '<p class="muted">Khu vực hiện không có Dị Triều.</p>';
       const weatherLabel = window.GameI18n?.weather ? window.GameI18n.weather(s.weather) : s.weather;
       const preview = window.GameEngine.worldModifierPreview?.(state) || {};
@@ -952,19 +958,16 @@ window.GameUI = (function () {
       return [node.nodeId, { location, fogLevel, signal, teleport, visible: node.nodeId === state.locationId || visited.has(node.nodeId) || fogLevel > 0 || signal !== "neutral" || teleport || guideNodeIds.has(node.nodeId) }];
     }));
     const visibleTreeNodes = localTreeNodes.filter((node) => nodeMeta[node.nodeId]?.visible);
-    const stableJitter = (id) => {
-      let hash = 2166136261;
-      for (const char of String(id)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
-      return { x: (((hash >>> 0) % 2001) / 1000 - 1) * 0.8, y: ((((hash >>> 11) % 2001) / 1000) - 1) * 0.8 };
-    };
+    const currentOxy = coords[state.locationId] || { x: 0, y: 0 };
+    const coordinateScale = Math.min(18, 190 / Math.max(1, ...visibleTreeNodes.map((node) => {
+      const point = coords[node.nodeId] || { x: currentOxy.x, y: currentOxy.y };
+      return Math.max(Math.abs(Number(point.x) - Number(currentOxy.x)), Math.abs(Number(point.y) - Number(currentOxy.y)));
+    })));
     const points = Object.fromEntries(visibleTreeNodes.map((node) => {
-      if (node.nodeId === state.locationId) return [node.nodeId, { x: 50, y: 50 }];
-      const jitter = stableJitter(node.nodeId);
-      let hash = 2166136261;
-      for (const char of String(node.nodeId)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
-      const angle = ((hash >>> 0) % 360) * Math.PI / 180;
-      const radius = 14 + ((hash >>> 8) % 30);
-      return [node.nodeId, { x: Math.max(6, Math.min(94, 50 + Math.cos(angle) * radius + jitter.x)), y: Math.max(6, Math.min(94, 50 + Math.sin(angle) * radius + jitter.y)) }];
+      const point = coords[node.nodeId] || currentOxy;
+      const dx = Number(point.x ?? point[0]) - Number(currentOxy.x ?? currentOxy[0]);
+      const dy = Number(point.y ?? point[1]) - Number(currentOxy.y ?? currentOxy[1]);
+      return [node.nodeId, { x: 50 + dx * coordinateScale / 5, y: 50 + dy * coordinateScale / 5 }];
     }));
 
     const localRoutePairs = visibleTreeNodes.filter((node) => node.parentNodeId && points[node.parentNodeId] && points[node.nodeId] && (visited.has(node.nodeId) || visited.has(node.parentNodeId))).map((node) => ({ key: node.parentEdgeId, from: node.parentNodeId, to: node.nodeId, kind: "tree" }));
@@ -1025,7 +1028,6 @@ window.GameUI = (function () {
       if (Number(location.dangerLevel || 0) >= 4) classes.push("danger-zone");
       if (notableCount || hasOpportunity || hasEvent || hiddenOpen || location.mapNodeType === "capital") classes.push("important-node");
       const displayName = displayNodeName(location.name);
-      if (location.name !== displayName) location.name = displayName;
       const oxyPoint = coords[id];
       const oxy = oxyPoint ? Number(oxyPoint.x ?? oxyPoint[0]) + "," + Number(oxyPoint.y ?? oxyPoint[1]) : "chưa rõ";
       const label = isCurrent || notableCount || hasOpportunity || hasEvent || hiddenOpen ? displayName : (fogLevel >= 1 ? "✦" : "·");
@@ -1230,7 +1232,7 @@ window.GameUI = (function () {
       const pct = progress.nextThreshold == null ? 100 : Math.min(100, Math.round(progress.masteryExp / progress.nextThreshold * 100));
       const evolution = state.player.techniques?.[technique.id]?.evolution; const choices = window.EXPANSION_DATA?.techniqueEvolutions?.[technique.id] || [];
       const evolutionControls = evolution?.status === "ready" ? choices.map((choice) => expansionButton("technique_evolve", choice.name, technique.id, 'data-expansion-arg2="' + escapeHtml(choice.id) + '"')).join("") : choices.length ? '<small>Tiến hóa: ' + escapeHtml(window.GameI18n?.formatStatus(evolution?.status || "locked") || "Chưa mở") + (evolution?.status === "trial" ? ' · tiến độ ' + Number(evolution.progress || 0) : '') + '</small>' : "";
-      return '<article class="technique-card category-' + escapeHtml(technique.category) + '" title="' + escapeHtml(visible.baseEffect || technique.name) + '"><div class="technique-head"><b>' + escapeHtml(technique.name) + '</b><small>' + escapeHtml(window.GameI18n?.element(technique.element) || technique.element) + (technique.isCore ? ' · Cốt Lõi' : '') + '</small></div><p>' + escapeHtml(visible.baseEffect || "Chưa rõ hiệu quả.") + '</p>' + (runtimePreview.success ? '<small>Thiên tượng hiện tại: uy lực ×' + Number(runtimePreview.powerMultiplier || 1).toFixed(2) + '</small>' : '') + '<div class="stat-tags">' + renderEffects({ manaCost: visible.manaCost || 0, staminaCost: visible.staminaCost || 0, sanCost: visible.sanCost || 0, lifespanCost: visible.lifespanCost || 0, corruptionCost: visible.corruptionCost || 0, allStatMult: visible.allStatMultiplier || 0 }) + '</div><div class="mastery"><div>' + helpLabel(progress.stageName, "Tầng thông thạo hiện tại; tăng bằng vận dụng đúng hoàn cảnh và Ngộ tính.") + '<b>' + helpLabel("Thông Thạo", "EXP riêng của Công pháp, không phải Tu vi cảnh giới.") + ' ' + progress.masteryExp + (progress.nextThreshold == null ? ' · Tối đa' : '/' + progress.nextThreshold) + '</b></div><div class="mastery-bar"><span style="width:' + pct + '%"></span></div><small>' + escapeHtml(progress.nextStageName ? ('Còn ' + progress.remaining + ' EXP tới ' + progress.nextStageName + '. ' + progress.guide) : 'Đã đạt Đại Viên Mãn.') + '</small></div><div class="item-actions">' + evolutionControls + '</div></article>';
+      return '<article class="technique-card category-' + escapeHtml(technique.category) + '" title="' + escapeHtml(visible.baseEffect || technique.name) + '"><div class="technique-head"><b>' + escapeHtml(technique.name) + '</b><small>' + escapeHtml(window.GameI18n?.element(technique.element) || technique.element) + (technique.isCore ? ' · Cốt Lõi' : '') + '</small></div><p>' + escapeHtml(visible.baseEffect || "Chưa rõ hiệu quả.") + '</p>' + (runtimePreview.success ? '<small>Uy lực dự kiến ×' + Number(runtimePreview.powerMultiplier || 1).toFixed(2) + (runtimePreview.combatPreview ? ' · Sát thương ' + Number(runtimePreview.combatPreview.damageMin) + '–' + Number(runtimePreview.combatPreview.damageMax) : '') + '</small>' : '') + '<div class="stat-tags">' + renderEffects({ manaCost: visible.manaCost || 0, staminaCost: visible.staminaCost || 0, sanCost: visible.sanCost || 0, lifespanCost: visible.lifespanCost || 0, corruptionCost: visible.corruptionCost || 0, allStatMult: visible.allStatMultiplier || 0 }) + '</div><div class="mastery"><div>' + helpLabel(progress.stageName, "Tầng thông thạo hiện tại; tăng bằng vận dụng đúng hoàn cảnh và Ngộ tính.") + '<b>' + helpLabel("Thông Thạo", "EXP riêng của Công pháp, không phải Tu vi cảnh giới.") + ' ' + progress.masteryExp + (progress.nextThreshold == null ? ' · Tối đa' : '/' + progress.nextThreshold) + '</b></div><div class="mastery-bar"><span style="width:' + pct + '%"></span></div><small>' + escapeHtml(progress.nextStageName ? ('Còn ' + progress.remaining + ' EXP tới ' + progress.nextStageName + '. ' + progress.guide) : 'Đã đạt Đại Viên Mãn.') + '</small></div><div class="item-actions">' + evolutionControls + '</div></article>';
     };
     const order = ["tam_phap", "chieu_thuc", "than_phap", "phu_tro", "tran_phap", "cam_thuat", "dan_phu_phap"];
     const allCategories = order.concat([...new Set(techniques.map((technique) => technique.category))].filter((category) => !order.includes(category)));

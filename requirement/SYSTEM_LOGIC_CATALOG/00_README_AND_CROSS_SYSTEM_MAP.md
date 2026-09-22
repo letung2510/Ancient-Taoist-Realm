@@ -2,6 +2,24 @@
 
 Each feature has one canonical requirement-logic file. Validators, patches, and schemas are tracked only in `AUDIT_CANONICAL.md`.
 
+## Root-level source status
+
+The root folder should contain only this README, the canonical audit, the validator, and source documents that still need consolidation. Consolidated design sources are removed after their requirements are present in the feature canonical below:
+
+- Action priority and novel-style log flow → `features/07-ui/UI_ACTION_LOG_CANONICAL.md`
+- Dynamic local BFS constellation and local-map improvements → `features/04-world/MAP_CANONICAL.md`
+- World interconnection design → `features/04-world/WORLD_SIMULATION_CANONICAL.md`
+- NPC/map/character/organization interactions → `features/05-interaction/NPC_CANONICAL.md`, `RELATIONSHIP_CANONICAL.md`, and `features/04-world/WORLD_SIMULATION_CANONICAL.md`
+- Review reports and change addenda → `../AUDIT_CANONICAL.md`
+
+Keep a source file at the root while it contains requirements or decisions that have not yet been merged into those destinations.
+
+Current root-level sources still awaiting a full requirement-by-requirement merge:
+
+- `../prompt-review-code-tu-dong.md` is a reusable review prompt, not a feature requirement.
+
+The 2026-09-22 local-map and NPC interaction sources have been consolidated into their feature canonicals and removed from the root. Their design contracts do not by themselves assert runtime completion; see `../AUDIT_CANONICAL.md` for that distinction.
+
 - **FATE**: `features/01-fate\FATE_CANONICAL.md`
 - **CHARACTER**: `features/02-character\CHARACTER_CANONICAL.md`
 - **PROGRESSION**: `features/03-progression\PROGRESSION_CANONICAL.md`

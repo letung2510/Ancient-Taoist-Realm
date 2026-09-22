@@ -6,7 +6,7 @@
 
 ### Unified novel-style event log
 
-Source of truth: [`NOVEL_STYLE_LOG_UNIFIED_FLOW.md`](../../../NOVEL_STYLE_LOG_UNIFIED_FLOW.md).
+Source of truth: [`UI_ACTION_LOG_CANONICAL.md`](../07-ui/UI_ACTION_LOG_CANONICAL.md).
 
 - Every history producer enters through `emitEvent()`; `pushHistory()` remains a compatibility alias and uses the same normalization/persistence gateway.
 - The persisted envelope retains raw text, error code, event relation, scene/location, visibility, context, and structured stats. Player Log is a projection; it must never erase diagnostic data from `state.history`.
@@ -1453,3 +1453,10 @@ Recovered from runtime symbols: pushHistory, createGameEvent, novelLogParagraphs
 - The action queue must recover from an action exception, release the queue, write a player-facing recovery message, and repaint the action surface.
 - The Lân cận map is always the constellation renderer. The legacy route-graph renderer is not a valid fallback for that surface.
 - Auction regression identifies the lot by deterministic `lotId`/`itemId` and derives the expected item name from the catalog; it must not assume that a lot contains Linh Thạch.
+
+## T-ng M-n -?i H?i: interactive bracket
+
+Replace the one-shot seeded award with four stages: preliminary, quarter-final, semi-final, final. Joining is allowed only during registration and stores a seeded bracket/opponent snapshot. Each round has one player intervention chosen from `aggressive`, `read`, or `conserve`; choice is committed once by `(tournamentId, roundId)`, then combined with player power, technique mastery, stamina and deterministic opponent power. `read` grants a small advantage next round on success; `conserve` restores stamina but lowers this round's edge; `aggressive` increases win chance and injury risk. Loss ends participation; victory advances exactly one round. Final settlement grants rewards once through canonical reward receipts and records placement, contribution, injury and event log. Daily world tick advances deadlines and closes incomplete entrants without rewards. Persist round index, bracket seed, opponents, choices, results and settled receipt IDs. World tab exposes status, opponent, preview, choices and round history. Legacy joined/roundsWon saves migrate to completed legacy result and cannot receive bracket rewards again.
+
+## Tournament runtime update (2026-09-22)
+The bracket is persisted under `worldSimulation.tournament`: registration ends on day 3, the event closes on day 10, and the four rounds are preliminary, quarter-final, semi-final, and final. Each round stores opponent seed, intervention, result, and resolution day. `read` grants a small next-round edge after a win; `conserve` restores stamina and reduces current edge; `aggressive` raises edge and may cause a minor injury. Only the champion settles the canonical reward receipt. A save validator checks bracket shape, round order, and reward settlement. A legacy one-shot joined record becomes `legacy_completed` without new rewards.

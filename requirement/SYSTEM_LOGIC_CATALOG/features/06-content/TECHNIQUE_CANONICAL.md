@@ -73,3 +73,12 @@ Thưởng collection hiếm, contract, hidden realm và contested opportunity ph
 - Benchmark thời gian chế tác và UI recipe trên thiết bị yếu: **CHƯA ĐO**.
 
 
+
+## New feature: C-ng Ph-p v?n h-nh theo hi?p
+
+Add a preparation cycle to active techniques. Each learned active technique has `combatState: { cooldownRemaining, channelProgress, lastResolvedActionId }` under its progress record. `prepareTechnique(state,id,actionId)` validates learned state, realm, cost, and cooldown; charges the declared resource once; then marks the technique prepared for the current encounter. `useTechnique` resolves an explicit stance: `steady` uses catalog values; `burst` raises effect coefficient 20% and corruption cost 50%; `guarded` lowers effect 15% and halves incoming technique risk. Choices are previewable and idempotent by action ID. Successful resolution starts catalog cooldown; failed validation spends nothing. T-m Ph-p may modify preparation/cooldown through a read-only modifier snapshot, never by mutating catalog data.
+
+UI shows Prepare, stance, cooldown, cost and effect preview. Combat and duel callers use the same resolver; existing non-combat use remains supported. Migration initializes new fields without altering mastery. This is a design contract pending runtime implementation.
+
+## Runtime feature update (2026-09-22)
+The implemented feature is a per-cast stance choice using the existing technique cooldown transaction; it supersedes the earlier proposed separate prepare/channel substate. `steady` uses catalog effects, `burst` raises effect by 20% and corruption cost by 50%, and `guarded` lowers effect by 15% and halves SAN/corruption costs. UI asks for a stance before committing an active-technique action. Invalid stance and resource failures spend nothing. Cooldown and mastery remain resolved by the existing `useTechnique` path.

@@ -6,7 +6,17 @@
 
 ### World-driven relationship events
 
-Faction/NPC relationship changes that occur during world simulation are coordinated by [`WORLD_INTERCONNECTION_SYSTEM.md`](../../../WORLD_INTERCONNECTION_SYSTEM.md) and [`WORLD_SIMULATION_CANONICAL.md`](../04-world/WORLD_SIMULATION_CANONICAL.md). Any player-visible consequence follows the shared scene/log contract in [`UI_ACTION_LOG_CANONICAL.md`](../07-ui/UI_ACTION_LOG_CANONICAL.md#unified-novel-style-event-log); relationship deltas remain structured stats rather than being embedded as technical payloads in narration.
+Faction/NPC relationship changes that occur during world simulation are coordinated by [`WORLD_SIMULATION_CANONICAL.md`](../04-world/WORLD_SIMULATION_CANONICAL.md) and use the dimensions and event producer defined in this file. Any player-visible consequence follows the shared scene/log contract in [`UI_ACTION_LOG_CANONICAL.md`](../07-ui/UI_ACTION_LOG_CANONICAL.md#unified-novel-style-event-log); relationship deltas remain structured stats rather than being embedded as technical payloads in narration.
+
+### Social action transition rules
+
+The detailed NPC action lifecycle is specified in [`NPC_CANONICAL.md`](NPC_CANONICAL.md). This file owns the dimension semantics and mutation rules:
+
+- `trust`, `respect`, `affection`, `loyalty`, `fear`, and `suspicion` are independent dimensions, each clamped to `[0,100]`. A migration may initialize a missing dimension from an explicitly documented legacy source once; normal play never aliases or copies dimensions. `relationshipScore` is derived for sorting/display only and is not an action gate.
+- All mutations pass through `recordRelationshipEvent()` with a stable `uniqueKey`, actor/target IDs, game day, cause, outcome, and per-dimension delta. Reject duplicate keys. Apply the full delta atomically, clamp once, and retain the unmodified requested delta in audit evidence.
+- Gifts affect affection only; intimidation affects fear/suspicion and may irreversibly zero trust/affection on success; trial outcomes affect trust and may unlock a gated interaction; betrayal changes loyalty/hostility and preserves the prior relationship record. No social action may directly edit a stored field outside the event producer.
+- Rumors and witnesses may affect first-meeting attitude within the bounded NPC contract, but cannot rewrite an existing direct relationship dimension. Expired or low-confidence rumors have no effect. Companion loyalty stays in its separate companion ledger.
+- Relationship decay is event-only. Offline/world ticks do not passively reduce any relationship dimension. Any future decay policy requires a named dimension, rate, and migration decision; `stagnantDays` remains an inactivity counter only.
 
 
 ### Source: `archive-requirements\logic-history\04-interaction\RELATIONSHIP_DIMENSIONS_CANONICAL_2026-09-16.md`

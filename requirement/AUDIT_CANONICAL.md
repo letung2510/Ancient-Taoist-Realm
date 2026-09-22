@@ -6,6 +6,19 @@
 - Canonical logic: `SYSTEM_LOGIC_CATALOG/01..08`.
 - Historical source files are preserved under `archive-requirements/audit-history/`.
 
+## Requirement folder consolidation — 2026-09-22
+
+- Root-level `LOGIC_CHANGE_ADDENDUM_2026-09-21.md` and review reports dated 2026-09-18 and 2026-09-21 record implementation/review status. Their requirement changes are filed in the canonical feature documents: UI/action/log in `SYSTEM_LOGIC_CATALOG/features/07-ui/UI_ACTION_LOG_CANONICAL.md`; journey/progression in `features/03-progression/CON_DUONG_CANONICAL.md`; save migration in `features/08-platform/DATA_RUNTIME_CANONICAL.md`. Keep this audit as the home for review evidence and outstanding decisions.
+- Root-level design sources are being consolidated by feature. The local constellation pointer is redundant because it only points to `features/04-world/MAP_CANONICAL.md`; the dynamic BFS design is represented there by the Local BFS Tree contract (39-node viewport, real graph selection, stable ordering, and acceptance criteria).
+- The remaining substantial root-level design files were merged in the completion entry below; the reusable review prompt remains outside feature canonicals.
+
+### Completed feature consolidation — 2026-09-22
+
+- `LOCAL_CONSTELLATION_IMPROVEMENT.md` is consolidated in `SYSTEM_LOGIC_CATALOG/features/04-world/MAP_CANONICAL.md`. Added deterministic 30–39 node density, real-coordinate projection, node-size/label constraints, semantic state colors, privacy precedence, and acceptance rules. Where the source requested render-time node generation, the canonical contract chooses no render side effects: undiscovered cells stay frontier affordances until the movement resolver materializes them.
+- `NPC_MAP_CHARACTER_ORGANIZATION_INTERACTION.md` is consolidated across `features/05-interaction/NPC_CANONICAL.md`, `features/05-interaction/RELATIONSHIP_CANONICAL.md`, and `features/04-world/WORLD_SIMULATION_CANONICAL.md`. The merge specifies schedule/lifespan/itinerary/footprints/settlement; gifts, intimidation, rumor, trust trial and betrayal; rank, commission, succession, defection, vault, diplomacy and loyalty-test rules; and deterministic world-tick ordering.
+- These additions are design contracts. They do not claim every behavior is already present in runtime or covered by regression. The earlier source's implementation-status assertions are retained as historical claims only; current status must be established from runtime evidence and recorded here.
+- Both root-level source files were removed after consolidation. `prompt-review-code-tu-dong.md` remains a reusable review prompt, not a feature source.
+
 ## Mandatory audit rule
 
 1. Audit records findings, evidence, status, and decisions only.
