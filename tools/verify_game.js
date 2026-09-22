@@ -544,9 +544,9 @@ function verifyBrowserEngine(sandbox) {
   const commandState = E.createState({ character });
   assert(E.chooseJourneyIntent(commandState, "tu_lap").success);
   const commandTurn = commandState.meta.turn;
-  E.submitTurn(commandState, { text: "nhìn" });
+  E.submitTurn(commandState, { text: "look" });
   assert.strictEqual(commandState.meta.turn, commandTurn + 1);
-  assert(commandState.history.some((entry) => entry.text.includes("Quan Sát") || entry.text.includes("Cổng đá")));
+  assert(commandState.history.some((entry) => entry.text.includes(sandbox.window.GameData.LOCATIONS[commandState.locationId].desc)));
 
   const legacyOriginState = E.createState({ character: E.createCharacter({ name: "Tán Tu", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
   assert.strictEqual(legacyOriginState.flags.originChoicePending, false);

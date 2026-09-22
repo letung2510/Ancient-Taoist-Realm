@@ -173,6 +173,7 @@ window.GameData = (function () {
   const LOCATIONS = {
     trung_vuc_khoi_diem: {
       id: "trung_vuc_khoi_diem", name: "Vân Đài Ngoại Vi", corruption: 1,
+      seasonalTags: ["spring_trade", "trade_hub"],
       desc: "Một bến đá nằm ngoài sơn môn, nơi tán tu và lữ khách bắt đầu hành trình trước khi quyết định bước vào các tông môn.",
       exits: { nam: "son_mon", tay: "truyen_phap" },
       npcs: [],
@@ -180,12 +181,14 @@ window.GameData = (function () {
     },
     son_mon: {
       id: "son_mon", name: "Sơn Môn Thiên Huyền Tông", corruption: 1,
+      seasonalTags: ["winter_shelter", "winter_supply", "event_gathering", "safe_hub"],
       desc: "Cổng đá khắc đầy phù văn đã phai màu. Dưới chân núi, mây mù lượn lờ như có sinh mệnh.",
       exits: { bac: "van_phong", dong: "linh_dien", tay: "truyen_phap" },
       searchable: ["thong_mach_dan", "tu_khi_dan"]
     },
     van_phong: {
       id: "van_phong", name: "Vạn Phong Điện", corruption: 1,
+      seasonalTags: ["winter_shelter", "event_gathering", "event_market", "trade_hub", "autumn_harvest"],
       desc: "Đại điện uy nghiêm, khói hương lãng đãng. Trên điện, chưởng môn Ngọc Hư Tử thường ngồi tĩnh tọa.",
       exits: { nam: "son_mon", bac: "cam_dia" },
       npcs: ["su_phu", "dien_chu"],
@@ -193,6 +196,7 @@ window.GameData = (function () {
     },
     truyen_phap: {
       id: "truyen_phap", name: "Truyền Pháp Các", corruption: 1,
+      seasonalTags: ["winter_shelter", "safe_hub"],
       desc: "Tàng kinh các chất đầy ngọc giản. Một vài giá sách đã bị khóa chặt vì 'điển tịch cấm kỵ'.",
       exits: { dong: "son_mon", tay: "tay_mac_khoi_diem" },
       npcs: ["dai_su_huynh"],
@@ -200,6 +204,7 @@ window.GameData = (function () {
     },
     linh_dien: {
       id: "linh_dien", name: "Linh Dược Viên", corruption: 2,
+      seasonalTags: ["spring_trade", "autumn_harvest", "event_market"],
       desc: "Vườn linh thảo xanh um, nhưng linh khí ở đây có mùi tanh khó tả. Vài gốc linh thảo đã chuyển sang màu đen.",
       exits: { tay: "son_mon", bac: "hac_lam", nam: "vo_tan_hai_khoi_diem" },
       npcs: ["tieu_su_muoi"],
@@ -207,6 +212,7 @@ window.GameData = (function () {
     },
     hac_lam: {
       id: "hac_lam", name: "Hắc Lâm", corruption: 3,
+      seasonalTags: ["autumn_harvest", "omen_site"],
       desc: "Rừng cây cành khô cong queo như bàn tay quỷ. Tiếng rì rào nghe như tiếng thì thầm gọi tên ngươi.",
       exits: { nam: "linh_dien", bac: "co_mieu", dong: "abyss" },
       npcs: [],
@@ -215,6 +221,7 @@ window.GameData = (function () {
     },
     co_mieu: {
       id: "co_mieu", name: "Cổ Miếu Tà Thần", corruption: 4,
+      seasonalTags: ["event_gathering", "omen_site"],
       desc: "Ngôi miếu đổ nát thờ một thực thể không có danh xưng. Bức tượng đá có hàng nghìn con mắt đang nhìn ngươi.",
       exits: { nam: "hac_lam" },
       npcs: ["co_than_ngu"],
@@ -238,26 +245,31 @@ window.GameData = (function () {
     },
     tay_mac_khoi_diem: {
       id: "tay_mac_khoi_diem", name: "Sa Thành Tây Mạc", corruption: 2,
+      seasonalTags: ["spring_trade", "summer_market", "autumn_harvest", "trade_hub"],
       desc: "Một ốc đảo thành trì nằm giữa biển cát. Thương đội và Phật tu cùng che giấu bí mật dưới lớp cát vàng.",
       exits: { dong: "son_mon" }, npcs: [], enemies: [], searchable: ["linh_thach", "thong_mach_dan"]
     },
     bac_nguyen_khoi_diem: {
       id: "bac_nguyen_khoi_diem", name: "Băng Trại Bắc Nguyên", corruption: 2,
+      seasonalTags: ["winter_market", "winter_supply", "omen_site"],
       desc: "Gió tuyết phủ kín thảo nguyên, yêu khí và tiếng tù và của các cổ tộc vọng qua màn sương.",
       exits: { nam: "hac_lam" }, npcs: [], enemies: ["yeu_thu"], searchable: ["tu_khi_dan", "hoan_huyet_dan"]
     },
     vo_tan_hai_khoi_diem: {
       id: "vo_tan_hai_khoi_diem", name: "Lưu Vân Hải Cảng", corruption: 2,
+      seasonalTags: ["spring_trade", "summer_market", "autumn_harvest", "trade_hub"],
       desc: "Hải cảng dựng trên những đảo đá trôi, nơi hạm đội tu sĩ neo đậu giữa tiếng hải thú gầm xa.",
       exits: { tay: "linh_dien" }, npcs: ["hai_su_tu"], enemies: [], searchable: ["linh_thach"]
     },
     thien_khong_khoi_diem: {
       id: "thien_khong_khoi_diem", name: "Phù Không Đảo", corruption: 3,
+      seasonalTags: ["event_gathering", "omen_site"],
       desc: "Đảo nổi lơ lửng trên biển mây, linh áp dày đặc khiến mỗi bước chân đều nặng như núi.",
       exits: { nam: "van_phong" }, npcs: [], enemies: [], searchable: ["tu_khi_dan"]
     },
     u_minh_khoi_diem: {
       id: "u_minh_khoi_diem", name: "U Minh Quan", corruption: 5,
+      seasonalTags: ["omen_site"],
       desc: "Biên ải sát khe nứt minh giới, tử khí cuộn thành sương và tà niệm rình rập mọi sinh linh.",
       exits: { dong: "abyss" }, npcs: [], enemies: ["di_qui"], searchable: ["co_tich_tan_trang"]
     }

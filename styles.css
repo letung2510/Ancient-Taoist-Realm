@@ -762,13 +762,14 @@ html, body {
 .local-constellation .local-route-layer .map-path { stroke: #6474a8; stroke-width: .34; stroke-dasharray: 1.2 2.2; opacity: .58; }
 .local-constellation .local-route-layer .map-path.constellation-edge { stroke: rgba(154, 178, 220, .5); stroke-width: .32; stroke-dasharray: 1.1 2.5; opacity: .55; }
 .local-constellation .local-route-layer .map-path.guide-edge { stroke: #c9a4ff; stroke-width: .9; stroke-dasharray: 2.2 1.4; opacity: .95; filter: drop-shadow(0 0 4px rgba(201, 164, 255, .7)); }
+.local-constellation .local-route-layer .map-path.tree-edge { stroke: rgba(154, 178, 220, .5); stroke-width: .32; stroke-dasharray: 1.1 2.5; opacity: .55; }
 .local-constellation .local-route-layer .map-path.supplemental-edge { stroke: #7f87ad; stroke-width: .38; stroke-dasharray: 1.2 2.2; opacity: .5; }
-.local-constellation .local-route-layer .map-path.explored { stroke: var(--jade); stroke-width: .65; stroke-dasharray: none; opacity: .82; filter: drop-shadow(0 0 3px rgba(118, 224, 208, .7)); }
+.local-constellation .local-route-layer .map-path.explored { stroke: #aeb8d6; stroke-width: .55; stroke-dasharray: none; opacity: .52; filter: drop-shadow(0 0 2px rgba(174, 184, 214, .28)); }
 .constellation-cluster-label { position: absolute; z-index: 4; top: 38px; left: 50%; transform: translateX(-50%); color: rgba(203, 214, 247, .66); font: 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; pointer-events: none; }
 .local-constellation .constellation-core { position: absolute; z-index: 2; left: 50%; top: 50%; width: 8px; height: 8px; transform: translate(-50%, -50%); border-radius: 50%; background: #fff7cf; box-shadow: 0 0 4px 1px #f3c978, 0 0 12px 3px rgba(243, 201, 120, .28); pointer-events: none; }
 .local-constellation .map-node { z-index: 3; display: grid; place-items: center; min-height: 6px; width: 6px; padding: 0; border: 0; border-radius: 50%; transform: translate(-50%, -50%); transition: transform .18s ease, filter .18s ease, opacity .18s ease; font-size: 0; }
 .local-constellation .map-node:hover, .local-constellation .map-node:focus-visible { z-index: 5; transform: translate(-50%, -50%) scale(1.7); filter: brightness(1.24); }
-.local-constellation .map-node.current { width: 11px; min-height: 11px; }
+.local-constellation .map-node.current { width: 18px; min-height: 18px; }
 .local-constellation .map-node .map-star-glyph { display: none; }
 .local-constellation .map-node .map-node-label { display: none; }
 .map-star-glyph { color: #dce5ff; font-size: 16px; line-height: 1; text-shadow: 0 0 8px currentColor; }
@@ -947,6 +948,24 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px 
 .world-route { stroke: #7e86d8; stroke-width: .28; stroke-dasharray: .8 2.6; opacity: .55; filter: drop-shadow(0 0 2px rgba(126, 134, 216, .7)); }
 .map-path { stroke: #6474a8; stroke-width: .34; opacity: .65; }
 .map-path.explored { stroke: var(--jade); stroke-width: .65; filter: drop-shadow(0 0 3px rgba(118, 224, 208, .7)); }
+
+.pinned-character-summary .pinned-stat { margin-top: 9px; }
+.pinned-character-summary .hp-bar, .pinned-character-summary .qi-bar, .pinned-character-summary .progress-bar { height: 6px; margin-top: 4px; border-radius: 999px; overflow: hidden; }
+.pinned-character-summary .hp-bar > i, .pinned-character-summary .qi-bar > i, .pinned-character-summary .progress-bar > i { display: block; height: 100%; border-radius: inherit; }
+.quest-tracked-banner { display: grid; gap: 5px; margin: 10px 0 14px; padding: 13px 15px; border: 1px solid rgba(207, 177, 119, .42); border-radius: 12px; background: linear-gradient(120deg, rgba(150, 110, 56, .16), rgba(24, 30, 43, .72)); }
+.quest-tracked-banner small, .novel-memory-meta span { color: var(--gold, #d4b477); letter-spacing: .12em; text-transform: uppercase; font-size: .68rem; }
+.quest-card { margin: 10px 0; padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: rgba(17, 22, 32, .62); }
+.quest-card.quest-tracked { border-color: rgba(207, 177, 119, .45); }
+.quest-card header, .novel-memory-meta { display: flex; align-items: center; gap: 10px; }
+.quest-card header > div { display: grid; gap: 3px; }
+.quest-mark { color: var(--gold, #d4b477); font-size: 1.15rem; }
+.quest-objectives { display: grid; gap: 5px; margin: 10px 0; color: var(--muted); }
+.quest-objective.done { color: #a9c9b9; }
+.quest-controls { display: flex; flex-wrap: wrap; gap: 7px; }
+.novel-memory-list { display: grid; gap: 10px; }
+.novel-memory { padding: 13px 15px; border-left: 2px solid rgba(207, 177, 119, .58); border-radius: 0 10px 10px 0; background: linear-gradient(100deg, rgba(150, 110, 56, .11), rgba(17, 22, 32, .42)); }
+.novel-memory-meta { justify-content: space-between; }
+.novel-memory p { margin: 8px 0 0; line-height: 1.7; }
 .map-corner-label { position: absolute; z-index: 4; top: 12px; left: 14px; color: rgba(192, 207, 243, .54); font: 9px var(--mono); letter-spacing: .15em; pointer-events: none; }
 .map-compass { position: absolute; z-index: 4; top: 12px; right: 14px; display: grid; justify-items: center; gap: 1px; color: var(--gold); font: 10px var(--mono); opacity: .8; pointer-events: none; }
 .map-compass i { width: 1px; height: 16px; background: linear-gradient(var(--gold), transparent); }

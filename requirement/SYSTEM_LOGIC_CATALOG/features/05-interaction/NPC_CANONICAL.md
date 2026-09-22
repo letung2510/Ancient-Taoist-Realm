@@ -4,6 +4,10 @@
 
 ## Consolidated logic
 
+### World-simulation and log integration
+
+NPC schedules, co-location interactions, and reactions to world conditions are cross-system behavior described by [`WORLD_INTERCONNECTION_SYSTEM.md`](../../../WORLD_INTERCONNECTION_SYSTEM.md) and orchestrated in [`WORLD_SIMULATION_CANONICAL.md`](../04-world/WORLD_SIMULATION_CANONICAL.md). NPC event producers follow [`NOVEL_STYLE_LOG_UNIFIED_FLOW.md`](../../../NOVEL_STYLE_LOG_UNIFIED_FLOW.md) via [`UI_ACTION_LOG_CANONICAL.md`](../07-ui/UI_ACTION_LOG_CANONICAL.md#unified-novel-style-event-log), retaining `npcContext` and `weatherContext` while keeping raw codes out of Player Log.
+
 
 ### Source: `archive-requirements\logic-history\04-interaction\NPC_MONSTER_SYSTEM.md`
 

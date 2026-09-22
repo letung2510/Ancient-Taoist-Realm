@@ -31,6 +31,17 @@ function runSmokeTests() {
   if (/exclusion|canonical|namespace|validator/i.test(uiReason) || !uiReason.trim()) throw new Error("player-facing UI reason must not expose internal terminology");
   const mappedReason = engine.playerFacingReason("TRAVEL_ALREADY_ACTIVE");
   if (/TRAVEL_ALREADY_ACTIVE/.test(mappedReason) || mappedReason.length < 20) throw new Error("player-facing mapped reason must use narrative text");
+  const state = { history: [], locationId: "node-a", meta: { turn: 7 }, logState: { sequence: 0, recentNarratives: [] } };
+  const first = engine.emitEvent(state, { type: "narr", text: "Gió lạnh lùa qua lối núi, ngươi lần theo dấu chân còn mới." });
+  engine.emitEvent(state, { type: "narr", text: "Trong bụi cỏ, một viên linh thạch ánh lên dưới lớp đất ẩm.", relation: "result", causedBy: first.id, sceneId: "intentionally-distinct-result-scene" });
+  engine.emitEvent(state, { type: "COMMAND_ECHO", text: "> [tìm kiếm]", debugOnly: true });
+  const scenes = engine.novelLogParagraphs(state);
+  if (scenes.length !== 1 || scenes[0].events.length !== 2 || !scenes[0].text.includes("viên linh thạch")) throw new Error("causal events in one scene must render as one paragraph");
+  if (/\[tìm kiếm\]/.test(engine.renderScene(state, state.history))) throw new Error("command echo leaked into player log");
+  const blocked = engine.emitEvent(state, { type: "warn", text: "TRAVEL_ALREADY_ACTIVE", errorCode: "TRAVEL_ALREADY_ACTIVE" });
+  const blockedText = engine.formatPlayerLogText(state, blocked);
+  if (/TRAVEL_ALREADY_ACTIVE/.test(blockedText) || !blockedText.includes("trên đường")) throw new Error("blocked action must map to safe prose");
+  if (state.history.length !== 4 || !state.history[2].debugOnly || !state.history[3].errorCode) throw new Error("system history must preserve raw event and error metadata");
   return true;
 }
 

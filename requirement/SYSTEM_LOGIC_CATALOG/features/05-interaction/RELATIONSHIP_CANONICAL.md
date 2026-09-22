@@ -4,6 +4,10 @@
 
 ## Consolidated logic
 
+### World-driven relationship events
+
+Faction/NPC relationship changes that occur during world simulation are coordinated by [`WORLD_INTERCONNECTION_SYSTEM.md`](../../../WORLD_INTERCONNECTION_SYSTEM.md) and [`WORLD_SIMULATION_CANONICAL.md`](../04-world/WORLD_SIMULATION_CANONICAL.md). Any player-visible consequence follows the shared scene/log contract in [`UI_ACTION_LOG_CANONICAL.md`](../07-ui/UI_ACTION_LOG_CANONICAL.md#unified-novel-style-event-log); relationship deltas remain structured stats rather than being embedded as technical payloads in narration.
+
 
 ### Source: `archive-requirements\logic-history\04-interaction\RELATIONSHIP_DIMENSIONS_CANONICAL_2026-09-16.md`
 
@@ -218,5 +222,3 @@ NPC relationship decay policy is `event_only`: no passive offline/world-tick dec
 ## Regression
 
 Relationship event idempotency, dimension updates and save round-trip are covered by review-batch regression; offline simulation keeps values stable without new events.
-
-

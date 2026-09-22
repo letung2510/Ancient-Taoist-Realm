@@ -4,6 +4,12 @@
 
 ## Consolidated logic
 
+### Live-world interaction and unified event log
+
+- The detailed cross-system world simulation source is [`WORLD_INTERCONNECTION_SYSTEM.md`](../../../WORLD_INTERCONNECTION_SYSTEM.md). Its map, faction, NPC, weather, and scheduled-world changes are represented by the feature canonicals linked below; this file remains the canonical home for world-tick orchestration.
+- Player-facing narration for world-tick results follows [`NOVEL_STYLE_LOG_UNIFIED_FLOW.md`](../../../NOVEL_STYLE_LOG_UNIFIED_FLOW.md) and the [`UI_ACTION_LOG_CANONICAL.md`](../07-ui/UI_ACTION_LOG_CANONICAL.md) event/scene contract. Producers emit structured history events; they do not write to the DOM or bypass `emitEvent()`.
+- Map transitions/events: [`MAP_CANONICAL.md`](MAP_CANONICAL.md). Weather history and its narrative context: [`WEATHER_CANONICAL.md`](WEATHER_CANONICAL.md). NPC schedules and reactions: [`NPC_CANONICAL.md`](../05-interaction/NPC_CANONICAL.md). Inter-NPC ties: [`RELATIONSHIP_CANONICAL.md`](../05-interaction/RELATIONSHIP_CANONICAL.md).
+
 
 ### Source: `archive-requirements\logic-history\03-world\EXPLORATION_SEARCH_SYSTEM_REQUIREMENT.md`
 

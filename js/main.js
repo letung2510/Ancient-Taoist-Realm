@@ -740,6 +740,12 @@
     updateAtmosphereClass();
     if (state.flags?.blackMarketOpen) { state.flags.blackMarketOpen = false; UI.openOverlay("Nghịch Thương Nhân", UI.renderBlackMarket(state)); }
     if ((state.flags?.journeyIntentPending || state.flags?.originChoicePending) && UI.renderOriginChoice) showOriginModal();
+    const opportunity = state.pendingContestedOpportunity;
+    if (!state.flags?.journeyIntentPending && !state.flags?.originChoicePending && opportunity?.status === "pending" && state.flags?.lastOpportunityPromptId !== opportunity.id) {
+      state.flags ||= {};
+      state.flags.lastOpportunityPromptId = opportunity.id;
+      UI.openOverlay("Cơ Duyên Tranh Đoạt", UI.renderContestedOpportunityModal(state));
+    }
   }
 
   function renderStoryWindow() {
