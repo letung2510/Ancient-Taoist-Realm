@@ -7632,6 +7632,19 @@ window.GameEngine = (function () {
     playerClock.worldAbsoluteDay = state.worldClock.absoluteDay;
     playerClock.worldSyncedPlayerDay = playerDay;
     state.worldClock.lastSyncedPlayerDay = playerDay;
+    // Canonical adapter: preserve the legacy clock while exposing the nested
+    // world-clock shape required by new consumers.
+    state.gameClock = state.gameClock || {};
+    state.gameClock.world = {
+      ...(state.gameClock.world || {}),
+      epochDate: "6876-01-01",
+      startDayIndex: 2475360,
+      currentDayIndex: state.worldClock.absoluteDay,
+      currentYear: state.worldClock.currentYear,
+      currentMonth: state.worldClock.currentMonth,
+      currentDay: state.worldClock.currentDay,
+      lastSyncedPlayerDay: playerDay
+    };
     return state.worldClock;
   }
   function advanceWorldClock(state, gameDays = 0) {

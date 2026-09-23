@@ -30,6 +30,11 @@ function testSaveRoundTripAndCatalogImmutability() {
   assert(E.validateLogSurfaceState(restored).ok);
   assert(X.validateExpansionState(restored).valid);
   assert(Number(restored.meta.featureVersions.techniqueCrossSystem) >= 1);
+  const worldClock = E.ensureWorldClock(restored);
+  assert.strictEqual(restored.gameClock.world.epochDate, "6876-01-01");
+  assert.strictEqual(restored.gameClock.world.startDayIndex, 2475360);
+  assert.strictEqual(restored.gameClock.world.currentDayIndex, worldClock.absoluteDay);
+  assert(Number.isFinite(restored.gameClock.world.currentYear));
   const discoverySnapshot = JSON.stringify(restored.discoveries);
   X.discoveryStatusSummary(restored);
   assert.strictEqual(JSON.stringify(restored.discoveries), discoverySnapshot, "discovery summary must be a pure read model");

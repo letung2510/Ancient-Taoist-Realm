@@ -10,7 +10,8 @@ const SOURCES = [
     .filter((entry) => entry.isFile() && entry.name.endsWith(".js"))
     .map((entry) => path.join("js", entry.name)),
   "gemini-code-1788430656294.js",
-  "character_generator.js"
+  "character_generator.js",
+  "webgame/app.js"
 ];
 const ALLOWED = [
   /const entropyRandom\s*=\s*\(\)\s*=>\s*Math\.random\(\)/,
