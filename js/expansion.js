@@ -1441,7 +1441,8 @@
     region.weatherSeverity = WEATHER_CATALOG[region.weather].severity;
     region.weatherIntensity = region.weather === "bao_linh_khi" ? 3 + Math.floor(seeded(state, "weather-intensity:" + regionId, day) * 3) : region.weather === "am_vu" ? 3 + Math.floor(seeded(state, "weather-intensity:" + regionId, day) * 2) : 1 + Math.floor(seeded(state, "weather-intensity:" + regionId, day) * 3);
     const weatherDefinition = WEATHER_CATALOG[region.weather] || WEATHER_CATALOG.quang;
-    region.weatherUntilDay = day + Number(weatherDefinition.defaultDuration || 1) + Math.floor(seeded(state, "weather-duration:" + regionId, day) * 3);
+    const dwell = Math.max(1, Number(weatherDefinition.hysteresisDays || weatherDefinition.defaultDuration || 1));
+    region.weatherUntilDay = day + dwell + Math.floor(seeded(state, "weather-duration:" + regionId, day) * 3);
     region.weatherHistory ||= [];
     if (previous !== region.weather) {
       region.weatherSource = "world_tick";
@@ -1457,8 +1458,16 @@
   function updateDiplomacy(state, day) {
     if (day % 7 !== 0) return;
     const ids = Object.keys(state.worldSimulation.factionState).slice(0, 12);
-    for (let i = 0; i < ids.length - 1; i += 1) {
-      const a = ids[i], b = ids[i + 1], key = pairKey(a, b);
+    const adjacentPairs = [];
+    for (let i = 0; i < ids.length; i += 1) for (let j = i + 1; j < ids.length; j += 1) {
+      const a = ids[i], b = ids[j];
+      const aNodes = new Set(state.worldSimulation.factionState[a]?.ownedNodeIds || []);
+      const bNodes = new Set(state.worldSimulation.factionState[b]?.ownedNodeIds || []);
+      const fronts = [...aNodes].filter((nodeId) => Object.values(runtimeLocationPool(state)?.[nodeId]?.exits || {}).some((neighbor) => bNodes.has(neighbor)));
+      if (fronts.length) adjacentPairs.push({ a, b, fronts });
+    }
+    for (const pair of adjacentPairs) {
+      const a = pair.a, b = pair.b, key = pairKey(a, b);
       const record = state.worldSimulation.diplomacy[key] || { factionA: a, factionB: b, tension: 0, status: "trung_lap", reasons: [], lastChangedDay: day };
       const drift = seeded(state, "diplomacy:" + key, day) < 0.5 ? -2 : 2;
       record.tension = clamp(record.tension + drift, -100, 100);
@@ -1468,9 +1477,7 @@
       state.worldSimulation.diplomacy[key] = record;
       if (record.status === "thu_dich" && day - Number(record.warCooldownUntil || 0) >= 0 && !Object.values(state.worldSimulation.wars).some((war) => war.status === "active" && pairKey(war.factionA, war.factionB) === key)) {
         const warId = uid(state, "war");
-        const aNodes = new Set(state.worldSimulation.factionState[a]?.ownedNodeIds || []);
-        const bNodes = new Set(state.worldSimulation.factionState[b]?.ownedNodeIds || []);
-        const frontNodeIds = [...aNodes].filter((nodeId) => Object.values(runtimeLocationPool(state)?.[nodeId]?.exits || {}).some((neighbor) => bNodes.has(neighbor)));
+        const frontNodeIds = pair.fronts;
         if (!frontNodeIds.length) continue;
         record.warCooldownUntil = day + 30;
         state.worldSimulation.wars[warId] = { id: warId, factionA: a, factionB: b, startedDay: day, frontNodeIds, scoreA: 0, scoreB: 0, status: "active", playerInterventions: [] };
@@ -1834,13 +1841,13 @@
   function updateHiddenRealms(state, day) {
     (X.hiddenRealms || []).forEach((definition) => {
       const runtime = state.worldSimulation.hiddenRealms[definition.id];
-      const cycle = Math.floor(day / definition.cycleDays);
+      const cycle = Math.max(0, Math.floor(Math.max(0, day - 1) / definition.cycleDays));
       const cycleStart = cycle * definition.cycleDays + 1;
       const unlocked = definition.unlock.type === "visited" ? (state.visitedLocations || []).includes(definition.unlock.value) : definition.unlock.type === "path" ? state.player.pathId === definition.unlock.value : true;
       runtime.cycleIndex = cycle;
       runtime.opensDay = cycleStart;
-      runtime.closesDay = cycleStart + definition.durationDays;
-      runtime.status = unlocked && day >= runtime.opensDay && day <= runtime.closesDay ? "open" : unlocked && day === runtime.opensDay - 2 ? "omen" : "sealed";
+      runtime.closesDay = cycleStart + Math.max(1, Number(definition.durationDays || 1)) - 1;
+      runtime.status = unlocked && day >= runtime.opensDay && day <= runtime.closesDay ? "open" : unlocked && day >= Math.max(1, runtime.opensDay - 2) && day < runtime.opensDay ? "omen" : "sealed";
       const active = state.activeHiddenRealm;
       if (active?.realmId === definition.id && (Number(active.cycleIndex) !== Number(runtime.cycleIndex) || runtime.status !== "open")) {
         if ([active.entryNodeId, active.coreNodeId, "hidden:" + definition.id + ":" + active.cycleIndex + ":path"].includes(state.locationId)) state.locationId = active.parentNodeId || state.homeLocationId;
@@ -1860,6 +1867,9 @@
         const npc = state.worldSimulation.npcState[task.npcId];
         if (npc?.status === "alive") {
           npc.mailbox.push({ message: task.message, itemId: task.itemId || null, day });
+          state.mailInbox = Array.isArray(state.mailInbox) ? state.mailInbox : [];
+          state.mailInbox.push({ taskId: task.id, npcId: task.npcId, message: task.message, itemId: task.itemId || null, deliveredDay: day, read: false });
+          state.mailInbox = state.mailInbox.slice(-50);
           recordRelationshipEvent(state, task.npcId, "sent_gift", { uniqueKey: task.id, deltas: { trust: task.itemId ? 4 : 1 } });
           history(state, "sys", "◇ Truyền thư đã tới " + (D.NPCS[task.npcId]?.name || "người nhận") + ".");
         } else if (task.itemId) addItem(state, task.itemId, 1);
@@ -2088,16 +2098,21 @@
     syncNpcRoutine(state, npc);
     return { available: true, sleeping: npc.currentActivity === "ngu", label: npc.currentActivity === "ngu" ? "Đánh Thức · " + (npc.name || fallbackName) : "Nói chuyện với " + (npc.name || fallbackName) };
   }
+  function ensureNpcQuestOffer(state, npcId) {
+    ensureNpcWorldState(state); const npc = state.worldSimulation.npcState[npcId];
+    if (!npc || npc.currentNodeId !== state.locationId || npc.status !== "alive" || (npc.currentSubLocationId && npc.currentSubLocationId !== state.currentSubLocationId)) return null;
+    const id = "npc_quest_" + npcId; state.questState ||= { available: {}, failed: {}, completed: {}, npcIndex: {} };
+    if (state.questState.active?.[id] || state.questState.completed?.[id] || state.questState.failed?.[id]) return null;
+    if (state.questState.available?.[id]?.expiresDay < absoluteDay(state.gameClock)) return null;
+    return state.questState.available[id] ||= { id, giverNpcId: npcId, title: "Lời nhờ cậy bên đường", status: "available", objectives: [{ id: "speak_with_giver", label: "Hoàn thành trao đổi với người giao nhiệm vụ", done: false }], icon: "!", expiresDay: absoluteDay(state.gameClock) + 7 };
+  }
   function npcQuestStatus(state, npcId) {
     ensureNpcWorldState(state); const npc = state.worldSimulation.npcState[npcId];
     if (!npc || npc.currentNodeId !== state.locationId || npc.status !== "alive" || (npc.currentSubLocationId && npc.currentSubLocationId !== state.currentSubLocationId)) return [];
-    const id = "npc_quest_" + npcId; state.questState ||= { available: {}, failed: {}, completed: {}, npcIndex: {} };
-    if (state.questState.active?.[id] || state.questState.completed?.[id] || state.questState.failed?.[id]) return [];
-    if (state.questState.available?.[id]?.expiresDay < absoluteDay(state.gameClock)) {
-      const expired = state.questState.available[id]; expired.status = "failed"; expired.failedDay = absoluteDay(state.gameClock); state.questState.failed[id] = expired; delete state.questState.available[id]; return [];
-    }
-    state.questState.available[id] ||= { id, giverNpcId: npcId, title: "Lời nhờ cậy bên đường", status: "available", objectives: [], icon: "!", expiresDay: absoluteDay(state.gameClock) + 7 };
-    return [state.questState.available[id]];
+    const id = "npc_quest_" + npcId, questState = state.questState || {};
+    if (questState.active?.[id] || questState.completed?.[id] || questState.failed?.[id]) return [];
+    const quest = questState.available?.[id] || { id, giverNpcId: npcId, title: "Lời nhờ cậy bên đường", status: "available", objectives: [{ id: "speak_with_giver", label: "Hoàn thành trao đổi với người giao nhiệm vụ", done: false }], icon: "!", expiresDay: absoluteDay(state.gameClock) + 7 };
+    return Number(quest.expiresDay) >= absoluteDay(state.gameClock) ? [{ ...quest, objectives: (quest.objectives || []).map((objective) => ({ ...objective })) }] : [];
   }
   function npcTalk(state, npcId) {
     ensureNpcWorldState(state); const npc = state.worldSimulation.npcState[npcId];
@@ -2112,7 +2127,7 @@
       history(state, detected ? "warn" : "narr", detected ? "Ngươi khẽ gọi người đang say ngủ; ánh mắt tỉnh giấc ấy lạnh đi vì bị quấy rầy." : "Trong đêm tĩnh, ngươi đánh thức người đang nghỉ. Dù không nổi giận, vẻ mệt mỏi vẫn thoáng qua trên gương mặt ấy.");
       return { success: true, phase: "WAKE", sleeping: true, detected, relationship: disturbed.relation };
     }
-    const quest = npcQuestStatus(state, npcId)[0] || state.questState?.active?.["npc_quest_" + npcId] || null;
+    const quest = ensureNpcQuestOffer(state, npcId) || state.questState?.active?.["npc_quest_" + npcId] || null;
     const runtimeRelation = state.relationships[npcId] ||= { trust: 0, fear: 0, respect: 0, suspicion: 0, affection: 0, loyalty: 0, score: 0 };
     const gossip = Object.values(npc.rumorLedger || {}).filter((rumor) => Number(rumor.expiresDay || 0) >= absoluteDay(state.gameClock)).sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0))[0];
     if (gossip && !npc.heardPlayerRumor) {
@@ -2292,7 +2307,7 @@
     if (!open.success) return open;
     const dialogue = state.dialogueState, questId = dialogue.questId || "npc_quest_" + npcId;
     if (action === "offer") {
-      const quest = npcQuestStatus(state, npcId)[0] || state.questState.available?.[questId];
+      const quest = ensureNpcQuestOffer(state, npcId) || state.questState.available?.[questId];
       dialogue.phase = quest ? "OFFER" : "CHECK";
       return { success: Boolean(quest), phase: dialogue.phase, quest: quest || null, reason: quest ? null : "NPC chưa có lời nhờ mới." };
     }
@@ -2304,8 +2319,8 @@
     if (action === "progress") {
       const quest = state.questState.active?.[questId];
       if (!quest) return { success: false, reason: "Chưa có nhiệm vụ đang thực hiện." };
-      quest.objectives = Array.isArray(quest.objectives) ? quest.objectives : [];
-      quest.objectives.forEach((objective) => { objective.done = true; });
+      quest.objectives = Array.isArray(quest.objectives) && quest.objectives.length ? quest.objectives : [{ id: "speak_with_giver", label: "Hoàn thành trao đổi với người giao nhiệm vụ", done: false }];
+      quest.objectives.forEach((objective) => { if (objective.id === "speak_with_giver") objective.done = true; });
       quest.progressDay = absoluteDay(state.gameClock); dialogue.phase = "TURN_IN";
       return { success: true, phase: dialogue.phase, quest };
     }
@@ -3033,7 +3048,7 @@
     const target = Math.max(sim.lastProcessedDay, Math.floor(Number(targetDay || absoluteDay(state.gameClock))));
     const start = sim.lastProcessedDay;
     if (target <= start) { state._offlineSimulation = previousOfflineFlag; state.runtimeMetrics.offline.calls += 1; state.runtimeMetrics.offline.totalMs += (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now()) - startedAt; return { processed: 0, mode: "idempotent", detailed: 0, aggregate: 0 }; }
-    const detailedWindow = Math.max(1, Number(sim.offlinePolicy?.detailedWindowDays || 30));
+    const detailedWindow = Math.max(1, Math.min(180, Number(sim.offlinePolicy?.detailedWindowDays || 90)));
     const detailedStart = Math.max(start + 1, target - detailedWindow + 1);
     let aggregate = 0;
     if (detailedStart > start + 1) {
@@ -3297,8 +3312,10 @@
     if (Number(state.inventory?.linh_thach || 0) < cost) return { success: false, reason: "Thiếu Linh Thạch truyền thư." };
     removeItem(state, "linh_thach", cost); if (itemId) removeItem(state, itemId, 1);
     const task = { id: uid(state, "mail"), type: "mail", npcId, message: String(message || "Bình an.").slice(0, 120), itemId, dueDay: absoluteDay(state.gameClock) + 1 + (cost > 2 ? 2 : 0), status: "pending" };
-    scheduleWorldTask(state, task); history(state, "narr", "Lá thư rời tay theo đường truyền tin; ngươi trả " + cost + " Linh Thạch để gửi lời đến " + (npc.name || npcId) + ".");
-    return { success: true, task };
+    const scheduled = scheduleWorldTask(state, task);
+    if (!scheduled.success) { addItem(state, "linh_thach", cost); if (itemId) addItem(state, itemId, 1); return scheduled; }
+    history(state, "narr", "Lá thư rời tay theo đường truyền tin; ngươi trả " + cost + " Linh Thạch để gửi lời đến " + (npc.name || npcId) + ".");
+    return { success: true, task: scheduled.task };
   }
 
   function discover(state, category, id, source, level = 1) {
@@ -3628,6 +3645,10 @@
     const raw = policies.reduce((sum, policy) => sum + Number(policy.modifiers?.combatPowerPct || 0), 0);
     const cap = Math.max(0, ...policies.map((policy) => Number(policy.caps?.combatPowerPct || 0)));
     return { powerPct: Math.min(cap, raw), sourceIds: policies.map((policy) => policy.id), guildId: membership.guildId, formationTechniqueId: formation.techniqueId };
+  }
+  function mailboxSnapshot(state) {
+    ensure(state);
+    return (state.mailInbox || []).map((mail) => ({ ...mail }));
   }
   function ensureTechniqueTrials(state) {
     ensure(state);
@@ -4628,6 +4649,7 @@
     beforeReincarnation, afterReincarnation, afterBreakthrough, afterBreakthroughAttempt,
     expansionActions, expansionSummary, createCoverIdentity, retireCoverIdentity, counterIntelResponse, buyIntel, placeBounty, refreshAuction, bidAuction, validateAuctionState, refreshContracts, acceptContract, validateContractBoardState, craftArtifact, resolvePrisoner, resolveCompanionMutation, createContestedOpportunity, resolveContestedOpportunity, recordContestedOpportunity, rollMapEvent: E.rollMapEvent, resolveMapEvent: E.resolveMapEvent, participateWar, joinTournament, resolveTournamentRound, validateTournamentState, runExpansionCommand, inspectCodex, codexProgress, hiddenProfessionClue, hiddenProfessionClues, hiddenPathClues, coThanTanHon, npcWorldContext, factionBulletin, warFrontSnapshot, validateWarState, validateWorldEventState, rumorBulletinSnapshot, resolveNpcWorldReaction, resolveNpcWeatherReaction, validateNpcQuestState, npcQuestStatus, npcTalk, npcDialogueAction, acceptNpcQuest, performPathRitualStep, pathRitualStatus, registerCollection, unlockAchievements, equipmentSetModifiers, setWeather, worldModifierPreview, chooseProfessionLocked, validateProfessionNamespace, techniqueDisplayInfo, specialPhysiqueCatalog, specialPhysiqueModifiers, specialPhysiqueOutcome, recordSpecialPhysiqueProgress, claimSpecialPhysique
   });
+  E.mailboxSnapshot = mailboxSnapshot;
   const establishHumanAnchorOriginal = E.establishHumanAnchor;
   if (typeof establishHumanAnchorOriginal === "function") E.establishHumanAnchor = function (state, npcId) {
     ensureNpcWorldState(state);

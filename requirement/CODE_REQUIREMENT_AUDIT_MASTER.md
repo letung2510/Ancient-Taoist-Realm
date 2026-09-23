@@ -2212,3 +2212,21 @@ Hai ID tren duoc loai khoi danh sach muc van mo o tren. Cac muc E1-E10, N3-N22, 
 ### Legacy/canonical reconciliation note
 
 Khong tao logic song song cho cac alias E-ID. Moi alias chi duoc map vao mot API canonical hien hanh; neu requirement cu mau thuan voi canonical moi thi status la `OBSOLETE/DOI CANONICAL` hoac `SUA MOT PHAN`, khong dung regression PASS de che lap khoang trong.
+
+## Status override tiep theo — 2026-09-23 (map/NPC/world hardening)
+
+| Nhom | Status | Bang chung / pham vi da xu ly |
+|---|---|---|
+| N43-N44 | SUA MOT PHAN | Dieu tra chi consume mot information finding moi lan, giu chain stage va cac finding con lai; secret node van can probe quest-chain day du. |
+| N45 | DA SUA | Hidden realm cycle dung moc ngay 1, close day inclusive va omen window 2 ngay truoc mo; canonical contract suite PASS. |
+| N48-N50 | SUA MOT PHAN | Movement bi chan trong combat; map-event chance co corruption bonus cho Cam Dia/Hai Vuc; cooldown resolve dung minimum theo group. Monster producer matrix van can probe rieng. |
+| N51 | CHUA XAC MINH | `competitorProgress` van chua co producer catalog day du; khong danh dau dong khi chua co fixture competitor canonical. |
+| N54 | SUA MOT PHAN | Dong Phu khong con claim/trao loot ngay; tao challenge state voi guardian/formation/sealed ward va loot receipt chua khoi tao. Resolver chinh phuc cac lop can tiep tuc bo sung. |
+| N165-N166 | SUA MOT PHAN | NPC quest co objective canonical toi thieu va `npcQuestStatus` khong seed quest khi chi doc; lifecycle offer/accept/turn-in van can UI matrix. |
+| N167 | DA SUA | `sendMail` rollback chi phi/vat pham neu schedule that bai; delivery inbox co cap 50 va snapshot read model. |
+| N173 | SUA MOT PHAN | Diplomacy chi tao cap giua faction co front node ke dia ly; can fixture matrix cho ownership thay doi theo tick. |
+| N175/N178/N190 | SUA MOT PHAN | Detailed offline window mac dinh tang len 90 va gioi han 180 ngay, giu idempotency; aggregate parity dai han va policy Luân Hồi van chua dong. |
+| N189 | SUA MOT PHAN | Weather docile hysteresis da ho tro field `hysteresisDays` voi fallback `defaultDuration`; catalog hien tai chua khai bao threshold rieng tung weather. |
+| N33-N54 / browser UI E2E / B.2-B.11 / FT7/FT9-FT11 | SUA MOT PHAN | Them behavior probes cho movement combat, pending cave challenge, NPC read purity va discovery boundaries; cac phan UI responsive, legacy matrix va producer parity van mo. |
+
+Bang chung dot nay: `node tools/verify_canonical_contracts.js` PASS; `node requirement/validate_requirement_docs.js` PASS; `node --check js/engine.js` PASS; `node --check js/expansion.js` PASS. Chua ghi audit 100%.

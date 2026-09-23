@@ -4299,6 +4299,7 @@ window.GameEngine = (function () {
   }
   function move(state, dir, options = {}) {
     ensureOpenWorld(state);
+    if (aliveEnemies(state).length) return { success: false, reason: "Không thể di chuyển khi đang giao chiến." };
     const actionId = options.actionId || "act_move_" + dir;
     const departureGuard = pendingDepartureGuard(state, actionId);
     if (!departureGuard.allowed) {
@@ -4647,7 +4648,8 @@ window.GameEngine = (function () {
     if (!pending || pending.locationId !== state.locationId || !pending.findings.some((finding) => finding.type === "information")) return { success: false, reason: "Không có dấu vết để điều tra." };
     const site = ensureSearchSite(state);
     site.chainStage = Math.min(3, Number(site.chainStage || 0) + 1);
-    pending.findings = pending.findings.filter((finding) => finding.type !== "information");
+    const finding = pending.findings.find((entry) => entry.type === "information");
+    pending.findings = pending.findings.filter((entry) => entry.findingId !== finding.findingId);
     if (!pending.findings.length) {
       clearPendingSearch(state);
       if (state.logState) state.logState.activeSceneId = null;
@@ -4896,8 +4898,21 @@ window.GameEngine = (function () {
     }
     if (effect === "study") { gainExp(state, 35 + Number(runtimeLocationPool(state)[pending.nodeId]?.dangerLevel || 1) * 8, "environment_insight", { nodeId: pending.nodeId }); state.player.comprehension = Number(state.player.comprehension || 0) + 1; }
     if (effect === "talk") { state.player.comprehension = Number(state.player.comprehension || 0) + 1; state.flags.hiddenNpcMet = Number(state.flags.hiddenNpcMet || 0) + 1; }
-    if (effect === "cave") { const node = runtimeLocationPool(state)[pending.nodeId]; node.caveAbode ||= { status: "unconquered", discoveredDay: Number(state.gameClock?.currentDay || 1) }; node.mapNodeType = "dong_phu"; node.caveAbode.status = "claimed"; addItem(state, "linh_thach", 5 + Number(node.dangerLevel || 1)); }
-    const cooldown = Number(event.cooldown || 0); record.cooldownUntilTurn = Number(state.meta?.turn || 0) + cooldown; record.resolvedIds.push(event.id); record.resolvedIds = record.resolvedIds.slice(-12);
+    if (effect === "cave") {
+      const node = runtimeLocationPool(state)[pending.nodeId];
+      node.mapNodeType = "dong_phu";
+      node.nodeType = "dong_phu";
+      node.caveAbode = {
+        ...(node.caveAbode || {}), status: "challenge", discoveredDay: Number(state.gameClock?.currentDay || 1),
+        claimedByPlayerId: null, lootInitialized: false,
+        obstacles: ["guardian", "formation", "sealed_ward"]
+      };
+      state.pendingCaveChallenge = { nodeId: pending.nodeId, status: "pending", obstacles: [...node.caveAbode.obstacles] };
+      rewardText = "ba lớp chướng ngại của Động Phủ đã hiện ra";
+    }
+    const groupCooldown = { npc: 5, monster: 3, co_duyen: 30, dong_phu: 10 };
+    const cooldown = Math.max(Number(event.cooldown || 0), Number(groupCooldown[event.group] || 0));
+    record.cooldownUntilTurn = Number(state.meta?.turn || 0) + cooldown; record.resolvedIds.push(event.id); record.resolvedIds = record.resolvedIds.slice(-12);
     pending.status = "resolved"; pending.choice = choiceId; pending.resolvedTurn = Number(state.meta?.turn || 0); state.mapEvents.history.push({ ...pending }); state.mapEvents.history = state.mapEvents.history.slice(-40); state.pendingMapEvent = null;
     const nodeName = runtimeLocationPool(state)[pending.nodeId]?.name || "khu vực ấy";
     pushHistory(state, { type: "narr", text: "Tại " + nodeName + ", ngươi " + choice.label.toLowerCase() + (rewardText ? "; " + rewardText + " thấm vào căn cơ." : ".") + " Dư âm của " + event.name + " lắng xuống, để lại một khoảng im lặng khác thường." }); updateDerived(state);
@@ -4960,7 +4975,8 @@ window.GameEngine = (function () {
     // Biến cố bản đồ là cơ hội ngẫu nhiên, tăng theo độ nguy hiểm; không ép mỗi lượt.
     const loc = runtimeLocationPool(state)[state.locationId];
     const eventChance = clamp((0.18 + Number(loc?.dangerLevel || loc?.corruption || 1) * 0.08 + Number(worldTravel.travelRiskDelta || 0)) * Number(worldTravel.encounterChanceMult || 1), 0.05, 0.9);
-    const adjustedEventChance = clamp(eventChance * (1 + Math.min(0.25, Number(state.flags.threatLevel || 0) * 0.05)), 0.05, 0.9);
+    const corruptionBonus = ["cam_dia", "hai_vuc_khong_vuc"].includes(mapEventPoolTag(state, loc)) && Number(state.player.corruptionRating || 0) > 40 ? 0.10 : 0;
+    const adjustedEventChance = clamp(eventChance * (1 + Math.min(0.25, Number(state.flags.threatLevel || 0) * 0.05)) + corruptionBonus, 0.05, 0.95);
     if (roll() > adjustedEventChance) return null;
     state.flags.mapEventCount = Number(state.flags.mapEventCount || 0) + 1;
     if (loc?.enemies?.length && !aliveEnemies(state).length && roll() < Math.min(0.78, 0.28 + Number(loc.dangerLevel || loc.corruption || 1) * 0.1)) {

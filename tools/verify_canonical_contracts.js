@@ -16,7 +16,7 @@ const X = sandbox.window.GameExpansion;
 const makeState = () => E.createState({ character: E.createCharacter({ name: "Canonical QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
 
 function testCanonicalSurface() {
-  ["travelTaskSnapshot", "startTravel", "advanceTravelTask", "resolveMapTransaction", "mapIncidentPreview", "mapOwner", "mapZoneStatus", "selectCompanionTarget", "recordCompanionDamage", "trackNpcFootprint", "resolveNpcSettlements", "prepareTechnique", "advanceTechniqueChannel", "cancelTechniquePreparation", "buildTechniqueContext", "transitionGuildMembership"].forEach((name) => assert.strictEqual(typeof (E[name] || X[name]), "function", "missing canonical API: " + name));
+  ["travelTaskSnapshot", "startTravel", "advanceTravelTask", "resolveMapTransaction", "mapIncidentPreview", "mapOwner", "mapZoneStatus", "selectCompanionTarget", "recordCompanionDamage", "trackNpcFootprint", "resolveNpcSettlements", "prepareTechnique", "advanceTechniqueChannel", "cancelTechniquePreparation", "buildTechniqueContext", "transitionGuildMembership", "mailboxSnapshot"].forEach((name) => assert.strictEqual(typeof (E[name] || X[name]), "function", "missing canonical API: " + name));
   ["FATE_CANONICAL.md", "CHARACTER_CANONICAL.md", "CON_DUONG_CANONICAL.md", "MAP_CANONICAL.md", "NPC_CANONICAL.md", "COMPANION_CANONICAL.md", "TECHNIQUE_CANONICAL.md", "UI_ACTION_LOG_CANONICAL.md", "DATA_RUNTIME_CANONICAL.md"].forEach((file) => assert(fs.existsSync(path.join(ROOT, "requirement", "SYSTEM_LOGIC_CATALOG", "features", file === "FATE_CANONICAL.md" ? "01-fate" : file === "CHARACTER_CANONICAL.md" ? "02-character" : ["CON_DUONG_CANONICAL.md", "TECHNIQUE_CANONICAL.md"].includes(file) ? (file === "CON_DUONG_CANONICAL.md" ? "03-progression" : "06-content") : file === "MAP_CANONICAL.md" ? "04-world" : ["NPC_CANONICAL.md", "COMPANION_CANONICAL.md"].includes(file) ? "05-interaction" : file === "UI_ACTION_LOG_CANONICAL.md" ? "07-ui" : "08-platform", file)), file));
 }
 
@@ -93,6 +93,21 @@ function testMovementAndLogContracts() {
   const paragraphs = E.novelLogParagraphs(state);
   assert(paragraphs.length >= 1 && !paragraphs.some((entry) => entry.text.includes("canonical-test")));
   paragraphs.forEach((entry) => assert(!/\b(?:undefined|NaN|TypeError|INTERNAL_[A-Z_]+)\b/.test(entry.text)));
+  state.enemies = { qa_enemy: 10 };
+  const blockedMove = E.move(state, "bac");
+  assert.strictEqual(blockedMove.success, false, "movement must be rejected during combat");
+}
+
+function testMapAndNpcTransactions() {
+  const state = makeState();
+  state.pendingMapEvent = { id: "cave-qa", eventId: "dong_phu_hidden_abode", nodeId: state.locationId, status: "pending", choices: [{ id: "enter" }] };
+  state.mapEvents = { nodes: {}, history: [] };
+  const result = E.resolveMapEvent(state, "enter");
+  assert(result.success && state.pendingCaveChallenge?.status === "pending");
+  assert.strictEqual(JSON.stringify(state.pendingCaveChallenge.obstacles), JSON.stringify(["guardian", "formation", "sealed_ward"]));
+  const before = JSON.stringify(state.questState);
+  X.npcQuestStatus(state, "missing-npc");
+  assert.strictEqual(JSON.stringify(state.questState), before, "NPC quest status must be a pure read");
 }
 
 function testOfflineCadenceAndLifecycleContracts() {
@@ -133,6 +148,7 @@ testSaveRoundTripAndCatalogImmutability();
 testTechniqueIdempotency();
 testPendingDiscoveryBoundaries();
 testMovementAndLogContracts();
+testMapAndNpcTransactions();
 testOfflineCadenceAndLifecycleContracts();
 testTestSuiteQualityGate();
 console.log("OK: behavior-first canonical contract suite (surface, save boundary, idempotency, movement/log, offline cadence, lifecycle, test quality)");
