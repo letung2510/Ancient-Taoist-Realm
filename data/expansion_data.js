@@ -124,7 +124,7 @@
     // Exactly one codex fragment per major region. Never duplicate a region.
     mapId: ["trung_vuc", "nam_chuong", "bac_nguyen", "vo_tan_hai", "tay_mac", "thien_khong_vuc", "u_minh_gioi"][index],
     clue: "Một mảnh ký hiệu tà thần ẩn trong Dị Thể; cần điều tra và đối chiếu trước khi thu thập.",
-    unlocksHiddenProfession: ["nguoi_giai_mong", "doc_gia_co_tich", "nguoi_dan_duong", "tho_san_di_triều", "nguoi_giu_cua", "thay_tuong_menh", "hanh_gia_vo_danh"][index]
+    unlocksHiddenProfession: ["nguoi_giai_mong", "doc_gia_co_tich", "nguoi_dan_duong", "tho_san_di_trieu", "nguoi_giu_cua", "thay_tuong_menh", "hanh_gia_vo_danh"][index]
   }));
   const hiddenProfessions = {
     nguoi_giai_mong: { id: "nguoi_giai_mong", name: "Người Giải Mộng", requiresCodex: 1, actionName: "Giải Mộng", actionCost: { san: 2 }, cooldownDays: 3, passive: { sanDrainMult: 0.95 }, description: "Đọc dư âm giấc mộng để hồi phục tâm cảnh và tìm manh mối." },

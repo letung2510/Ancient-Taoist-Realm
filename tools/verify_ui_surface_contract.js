@@ -48,7 +48,7 @@ assert((main.match(/\$\("tab-content"\)\.addEventListener\("click"/g) || []).len
 assert(main.includes("enqueueAction"), "UI actions must pass through the serialized action queue");
 assert(read("js/engine.js").includes("pendingDepartureGuard"), "action priority guard must be present at engine boundary");
 assert(main.includes('const actionId = "act_move_" + direction'), "map directions must dispatch cardinal movement actions");
-assert(!ui.includes("act_move_group"), "movement group action must be removed");
+assert(ui.includes("act_move_group"), "action bar must expose grouped movement");
 assert(read("styles.css").includes(".local-constellation .map-node.current { width: 18px"), "local constellation nodes must remain compact dots");
 
 const renderedCommands = [...ui.matchAll(/expansionButton\("([a-z0-9_]+)"/g)].map((match) => match[1]);

@@ -94,7 +94,7 @@ function nodeNameMigration() {
 function movementDiscoveryActions() {
   const state = makeState();
   const before = E.contextState(state).actions.map((action) => action.id);
-  assert(["bac", "nam", "dong", "tay"].every((dir) => before.includes("act_move_" + dir)), "cardinal movement panel is incomplete");
+  assert(["bac", "nam", "dong", "tay"].every((dir) => before.includes("act_move_" + dir)), "movement resolver must retain all four cardinal directions");
   assert(!before.some((id) => id.startsWith("act_explore_")), "legacy exploration actions leaked into the panel");
   const origin = state.locationId;
   const result = E.submitActionId(state, "act_move_bac");
@@ -302,24 +302,26 @@ function npcMapAndPoliticsSimulation() {
   if (region) { trailState.worldSimulation.regionState[region].weather = "quang"; trailState.worldSimulation.regionState[region].weatherUntilDay = trailDay + 10; }
   X.updateNpcSchedules(trailState, trailDay);
   const footprint = trailState.worldSimulation.npcFootprints?.[sourceId]?.find((entry) => entry.npcId === trailNpc.npcId);
-  assert(footprint && footprint.destinationHint === trailNpc.currentNodeId && footprint.departedDay === trailDay, "NPC movement should leave a location-scoped trace");
+  assert(footprint && footprint.clueClass && !Object.prototype.hasOwnProperty.call(footprint, "destinationHint") && footprint.departedDay === trailDay, "NPC movement should leave a location-scoped direction clue without leaking destination");
 
   const growthState = makeState(), itinerant = Object.values(growthState.worldSimulation.npcState)[0];
   const candidatePairs = Object.entries(sandbox.window.GameData.LOCATIONS).flatMap(([from, node]) => Object.values(node.exits || {}).filter((to) => sandbox.window.GameData.LOCATIONS[to] && !sandbox.window.GameData.LOCATIONS[to].organizationId).map((to) => [from, to]));
   let settlementPair;
   for (let seedIndex = 0; seedIndex < 100 && !settlementPair; seedIndex += 1) {
     growthState.worldSimulation.seed = "settlement-qa-" + seedIndex;
-    settlementPair = candidatePairs.find(([, to]) => X.worldRandom(growthState, "settlement:" + itinerant.npcId + ":" + to) < 0.2);
+    settlementPair = candidatePairs.find(([, to]) => X.worldRandom(growthState, "settlement-month:" + itinerant.npcId + ":" + to + ":1") < 0.2);
   }
   assert(settlementPair, "test fixture needs an unowned settlement route with a passing deterministic roll");
   const [from, to] = settlementPair, growthDay = X.gameDayOrdinal(growthState) + 1;
-  growthState.locationId = from; itinerant.currentNodeId = from; itinerant.scheduleType = "itinerant"; itinerant.nextMoveDay = growthDay; itinerant.migrationTargetNodeId = to; itinerant.nodeVisits = { [to]: 7 };
+  growthState.locationId = from; itinerant.currentNodeId = from; itinerant.scheduleType = "itinerant"; itinerant.nextMoveDay = growthDay; itinerant.migrationTargetNodeId = to; itinerant.nodeVisits = { [to]: 7 }; itinerant.nodeVisitDays = { [to]: [1, 2, 3, 4, 5, 6, 7] };
   itinerant.shelterState = { inShelter: false, exitAfterDay: 0, lastTransitionDay: 0 };
   Object.values(growthState.worldSimulation.regionState).forEach((entry) => { entry.weather = "quang"; entry.weatherUntilDay = growthDay + 10; });
   const growthRegion = sandbox.window.GameData.LOCATIONS[from].region || sandbox.window.GameData.WORLD_MAP.locations[from]?.region;
   if (growthRegion) { growthState.worldSimulation.regionState[growthRegion].weather = "quang"; growthState.worldSimulation.regionState[growthRegion].weatherUntilDay = growthDay + 10; }
   X.updateNpcSchedules(growthState, growthDay);
-  assert(growthState.worldSimulation.settlements?.[to], "eighth itinerant visit with the seeded growth roll should found a settlement: " + JSON.stringify({ npc: itinerant, from, to, roll: X.worldRandom(growthState, "settlement:" + itinerant.npcId + ":" + to), node: X.mapNode(growthState, to) }));
+  itinerant.currentNodeId = to; itinerant.nodeVisitDays[to] = [1, 2, 3, 4, 5, 6, 7, 8];
+  X.resolveNpcSettlements(growthState, 30);
+  assert(growthState.worldSimulation.settlements?.["settlement:" + itinerant.npcId + ":" + to], "eighth distinct-day itinerant visit with the seeded monthly roll should found a settlement: " + JSON.stringify({ npc: itinerant, from, to, node: X.mapNode(growthState, to) }));
 
   const politicsState = makeState(), factionId = sandbox.window.GameData.WORLD_MAP.factions[0].id;
   const factionAddress = sandbox.window.GameData.WORLD_MAP.addresses.factions.find((address) => address.refId === factionId);
