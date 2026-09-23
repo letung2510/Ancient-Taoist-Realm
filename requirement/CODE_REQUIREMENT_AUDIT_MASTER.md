@@ -2175,4 +2175,13 @@ Bang nay ghi de len cac dong status truoc do sau khi da them offline cadence, wa
 
 ## Cac muc van mo sau status override
 
-Khong duoc ghi audit 100% cho den khi dong cac muc sau: `G14-G15`, `M80`, `M85`, `E1-E10`, `N3-N22`, `N33-N54`, `N90-N114` coverage day du, `N122-N140` browser/UI E2E, `N173`, `N175`, `N178`, `N183`, `N189`, `N190`, `B.2-B.8`, `B.11`, `FT7`, `FT9-FT11`. Day la cac muc con can code/probe, khong bi an duoi ket qua regression PASS.
+Khong duoc ghi audit 100% cho den khi dong cac muc sau: `G14-G15`, `E1-E10`, `N3-N22`, `N33-N54`, `N90-N114` coverage day du, `N122-N140` browser/UI E2E, `N173`, `N175`, `N178`, `N183`, `N189`, `N190`, `B.2-B.8`, `B.11`, `FT7`, `FT9-FT11`. Day la cac muc con can code/probe, khong bi an duoi ket qua regression PASS.
+
+## Status override bo sung — 2026-09-23 (sau dot tiep tuc)
+
+| ID | Status moi | Bang chung cap nhat |
+|---|---|---|
+| M80 | DA SUA | `ensureWorldClock` giu tuong thich `state.worldClock` cu va dong thoi tao adapter canonical `state.gameClock.world` voi `epochDate`, `startDayIndex: 2475360`, `currentDayIndex`, year/month/day va player-day sync; `verify_canonical_contracts.js` assert round-trip va shape nay. |
+| M85 | DA SUA | `webgame/app.js` khong con entropy truc tiep; cultivate dung `webRandom` deterministic theo seed/turn. `verify_random_boundaries.js` da quet them `webgame/app.js`; bundle/root runtime van duoc kiem tra boi gate offline rieng. |
+
+Hai ID tren duoc loai khoi danh sach muc van mo o tren. Cac muc E1-E10, N3-N22, N33-N54, UI/browser E2E va cac nhom con lai van giu status cu cho den khi co probe rieng tuong ung; khong suy dien tu regression PASS.
