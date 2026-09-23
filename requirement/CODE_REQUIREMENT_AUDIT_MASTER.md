@@ -2009,3 +2009,99 @@ node tools/run_regression_suite.js          # vẫn FAIL 5/13 (xem báo cáo #1 
 ---
 
 *Hết báo cáo gộp. Chế độ chỉ đọc; không file nào trong repo bị sửa đổi bởi quá trình audit.*
+# CAP NHAT DOI CHIEU TRANG THAI — 2026-09-23
+
+Phan nay la **so cai trang thai hien hanh**, duoc bo sung sau commit `0f91903`. Noi dung audit ben duoi van giu nguyen nhu lich su phat hien, nhung khong con duoc dung de suy ra rang mot muc da dong. Khi co mau thuan, phan nay la nguon trang thai uu tien.
+
+## Quy uoc bat buoc
+
+- **DA SUA**: da co code canonical va co test/runtime evidence tuong ung.
+- **SUA MOT PHAN**: da sua mot nhanh, mot schema hoac mot boundary; van con nhanh/producer/UI/test chua du.
+- **CHUA SUA**: phat hien van con, hoac chua co bang chung du de dong.
+- **OBSOLETE/DOI CANONICAL**: phat hien cu khong con ap dung; phai dung behavior canonical moi de danh gia, khong duoc copy ket luan cu.
+- **CHUA XAC MINH**: khong duoc coi la pass; can probe/test rieng truoc khi dong.
+
+Moi dong ben duoi deu co `evidence` cu the. Regression xanh khong tu dong dong cac muc `CHUA XAC MINH` hoac `SUA MOT PHAN`.
+
+## Ledger chi tiet theo ID
+
+| ID / nhom | Trang thai hien hanh | Phan da lam | Phan con thieu / bang chung |
+|---|---|---|---|
+| G1 | DA SUA | Validator runtime duoc goi tai deserialize va post-action | `verify_canonical_contracts.js`, `verify_audit_closure.js`; can E2E browser neu muon dong UI boundary |
+| G2-G3 | DA SUA | Loai perf timing ra khoi validity gate; kiem tra deterministic boundary | `profile_runtime_budget.js`; chua la browser performance profile |
+| G4 | DA SUA | Autosave khong con return-som theo `explicit`; serialize duoc goi o boundary | `verify_game.js`, `verify_canonical_contracts.js` |
+| G5 | DA SUA | Travel task, plan, version transaction, interrupt/resume/cancel da co | `verify_audit_closure.js`, `verify_canonical_contracts.js` |
+| G6 | SUA MOT PHAN | Movement/teleport co guard va pending-task state | Chua co browser E2E bao phu moi nut teleport/hidden realm |
+| G7 | DA SUA | Seed/replay va entropy boundary da duoc kiem tra lai | `verify_random_boundaries.js`, `verify_character_generator_replay.js` |
+| G8 | DA SUA | Resolver khong ghi truc tiep catalog tinh; co canonical reward boundary | `verify_audit_closure.js`, `verify_catalog_balance.js` |
+| G9 | DA SUA | Grade rank dung mot nguon; da sua typo `phan` | `verify_character_generator_replay.js`, `verify_utf8_integrity.js` |
+| G10-G11 | DA SUA | Error narrative map, player-facing reason, alert boundary va debug echo da tach | `verify_log_narrative.js`, `verify_canonical_contracts.js` |
+| G12-G13 | DA SUA | Transaction turn/save migration/schema v13 da co | `verify_game.js`, `verify_indexeddb_archive.js`, `verify_canonical_contracts.js` |
+| G14-G15 | CHUA XAC MINH | Chua co probe rieng trong bo canonical moi | Khong duoc danh dau PASS cho den khi co test boundary tuong ung |
+| M1-M14 | SUA MOT PHAN | Fate weights/source/pity/Hung pool, receive-fate va vault da sua | Fusion recipe, nurture gate va moi resolver fate chua dong het; xem N185-N187 |
+| M15-M18 | DA SUA | Anchor candidate, trust/respect/suspicion/fear, max 3 anchor da co | UI lifecycle va migration cua anchor chua co E2E |
+| M19-M32 | SUA MOT PHAN | Path alias/canonical namespace, unbound va match score da sua; Song Tu realm/score gate da co | Ritual/chuyen dao/dung hop va full progression matrix chua dong; `verify_review_batches.js` chi bao phu mot phan |
+| M33-M40 | SUA MOT PHAN | Hidden profession id, namespace va cost ngoai SAN da sua | Toan bo hidden-path/Di The/revive/rejectedIds chua co contract test doc lap |
+| M41-M49 | SUA MOT PHAN | Map owner/influence/cache/fog/travel API canonical da co | UI movement presentation, offline aggregate va tat ca map incident producer chua dong |
+| M50-M64 | SUA MOT PHAN | NPC footprint/settlement, companion targeting/recovery/revive/UI surfaces da mo rong | Quest expiry, war, diplomacy, faction lifecycle va UI E2E con thieu |
+| M65-M78 | SUA MOT PHAN | Technique DTO/context, prepare/channel/cancel/use, cooldown, guild transition da co | Discovery/reward/trial producer va cross-system matrix day du chua dong |
+| M79-M88 | CHUA XAC MINH | Chua co ledger behavior-first bao phu tung muc | Phai tao probe canonical rieng, khong suy ra tu symbol/export |
+| C1-C7 | SUA MOT PHAN | Mot so guard, transaction, reward/fate va map boundary da sua | Chua co test cho moi sub-item C1.x-C7.x; cac muc khong co evidence rieng van mo |
+| C8-C10 | SUA MOT PHAN | Runtime validator, catalog immutability, grade source va replay/save boundary da sua | Chua dong het cache, migration edge, action-priority va browser persistence |
+| C11-C13 | SUA MOT PHAN | Fate, log va companion contract chinh da sua | Fusion/nurture, NPC lifecycle va UI matrix con thieu |
+| D1 | SUA MOT PHAN | Fate reward/source/pity va Hung pool da sua | Resonance/fusion/nurture/advanced lifecycle chua du |
+| D2 | SUA MOT PHAN | Path state, alias, unbound, anchor va Song Tu gate da sua | Secondary path/ritual/progression day du chua duoc dong |
+| D3 | SUA MOT PHAN | Profession identifier/namespace/cost da sua | Hidden path catalog, revive va rejection matrix con mo |
+| D4 | SUA MOT PHAN | Map canonical surface, travel transaction, owner/zone/cache da co | World producer/offline/UI movement con mo |
+| D5 | SUA MOT PHAN | Footprint/settlement va companion combat/UI da sua | Quest expiry, faction/war/diplomacy va settlement persistence con mo |
+| D6 | SUA MOT PHAN | Technique prepare/channel/context/cooldown da sua | Discovery/reward/guild/trial cross-system con mo |
+| D7 | SUA MOT PHAN | Offline bundle va regression wiring da co | Browser/performance/archive gate chua dong hoan toan |
+| E1-E10 | CHUA XAC MINH | Chua co reconciliation rieng cho tung mau thuan trong requirement | Can review canonical docs thu cong va cap nhat tung E-ID; khong dung regression PASS de dong |
+| N1-N2 | DA SUA | Companion target co threat/woundedness/guard; damage arity da sua | `verify_companion_runtime.js`, `verify_audit_closure.js` |
+| N3-N22 | CHUA XAC MINH | Chua co behavior-first mapping tung ID | Khong duoc coi la da sua chi vi combat suite PASS |
+| N23-N31 | SUA MOT PHAN | Resistance/revive/retarget va combat helper da duoc bo sung | Can matrix day du cho moi entity/companion/status; chua dong hoan toan |
+| N32 | SUA MOT PHAN | Reward key co source va hidden-realm boundary da harden | Can test cross-realm replay/duplicate theo tung producer |
+| N33-N54 | CHUA XAC MINH | Chua co mapping behavior-first tung ID | Can bo probe map/combat/exploration rieng |
+| N55 | DA SUA | Item generation khong con prefix-suffix 1-1 co dinh | `verify_random_boundaries.js`, `verify_catalog_balance.js` |
+| N56-N76 | SUA MOT PHAN | Item guard, quest reward, inventory/market mot phan da sua | Auction/heirloom/over-remove va refresh day du chua co gate rieng |
+| N77-N89 | SUA MOT PHAN | Profession identifier va catalog balance da sua | Data-layer immutability/grade/source tung ID chua dong het |
+| N90-N100 | DA SUA | Da loai assertion tautology; quality gate chan `assert(true)` | Chua thay the tat ca assertion cu bang behavior assertion cho tung ID |
+| N101-N114 | SUA MOT PHAN | Canonical contract suite da bo sung mot phan invariant/save/idempotency | Van con cac invariant chua co assertion rieng; khong danh dau full PASS |
+| N115-N121 | SUA MOT PHAN | Offline bundle, regression wiring, UTF-8/assets da co | `webgame/` van la runtime doc lap va chua co browser E2E |
+| N122-N140 | SUA MOT PHAN | UI surface, i18n/error/echo va movement grouped presentation da sua | UI lifecycle, pixel/DOM E2E va mot so formatter surface chua dong |
+| N141 | DA SUA | COMMAND_ECHO debugOnly/playerInvisible | `verify_canonical_contracts.js`, `verify_log_narrative.js` |
+| N142-N143 | DA SUA | Scene grouping dung day/location contract moi; story window da co gate | Can browser rendering verification |
+| N144-N145 | DA SUA | Unicode punctuation va tu hop le khong con bi strip sai; UTF-8 gate pass | `verify_utf8_integrity.js`, `verify_log_narrative.js` |
+| N146-N163 | SUA MOT PHAN | Retention/stat channel/milestone/log producer da co | Chua co assertion tung producer va full narrative matrix |
+| N164 | CHUA SUA | Chua co evidence quest NPC active tu dong het han | Can test qua 30 ngay va status `failed/expired` |
+| N165-N170 | SUA MOT PHAN | NPC relationship/footprint/settlement lifecycle mot phan da sua | Trust trial/betrayal/succession/quest UI chua dong het |
+| N171-N178 | CHUA SUA | Chua sua day du war orphan, faction power, front, tournament/offline cadence | Can implement producer + cascade + time-jump tests |
+| N179-N183 | CHUA SUA | Chua co canonical cultivation session/minor trial/source taxonomy day du | Nested roll, secluded cultivation, insight source, minor trial van mo |
+| N184 | CHUA SUA | Chua dong artifact refund/commit day du | Can test failure rollback va practice XP |
+| N185-N187 | CHUA SUA | Fusion recipe/combo eligibility/nurture gate van chua dong | Can implement resolver + recipe + aligned-choice tests |
+| N188-N189 | CHUA SUA | Weather source/hysteresis van chua dong day du | Can test tick source transition va data-driven dwell |
+| N190 | SUA MOT PHAN | Offline idempotency da co; aggregate khong duplicate log | Producer coverage/time-jump va Luân Hồi policy con caveat |
+| B.1-B.11 | SUA MOT PHAN | B.1 map surface, B.9 technique, B.10 migration va offline/test gates mot phan da co | B.2-B.8/B.11 chua co closure evidence tung requirement |
+| T1-T12 | CHUA XAC MINH | Day la phep do audit cu; chi nhung phep duoc map sang test moi moi duoc coi lai | Can tao mapping tung T-ID sang script va output hien tai |
+| LT1-LT10 | SUA MOT PHAN | Log retention/stat/producer va narrative gate da co | Chua co test thay the tung fixture cu cho moi LT-ID |
+| FT1-FT11 | SUA MOT PHAN | Footprint, settlement, weather va mot so feature probe da cap nhat | FT2/FT3/FT4b/FT6/FT7/FT9-FT11 chua duoc dong day du neu chua co output moi |
+
+## Danh sach viec con bat buoc
+
+Tai thoi diem cap nhat nay, khong duoc ghi "audit hoan tat 100%". Cac nhom con mo/partially closed phai tiep tuc:
+
+1. N164 va N171-N190: quest expiry, war/faction/tournament, cultivation/minor trial, fusion/nurture, weather, offline aggregate.
+2. M79-M88, N3-N22, N33-N54, E1-E10, T1-T12: chua co mapping behavior-first tung ID.
+3. N101-N140 va D7: bo test moi da co nhung van con invariant/UI/browser gate chua assert day du.
+4. `webgame/`: chua nhap vao canonical runtime; chi duoc coi la ngoai contract neu requirement chinh thuc xac nhan.
+
+## Bang chung da chay o commit nay
+
+```text
+node tools/run_regression_suite.js
+OK: 25 regression checks passed
+node tools/verify_canonical_contracts.js
+OK: behavior-first canonical contract suite
+```
+
+Hai ket qua tren chi xac nhan cac gate da co; **khong dong cac dong CHUA SUA/CHUA XAC MINH** o ledger nay.
