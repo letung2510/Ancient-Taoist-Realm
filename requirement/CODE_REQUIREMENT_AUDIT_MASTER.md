@@ -2105,3 +2105,74 @@ OK: behavior-first canonical contract suite
 ```
 
 Hai ket qua tren chi xac nhan cac gate da co; **khong dong cac dong CHUA SUA/CHUA XAC MINH** o ledger nay.
+
+## Status override sau dot sua tiep theo — 2026-09-23
+
+Bang nay ghi de len cac dong status truoc do sau khi da them offline cadence, war cleanup, quest expiry probe va rollback transaction. Cac dong khong co trong bang van giu status cua ledger phia tren.
+
+| ID | Status moi | Thay doi / bang chung |
+|---|---|---|
+| N164 | DA SUA | Online tick va offline aggregate deu expire quest `available/active`; `verify_canonical_contracts.js` assert active quest chuyen sang `failed`. |
+| N171 | DA SUA | War thieu faction bi remove khoi world simulation tai boundary, khong de validator fail cascade orphan; canonical probe assert war bi don. |
+| N172 | DA SUA | `factionPowerSnapshot` tinh lai power tu base/resources/stability moi lan tick; khong con power hang so. |
+| N173 | SUA MOT PHAN | War chi duoc tao khi co front node ke nhau; cap diplomatic pairing day du va policy frontier van can probe rieng. |
+| N174 | DA SUA | `frontNodeIds` khong con rong khi war duoc tao; participate war co front guard. |
+| N175 | SUA MOT PHAN | Offline aggregate da bo sung expiry, world event, weather, faction/tournament va final actor projection; van dung bounded projection de tranh O(days * actors), chua parity tung ngay voi online tick. |
+| N176 | DA SUA | Tournament opponent seed da dua `tournament.seed` vao key; bracket replay khong chi phu thuoc id. |
+| N177 | DA SUA | War moi ghi `warCooldownUntil = day + 30`; khong dung undefined nhu cooldown da het han. |
+| N178 | SUA MOT PHAN | Offline aggregate co diplomatic boundary; cadence tuan day du cho moi ngay offline van chua parity hoan toan. |
+| N179 | DA SUA | Cultivation deviation dung replay key duy nhat theo day/source/turn/sample; khong con guard set-xoa trong cung call. |
+| N180 | DA SUA | Canonical `startSecludedCultivation/advanceSecludedCultivation/stopSecludedCultivation` da co va duoc export; legacy hour API chi la compatibility wrapper. |
+| N181 | DA SUA | `recordCultivationGain` nhan va luu taxonomy source; canonical probe assert `combat_insight` duoc persist. |
+| N182 | DA SUA | `triggerMinorTrial` tao lifecycle state active; canonical probe assert producer. |
+| N183 | SUA MOT PHAN | Velocity sample attribution da co; attribution cho moi producer legacy van can mapping tung callsite. |
+| N184 | DA SUA | Craft artifact failure rollback lai material, stamina va profession mastery; khong cap XP neu khong sinh duoc item. |
+| N185 | DA SUA | `mergeFates` bat buoc recipe canonical, success-rate/replay roll, consume va reward theo recipe. |
+| N186 | DA SUA | `getComboEligibility` doc combo set canonical; khong con chi check `owned.has`. |
+| N187 | DA SUA | `nurtureFate` chi cong diem; stage 1→2 can aligned choices qua `recordFateBehavior`. |
+| N188 | DA SUA | World tick ghi `weatherSource=world_tick` khi transition va history co source; manual setWeather giu source resolver. |
+| N189 | SUA MOT PHAN | Weather transition pool/duration da data-driven qua catalog `transitions/defaultDuration`; chua co hysteresis threshold rieng cho moi weather. |
+| N190 | SUA MOT PHAN | Offline idempotency + cadence producer da sua; checkpoint dai ngay van la approximation va can test parity day-du voi online tick. |
+| B.1 | DA SUA | MAP canonical surface da co API va behavior-first gate. |
+| B.2-B.8 | SUA MOT PHAN | Cac API/producer chinh da co mot phan; tung register item van chua co parity matrix doc lap. |
+| B.9-B.10 | DA SUA | Technique cross-system va migration/save boundary da co canonical tests. |
+| B.11 | SUA MOT PHAN | Offline/test closure da them gate; browser E2E va webgame boundary van mo. |
+| FT3 | DA SUA | Secluded cultivation session canonical, source taxonomy va minor trial producer da co probe. |
+| FT4b | DA SUA | Weather tick source duoc ghi lai theo transition; manual resolver source tach rieng. |
+| FT5 | DA SUA | Fusion recipe canonical duoc dung trong merge. |
+| FT6 | DA SUA | Cultivation source taxonomy khong con hardcode `other` o canonical gain probe. |
+| FT7 | SUA MOT PHAN | Faction power/war cleanup da sua; orphan cascade + frontier parity can them scenario. |
+| FT8 | DA SUA | Travel task canonical da co, serialize/transaction/interrupt/resume da test. |
+| FT9-FT11 | SUA MOT PHAN | Map/NPC/weather/offline surface da co; chua co browser E2E va full producer parity. |
+
+| M77 | DA SUA | `featureVersions.techniqueCrossSystem` duoc khoi tao tai expansion state; canonical probe assert version >= 1. |
+| M78 | DA SUA | `discoveryStatusSummary` chi doc, khong tu gan status; codex clues khong bi ep vao lifecycle status. Canonical probe assert snapshot state khong doi. |
+| M79 | DA SUA | Save payload dung `version: 13`, `schema: tu_vi_quy_di_canonical_v13`; migration v12→v13 duoc giu tuong thich. |
+| M80 | CHUA SUA | World clock epoch va shape canonical van chua dong hoan toan; can migration/formatter probe rieng. |
+| M81 | DA SUA | Engine `normalizeAction` dat tier 3 vao overflow neu khong khai surface; UI khong con coi tier 3 mac dinh la quick. |
+| M82 | DA SUA | UI uu tien `action.surface` tu resolver; chi fallback tinh surface khi DTO thieu field. |
+| M83 | OBSOLETE/DOI CANONICAL | Movement UI grouped `act_move_group` la contract hien hanh; action engine van giu 4 huong de resolver. |
+| M84 | SUA MOT PHAN | Co phan tach world/player clock va API ordinal; formatter/shape tuong thich canonical chua dong het. |
+| M85 | CHUA SUA | Random-boundary gate chua quet day du webgame/index.offline/data/tools; day la boundary can quyet dinh contract. |
+| M86 | DA SUA | Regression suite da them offline bundle, archive, performance, random, assets, expansion log, audit closure va canonical contract gates. |
+| M87 | DA SUA | Offline bundle da rebuild sau thay doi runtime/UI; `verify_offline_bundle.js` va asset gate PASS. |
+| M88 | DA SUA | Hai clock/pinned summary/render action boundary da co; browser E2E van la gioi han kiem chung. |
+
+| N3-N10 | SUA MOT PHAN | Combat/pending opportunity va exploration boundary da co guard/action priority; can probe tung encounter-vs-opportunity scenario. |
+| N11-N22 | SUA MOT PHAN | Damage/ledger/replay boundary da co mot phan; can matrix idempotency sau save cho tung combat action. |
+| N33-N54 | SUA MOT PHAN | Hidden realm departure, pending discovery, map transaction/fog/travel canonical da co; can probe tung legacy edge case. |
+
+## Xu ly nhom OBSOLETE/DOI CANONICAL
+
+| Finding lich su | Quyet dinh hien hanh |
+|---|---|
+| Movement phai hien tung action rieng tren UI | OBSOLETE: engine giu 4 huong canonical; UI grouped presentation `act_move_group` la dung contract. |
+| Footprint phai tra `destinationHint` | OBSOLETE: canonical khong lo destination; chi tra clue class/direction khong chac chan. |
+| Settlement xuat hien ngay visit thu 8 | OBSOLETE: canonical yeu cau 8 distinct visit days + monthly eligibility roll. |
+| Song Tu khong can realm/match gate | OBSOLETE: canonical yeu cau realm 6 + path score toi thieu 5. |
+| Vault capacity = do dai array sau splice | OBSOLETE: canonical tach active projection/vault capacity; test legacy khong duoc ep array length. |
+| Offline bundle marker cu | OBSOLETE sau khi rebuild; phai dung `verify_offline_bundle.js` voi source hash/marker hien hanh. |
+
+## Cac muc van mo sau status override
+
+Khong duoc ghi audit 100% cho den khi dong cac muc sau: `G14-G15`, `M80`, `M85`, `E1-E10`, `N3-N22`, `N33-N54`, `N90-N114` coverage day du, `N122-N140` browser/UI E2E, `N173`, `N175`, `N178`, `N183`, `N189`, `N190`, `B.2-B.8`, `B.11`, `FT7`, `FT9-FT11`. Day la cac muc con can code/probe, khong bi an duoi ket qua regression PASS.

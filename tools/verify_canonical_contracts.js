@@ -26,8 +26,13 @@ function testSaveRoundTripAndCatalogImmutability() {
   const raw = E.serialize(state);
   const restored = E.deserialize(raw);
   assert.strictEqual(JSON.parse(raw).version, 13);
+  assert.strictEqual(JSON.parse(raw).schema, "tu_vi_quy_di_canonical_v13");
   assert(E.validateLogSurfaceState(restored).ok);
   assert(X.validateExpansionState(restored).valid);
+  assert(Number(restored.meta.featureVersions.techniqueCrossSystem) >= 1);
+  const discoverySnapshot = JSON.stringify(restored.discoveries);
+  X.discoveryStatusSummary(restored);
+  assert.strictEqual(JSON.stringify(restored.discoveries), discoverySnapshot, "discovery summary must be a pure read model");
   assert.strictEqual(JSON.stringify(sandbox.window.GameData.FATE_PATTERNS), catalogBefore, "runtime must not mutate Fate catalog");
 }
 
@@ -57,6 +62,30 @@ function testMovementAndLogContracts() {
   paragraphs.forEach((entry) => assert(!/\b(?:undefined|NaN|TypeError|INTERNAL_[A-Z_]+)\b/.test(entry.text)));
 }
 
+function testOfflineCadenceAndLifecycleContracts() {
+  const state = makeState();
+  const day = E.gameDayOrdinal(state.gameClock);
+  state.questState.active = { "npc_quest_expiry": { id: "npc_quest_expiry", giverNpcId: "qa_npc", status: "active", expiresDay: day + 1 } };
+  state.questState.failed = {};
+  X.simulateWorldAggregate(state, day, day + 3);
+  assert.strictEqual(state.questState.active["npc_quest_expiry"], undefined, "offline cadence must expire active NPC quests");
+  assert.strictEqual(state.questState.failed["npc_quest_expiry"].status, "failed");
+
+  const cultivation = E.recordCultivationGain(state, 10, "combat_insight", { note: "canonical-source" });
+  assert(cultivation.gained > 0 && state.player.cultivation.velocitySamples.at(-1).source === "combat_insight");
+  const trial = X.triggerMinorTrial(state, "canonical-minor-trial");
+  assert(trial.success && state.flags.minorTrial.status === "active");
+
+  const factions = Object.keys(state.worldSimulation.factionState || {});
+  if (factions.length) {
+    const orphanDay = Math.ceil(day / 3) * 3;
+    state.worldSimulation.wars.orphan = { id: "orphan", factionA: "missing-faction", factionB: factions[0], startedDay: orphanDay, scoreA: 0, scoreB: 0, status: "active", playerInterventions: [] };
+    X.simulateWorldAggregate(state, orphanDay, orphanDay + 1);
+    assert.strictEqual(state.worldSimulation.wars.orphan, undefined, "orphan wars must be removed at the world boundary");
+    assert(X.validateWarState(state).ok);
+  }
+}
+
 function testTestSuiteQualityGate() {
   const files = fs.readdirSync(path.join(ROOT, "tools")).filter((file) => /^verify_.*\.js$/.test(file) && file !== "verify_canonical_contracts.js");
   files.forEach((file) => {
@@ -70,5 +99,6 @@ testCanonicalSurface();
 testSaveRoundTripAndCatalogImmutability();
 testTechniqueIdempotency();
 testMovementAndLogContracts();
+testOfflineCadenceAndLifecycleContracts();
 testTestSuiteQualityGate();
-console.log("OK: behavior-first canonical contract suite (surface, save boundary, idempotency, movement/log, test quality)");
+console.log("OK: behavior-first canonical contract suite (surface, save boundary, idempotency, movement/log, offline cadence, lifecycle, test quality)");
