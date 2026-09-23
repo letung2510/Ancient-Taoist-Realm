@@ -104,11 +104,10 @@ function testStructureOwnershipLifecycle() {
   outpostState.inventory.linh_thach = 100;
   outpostState.guildMembership = { guildId: "thien_huyen_tong" };
   const claimed = E.claimOutpost(outpostState, outpostState.locationId);
-  if (claimed.success) {
-    const petition = E.petitionOutpostToFaction(outpostState, outpostState.locationId);
-    assert(petition.success && outpostState.mapState.outposts[outpostState.locationId].ownerType === "faction");
-    assert(!E.petitionOutpostToFaction(outpostState, outpostState.locationId).success);
-  }
+  assert.strictEqual(claimed.success, true, "qualified guild member must claim the local outpost");
+  const petition = E.petitionOutpostToFaction(outpostState, outpostState.locationId);
+  assert(petition.success && outpostState.mapState.outposts[outpostState.locationId].ownerType === "faction");
+  assert(!E.petitionOutpostToFaction(outpostState, outpostState.locationId).success);
   const remoteOutpostState = makeState();
   remoteOutpostState.inventory.linh_thach = 100;
   const remoteOutpostNode = remoteOutpostState.locationId;
@@ -134,7 +133,11 @@ function testDiscoveryAndNpcReplay() {
   assert(!sandbox.window.GameExpansion.validateDiscoveryLifecycle(state).ok, "discovery validator must reject cross-namespace status");
   state.discoveries.locations[state.locationId].status = "rewarded";
   const npc = state.worldSimulation.npcState["su_phu"];
-  if (npc) { npc.scheduleType = "patrol"; npc.nextMoveDay = 1; const before = npc.currentNodeId; E.simulateWorldUntil(state, E.gameDayOrdinal(state) + 2); assert(Object.values(sandbox.window.GameData.LOCATIONS[before]?.exits || {}).includes(npc.currentNodeId) || before === npc.currentNodeId); }
+  assert(npc, "canonical scheduled NPC su_phu must exist for patrol replay coverage");
+  npc.scheduleType = "patrol"; npc.nextMoveDay = 1;
+  const before = npc.currentNodeId;
+  E.simulateWorldUntil(state, E.gameDayOrdinal(state) + 2);
+  assert(Object.values(sandbox.window.GameData.LOCATIONS[before]?.exits || {}).includes(npc.currentNodeId) || before === npc.currentNodeId);
   const resultsA = E.resolveOfflineNpcEncounters(state, E.gameDayOrdinal(state) + 10).length;
   const resultsB = E.resolveOfflineNpcEncounters(state, E.gameDayOrdinal(state) + 10).length;
   assert.strictEqual(resultsA, resultsB);
@@ -417,7 +420,7 @@ function testUnresolvedDesignPoliciesAreCanonical() {
   state.player.fateRelationships[fateId].decayPolicy = "none";
   state.pathState.primaryPathId = state.pathState.primaryPathId || state.player.pathId || "dao_kiem";
   state.pathState.secondaryPathId = state.pathState.primaryPathId;
-  assert(!sandbox.window.GameExpansion.validateSpecialPhysiqueState(state).ok === false);
+  assert.strictEqual(sandbox.window.GameExpansion.validateSpecialPhysiqueState(state).ok, true);
   state.specialPhysiqueState.activeId = "missing_dithe";
   assert(!sandbox.window.GameExpansion.validateSpecialPhysiqueState(state).ok, "unknown Dị Thể state must be rejected");
   assert(!sandbox.window.GameExpansion.validateDesignPolicies(state).ok, "duplicate primary/secondary Path must be rejected");
@@ -708,6 +711,9 @@ function testFateAdvancedActionNamespace() {
 function testExplicitSecondaryPathTransition() {
   const state = makeState();
   state.player.pathId = "kiem_dao"; state.pathState.primaryPathId = "kiem_dao";
+  state.player.realmId = "than_tinh";
+  const aligned = sandbox.window.GameData.FATE_PATTERNS.filter((fate) => /kim|sat/i.test([fate.name, fate.desc, fate.element].join(" "))).slice(0, 3).map((fate) => fate.id);
+  if (aligned.length) state.player.fates = aligned;
   state.fateExcessEssence = 100; state.player.merit = 100; state.player.san = 100;
   const pending = sandbox.window.GameExpansion.transitionSecondaryPath(state, "dan_dao");
   assert(pending.requiresConfirmation);

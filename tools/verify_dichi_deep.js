@@ -92,13 +92,13 @@ function testCompanionSkillAndPhysiqueTrigger() {
 
 function testOfflineScheduledNpcWarHooks() {
   const state = makeState();
-  let delivered = false;
   E.scheduleWorldTask(state, { id: "qa_task", type: "callback", dueDay: E.gameDayOrdinal(state) + 1, payload: { marker: "qa" } });
   E.advanceGameTime(state, 10);
-  assert(state.worldSimulation.scheduledTasks.some((task) => task.id === "qa_task" && task.status === "dead_letter"));
+  const task = state.worldSimulation.scheduledTasks.find((entry) => entry.id === "qa_task");
+  assert(task && task.status === "dead_letter", "unknown callback tasks must be quarantined");
+  assert(task.lastError || task.error || task.deadLetterReason, "dead-letter task must retain a diagnostic reason");
   state.worldSimulation.wars.qa_war = { id: "qa_war", factionA: "a", factionB: "b", status: "active", frontNodeIds: [state.locationId], scoreA: 0, scoreB: 0, playerInterventions: [] };
   assert(E.worldSimulationSummary(state).wars.some((war) => war.id === "qa_war"));
-  assert.strictEqual(typeof delivered, "boolean");
 }
 
 function testAuditInvariantsAndIndexes() {
@@ -124,10 +124,12 @@ function testAuditInvariantsAndIndexes() {
   assert.strictEqual(state.questState.npcIndex.qa.length, 1);
   E.advanceGameTime(state, 2);
   assert(state.questState.failed.qa_expired);
-  state.companion = { customName: "Ledger QA", state: "active", stance: "protect", health: 100, maxHealth: 100, loyalty: 50, injury: null, damageLedger: [] };
-  E.spawnCombatEntity(state, "di_qui");
-  for (let i = 0; i < 8 && !state.companion.damageLedger.length; i += 1) E.monsterAction(state, "di_qui");
-  assert(state.companion.damageLedger.length >= 0);
+  state.companion = { customName: "Ledger QA", state: "active", stance: "protect", hp: 100, hpMax: 100, health: 100, maxHealth: 100, loyalty: 50, injury: null, damageLedger: [] };
+  const companionDamage = E.recordCompanionDamage(state, 7, "qa combat", "combat");
+  assert(companionDamage.success && companionDamage.damage === 7);
+  assert.strictEqual(state.companion.damageLedger.length, 1);
+  assert.strictEqual(state.companion.damageLedger[0].source, "qa combat");
+  assert.strictEqual(state.companion.hp, 93);
 }
 
 function testRitualProfessionAndUnknownMigration() {
@@ -140,7 +142,8 @@ function testRitualProfessionAndUnknownMigration() {
   assert(state.pathRitualState.paths.kiem_dao.milestones.khai_lo.failureLog?.length >= 1);
   state.professionState.primaryId = null; state.professionState.primaryLocked = false;
   const chosen = E.chooseProfessionLocked(state, "luyen_dan");
-  assert(chosen.success || chosen.reason, "profession lock must return a deterministic result");
+  assert.strictEqual(chosen.success, true, "profession lock should succeed from an unlocked profession state");
+  assert.strictEqual(state.professionState.primaryId, "luyen_dan");
   const raw = JSON.parse(E.serialize(state));
   raw.state.worldSimulation.events.qa_unknown = { id: "qa_unknown", templateId: "future_event", status: "active", regionId: state.startRegionId, phaseIndex: 0 };
   raw.state.inventory.qa_future_item = 3;
@@ -177,8 +180,10 @@ function testOfflineEncounterAndCompanionCombat() {
   state.worldSimulation.npcEncounters.qa_encounter = { key: "qa_encounter", pairKey: "qa_a::qa_b", day: 1, npcA: "qa_a", npcB: "qa_b", nodeId: state.locationId, outcome: "trade" };
   E.resolveOfflineNpcEncounters(state, 1);
   assert(state.worldSimulation.offlineEncounterResults.length >= 1);
-  for (let day = 1; day <= 40 && !state.companion.damageLedger.length; day += 1) E.simulateOfflineCompanionCombat(state, day);
-  assert(state.companion.damageLedger.length >= 0);
+  let damaged = false;
+  for (let day = 1; day <= 40 && !damaged; day += 1) damaged = Boolean(E.simulateOfflineCompanionCombat(state, day).damaged);
+  assert(damaged, "offline companion simulation must exercise a damage result");
+  assert(state.companion.damageLedger.length > 0);
 }
 
 function testWardFormationEffect() {

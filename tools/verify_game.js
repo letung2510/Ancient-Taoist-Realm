@@ -45,7 +45,8 @@ function verifyGeneratedItems(sandbox) {
 
   const restored = E.deserialize(E.serialize(state));
   assert(restored.generatedItems[weapon.id]);
-  assert.strictEqual(sandbox.window.GameData.ITEMS[weapon.id].name, weapon.name);
+  assert.strictEqual(sandbox.window.GameData.ITEMS[weapon.id], undefined);
+  assert.strictEqual(restored.generatedItems[weapon.id].name, weapon.name);
   assert(restored.player.equipment.artifacts.includes(weapon.id));
 
   const equipmentItems = [
@@ -794,7 +795,8 @@ function verifyMapUI(sandbox) {
   const actionState = E.createState({ character });
   assert(E.chooseJourneyIntent(actionState, "tu_lap").success);
   const normalActions = sandbox.window.GameUI.actionPresentation(actionState);
-  ["act_move_bac", "act_move_nam", "act_move_dong", "act_move_tay"].forEach((id) => assert(normalActions.quick.some((action) => action.id === id), `missing cardinal movement action: ${id}`));
+  assert(normalActions.quick.some((action) => action.id === "act_move_group"), "movement must be exposed as one grouped action");
+  assert.strictEqual(normalActions.quick.find((action) => action.id === "act_move_group").directionActions.map((action) => action.id).sort().join(","), "act_move_bac,act_move_dong,act_move_nam,act_move_tay");
   const normalQuickIds = normalActions.quick.map((action) => action.id);
   assert(normalQuickIds.includes("act_nhin"));
   assert(normalQuickIds.includes("act_tu_luyen"));
@@ -808,7 +810,8 @@ function verifyMapUI(sandbox) {
   const originHtml = sandbox.window.GameUI.renderOriginChoice(actionState);
   ["Tán Tu", "Thế Gia", "Kiếm Tu Lang Bạt", "Linh Mạch Truyền Thừa", "data-origin-confirm"].forEach((label) => assert(originHtml.includes(label), `missing origin modal content: ${label}`));
   actionState.inventory.linh_thach = 10;
-  const cauldronHtml = sandbox.window.GameUI.renderCauldron ? sandbox.window.GameUI.renderCauldron(actionState) : (() => { sandbox.activeTestTab = "cauldron"; sandbox.window.GameUI.renderPanel(actionState); return elements["tab-content"].innerHTML; })();
+  assert.strictEqual(typeof sandbox.window.GameUI.renderCauldron, "function", "cauldron renderer must be part of the public UI contract");
+  const cauldronHtml = sandbox.window.GameUI.renderCauldron(actionState);
   assert(cauldronHtml.includes('type="number"'));
   assert(cauldronHtml.includes('max="9"'));
   const fateUxHtml = sandbox.window.GameUI.renderFateDetail(actionState);

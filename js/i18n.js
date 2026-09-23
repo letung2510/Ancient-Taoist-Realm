@@ -9,6 +9,8 @@
   const CATEGORIES = { tam_phap: "Tâm Pháp", chieu_thuc: "Chiêu Thức", than_phap: "Thân Pháp", phu_tro: "Phụ Trợ", tran_phap: "Trận Pháp", cam_thuat: "Cấm Thuật", dan_phu_phap: "Đan · Phù · Tạp Pháp", procedural: "Vật phẩm biến hóa" };
   function lookup(state, id) {
     const value = String(id ?? "");
+    const generated = state?.player?.generatedItems?.[value] || state?.generatedItems?.[value];
+    if (generated?.name) return generated.name;
     const regions = window.GameData?.WORLD_MAP?.regions || [];
     const factions = window.GameData?.WORLD_MAP?.factions || window.GameData?.FACTION_DATA?.factions || [];
     return window.GameData?.ITEMS?.[value]?.name || window.GameData?.NPCS?.[value]?.name || window.GameData?.ENTITIES?.[value]?.name || window.NPC_MONSTER_DATA?.entities?.[value]?.name || window.GameData?.LOCATIONS?.[value]?.name || window.GameData?.FACTIONS?.[value]?.name || regions.find((entry) => entry.id === value)?.name || factions.find((entry) => entry.id === value)?.name || window.EXPANSION_DATA?.professionDefinitions?.[value]?.name || window.EXPANSION_DATA?.hiddenProfessions?.[value]?.name || null;
@@ -19,7 +21,7 @@
     Object.entries(CONTRACTS).forEach(([id, label]) => { result = result.replace(new RegExp("\\b" + id + "\\b", "gi"), label); });
     result = result.replace(/\b(null|undefined|NaN)\b/gi, "chưa xác định");
     result = result.replace(/\b(unknown|revealed|verified|discovered|offered|accepted|cancelled|closed|failed|locked|trial|ready|evolved|chosen|pending|active|expired|completed|resolved)\b/gi, (value) => STATUS[value.toLowerCase()] || value);
-    result = result.replace(/\b(quang|mua|suong|loi_vu|linh_phong)\b/gi, (value) => WEATHER[value] || value);
+    result = result.replace(/\b(quang|mua|suong|tuyet|loi_vu|linh_phong|am_vu|bao_linh_khi)\b/gi, (value) => WEATHER[value.toLowerCase()] || value);
     result = result.replace(/\b(moc|hoa|kim|thuy|tho|phong|loi|bang|huyet|vo_he)\b/gi, (value) => ELEMENTS[value] || value);
     result = result.replace(/\b(contained|survived|ignored|located|escaped|released|turned_in|executed|won|lost|kill|capture|search|travel)\b/gi, (value) => OUTCOMES[value.toLowerCase()] || value);
     const regionCatalog = Object.fromEntries((window.GameData?.WORLD_MAP?.regions || []).map((entry) => [entry.id, entry]));
@@ -33,6 +35,15 @@
   }
   const formatContract = (contract) => CONTRACTS[contract?.templateId] || "Khế Ước";
   const formatStatus = (id) => STATUS[id] || "Trạng thái chưa xác định";
-  const formatElement = (id) => ELEMENTS[id] || (/^[\p{L}\s·-]+$/u.test(String(id || "")) && !String(id).includes("_") ? String(id) : "Thuộc tính chưa xác định");
-  window.GameI18n = { contractName: formatContract, formatContract, target, formatTarget: target, status: formatStatus, formatStatus, weather: (id) => WEATHER[id] || "Thời tiết chưa xác định", element: formatElement, category: (id) => CATEGORIES[id] || "Phân loại đặc biệt", formatHistory, lookup };
+  const formatElement = (id) => ELEMENTS[String(id || "").toLowerCase()] || "Thuộc tính chưa xác định";
+  const formatItemName = (id, state) => lookup(state, id) || "Vật phẩm chưa xác định";
+  const formatTechniqueName = (id) => window.CONG_PHAP_DATA?.techniques?.[id]?.name || "Công pháp chưa xác định";
+  const formatFateName = (id) => window.GameData?.FATE_PATTERNS?.find((entry) => entry.id === String(id))?.name || "Mệnh Số chưa xác định";
+  const formatQuestName = (id, state) => state?.questDefinitions?.[id]?.title || window.GameData?.QUESTS?.[id]?.title || "Nhiệm vụ chưa xác định";
+  const formatLocationName = (id, state) => lookup(state, id) || "Địa điểm chưa xác định";
+  const ACTION_LABELS = { move: "Di chuyển", travel: "Hành trình", search: "Tìm kiếm", cultivate: "Tu luyện", rest: "Nghỉ ngơi", combat: "Giao chiến", talk: "Đối thoại", inspect: "Quan sát" };
+  const formatActionLabel = (id) => ACTION_LABELS[String(id || "").toLowerCase()] || "Hành động chưa xác định";
+  const playerClockLabel = (state) => state?.gameClock ? ["Năm " + (state.gameClock.currentYear || 1), "Tháng " + (state.gameClock.currentMonth || 1), "Ngày " + (state.gameClock.currentDay || 1)].join(", ") : "Thời gian nhân vật chưa xác định";
+  const worldClockLabel = (state) => state?.worldClock ? "Ngày thế giới " + (state.worldClock.absoluteDay || state.worldClock.currentDay || 1) : "Thời gian thế giới chưa xác định";
+  window.GameI18n = { contractName: formatContract, formatContract, target, formatTarget: target, status: formatStatus, formatStatus, weather: (id) => WEATHER[String(id || "").toLowerCase()] || "Thời tiết chưa xác định", element: formatElement, category: (id) => CATEGORIES[id] || "Phân loại đặc biệt", formatHistory, lookup, formatItemName, formatTechniqueName, formatFateName, formatQuestName, formatLocationName, formatActionLabel, playerClockLabel, worldClockLabel };
 })();

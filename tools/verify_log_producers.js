@@ -35,6 +35,7 @@ function runProducerAudit() {
   const E = sandbox.window.GameEngine;
   const state = E.createState({ character: E.createCharacter({ name: "Log Producer QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
   const candidates = SOURCES.flatMap((file) => collectLiteralCandidates(fs.readFileSync(path.join(ROOT, file), "utf8"), file));
+  assert(candidates.length > 0, "producer audit must discover at least one literal narrative producer");
   const failures = [];
   candidates.forEach((candidate) => {
     const formatted = E.formatPlayerLogText(state, { type: "sys", text: candidate.value });

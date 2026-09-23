@@ -15,7 +15,19 @@ const checks = [
   ["verify_log_narrative", "tools/verify_log_narrative.js"],
   ["verify_log_producers", "tools/verify_log_producers.js"],
   ["verify_catalog_balance", "tools/verify_catalog_balance.js"],
-  ["verify_utf8_integrity", "tools/verify_utf8_integrity.js"]
+  ["verify_utf8_integrity", "tools/verify_utf8_integrity.js"],
+  ["verify_random_boundaries", "tools/verify_random_boundaries.js"],
+  ["verify_asset_references", "tools/verify_asset_references.js"],
+  ["verify_indexeddb_archive", "tools/verify_indexeddb_archive.js"],
+  ["profile_runtime_budget", "tools/profile_runtime_budget.js"],
+  ["verify_33_item_coverage", "tools/verify_33_item_coverage.js"],
+  ["verify_opening_intent", "tools/verify_opening_intent.js"],
+  ["verify_expansion_log_matrix", "tools/verify_expansion_log_matrix.js"],
+  ["verify_character_generator_replay", "tools/verify_character_generator_replay.js"],
+  ["diagnose_breakthrough", "tools/diagnose_breakthrough.js"]
+  , ["verify_offline_bundle", "tools/verify_offline_bundle.js"]
+  , ["verify_audit_closure", "tools/verify_audit_closure.js"]
+  , ["verify_canonical_contracts", "tools/verify_canonical_contracts.js"]
 ];
 
 const runCheck = ([name, file]) => new Promise((resolve) => {

@@ -11,10 +11,13 @@
   const SAVE_KEY = "co_di_dien_save_v13";
   const LEGACY_SAVE_KEYS = ["co_di_dien_save_v12", "co_di_dien_save_v11"];
   let state = null;
+  const nativeAlert = typeof window.alert === "function" ? window.alert.bind(window) : function () {};
   function showPlayerAlert(value, fallback) {
     const text = E.playerFacingReason ? E.playerFacingReason(value, fallback) : (Array.isArray(value) ? value.filter(Boolean).join("\n") : (value || fallback || "Hành động chưa thể thực hiện lúc này."));
-    window.alert(text);
+    nativeAlert(text);
   }
+  // Keep every legacy alert call behind the narrative/reason-code boundary.
+  window.alert = showPlayerAlert;
   const alert = showPlayerAlert;
 
   // Serialize game-changing actions. Rapid clicks used to mutate state while
@@ -572,7 +575,6 @@
         if (!result.success) { alert(result.reason); return; }
         UI.closeOverlay(true);
         saveGame();
-        if (command === "opportunity" && result?.success) UI.closeOverlay();
         renderAfterTurn();
         return;
       }
@@ -783,8 +785,10 @@
 
   function flushRewardSummaries() {
     if (!state || state.pendingEnding || !state.pendingRewardSummaries?.length) return;
-    const summaries = state.pendingRewardSummaries.splice(0);
+    if (!document.getElementById("overlay") || !document.getElementById("overlay-title") || !document.getElementById("overlay-content")) return;
+    const summaries = state.pendingRewardSummaries.slice();
     UI.openOverlay("Phần thưởng nhận được", UI.renderRewardSummary(summaries));
+    state.pendingRewardSummaries.splice(0, summaries.length);
   }
 
   function renderFull() {
@@ -881,6 +885,10 @@
       }
       if (action.id === "act_exp_opportunity") {
         UI.openOverlay("Cơ Duyên Tranh Đoạt", UI.renderContestedOpportunityModal(state));
+        return;
+      }
+      if (action.id === "act_move_group") {
+        showMapOverlay();
         return;
       }
       const departure = departureOptions(action.id);
@@ -1038,7 +1046,7 @@
 
   /* ---------- save / load ---------- */
   function saveGame(explicit = false) {
-    if (!explicit || !state) return;
+    if (!state) return;
     localStorage.setItem(SAVE_KEY, E.serialize(state));
   }
   function exportSaveFile() {

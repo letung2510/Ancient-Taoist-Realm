@@ -126,6 +126,12 @@ window.GameUI = (function () {
     const unique = new Map();
     (ctx.actions || []).forEach((action, index) => { if (action?.id && !unique.has(action.id)) unique.set(action.id, classify({ ...action, _sourceIndex: index })); });
     let actions = [...unique.values()];
+    const movementActions = actions.filter((action) => action.category === "movement" && /^act_move_(bac|nam|dong|tay)$/.test(action.id));
+    if (movementActions.length) {
+      const group = { id: "act_move_group", label: "Di chuyển", description: "Mở bản đồ để chọn một hướng di chuyển.", category: "movement", tier: Math.min(...movementActions.map((action) => action.tier)), urgency: Math.max(...movementActions.map((action) => action.urgency)), surface: "secondary", directionActions: movementActions };
+      actions = actions.filter((action) => !movementActions.includes(action));
+      actions.push(group);
+    }
     actions.sort((a, b) => a.tier - b.tier || b.urgency - a.urgency || a._sourceIndex - b._sourceIndex);
     if (ctx.forced) return { context: ctx, quick: actions.filter((action) => action.tier === 0 || utilityIds.includes(action.id)), overflow: [] };
     const quick = [];
@@ -245,7 +251,7 @@ window.GameUI = (function () {
     else if (active === "memory") html = renderMemory(state);
     else if (active === "world") html = renderWorld(state);
     else if (active === "oddities") html = renderOddities(state);
-    else if (active === "dithe") html = renderDiThe(state);
+    else if (active === "dithe") html = renderDiThe(state) + renderCompanionPanel(state);
     else if (active === "expansion") html = renderExpansion(state);
     else if (active === "market") html = renderMarket(state);
     else if (active === "qintian") html = renderQintian(state);
@@ -406,6 +412,13 @@ window.GameUI = (function () {
   renderOddities = function (state) {
     return renderOdditiesBase(state) + '<span class="sr-only" aria-hidden="true">Dị Thể</span>';
   };
+  function renderCompanionPanel(state) {
+    const companion = state.companion;
+    if (!companion) return '<div class="section-title">Dị Thú đồng hành</div><p class="muted">Chưa có.</p>';
+    const actions = (companion.state === "recovering" ? '<button class="guild-action" data-expansion-command="companion_recover" data-expansion-arg="">Hồi phục</button>' : '') + ((companion.state === "dead" || companion.state === "recovering") ? '<button class="guild-action" data-expansion-command="companion_revive" data-expansion-arg="">Cứu sinh · 3 Linh Thạch</button>' : '') + (companion.mutationPending ? '<button class="guild-action" data-expansion-command="companion_mutation" data-expansion-arg="cure">Thanh tẩy Dị Biến</button><button class="guild-action" data-expansion-command="companion_mutation" data-expansion-arg="accept">Chấp nhận Dị Biến</button>' : '');
+    return '<div class="section-title">Dị Thú đồng hành</div><div class="detail-block"><b>' + escapeHtml(companion.customName || "Dị Thú") + '</b><small> Trạng thái: ' + escapeHtml(companion.state || "unknown") + ' · HP: ' + Number(companion.hp || 0) + '/' + Number(companion.hpMax || 0) + ' · Trung thành: ' + Number(companion.loyalty || 0) + '/100 · Tham nhũng: ' + Number(companion.corruption || 0) + '</small><div class="item-actions">' + actions + '</div></div>';
+  }
+
   function renderDiThe(state) {
     const E = window.GameEngine, catalog = E.specialPhysiqueCatalog?.() || {}, ps = state.specialPhysiqueState || {};
     const costLabels = { daoTamGainMult: "Đạo Tâm nhận được", taintedAttention: "Sự chú ý Tà Thần", lifespan: "Thọ Nguyên", healingBlocked: "Khóa hồi phục", uniqueClaim: "Điều kiện độc quyền" };
@@ -1217,6 +1230,12 @@ window.GameUI = (function () {
 
   function renderTechniqueDetail(state) {
     const techniques = window.GameEngine.getKnownTechniques(state);
+    const preparedTechniques = techniques.filter((technique) => technique.category !== "tam_phap").map((technique) => {
+      const preview = window.GameEngine.techniquePreview(state, technique.id);
+      const progress = window.GameEngine.techniqueProgress(state, technique.id);
+      const active = Boolean(preview?.prepared), controls = active ? expansionButton("technique_channel", "Channel +25%", technique.id, 'data-expansion-arg2="0.25"') + expansionButton("technique_cancel", "Cancel", technique.id) : expansionButton("technique_prepare", "Prepare", technique.id, 'data-expansion-arg2="steady"');
+      return '<div class="detail-block"><b>' + escapeHtml(technique.name) + '</b><small>' + (active ? ' Prepare active · Channel ' + Math.round(Number(preview.combatState?.channelProgress || 0) * 100) + '%' : ' Sẵn sàng Prepare') + '</small><div class="item-actions">' + controls + '</div></div>';
+    }).join("");
     const stages = window.CONG_PHAP_DATA?.masteryStages || [];
     const categories = {
       tam_phap: { label: "Tâm Pháp", desc: "Căn bản vận khí; nhận nhiều Thông Thạo nhất khi tu luyện." },
@@ -1231,6 +1250,8 @@ window.GameUI = (function () {
       const progress = window.GameEngine.techniqueProgress(state, technique.id);
       const visible = technique.visibleStats || {};
       const runtimePreview = window.GameEngine.techniquePreview(state, technique.id);
+      const combatState = runtimePreview.combatState || {};
+      const channelControls = technique.category === "tam_phap" ? "" : (combatState.prepared ? '<small>Prepare active · Channel ' + Math.round(Number(combatState.channelProgress || 0) * 100) + '%</small>' + expansionButton("technique_channel", "Channel +25%", technique.id, 'data-expansion-arg2="0.25"') + expansionButton("technique_cancel", "Cancel", technique.id) : expansionButton("technique_prepare", "Prepare", technique.id, 'data-expansion-arg2="steady"'));
       const pct = progress.nextThreshold == null ? 100 : Math.min(100, Math.round(progress.masteryExp / progress.nextThreshold * 100));
       const evolution = state.player.techniques?.[technique.id]?.evolution; const choices = window.EXPANSION_DATA?.techniqueEvolutions?.[technique.id] || [];
       const evolutionControls = evolution?.status === "ready" ? choices.map((choice) => expansionButton("technique_evolve", choice.name, technique.id, 'data-expansion-arg2="' + escapeHtml(choice.id) + '"')).join("") : choices.length ? '<small>Tiến hóa: ' + escapeHtml(window.GameI18n?.formatStatus(evolution?.status || "locked") || "Chưa mở") + (evolution?.status === "trial" ? ' · tiến độ ' + Number(evolution.progress || 0) : '') + '</small>' : "";
@@ -1238,7 +1259,7 @@ window.GameUI = (function () {
     };
     const order = ["tam_phap", "chieu_thuc", "than_phap", "phu_tro", "tran_phap", "cam_thuat", "dan_phu_phap"];
     const allCategories = order.concat([...new Set(techniques.map((technique) => technique.category))].filter((category) => !order.includes(category)));
-    const groups = allCategories.map((category) => {
+    const groups = preparedTechniques + allCategories.map((category) => {
       const items = techniques.filter((technique) => technique.category === category);
       if (!items.length) return "";
       const meta = categories[category] || { label: window.GameI18n?.category(category) || "Dị Pháp", desc: "Truyền thừa đặc biệt, tuân theo quy tắc Thông Thạo riêng của engine." };
@@ -1458,7 +1479,7 @@ window.GameUI = (function () {
   return {
     showScreen, addStory, renderStoryWindow, clearStory, renderChoices, clearChoices, actionPresentation, renderActions, renderOriginChoice,
     setLocation, setSaveIndicator, renderPanel, setMapView, adjustMapCamera, panMapCamera, setActiveTab,
-    renderFateDetail, renderFateSlotChooser, renderFateReplacementChooser, renderFateUpgradeChooser, renderPendingFateChooser, renderRitualModal, renderRewardSummary, renderTechniqueDetail, renderRealmDetail, renderMapDetail, renderMapFactionDetail, renderMarket, renderBlackMarket, renderQintian, renderInventoryModal, renderExpansion, renderWorld, renderStructures, renderStructureOwnershipPolicy, renderOddities, renderDiThe, renderProfessionSection, renderTechniqueEvolutionSection, renderFateEvolutionModal, renderGuildProjectModal, renderContestedOpportunityModal, renderMapEventModal, renderPendingDiscoveryModal,
+    renderFateDetail, renderFateSlotChooser, renderFateReplacementChooser, renderFateUpgradeChooser, renderPendingFateChooser, renderRitualModal, renderRewardSummary, renderTechniqueDetail, renderRealmDetail, renderMapDetail, renderMapFactionDetail, renderMarket, renderBlackMarket, renderQintian, renderInventoryModal, renderExpansion, renderWorld, renderStructures, renderStructureOwnershipPolicy, renderOddities, renderDiThe, renderProfessionSection, renderTechniqueEvolutionSection, renderFateEvolutionModal, renderGuildProjectModal, renderContestedOpportunityModal, renderMapEventModal, renderPendingDiscoveryModal, renderCauldron,
     openOverlay, closeOverlay, bindOverlay, escapeHtml, openEquipmentPicker
   };
 })();

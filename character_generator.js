@@ -64,7 +64,7 @@ function rollSpiritualRoots(rng = defaultRandom) {
 }
 
 function rollFates(rng = defaultRandom) {
-  const gradeRank = { pham: 1, linh: 2, hoang: 3, huyen: 4, dia: 5, thien: 6, thanh: 7, tien: 8 };
+  const gradeRank = { phan: 1, linh: 2, hoang: 3, huyen: 4, dia: 5, thien: 6, thanh: 7, tien: 8 };
   const eligible = fatePool.fates.filter((fate) => (fate.tier || gradeRank[fate.grade] || 99) <= 3);
   for (let attempt = 0; attempt < 500; attempt += 1) {
     const available = eligible.slice(); const selected = [];

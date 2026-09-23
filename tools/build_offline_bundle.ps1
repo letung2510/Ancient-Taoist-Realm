@@ -50,7 +50,7 @@ $scriptFiles = @(
 
 $newline = [Environment]::NewLine
 $inlineCss = "<style>" + $newline + $css + $newline + "</style>"
-$html = [regex]::Replace($html, '<link\s+rel="stylesheet"\s+href="styles\.css"\s*/?>', [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $inlineCss }, 1)
+$html = [regex]::Replace($html, '<link\s+rel="stylesheet"\s+href="styles\.css(?:\?[^\"]*)?"\s*/?>', [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $inlineCss }, 1)
 
 foreach ($relativePath in $scriptFiles) {
   $escaped = [regex]::Escape($relativePath)
