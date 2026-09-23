@@ -1331,6 +1331,7 @@
     result.sanDrainMult = clamp(result.sanDrainMult, 0.5, 2);
     result.searchRiskDelta = clamp(result.searchRiskDelta, -0.3, 0.3);
     result.travelRiskDelta = clamp(result.travelRiskDelta, -0.3, 0.3);
+    Object.keys(result.combatPowerByElement).forEach((element) => { result.combatPowerByElement[element] = clamp(Number(result.combatPowerByElement[element] || 1), 0.5, 1.5); });
     return result;
   }
   function validateWorldEventState(state) {
@@ -3867,6 +3868,7 @@
     ensure(state); const definition = (X.hiddenRealms || []).find((entry) => entry.id === realmId), runtime = state.worldSimulation.hiddenRealms[realmId];
     if (state.activeHiddenRealm) return { success: false, reason: "Ngươi vẫn đang ở trong một Bí Cảnh khác." };
     if (!definition || runtime?.status !== "open" || state.locationId !== definition.parentNodeId) return { success: false, reason: "Cổng Bí Cảnh chưa mở tại đây." };
+    if (typeof E.confirmPendingDeparture === "function") E.confirmPendingDeparture(state);
     const nodes = rebuildHiddenRealmNodes(state, realmId, runtime.cycleIndex);
     state.activeHiddenRealm = { realmId, cycleIndex: runtime.cycleIndex, parentNodeId: definition.parentNodeId, entryNodeId: nodes.entry, coreNodeId: nodes.core };
     state.locationId = nodes.entry; state.visitedLocations ||= []; if (!state.visitedLocations.includes(nodes.entry)) state.visitedLocations.push(nodes.entry);
@@ -3891,6 +3893,7 @@
   }
   function exitHiddenRealm(state) {
     ensure(state); const active = state.activeHiddenRealm; if (!active) return { success: false, reason: "Không ở trong Bí Cảnh." };
+    if (typeof E.confirmPendingDeparture === "function") E.confirmPendingDeparture(state);
     state.locationId = runtimeLocationPool(state)[active.parentNodeId] ? active.parentNodeId : (state.homeLocationId || Object.keys(runtimeLocationPool(state))[0]); state.activeHiddenRealm = null;
     history(state, "narr", "Ngươi bước ra khỏi Bí Cảnh; gió ngoài thế giới lại tìm thấy vạt áo."); return { success: true, locationId: state.locationId };
   }
@@ -4378,7 +4381,8 @@
     return { success: false, reason: "Lựa chọn Dị Biến không hợp lệ." };
   }
   function createContestedOpportunity(state) {
-    ensure(state); if (state.pendingContestedOpportunity) return state.pendingContestedOpportunity;
+    ensure(state); if (state.pendingContestedOpportunity?.status === "pending") return state.pendingContestedOpportunity;
+    if (state.pendingContestedOpportunity && state.pendingContestedOpportunity.status !== "pending") state.pendingContestedOpportunity = null;
     const day = absoluteDay(state.gameClock), rivalId = Object.keys(D.NPCS || {})[Math.floor(seeded(state, "opportunity-rival", day, state.meta.turn) * Math.max(1, Object.keys(D.NPCS || {}).length))] || "rival_cultivator";
     const reward = 4 + Math.floor(seeded(state, "opportunity-reward", day) * 5);
     state.pendingContestedOpportunity = { id: uid(state, "opportunity"), nodeId: state.locationId, regionId: currentRegion(state), rivalId, createdDay: day, expiresDay: day + 12, reward, status: "pending", choices: {
@@ -4397,7 +4401,7 @@
     else if (choice === "scheme") chance += Number(state.player.comprehension || 0) / 180;
     else if (choice === "share") { chance = 1; reward = Math.ceil(reward / 2); recordRelationshipEvent(state, opportunity.rivalId, "shared_opportunity", { uniqueKey: opportunity.id }); }
     else return { success: false, reason: "Cách tranh cơ duyên không hợp lệ." };
-    const success = choice === "share" ? true : seeded(state, "opportunity-resolve:" + choice, opportunity.id, state.meta.turn) < clamp(chance, 0.15, 0.95);
+    const success = choice === "share" ? true : seeded(state, "opportunity-resolve:" + opportunity.id + ":" + choice) < clamp(chance, 0.15, 0.95);
     opportunity.status = success ? "won" : "lost"; opportunity.choice = choice; opportunity.resolvedDay = absoluteDay(state.gameClock); opportunity.resolvedReward = success ? reward : 0;
     if (success) { grantCanonicalReward(state, "opportunity:" + opportunity.id, { linhThach: reward, exp: reward * 4 }, "opportunity:" + opportunity.id); history(state, "narr", "Ngươi chớp lấy khoảnh khắc đối thủ sơ hở, thu linh quang vào lòng bàn tay. Cơ duyên đã thuộc về ngươi; Linh Thạch nhận được: " + reward + "."); }
     else { state.player.hp = Math.max(1, Number(state.player.hp || 1) - Math.ceil(Number(state.player.maxHp || 20) * 0.15)); history(state, "narr", "Thế giằng co vỡ tan. Đối thủ đoạt mất linh quang, còn ngươi phải lùi lại với vết thương nóng rát bên sườn."); }

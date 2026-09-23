@@ -2185,3 +2185,30 @@ Khong duoc ghi audit 100% cho den khi dong cac muc sau: `G14-G15`, `E1-E10`, `N3
 | M85 | DA SUA | `webgame/app.js` khong con entropy truc tiep; cultivate dung `webRandom` deterministic theo seed/turn. `verify_random_boundaries.js` da quet them `webgame/app.js`; bundle/root runtime van duoc kiem tra boi gate offline rieng. |
 
 Hai ID tren duoc loai khoi danh sach muc van mo o tren. Cac muc E1-E10, N3-N22, N33-N54, UI/browser E2E va cac nhom con lai van giu status cu cho den khi co probe rieng tuong ung; khong suy dien tu regression PASS.
+
+## Status override tiep theo — 2026-09-23
+
+| Nhom | Status | Bang chung / pham vi da xu ly |
+|---|---|---|
+| E1 | DA SUA | Reconciliation: runtime reconciliation cuoi `FATE_CANONICAL.md` la canonical; doan "chua co/cho duyet" lich su chi giu lam historical note. |
+| E2 | SUA MOT PHAN | Giu namespace toa do runtime `0..100`; adapter Oxy khong duoc dung lam input movement. Origin logic van can migration data-toa-do rieng, khong tu y doi map da phat hanh. |
+| E3 | DA SUA | Chot huong Bac canonical la `y-1`; test movement direction va open-world neighbor da PASS. Doan mo ta `y+1` la obsolete. |
+| E4 | DA SUA | Chot ritual IDs runtime `call_fate/compare/anchor/omen/cost`; ten cu la alias tai lieu, khong them pipeline song song. |
+| E5 | SUA MOT PHAN | Runtime giu plan/data hien hanh; can probe progression matrix day du truoc khi doi thu tu anchor/compare vi co save legacy phu thuoc. |
+| E6 | DA SUA | Chot revive companion 3 Linh Thach / 25% theo `COMPANION_CANONICAL.md`; ban 12/35 la audit historical obsolete. |
+| E7 | SUA MOT PHAN | Cong thuc affinity stage dang theo scale stage/maxStage; catalog affinity van duoc giu. Can chot lai product choice truoc khi doi output. |
+| E8 | DA SUA | Retention runtime validator va memory projection da dung gioi han canonical hien tai; muc 20 la historical requirement khong con duoc ap vao runtime. |
+| E9 | DA SUA | UI grouped movement la canonical; browser E2E da xac nhan nut `Di chuyển` gom xuat hien tren action surface. |
+| E10 | DA SUA | Chot relationship decay policy `none` theo `RELATIONSHIP_CANONICAL`; khong tu them decay 30 ngay tu tai lieu CHO DUYET. |
+| N3-N22 | SUA MOT PHAN | Da bo sung target commit, receipt save/load, cooldown `readyAtTurn`, combat merge, search combat/travel guard, loot instance ledger, threat read-path va predator extra. Con can probe rieng tung ID con lai. |
+| N33-N54 | SUA MOT PHAN | Da co map-event abandonment helper, hidden-realm departure cleanup, pending TTL/schema, finding IDs/rollback, NPC assist, authored event tag, stale opportunity guard. Con N49/N50/N51/N54 can producer matrix. |
+| N122-N140 / browser UI E2E | SUA MOT PHAN | Browser local E2E da vao game, tao nhan vat, chon y dinh, xac nhan action surface va grouped movement. Pixel/responsive va tat ca modal lifecycle chua dong. |
+| N173 | SUA MOT PHAN | World/faction power va war/front guards da sua; can behavior matrix ve geographic pairing. |
+| N175/N178/N190 | SUA MOT PHAN | Offline aggregate co producer projection va idempotency; parity tung ngay voi online tick van chua dong do performance boundary. |
+| N183/N189 | SUA MOT PHAN | Source attribution, weather source transition va combat element cap da bo sung; velocity multi-producer/hysteresis data matrix van mo. |
+| B.2-B.8/B.11 | SUA MOT PHAN | Canonical exports va mot so resolver da co; cac register missing can implementation matrix tung API, khong danh dau DA SUA chi vi export ton tai. |
+| FT7/FT9-FT11 | SUA MOT PHAN | Faction/map/NPC/weather/browser probes da mo rong; frontier/offline producer parity va responsive E2E van can them. |
+
+### Legacy/canonical reconciliation note
+
+Khong tao logic song song cho cac alias E-ID. Moi alias chi duoc map vao mot API canonical hien hanh; neu requirement cu mau thuan voi canonical moi thi status la `OBSOLETE/DOI CANONICAL` hoac `SUA MOT PHAN`, khong dung regression PASS de che lap khoang trong.

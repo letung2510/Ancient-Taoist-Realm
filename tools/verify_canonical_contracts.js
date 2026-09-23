@@ -54,6 +54,34 @@ function testTechniqueIdempotency() {
   assert(state.player.qi <= before.qi && state.player.stamina <= before.stamina);
   const prepared = E.prepareTechnique(state, id, "canonical-prepare-1");
   assert(!prepared.success || prepared.reason.includes("hồi chiêu"), "cooldown must block a second prepare immediately after a cast");
+  const restored = E.deserialize(E.serialize(state));
+  assert(restored.player.techniqueActionReceipts?.["canonical-cast-1"], "technique receipt must survive save/load");
+  Object.values(restored.player.techniqueCooldowns || {}).forEach((entry) => assert(typeof entry === "number" || Number.isFinite(Number(entry?.readyAtTurn))));
+}
+
+function testPendingDiscoveryBoundaries() {
+  const state = makeState();
+  state.pendingMapEvent = { id: "map-qa", eventId: "qa-event", nodeId: state.locationId, status: "pending", choices: [{ id: "x" }] };
+  state.mapEvents = { nodes: {}, history: [] };
+  const departure = E.confirmPendingDeparture(state);
+  assert(departure.changed && !state.pendingMapEvent, "confirmed departure must abandon map events");
+  assert(state.mapEvents.history.some((entry) => entry.status === "abandoned"));
+  state.pendingExploration = { locationId: state.locationId, nodeId: state.locationId, session: 1, findings: [{ findingId: "bad", type: "resource", itemId: "missing_item", qty: 1 }], expiresTurn: state.meta.turn + 3 };
+  state.pendingSearch = state.pendingExploration;
+  const before = JSON.stringify(state.pendingExploration);
+  const collected = E.collectSearchFindings(state);
+  assert(collected.success && JSON.stringify(state.pendingExploration) === before, "failed finding grant must remain pending");
+  state.pendingExploration.expiresTurn = state.meta.turn - 1;
+  assert.strictEqual(E.pendingExplorationAt(state), null, "expired exploration must not block actions");
+  state.enemies = { yeu_thu: 100 };
+  const blockedSearch = E.search(state);
+  assert.strictEqual(blockedSearch.success, false);
+  assert(blockedSearch.reason.includes("giao chiến"));
+  state.enemies = {};
+  state.travelTask = { status: "active" };
+  const blockedTravelSearch = E.search(state);
+  assert.strictEqual(blockedTravelSearch.success, false);
+  state.travelTask = null;
 }
 
 function testMovementAndLogContracts() {
@@ -103,6 +131,7 @@ function testTestSuiteQualityGate() {
 testCanonicalSurface();
 testSaveRoundTripAndCatalogImmutability();
 testTechniqueIdempotency();
+testPendingDiscoveryBoundaries();
 testMovementAndLogContracts();
 testOfflineCadenceAndLifecycleContracts();
 testTestSuiteQualityGate();
