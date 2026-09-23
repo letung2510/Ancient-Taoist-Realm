@@ -1699,6 +1699,9 @@ window.GameEngine = (function () {
     return { rawDamage, minDamage: Math.max(1, Math.round(rawDamage)), maxDamage: Math.max(1, Math.round(rawDamage + 6)), combatPowerMultiplier: power * mastery * elementMult * fateElementMult * guildCombatMult * familyMult * (1 - corruptionPenalty) * originDamageMult, mastery, elementMult, familyMult, fateElementMult, fateResonancePct: resonance.bonusPct, guildCombatPowerPct: guildCombat.powerPct, guildCombatSources: guildCombat.sourceIds, worldElementPower, stancePower, evolutionPower: Number(evolution.powerMult || 1), resonanceFates: [...resonance.elementFateIds, ...resonance.pathFateIds].map((fateId) => ({ fateId, element: technique.element, pathId: resonance.pathId })) };
   }
 
+  function techniqueCooldownReadyAt(value) {
+    return typeof value === "object" ? Number(value?.readyAtTurn || 0) : Number(value || 0);
+  }
   function techniquePreview(state, id, options = {}) {
     const technique = techniqueCatalog()[id];
     if (!technique || !state.player.techniques?.[id]) return { success: false, reason: "Chưa lĩnh ngộ Công pháp này." };
@@ -1709,7 +1712,7 @@ window.GameEngine = (function () {
     const progress = normalizeTechniqueProgress(copy(state.player.techniques[id]));
     const stance = options.stance || "steady";
     if (!["steady", "burst", "guarded"].includes(stance)) return { success: false, reason: "Thế vận công không hợp lệ." };
-    const cooldownUntil = state.player.techniqueCooldowns?.[id] || 0;
+    const cooldownUntil = techniqueCooldownReadyAt(state.player.techniqueCooldowns?.[id]);
     if (cooldownUntil > state.meta.turn) return { success: false, reason: "Công pháp đang hồi chiêu." };
     const stats = computeStats(state.player);
     const visible = technique.visibleStats || {};
@@ -1770,7 +1773,7 @@ window.GameEngine = (function () {
       if (options.preparedActionId && combatState.preparedActionId !== options.preparedActionId) return { success: false, reason: "Bước thi triển không khớp Action ID chuẩn bị." };
       if (combatState.channelProgress < 1) return { success: false, reason: "Công pháp vẫn đang vận công; chưa đủ Channel." };
     }
-    const cooldownUntil = state.player.techniqueCooldowns?.[id] || 0;
+    const cooldownUntil = techniqueCooldownReadyAt(state.player.techniqueCooldowns?.[id]);
     if (cooldownUntil > state.meta.turn) return { success: false, reason: "Công pháp đang hồi chiêu." };
     const stats = computeStats(state.player);
     const visible = technique.visibleStats || {};
@@ -1805,7 +1808,7 @@ window.GameEngine = (function () {
     const baseCooldownTurns = technique.cost?.cooldownTurns != null ? Number(technique.cost.cooldownTurns) : (visible.cooldownSeconds != null ? Math.ceil(Number(visible.cooldownSeconds || 0) / 5) : Number(visible.cooldownTurns || 0));
     const evolutionCooldownPct = Number(evolution.cooldownPct || evolution.cooldownReductionPct || 0);
     const cooldown = Math.max(0, Math.ceil(baseCooldownTurns * (masteryStage >= 3 ? 0.9 : 1) * Math.max(0, 1 - evolutionCooldownPct / 100)));
-    state.player.techniqueCooldowns[id] = state.meta.turn + cooldown;
+    state.player.techniqueCooldowns[id] = { readyAtTurn: Number(state.meta.turn) + cooldown };
     combatState.cooldownRemaining = cooldown;
     combatState.prepared = false;
     combatState.preparedActionId = null;
@@ -1813,7 +1816,8 @@ window.GameEngine = (function () {
     combatState.channelProgress = 0;
     combatState.lastResolvedActionId = actionKey;
     const isOffensive = technique.category === "chieu_thuc" || technique.category === "cam_thuat";
-    const enemyId = isOffensive ? (Object.keys(state.enemies || {})[0] || (beginCombat(state) ? Object.keys(state.enemies || {})[0] : null)) : null;
+    const requestedTarget = isOffensive && options.targetId && Object.prototype.hasOwnProperty.call(state.enemies || {}, options.targetId) ? options.targetId : null;
+    const enemyId = isOffensive ? (requestedTarget || Object.keys(state.enemies || {})[0] || (beginCombat(state) ? Object.keys(state.enemies || {})[0] : null)) : null;
     const enemy = enemyId && combatEntity(state, enemyId);
     // Mastery advances after this cast's damage projection, so preview and committed hit use the same stage.
     if (technique.category === "than_phap") {
@@ -1982,7 +1986,7 @@ window.GameEngine = (function () {
     state.player._turn = Number(state.meta?.turn || 0);
     Object.entries(state.player.techniques || {}).forEach(([techniqueId, rawProgress]) => {
       const combatState = ensureTechniqueCombatState(rawProgress);
-      combatState.cooldownRemaining = Math.max(0, Number(state.player.techniqueCooldowns?.[techniqueId] || 0) - Number(state.meta?.turn || 0));
+      combatState.cooldownRemaining = Math.max(0, techniqueCooldownReadyAt(state.player.techniqueCooldowns?.[techniqueId]) - Number(state.meta?.turn || 0));
     });
     state.player.stats = computeStats(state.player);
     state.player.maxHp = maxHp(state.player.stats);
@@ -2139,7 +2143,7 @@ window.GameEngine = (function () {
     if (!preview.success) return preview;
     if (preview.resourcesReady === false) return { success: false, reason: preview.blockers.map((entry) => entry.message).join(" · "), blockers: preview.blockers };
     const currentTurn = Number(state.meta?.turn || 0);
-    const cooldownUntil = Number(state.player.techniqueCooldowns?.[id] || 0);
+    const cooldownUntil = techniqueCooldownReadyAt(state.player.techniqueCooldowns?.[id]);
     if (cooldownUntil > currentTurn || combatState.cooldownRemaining > 0) return { success: false, reason: "Công pháp đang hồi chiêu." };
     if (combatState.prepared) return { success: false, reason: "Công pháp này đã được chuẩn bị; hãy thi triển hoặc hủy trước." };
     const prepareCost = preview.prepareCost || { manaCost: 0, staminaCost: 0 };
@@ -2210,6 +2214,7 @@ window.GameEngine = (function () {
   /* ---------- Mệnh Kho ---------- */
   function fateVaultCapacity(state) {
     state.flags = state.flags || {};
+    state.enemies = Object.fromEntries(Object.entries(state.enemies || {}).filter(([enemyId, hp]) => Boolean(combatEntity(state, enemyId)) && Number.isFinite(Number(hp)) && Number(hp) > 0));
     const equippedIds = (state.player?.fates || []).filter(Boolean);
     const realmSlots = Number(realmById(state.player.realmId)?.activeSlots || 0);
     const capacity = Math.max(equippedIds.length * 2, Number(state.flags.fateSlotCapacity || 0), realmSlots * 2);
@@ -2821,14 +2826,14 @@ window.GameEngine = (function () {
     return safeHub ? { ...safeHub, reason: "Không tìm thấy điểm neo trong vùng; tới nơi trú ẩn gần nhất." } : null;
   }
   function travelToSafeHub(state, options = {}) {
+    const destination = safeTravelDestination(state);
+    if (!destination) return { success: false, reason: "Chưa có điểm trú ẩn phù hợp trên bản đồ." };
+    if (Object.keys(state.enemies || {}).length) return { success: false, reason: "Không thể rút lui nhanh khi đang giao chiến." };
     const departureGuard = pendingDepartureGuard(state, "act_ve_noi_an_toan");
     if (!departureGuard.allowed) {
       if (!options.confirmPendingDeparture) return departureGuard;
       confirmPendingDeparture(state);
     }
-    const destination = safeTravelDestination(state);
-    if (!destination) return { success: false, reason: "Chưa có điểm trú ẩn phù hợp trên bản đồ." };
-    if (Object.keys(state.enemies || {}).length) return { success: false, reason: "Không thể rút lui nhanh khi đang giao chiến." };
     clearPendingSearch(state);
     state.locationId = destination.id;
     state.visitedLocations = Array.isArray(state.visitedLocations) ? state.visitedLocations : [];
@@ -4400,6 +4405,18 @@ window.GameEngine = (function () {
     state.pendingSearch = null;
     state.pendingExploration = null;
   }
+  function abandonPendingMapEvent(state, reason = "departure") {
+    const pending = state.pendingMapEvent;
+    if (!pending || pending.status !== "pending") return { changed: false };
+    const record = mapEventRecord(state, pending.nodeId);
+    record.cooldownUntilTurn = Number(state.meta?.turn || 0) + 5;
+    record.resolvedIds ||= [];
+    if (!record.resolvedIds.includes(pending.eventId)) record.resolvedIds.push(pending.eventId);
+    state.mapEvents.history.push({ ...pending, status: "abandoned", reason, resolvedTurn: Number(state.meta?.turn || 0) });
+    state.mapEvents.history = state.mapEvents.history.slice(-40);
+    state.pendingMapEvent = null;
+    return { changed: true, eventId: pending.eventId };
+  }
   // There is one logical pending-discovery record. Older code used two field
   // names; normalize them at every action boundary so the UI cannot render an
   // action from one field while its handler reads the other.
@@ -4408,6 +4425,10 @@ window.GameEngine = (function () {
     const search = state.pendingSearch && typeof state.pendingSearch === "object" ? state.pendingSearch : null;
     const exploration = state.pendingExploration && typeof state.pendingExploration === "object" ? state.pendingExploration : null;
     let pending = search || exploration;
+    if (pending && Number.isFinite(Number(pending.expiresTurn)) && Number(state.meta?.turn || 0) > Number(pending.expiresTurn)) {
+      clearPendingSearch(state);
+      return null;
+    }
     if (search && exploration && search !== exploration) {
       const sameLocation = search.locationId === exploration.locationId;
       if (sameLocation) {
@@ -4436,14 +4457,16 @@ window.GameEngine = (function () {
     const exploration = normalizePendingDiscovery(state);
     const opportunity = state.pendingContestedOpportunity?.status === "pending" ? state.pendingContestedOpportunity : null;
     const mapEvent = state.pendingMapEvent?.status === "pending" ? state.pendingMapEvent : null;
-    const isDeparture = actionId.startsWith("act_move_") || actionId === "act_ve_noi_an_toan" || actionId.startsWith("act_exp_travel_");
+    const isDeparture = actionId.startsWith("act_move_") || actionId === "act_ve_noi_an_toan" || actionId.startsWith("act_exp_travel_") || actionId.startsWith("act_exp_realm_");
     if (!isDeparture || (!exploration && !opportunity && !mapEvent)) return { allowed: true };
     return { allowed: false, requiresConfirmation: true, pendingType: exploration ? "exploration" : mapEvent ? "map_event" : "opportunity", pendingId: (exploration || mapEvent || opportunity).id || null };
   }
   function confirmPendingDeparture(state) {
     const exploration = normalizePendingDiscovery(state);
     const opportunity = state.pendingContestedOpportunity?.status === "pending" ? state.pendingContestedOpportunity : null;
-    if (!exploration && !opportunity) return { success: true, changed: false };
+    const mapEvent = state.pendingMapEvent?.status === "pending" ? state.pendingMapEvent : null;
+    if (!exploration && !opportunity && !mapEvent) return { success: true, changed: false };
+    if (mapEvent) abandonPendingMapEvent(state, "confirmed_departure");
     if (exploration) { if (state.pendingSearch === exploration) state.pendingSearch = null; if (state.pendingExploration === exploration) state.pendingExploration = null; }
     if (opportunity) {
       opportunity.status = "lost";
@@ -4500,7 +4523,9 @@ window.GameEngine = (function () {
     const searchRoll = () => replayRandom(state, "search:" + state.locationId + ":" + Number(state.meta?.turn || 0), searchRandomIndex++);
     const loc = runtimeLocationPool(state)[state.locationId];
     const status = searchStatus(state);
-    if (state.pendingSearch) {
+    if (aliveEnemies(state).length) return { success: false, reason: "Không thể tìm kiếm khi đang giao chiến." };
+    if (["planned", "active"].includes(state.travelTask?.status)) return { success: false, reason: "Không thể tìm kiếm khi đang có hành trình." };
+    if (normalizePendingDiscovery(state)) {
       pushHistory(state, { type: "warn", text: "× Hãy xử lý những gì vừa phát hiện trước khi tiếp tục tìm kiếm." });
       return { success: false, reason: "Search Session trước chưa kết thúc." };
     }
@@ -4562,7 +4587,8 @@ window.GameEngine = (function () {
       if (spawnCombatEntity(state, enemyId)) findings.push({ type: "encounter", enemyId, label: (combatEntity(state, enemyId)?.name || "Yêu thú") + " đã phát hiện ngươi" });
     }
     const actionable = findings.filter((finding) => ["resource", "rare", "information"].includes(finding.type));
-    setPendingSearch(state, actionable.length ? { locationId: state.locationId, session: sessionNumber, findings: actionable, createdAtTurn: state.meta.turn } : null);
+    actionable.forEach((finding, index) => { finding.findingId ||= "search:" + state.locationId + ":" + sessionNumber + ":" + index; });
+    setPendingSearch(state, actionable.length ? { locationId: state.locationId, nodeId: state.locationId, session: sessionNumber, findings: actionable, risk: searchStatus(state).riskPct, weather: window.GameExpansion?.weatherSnapshot?.(state)?.id || null, npcAssistId: null, createdAtTurn: state.meta.turn, createdTurn: state.meta.turn, expiresTurn: Number(state.meta.turn || 0) + 3 } : null);
     const foundLabels = actionable.map((finding) => finding.label).filter(Boolean);
     const searchText = foundLabels.length
       ? "Bụi đất còn lay động dưới đầu ngón tay; tại " + loc.name + ", ngươi lần ra " + foundLabels.join(", ") + "."
@@ -4584,17 +4610,19 @@ window.GameEngine = (function () {
     const pending = normalizePendingDiscovery(state);
     if (!pending || pending.locationId !== state.locationId) return { success: false, reason: "Không có tài nguyên chờ thu thập." };
     const collected = [];
+    const collectedFindingIds = new Set();
     pending.findings.filter((finding) => finding.type === "resource").forEach((finding) => {
       if (addItem(state, finding.itemId, finding.qty)) {
+        collectedFindingIds.add(finding.findingId);
     collected.push((itemDefinition(state, finding.itemId)?.name || finding.itemId) + " ×" + finding.qty);
         if (state.locationId === "truyen_phap" && finding.itemId === "co_tich_tan_trang") state.flags.foundTich = true;
       }
     });
     pending.findings.filter((finding) => finding.type === "rare").forEach(() => {
       const generated = createLootItem(state, collectionRoll() < 0.7 ? "consumable" : null);
-      if (generated) collected.push(generated.name);
+      if (generated) { collected.push(generated.name); collectedFindingIds.add(finding.findingId); }
     });
-    pending.findings = pending.findings.filter((finding) => finding.type === "information");
+    pending.findings = pending.findings.filter((finding) => finding.type === "information" || !collectedFindingIds.has(finding.findingId));
     if (!pending.findings.length) {
       clearPendingSearch(state);
       if (state.logState) state.logState.activeSceneId = null;
@@ -4605,6 +4633,14 @@ window.GameEngine = (function () {
     checkQuestObjectives(state, "co_tich");
     updateDerived(state);
     return { success: true, collected };
+  }
+  function investigateWithNpcAssist(state) {
+    const pending = normalizePendingDiscovery(state), helper = presentEntities(state)[0];
+    if (!pending || pending.locationId !== state.locationId || !helper) return { success: false, reason: "Không có NPC phù hợp để dẫn dấu." };
+    pending.npcAssistId = helper.id;
+    pending.risk = Math.max(0, Number(pending.risk || 0) - 15);
+    if (typeof window !== "undefined" && window.GameExpansion?.recordRelationshipEvent) window.GameExpansion.recordRelationshipEvent(state, helper.id, "shared_reward", { uniqueKey: "search-assist:" + pending.session });
+    return investigateSearchFinding(state);
   }
   function investigateSearchFinding(state) {
     const pending = normalizePendingDiscovery(state);
@@ -4783,6 +4819,7 @@ window.GameEngine = (function () {
     { id: "dong_phu_hidden_abode", group: "dong_phu", name: "Động Phủ Vô Danh", text: "Đá núi tách ra, để lộ một cửa động phủ chưa từng được ghi trên bản đồ.", choices: [{ id: "enter", label: "Chinh phục Động Phủ", effect: "cave" }, { id: "seal", label: "Đánh dấu và rời đi", effect: "ignore" }], cooldown: 0 }
   ]);
   function mapEventPoolTag(state, node = runtimeLocationPool(state)[state.locationId]) {
+    if (node?.eventPoolTag && MAP_EVENT_GROUP_WEIGHTS[node.eventPoolTag]) return node.eventPoolTag;
     const id = String(state.locationId || "");
     if (["cam_dia", "co_mieu", "abyss", "u_minh_khoi_diem"].includes(id)) return "cam_dia";
     if (["vo_tan_hai_khoi_diem", "thien_khong_khoi_diem"].includes(id)) return "hai_vuc_khong_vuc";
@@ -4802,7 +4839,7 @@ window.GameEngine = (function () {
     const node = runtimeLocationPool(state)[state.locationId], record = mapEventRecord(state), turn = Number(state.meta?.turn || 0);
     if (!node || state.pendingMapEvent || Number(record.cooldownUntilTurn || 0) > turn) return null;
     const firstDiscovery = !record.discovered;
-    const chance = trigger === "first_discovery" || firstDiscovery ? 1 : trigger === "explore_action" ? 0.55 : 0.14;
+    const chance = trigger === "first_discovery" || firstDiscovery ? 1 : trigger === "explore_action" ? 0.9 : 0.25;
     if (replayRandom(state, "map-event-chance:" + state.locationId + ":" + trigger + ":" + turn) >= chance) return null;
     const tag = mapEventPoolTag(state, node), weights = { ...(MAP_EVENT_GROUP_WEIGHTS[tag] || MAP_EVENT_GROUP_WEIGHTS.linh_vuc) };
     if (firstDiscovery) weights.monster = 0;
@@ -4901,7 +4938,7 @@ window.GameEngine = (function () {
   }
   function maybeTriggerRandomEncounter(state, trigger = "moving_through") {
     const mapEvent = rollMapEvent(state, trigger);
-    if (mapEvent) return "map_event";
+    if (mapEvent) { state.flags.mapEventCount = Number(state.flags.mapEventCount || 0) + 1; return "map_event"; }
     let randomIndex = 0;
     const roll = () => replayRandom(state, "map-encounter:" + state.locationId + ":" + Number(state.meta?.turn || 0), randomIndex++);
     const regionId = regionOfLocation(state);
@@ -4923,7 +4960,8 @@ window.GameEngine = (function () {
     // Biến cố bản đồ là cơ hội ngẫu nhiên, tăng theo độ nguy hiểm; không ép mỗi lượt.
     const loc = runtimeLocationPool(state)[state.locationId];
     const eventChance = clamp((0.18 + Number(loc?.dangerLevel || loc?.corruption || 1) * 0.08 + Number(worldTravel.travelRiskDelta || 0)) * Number(worldTravel.encounterChanceMult || 1), 0.05, 0.9);
-    if (roll() > eventChance) return null;
+    const adjustedEventChance = clamp(eventChance * (1 + Math.min(0.25, Number(state.flags.threatLevel || 0) * 0.05)), 0.05, 0.9);
+    if (roll() > adjustedEventChance) return null;
     state.flags.mapEventCount = Number(state.flags.mapEventCount || 0) + 1;
     if (loc?.enemies?.length && !aliveEnemies(state).length && roll() < Math.min(0.78, 0.28 + Number(loc.dangerLevel || loc.corruption || 1) * 0.1)) {
       pushHistory(state, { type: "warn", text: "⚠ Biến cố bản đồ: thú săn trong vùng đã ngửi thấy linh tức của ngươi." });
@@ -5014,16 +5052,21 @@ window.GameEngine = (function () {
   }
 
   function rollEntityLoot(state, info) {
+    state.combatLootReceipts ||= {};
+    const encounterKey = String(state.combatEncounterId || ("turn:" + Number(state.meta?.turn || 0)));
+    const receiptKey = encounterKey + ":" + info.id;
+    if (state.combatLootReceipts[receiptKey]) return state.combatLootReceipts[receiptKey].slice();
     const drops = [];
     if (info.loot.length) drops.push(...info.loot);
     const table = info.lootTableId ? lootTable(info.lootTableId) : null;
     if (table) {
       table.forEach((entry, index) => {
         if (!entry.item) return;
-        if (replayRandom(state, "loot-table:" + info.id, index) < Number(entry.chance || 0)) drops.push(...Array(entry.quantity || 1).fill(entry.item));
+        if (replayRandom(state, "loot-table:" + receiptKey, index) < Number(entry.chance || 0)) drops.push(...Array(entry.quantity || 1).fill(entry.item));
       });
     }
     drops.forEach((itemId) => addItem(state, itemId, 1));
+    state.combatLootReceipts[receiptKey] = drops.slice();
     return drops;
   }
 
@@ -5088,8 +5131,13 @@ window.GameEngine = (function () {
       pushHistory(state, { type: "sys", text: "Không có kẻ thù ở đây." });
       return false;
     }
-    if (Object.keys(state.enemies || {}).length) return true;
+    if (Object.keys(state.enemies || {}).length) {
+      ids.forEach((id) => { if (!Object.prototype.hasOwnProperty.call(state.enemies, id)) { const info = combatEntity(state, id); if (info) state.enemies[id] = info.hpMax; } });
+      return true;
+    }
     state.enemies = {};
+    state.combatEncounterSequence = Number(state.combatEncounterSequence || 0) + 1;
+    state.combatEncounterId = "combat:" + state.combatEncounterSequence + ":" + Number(state.meta?.turn || 0);
     ids.forEach((id) => { const info = combatEntity(state, id); if (info) state.enemies[id] = info.hpMax; });
     maybeSpawnCombatExtras(state);
     const names = Object.keys(state.enemies).map((id) => (combatEntity(state, id) || {}).name).filter(Boolean);
@@ -5118,7 +5166,7 @@ window.GameEngine = (function () {
       }
     }
     const loc = runtimeLocationPool(state)[state.locationId];
-    if (loc?.enemies?.length && !aliveEnemies(state).length && replayRandom(state, "combat-extra:predator:" + state.locationId + ":" + Number(state.meta?.turn || 0)) < Math.min(0.35, 0.08 + Number(loc.dangerLevel || 1) * 0.04)) {
+    if (loc?.enemies?.length && replayRandom(state, "combat-extra:predator:" + state.locationId + ":" + Number(state.meta?.turn || 0)) < Math.min(0.35, 0.08 + Number(loc.dangerLevel || 1) * 0.04)) {
       const predator = loc.enemies.find((id) => getEntity(id));
       if (predator && spawnCombatEntity(state, predator)) {
         pushHistory(state, { type: "warn", text: "☠ Quái vật địa phương chủ động rời ổ, khóa đường lui của ngươi." });
@@ -6105,7 +6153,7 @@ window.GameEngine = (function () {
       act_tim_kiem: () => search(state),
       act_search_collect: () => collectSearchFindings(state),
       act_search_investigate: () => investigateSearchFinding(state),
-      act_explore_npc_assist: () => investigateSearchFinding(state),
+      act_explore_npc_assist: () => investigateWithNpcAssist(state),
       act_search_leave: () => leaveSearchSession(state),
       act_dot_pha: () => breakthroughRitualStatus(state).remaining.length ? { changed: false, reason: "Hãy mở Nghi Thức Đột Phá và hoàn tất cổng đang active trước." } : doBreakthrough(state),
       act_nghi_ngoi: () => rest(state),
@@ -6428,6 +6476,8 @@ window.GameEngine = (function () {
       techniqueIds: Object.keys(player.techniques || {}),
       techniqueProgress: JSON.parse(JSON.stringify(player.techniques || {})),
       techniqueCooldowns: { ...(player.techniqueCooldowns || {}) },
+      techniqueActionReceipts: JSON.parse(JSON.stringify(player.techniqueActionReceipts || {})),
+      techniqueActionReceiptHighWater: Number(player.techniqueActionReceiptHighWater || 0),
       hiddenFates: (player.hiddenFates || []).slice(), hiddenProfessionCandidate: player.hiddenProfessionCandidate || null, hiddenProfession: player.hiddenProfession || null,
       faction: canonicalFaction,
       state: state._fateState,
@@ -6487,7 +6537,7 @@ window.GameEngine = (function () {
     persisted.logState = { ...(persisted.logState || {}), totalEvents: Math.max(Number(state.logState?.totalEvents || 0), fullHistory.length) };
     delete persisted.fateInventory;
     return JSON.stringify({
-      version: 12,
+      version: 13,
       schema: "tu_vi_quy_di_canonical_v13",
       state: persisted,
       savedAt: new Date().toISOString()
@@ -6532,6 +6582,8 @@ window.GameEngine = (function () {
       state.player.currentAge = Number(canonical.stats?.currentAge ?? state.player.currentAge ?? 0);
       state.player.unboundTrials = { ...(canonical.unboundTrials || {}) };
       state.player.unboundPathProven = Boolean(canonical.unboundPathProven);
+      state.player.techniqueActionReceipts = JSON.parse(JSON.stringify(canonical.techniqueActionReceipts || {}));
+      state.player.techniqueActionReceiptHighWater = Number(canonical.techniqueActionReceiptHighWater || 0);
       state.fateInventory = (canonical.fate.vaultIds || []).slice();
       state.fateExcessEssence = Number(canonical.fate.excessEssence || 0);
       state.fateInstances = canonical.fate.instances ? JSON.parse(JSON.stringify(canonical.fate.instances)) : {};
