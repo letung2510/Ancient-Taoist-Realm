@@ -30,6 +30,8 @@ function testSaveRoundTripAndCatalogImmutability() {
   assert(E.validateLogSurfaceState(restored).ok);
   assert(X.validateExpansionState(restored).valid);
   assert(Number(restored.meta.featureVersions.techniqueCrossSystem) >= 1);
+  ["pathVariant", "hybridPath", "pathLevel", "ritualByPath", "transitionHistory", "detachHistory"].forEach((field) => assert(Object.prototype.hasOwnProperty.call(restored.pathState, field), "missing canonical path field: " + field));
+  (restored.specialPhysiqueState.history || []).forEach((entry) => assert(entry.result && entry.trigger));
   const worldClock = E.ensureWorldClock(restored);
   assert.strictEqual(restored.gameClock.world.epochDate, "6876-01-01");
   assert.strictEqual(restored.gameClock.world.startDayIndex, 2475360);

@@ -5472,8 +5472,8 @@ window.GameEngine = (function () {
   // Nghi thức được mở dần theo cấp đích: cấp thấp dễ học, cấp cao mới cần đủ 5 cửa.
   function breakthroughRitualPlan(level) {
     if (level <= 2) return [];
-    if (level <= 4) return ["call_fate", "compare"];
-    if (level <= 7) return ["call_fate", "compare", "anchor"];
+    if (level <= 4) return ["call_fate", "anchor", "compare"];
+    if (level <= 7) return ["call_fate", "anchor", "compare", "omen"];
     if (level <= 10) return ["call_fate", "compare", "anchor", "omen"];
     if (level <= 13) return ["call_fate", "compare", "anchor", "omen", "cost"];
     return ["call_fate", "compare", "anchor", "omen", "cost", "trial"];
@@ -9507,6 +9507,12 @@ window.GameEngine = (function () {
     state.pathState.hiddenPathId = state.pathState.hiddenPathId || state.player.hiddenPathId || null;
     state.pathState.dormant = state.pathState.dormant || {};
     state.pathState.history = Array.isArray(state.pathState.history) ? state.pathState.history : [];
+    state.pathState.pathVariant ||= null;
+    state.pathState.hybridPath ||= null;
+    state.pathState.pathLevel = Math.max(0, Number(state.pathState.pathLevel || 0));
+    state.pathState.ritualByPath ||= {};
+    state.pathState.transitionHistory = Array.isArray(state.pathState.transitionHistory) ? state.pathState.transitionHistory : state.pathState.history;
+    state.pathState.detachHistory = Array.isArray(state.pathState.detachHistory) ? state.pathState.detachHistory : [];
     state.player.pathId = state.player.pathId || state.pathState.primaryPathId;
     state.player.secondaryPathId = state.player.secondaryPathId || state.pathState.secondaryPathId;
     state.player.hiddenPathId = state.player.hiddenPathId || state.pathState.hiddenPathId;
@@ -9515,6 +9521,12 @@ window.GameEngine = (function () {
     state.specialPhysiqueState.progress = state.specialPhysiqueState.progress || {};
     state.specialPhysiqueState.candidates = state.specialPhysiqueState.candidates || {};
     state.specialPhysiqueState.history = Array.isArray(state.specialPhysiqueState.history) ? state.specialPhysiqueState.history : [];
+    state.specialPhysiqueState.history = state.specialPhysiqueState.history.map((entry) => ({
+      id: entry?.id, trigger: entry?.trigger || entry?.source || "legacy",
+      day: Number(entry?.day || 0), cost: entry?.cost || {},
+      stage: Number(entry?.stage || entry?.result?.stage || 1),
+      result: entry?.result || { stage: Number(entry?.stage || 1), branch: entry?.branch || null }
+    })).filter((entry) => entry.id && Number.isFinite(entry.day)).slice(-50);
     state.specialPhysiqueState.progressEvents = Array.isArray(state.specialPhysiqueState.progressEvents) ? state.specialPhysiqueState.progressEvents.slice(-200) : [];
     state.specialPhysiqueState.rejectedIds = Array.isArray(state.specialPhysiqueState.rejectedIds) ? state.specialPhysiqueState.rejectedIds : [];
     Object.keys(state.specialPhysiqueState.progress).forEach((trigger) => {
@@ -9569,7 +9581,8 @@ window.GameEngine = (function () {
         evolution.status = "ready"; evolution.branchId = null;
       }
     });
-    Object.entries(professionCatalog()).forEach(([id, item]) => { D.ITEMS[id] = { ...(D.ITEMS[id] || {}), ...item, kind: "profession_item", catalogSource: "profession" }; });
+    state.generatedItems ||= {};
+    Object.entries(professionCatalog()).forEach(([id, item]) => { state.generatedItems[id] = { ...(state.generatedItems[id] || {}), ...item, kind: "profession_item", catalogSource: "profession" }; });
     Object.values(state.generatedItems || {}).forEach((item) => {
       if (!item.equipmentSetId && typeof item.name === "string") {
         if (item.name.includes("Bá Vương")) item.equipmentSetId = "Bá Vương";
@@ -10046,6 +10059,7 @@ window.GameEngine = (function () {
     const activeRecord = active && state.specialPhysiqueState.history.slice().reverse().find((entry) => entry.id === activeId);
     if (active && activeRecord && active.trigger === trigger && Number(activeRecord.stage || 1) < Number(active.maxStage || 1) && progress[trigger] >= Number(active.progressThreshold || 1) * (Number(activeRecord.stage || 1) + 1)) {
       activeRecord.stage = Number(activeRecord.stage || 1) + 1;
+      activeRecord.result = { ...(activeRecord.result || {}), stage: activeRecord.stage };
       activeRecord.stageDay = playerDay(state);
       history(state, "narr", "Dị Thể " + active.name + " ăn sâu thêm một tầng vào huyết mạch.");
     }
@@ -10068,7 +10082,7 @@ window.GameEngine = (function () {
     if (cost.corruptionGain) state.player.corruptionRating = clamp(Number(state.player.corruptionRating || 0) + Number(cost.corruptionGain), 0, 100);
     if (cost.uniqueClaim) { state.flags ||= {}; state.flags.uniquePowerCreated = true; }
     state.specialPhysiqueState.activeId = id; state.player.specialPhysique = id;
-    state.specialPhysiqueState.history.push({ id, trigger: def.trigger, day: playerDay(state), cost: copy(cost), result: { stage: 1, branch: def.branch || null } });
+    state.specialPhysiqueState.history.push({ id, trigger: def.trigger, day: playerDay(state), cost: copy(cost), stage: 1, result: { stage: 1, branch: def.branch || null } });
     state.specialPhysiqueState.history = state.specialPhysiqueState.history.slice(-50);
     history(state, "narr", "Một biến đổi sâu kín thức dậy trong huyết nhục; từ hôm nay, " + def.name + " vừa là ân huệ vừa là món nợ.");
     return { success: true, definition: def };
@@ -12117,7 +12131,7 @@ window.GameEngine = (function () {
     const target = Math.max(sim.lastProcessedDay, Math.floor(Number(targetDay || absoluteDay(state.gameClock))));
     const start = sim.lastProcessedDay;
     if (target <= start) { state._offlineSimulation = previousOfflineFlag; state.runtimeMetrics.offline.calls += 1; state.runtimeMetrics.offline.totalMs += (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now()) - startedAt; return { processed: 0, mode: "idempotent", detailed: 0, aggregate: 0 }; }
-    const detailedWindow = Math.max(1, Math.min(180, Number(sim.offlinePolicy?.detailedWindowDays || 90)));
+    const detailedWindow = Math.max(1, Math.min(180, Number(sim.offlinePolicy?.detailedWindowDays || 30)));
     const detailedStart = Math.max(start + 1, target - detailedWindow + 1);
     let aggregate = 0;
     if (detailedStart > start + 1) {

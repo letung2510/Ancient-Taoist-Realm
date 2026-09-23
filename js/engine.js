@@ -3174,8 +3174,8 @@ window.GameEngine = (function () {
   // Nghi thức được mở dần theo cấp đích: cấp thấp dễ học, cấp cao mới cần đủ 5 cửa.
   function breakthroughRitualPlan(level) {
     if (level <= 2) return [];
-    if (level <= 4) return ["call_fate", "compare"];
-    if (level <= 7) return ["call_fate", "compare", "anchor"];
+    if (level <= 4) return ["call_fate", "anchor", "compare"];
+    if (level <= 7) return ["call_fate", "anchor", "compare", "omen"];
     if (level <= 10) return ["call_fate", "compare", "anchor", "omen"];
     if (level <= 13) return ["call_fate", "compare", "anchor", "omen", "cost"];
     return ["call_fate", "compare", "anchor", "omen", "cost", "trial"];

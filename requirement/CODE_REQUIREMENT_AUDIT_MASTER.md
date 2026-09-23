@@ -2230,3 +2230,28 @@ Khong tao logic song song cho cac alias E-ID. Moi alias chi duoc map vao mot API
 | N33-N54 / browser UI E2E / B.2-B.11 / FT7/FT9-FT11 | SUA MOT PHAN | Them behavior probes cho movement combat, pending cave challenge, NPC read purity va discovery boundaries; cac phan UI responsive, legacy matrix va producer parity van mo. |
 
 Bang chung dot nay: `node tools/verify_canonical_contracts.js` PASS; `node requirement/validate_requirement_docs.js` PASS; `node --check js/engine.js` PASS; `node --check js/expansion.js` PASS. Chua ghi audit 100%.
+
+## Status override tiep theo — 2026-09-23 (ra soat cac phan A–M)
+
+| Nhom | Status moi | Cap nhat implementation / ket luan |
+|---|---|---|
+| A1-A4 | DA SUA | Runtime validation duoc goi tai create/deserialize/advance/action boundary; validator khong dung wall-clock cho invariant; autosave khong con early-return khi `explicit=false`; travel task/schema canonical da co. |
+| A5 | SUA MOT PHAN | Hidden realm va travel task da co guard/cleanup; cac direct location transition legacy van can fixture rieng de xac nhan moi nhanh deu qua movement contract. |
+| A6 | DA SUA | Profession runtime item khong ghi nguoc `D.ITEMS`; item snapshot nam trong `state.generatedItems`, catalog static duoc giu bat bien. |
+| A7 | CHUA SUA | `webgame/` van la micro-runtime ngoai canonical boundary; khong nhap vao runtime chinh khi chua co quyet dinh san pham. |
+| A8-A9 | DA SUA | Grade rank dung `GameEngine.GRADE_TO_TIER`; save schema v13 va `migrateV12ToV13` da co. |
+| A10-A12 | SUA MOT PHAN | Player-facing reason/error map va action guard da duoc mo rong; van con alert legacy va mot so mutation pipeline can UI/E2E transaction matrix. |
+| A13 | DA SUA | Offline bundle duoc rebuild tu runtime hien tai va `verify_offline_bundle.js` PASS. |
+| A14-A15 | SUA MOT PHAN | Nhieu ledger/history da co cap; NPC memory/path/evolution retention can audit producer tung field, chua danh dau dong toan bo. |
+| M1-M3 | DA SUA | Fate 9+ tien weight = 0; resolver doc source/pathAffinity/pityKey/unique ownership va dung mot grade table canonical. |
+| M4 | SUA MOT PHAN | Resolver khong roll hut va co fallback, nhung fixture grade hole can xac nhan viec don trong so ve bac lien ke theo catalog. |
+| M5 | DA SUA | `nurtureFate` chi cong diem; stage transition chuyen sang behavior gate canonical. |
+| M6-M11 | SUA MOT PHAN | Resonance/evolution/duplicate/fusion/online reward da co canonical resolver phan lon; stage 3→4 qua breakthrough, reward producer va UI confirmation van can parity matrix day du. |
+| M12-M14 | DA SUA | Match score clamp 0..10, unbound short-circuit, `fateDefinition`/resonance API co surface; advanced action catalog va UI legacy van can probe. |
+| M15-M18 | DA SUA | Anchor gate dung trust/respect/suspicion/fear, loc NPC class, toi da 3 anchor va schema `type/status/maxStability/lastNurturedAt`. |
+| M19-M25 | DA SUA | Path match clamp, unbound namespace, vault capacity theo equipped IDs, dual-path gate realm/match va ritual plan anchor/omen da duoc chot theo canonical. |
+| M26-M32 | SUA MOT PHAN | Body/mind va path projection da duoc noi mot phan; secluded cultivation, gift policy, path-state mutation va player projection can test day du. |
+| M33-M40 | SUA MOT PHAN | Profession/Dị Thể namespace, rejectedIds/revive/cost va special-physique history da co migration; hidden-path catalog, legacy aliases va non-SAN effect can fixture. |
+| M41-M88 | SUA MOT PHAN | Map/world/NPC/companion/technique/UI canonical surface da bo sung qua cac dot truoc; cac muc UI/performance/archive va legacy producer chua co closure evidence tung ID. |
+
+Ket qua dot A–M: khong co co so de ghi `DA SUA` cho toan bo A–M. Cac muc `CHUA SUA`, `CHUA XAC MINH`, `OBSOLETE/DOI CANONICAL` van duoc giu nguyen neu khong co runtime fixture hoac requirement da doi canonical.
