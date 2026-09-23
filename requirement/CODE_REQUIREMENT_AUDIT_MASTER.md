@@ -2255,3 +2255,23 @@ Bang chung dot nay: `node tools/verify_canonical_contracts.js` PASS; `node requi
 | M41-M88 | SUA MOT PHAN | Map/world/NPC/companion/technique/UI canonical surface da bo sung qua cac dot truoc; cac muc UI/performance/archive va legacy producer chua co closure evidence tung ID. |
 
 Ket qua dot A–M: khong co co so de ghi `DA SUA` cho toan bo A–M. Cac muc `CHUA SUA`, `CHUA XAC MINH`, `OBSOLETE/DOI CANONICAL` van duoc giu nguyen neu khong co runtime fixture hoac requirement da doi canonical.
+
+## Status override tiep theo — 2026-09-23 (tu M den het audit)
+
+| Nhom | Status moi | Cap nhat / bang chung |
+|---|---|---|
+| M41-M44 | SUA MOT PHAN | Influence owner duoc derive voi nguong 35, them `stable/frontier`, bo ghi `ownerFactionId` trong recompute/outpost; cong thuc structure/event/cache version van can parity fixture day du. |
+| M45-M49 | SUA MOT PHAN | Fog/map surface giu canonical API; weather consumer, coordinate legacy va fast-travel policy van can UI/producer matrix. |
+| M50 | DA SUA | Rumor policy dung min confidence 0.1, TTL 14 ngay va acceptance theo confidence, khong uu tien priority hon confidence. |
+| M51-M54 | SUA MOT PHAN | Queue/NPC lifecycle, footprint clue va settlement da co guard mot phan; can test distinct-day/capacity settlement va khong lo destination. |
+| M55 | DA SUA | Intimidation faction report da ve xac suat canonical 30%. |
+| M56 | DA SUA | Gift disliked = -6, chi tac dong affection, co cap 3 qua/NPC/ngay va chan quest/equipped/locked item. |
+| M57-M64 | SUA MOT PHAN | Betrayal threshold 70, queued interaction guard va companion defaults/migration da co; successor lifespan-day, su_do-only va tai lieu revive van can closure. |
+| M65-M78 | SUA MOT PHAN | Technique resolver/receipt/guild/membership cross-system da co; policy catalog, preview-confirm UI va guild teaching producer van can fixture rieng. |
+| M79-M88 | CHUA XAC MINH | Chua co behavior-first matrix bao phu tung API/UI/platform ID; khong suy dien tu export hoac regression PASS. |
+| N141-N190 | SUA MOT PHAN | Log, quest expiry, war cleanup, cultivation source, weather source, offline idempotency va discovery boundaries da co; producer parity dai han va UI/browser van mo. |
+| B.1-B.11 | SUA MOT PHAN | Canonical API surface, technique/save/offline gates va map/NPC/companion adapters da co; B.2-B.8 va B.11 chua co parity matrix tung register item. |
+| T1-T12 / LT1-LT10 / FT1-FT11 | SUA MOT PHAN | Cac gate runtime moi da duoc chay lai trong regression 25/25; cac phep do cu khong co output behavior-first doc lap van giu status partial. |
+| G14-G15 / E1-E10 / browser UI E2E | SUA MOT PHAN | Mot so conflict da doi canonical va da note; webgame boundary, responsive/browser full lifecycle va cac tai lieu mau thuan van chua dong. |
+
+Bang chung dot nay: `node tools/verify_dichi_deep.js` PASS; `node tools/verify_canonical_contracts.js` PASS; `node tools/verify_expansion_stress.js` PASS; full `node tools/run_regression_suite.js` PASS 25/25; offline bundle da rebuild. Khong ghi nhan audit 100%.
