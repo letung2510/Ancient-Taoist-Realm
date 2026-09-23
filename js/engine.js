@@ -6475,7 +6475,7 @@ window.GameEngine = (function () {
     delete persisted.fateInventory;
     return JSON.stringify({
       version: 12,
-      schema: "tu_vi_quy_di_final",
+      schema: "tu_vi_quy_di_canonical_v13",
       state: persisted,
       savedAt: new Date().toISOString()
     });

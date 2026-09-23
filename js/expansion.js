@@ -465,7 +465,7 @@
     state.runtimeIndexes.fate ||= { byId: {} }; state.runtimeIndexes.npc ||= { byId: {} }; state.runtimeIndexes.location ||= { byId: {} };
     (D.FATE_PATTERNS || []).forEach((fate) => { state.runtimeIndexes.fate.byId[fate.id] = fate; });
     state.meta.featureVersions = state.meta.featureVersions || {};
-    ["worldSimulation", "relationships", "techniqueEvolution", "professions", "professionItems", "techniqueEvolution", "contracts", "itemLegacy", "companions", "discoveries", "reincarnationLegacy", "fateEvolution"].forEach((key) => {
+    ["worldSimulation", "relationships", "techniqueEvolution", "techniqueCrossSystem", "professions", "professionItems", "contracts", "itemLegacy", "companions", "discoveries", "reincarnationLegacy", "fateEvolution"].forEach((key) => {
       state.meta.featureVersions[key] = Number(state.meta.featureVersions[key] || VERSION);
     });
     state.worldSimulation = state.worldSimulation || {
@@ -1470,6 +1470,8 @@
         const aNodes = new Set(state.worldSimulation.factionState[a]?.ownedNodeIds || []);
         const bNodes = new Set(state.worldSimulation.factionState[b]?.ownedNodeIds || []);
         const frontNodeIds = [...aNodes].filter((nodeId) => Object.values(runtimeLocationPool(state)?.[nodeId]?.exits || {}).some((neighbor) => bNodes.has(neighbor)));
+        if (!frontNodeIds.length) continue;
+        record.warCooldownUntil = day + 30;
         state.worldSimulation.wars[warId] = { id: warId, factionA: a, factionB: b, startedDay: day, frontNodeIds, scoreA: 0, scoreB: 0, status: "active", playerInterventions: [] };
       }
     }
@@ -1492,10 +1494,8 @@
     Object.values(state.worldSimulation.wars).filter((war) => war.status === "active").forEach((war) => {
       const a = state.worldSimulation.factionState[war.factionA], b = state.worldSimulation.factionState[war.factionB];
       if (!a || !b) {
-        war.status = "ended";
-        war.endedDay = day;
-        war.cascadeApplied = true;
-        war.outcome = { winner: a ? war.factionA : b ? war.factionB : null, loser: a ? war.factionB : b ? war.factionA : null, resolvedDay: day, reason: "missing_faction" };
+        delete state.worldSimulation.wars[war.id];
+        history(state, "warn", "Một cuộc chiến không còn đủ phe tham chiến đã được dọn khỏi mô phỏng thế giới.");
         return;
       }
       const roll = seeded(state, "war:" + war.id, day);
@@ -2974,7 +2974,7 @@
     if (!tournament || !["registration", "open"].includes(tournament.status) || absoluteDay(state.gameClock) > Number(tournament.registrationEndDay || tournament.endDay)) return { success: false, reason: "Đại Hội chưa mở đăng ký hoặc đã bắt đầu." };
     if (tournament.joined) return { success: false, reason: "Đã tham dự Đại Hội." };
     tournament.joined = true; tournament.playerId = state.player.id; tournament.currentRound = 0; tournament.roundsWon = 0; tournament.status = absoluteDay(state.gameClock) > tournament.registrationEndDay ? "in_progress" : "registration";
-    tournament.rounds = ["preliminary", "quarter_final", "semi_final", "final"].map((id, index) => ({ id, index, opponentId: "opponent:" + Math.floor(seeded(state, "tournament-opponent:" + tournament.id, index) * 100000), status: "pending", choice: null, result: null }));
+    tournament.rounds = ["preliminary", "quarter_final", "semi_final", "final"].map((id, index) => ({ id, index, opponentId: "opponent:" + Math.floor(seeded(state, "tournament-opponent:" + tournament.id + ":" + tournament.seed, index) * 100000), status: "pending", choice: null, result: null }));
     history(state, "narr", "Ngươi ghi danh vào Tông Môn Đại Hội; từng vòng sẽ do chính ngươi quyết định.");
     return { success: true, status: tournament.status, rounds: tournament.rounds.length };
   }
@@ -3201,15 +3201,26 @@
   function simulateWorldAggregate(state, startDay, endDay) {
     ensure(state); if (endDay < startDay) return { processed: 0 };
     const sim = state.worldSimulation;
-    Object.values(sim.events).forEach((event) => { while (event.status === "active" && event.phaseEndsDay <= endDay) advanceEvent(state, event, event.phaseEndsDay); });
-    processScheduledTasks(state, endDay);
-    Object.values(state.contractBoard.accepted).forEach((contract) => { if (contract.status === "accepted" && contract.expiresDay < endDay) contract.status = "expired"; });
-    Object.values(state.auction?.lots || {}).forEach((lot) => { if (lot.status === "active" && lot.endDay < endDay) { lot.status = "closed"; if (lot.bidderId === state.player.id && !lot.delivered) { grantCanonicalReward(state, "auction:" + lot.id, { item: lot.itemId, quantity: 1 }, "auction:" + lot.id); lot.delivered = true; } } });
-    for (let day = Math.ceil(startDay / 3) * 3, rounds = 0; day <= endDay && rounds < 20 && Object.values(sim.wars).some((war) => war.status === "active"); day += 3, rounds += 1) updateWars(state, day);
-    const weeklyDay = endDay - (endDay % 7); if (weeklyDay >= startDay) updateDiplomacy(state, weeklyDay);
-    updateHiddenRealms(state, endDay); Object.keys(sim.regionState).forEach((regionId) => updateWeather(state, regionId, endDay)); updateNpcSchedules(state, endDay);
-    if (state.guildProject?.status === "active" && endDay > state.guildProject.endDay) state.guildProject.status = "failed";
-    return { processed: endDay - startDay + 1 };
+    const firstDay = Number(startDay), lastDay = Number(endDay);
+    const expire = (day) => {
+      ["available", "active"].forEach((bucket) => Object.entries(state.questState?.[bucket] || {}).forEach(([questId, quest]) => {
+        if (Number.isFinite(Number(quest.expiresDay)) && day > Number(quest.expiresDay)) {
+          quest.status = "failed"; quest.failedDay = day; state.questState.failed[questId] = quest; delete state.questState[bucket][questId];
+        }
+      }));
+      if (state.guildProject?.status === "active" && lastDay > state.guildProject.endDay) state.guildProject.status = "failed";
+    };
+    // Aggregate mode is intentionally a bounded projection. The final 30 days
+    // are replayed by simulateWorldUntil/tick; this boundary handles expiry,
+    // reward settlement and final world ownership without O(days * actors).
+    expire(lastDay);
+    Object.values(sim.events).forEach((event) => advanceEvent(state, event, lastDay));
+    updateDiplomacy(state, firstDay); updateWars(state, firstDay); updateDiplomacy(state, lastDay); updateWars(state, lastDay); updateHiddenRealms(state, lastDay);
+    Object.keys(sim.regionState || {}).forEach((regionId) => updateWeather(state, regionId, lastDay));
+    updateTradeRoutes(state, lastDay); updateFactionInternalEvents(state, lastDay); updateTournament(state, lastDay);
+    updateNpcSchedules(state, lastDay); updateNpcBetrayals(state, lastDay); updateArmies(state, lastDay); processScheduledTasks(state, lastDay);
+    refreshContracts(state, lastDay); refreshAuction(state, lastDay); updateAuction(state, lastDay); expire(lastDay);
+    return { processed: lastDay - firstDay + 1, cadence: "bounded_projection" };
   }
 
   function recordRelationshipEvent(state, npcId, tag, options = {}) {
@@ -3313,8 +3324,8 @@
     Object.entries(state.discoveries || {}).forEach(([category, bucket]) => {
       byCategory[category] = { total: 0, discovered: 0, verified: 0, collected: 0, rewarded: 0 };
       Object.values(bucket || {}).forEach((entry) => {
+        if (!entry || category === "codexClues") return;
         const status = order[entry.status] ? entry.status : "discovered";
-        entry.status = status;
         byStatus[status] += 1;
         byCategory[category].total += 1;
         byCategory[category][status] += 1;
@@ -4326,8 +4337,15 @@
     const record = professionRecord(state, "luyen_khi"); if (!record) return { success: false };
     const recipe = recipeDefinition("procedural_artifact"); const recipeCheck = recipeCanCommit(state, recipe);
     if (!recipeCheck.success) return recipeCheck;
+    const professionBefore = { ...record };
+    const staminaBefore = Number(state.player.stamina || 0);
     commitRecipeCosts(state, recipe); practiceProfession(state, "luyen_khi", { skipCost: true, internal: true }); const item = E.createLootItem(state, "artifact", "craft-artifact:" + Number(state.meta?.turn || 0));
-    if (!item) { addItem(state, "linh_thach", 8); state.player.stamina = clamp(Number(state.player.stamina || 0) + 5, 0, Number(state.player.maxStamina || 100)); return { success: false, reason: "Không thể tạo pháp khí lúc này." }; }
+    if (!item) {
+      addItem(state, "linh_thach", Number(recipe.materials?.linh_thach || 0));
+      state.player.stamina = staminaBefore;
+      Object.assign(record, professionBefore);
+      return { success: false, reason: "Không thể tạo pháp khí lúc này." };
+    }
     const qualityBonus = Number(state.professionItemState?.phan_tich_phap_khi?.effects?.craftQuality || 0);
     if (qualityBonus > 0) { item.professionCrafted = true; item.craftQualityBonus = qualityBonus; item.effects = { ...(item.effects || {}), allStatMult: Number(item.effects?.allStatMult || 0) + qualityBonus }; }
     history(state, "sys", "✦ Luyện thành pháp khí " + item.name + "."); return { success: true, item };

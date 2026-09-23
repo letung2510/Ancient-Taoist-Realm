@@ -120,7 +120,7 @@ window.GameUI = (function () {
       const category = action.category || (movement ? "movement" : social ? "social" : combat ? "combat" : utility ? "utility" : id.startsWith("act_ritual_") ? "technique" : id.startsWith("act_exp_npc_quest") ? "quest" : id.startsWith("act_exp_") ? "discovery" : "other");
       const tier = Number.isFinite(Number(action.tier)) ? Number(action.tier) : (pending || (ctx.forced && combat) ? 0 : social ? 1 : utility ? 3 : 2);
       const urgency = pending ? 100 : combat ? 95 : id === "act_tim_kiem" ? 90 : id === "act_tu_luyen" ? 80 : social ? 70 : movement ? 60 : 40;
-      const surface = tier === 0 ? "context" : tier === 3 && !["act_hanh_trang", "act_trang_thai"].includes(id) ? "utility" : tier === 2 && ["act_tim_kiem", "act_tu_luyen", "act_tu_luyen_tu_dong", "act_nghi_ngoi", "act_dot_pha", "act_ve_noi_an_toan"].includes(id) ? "primary" : "secondary";
+      const surface = action.surface || (tier === 0 ? "context" : tier === 3 && !["act_hanh_trang", "act_trang_thai"].includes(id) ? "utility" : tier === 2 && ["act_tim_kiem", "act_tu_luyen", "act_tu_luyen_tu_dong", "act_nghi_ngoi", "act_dot_pha", "act_ve_noi_an_toan"].includes(id) ? "primary" : "secondary");
       return { ...action, category, tier, urgency, surface, _sourceIndex: action._sourceIndex };
     };
     const unique = new Map();
@@ -139,12 +139,18 @@ window.GameUI = (function () {
     const context = actions.filter((action) => action.surface === "context");
     const primary = actions.filter((action) => action.surface === "primary").slice(0, 2);
     const secondaryPool = actions.filter((action) => action.surface === "secondary");
-    const pinnedUtilities = secondaryPool.filter((action) => ["act_hanh_trang", "act_trang_thai", "act_nhin"].includes(action.id));
+    const resolverQuick = actions.filter((action) => action.surface === "quick");
+    const pinnedUtilities = [...resolverQuick, ...secondaryPool.filter((action) => ["act_hanh_trang", "act_trang_thai", "act_nhin"].includes(action.id))];
     const directional = secondaryPool.filter((action) => action.category === "movement");
     const social = secondaryPool.filter((action) => action.category === "social" || action.id.startsWith("act_talk_"));
     const secondaryRemainder = secondaryPool.filter((action) => !pinnedUtilities.includes(action) && !directional.includes(action) && !social.includes(action));
     const secondary = [...pinnedUtilities, ...social, ...directional, ...secondaryRemainder].slice(0, Math.max(5, pinnedUtilities.length + social.length + directional.length));
     quick.push(...context.slice(0, 6), ...primary, ...secondary);
+    const quickUnique = [...new Map(quick.filter((action) => action?.id).map((action) => [action.id, action])).values()];
+    const pinnedIds = new Set(["act_nhin", "act_tu_luyen", "act_hanh_trang", "act_move_group"]);
+    const pinnedQuick = quickUnique.filter((action) => pinnedIds.has(action.id));
+    const otherQuick = quickUnique.filter((action) => !pinnedIds.has(action.id));
+    quick.splice(0, quick.length, ...pinnedQuick, ...otherQuick.slice(0, Math.max(0, 12 - pinnedQuick.length)));
     const quickIds = new Set(quick.map((action) => action.id));
     actions.filter((action) => !quickIds.has(action.id)).forEach((action) => overflow.push(action));
     const groups = {};
