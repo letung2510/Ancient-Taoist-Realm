@@ -54,7 +54,7 @@
     const routine = npcRoutineAt(state, npc), spots = runtimeLocationPool(state)?.[npc.currentNodeId]?.subLocations || [];
     const woken = npc.wokenAtDay === absoluteDay(state.gameClock) && routine.activity === "ngu";
     npc.currentActivity = woken ? "awake" : routine.activity;
-    if (routine.activity === "ngu" && !woken) npc.aiState = "sleeping";
+    if (routine.activity === "ngu" && !woken) npc.aiState = "idle";
     else if (npc.aiState === "sleeping") npc.aiState = "present";
     const direct = spots.find((spot) => spot.id === routine.subLocationId);
     const target = direct || spots.find((spot) => new RegExp(String(routine.activity).replace(/_.*/, "|"), "i").test(String(spot.type || "") + " " + String(spot.id || ""))) || spots[0];
@@ -297,7 +297,7 @@
     pendingRewardReplay: "idempotent",
     repeatableOutputs: "activity_resolver"
   });
-  const RUMOR_POLICY = Object.freeze({ sameNodeConfidenceLoss: 0.05, adjacentNodeConfidenceLoss: 0.2, minConfidence: 0.2, maxRumorsPerNpc: 12, defaultTtlDays: 30, sourcePriorityWinsTie: true });
+  const RUMOR_POLICY = Object.freeze({ sameNodeConfidenceLoss: 0.05, adjacentNodeConfidenceLoss: 0.2, minConfidence: 0.1, maxRumorsPerNpc: 12, defaultTtlDays: 14, sourcePriorityWinsTie: true });
   const PRODUCT_POLICY = Object.freeze({ fateDecay: "none", npcRelationshipDecay: "event_only", maxPaths: 2, pathTransition: "explicit_once", fusionAffinityCap: 0.75, diTheMode: "modifier_catalog_exclusion_only", diTheLocksProfession: false, diTheLocksPath: false, structureOwnership: ["player", "npc", "faction"], factionRepairRequiresMembership: true, factionUpgrade: false, offlineMode: "aggregate_then_actor_window", offlineDetailedWindowDays: 30, offlineHistoryRetentionDays: 30 });
   function productPolicySnapshot() { return { ...PRODUCT_POLICY, structureOwnership: PRODUCT_POLICY.structureOwnership.slice() }; }
   function structureManagerDecision(state, structure, action) {
@@ -1024,10 +1024,18 @@
   // was injured, defeated, or is temporarily unavailable.
   function normalizeCompanion(companion) {
     if (!companion) return null;
+    companion.entityId ||= companion.id || "companion_runtime";
+    companion.customName ||= companion.name || "Đồng hành";
     companion.hpMax = Math.max(1, Number(companion.hpMax || 30));
     companion.hp = clamp(companion.hp == null ? companion.hpMax : companion.hp, 0, companion.hpMax);
     companion.role = companion.role || (companion.passiveId === "scout" ? "scout" : "striker");
     companion.guardStance = companion.guardStance || "balanced";
+    companion.state = companion.state || (companion.hp > 0 ? "active" : "recovering");
+    companion.loyalty = companion.loyalty == null ? 50 : Number(companion.loyalty);
+    companion.corruption = companion.corruption == null ? 0 : Number(companion.corruption);
+    companion.mutationPending = Boolean(companion.mutationPending);
+    companion.mutation ||= null;
+    companion.passiveId ||= null;
     companion.skillMastery = companion.skillMastery || {};
     companion.damageLedger = Array.isArray(companion.damageLedger) ? companion.damageLedger.slice(-20) : [];
     companion.lastDamageSource = companion.lastDamageSource || null;
@@ -1555,7 +1563,7 @@
           target.rumorLedger ||= {};
         const key = String(rumor.key || rumor.text); const confidence = clamp(Number(rumor.confidence ?? 0.55) - (target.currentNodeId === source.currentNodeId ? RUMOR_POLICY.sameNodeConfidenceLoss : RUMOR_POLICY.adjacentNodeConfidenceLoss), RUMOR_POLICY.minConfidence, 1);
           const priority = Number(rumor.priority || 1), previous = target.rumorLedger[key];
-          if (previous && (Number(previous.priority || 1) > priority || (RUMOR_POLICY.sourcePriorityWinsTie && Number(previous.priority || 1) === priority && Number(previous.confidence || 0) >= confidence))) return;
+          if (previous && Number(previous.confidence || 0) >= confidence) return;
           const expiresDay = Math.min(Number(rumor.expiresDay || day + RUMOR_POLICY.defaultTtlDays), day + RUMOR_POLICY.defaultTtlDays);
           target.rumorLedger[key] = { confidence, sourceNpcId: source.npcId, sourceFactionId: source.factionId || null, receivedDay: day, expiresDay, priority, alignment: rumor.alignment || null };
           target.rumors = (target.rumors || []).filter((entry) => entry.key !== key).concat([{ ...rumor, confidence, sourceNpcId: source.npcId, sourceFactionId: source.factionId || null, receivedDay: day, expiresDay, priority }]).slice(-RUMOR_POLICY.maxRumorsPerNpc);
@@ -2163,9 +2171,14 @@
     const tags = [item.category, item.kind, item.type, ...(item.tags || [])].map((tag) => String(tag || "").toLowerCase());
     const liked = (npc.preferences || []).some((pref) => tags.some((tag) => tag.includes(pref)) || String(item.name || "").toLowerCase().includes(pref));
     const disliked = (npc.dislikedGiftTags || []).some((pref) => tags.some((tag) => tag.includes(pref)));
+    const day = absoluteDay(state.gameClock); state.flags.giftLedger ||= {};
+    const giftDay = state.flags.giftLedger[npcId] ||= { day, count: 0 };
+    if (Number(giftDay.day) !== day) { giftDay.day = day; giftDay.count = 0; }
+    if (Number(giftDay.count || 0) >= 3) return { success: false, reason: "Đã tặng quá nhiều quà cho NPC này hôm nay." };
+    if (item.kind === "quest" || item.equipped || item.locked) return { success: false, reason: "Vật phẩm này không thể dùng làm quà tặng." };
     removeItem(state, itemId, 1);
-    const delta = disliked ? -5 : liked ? 8 : 1;
-    recordRelationshipEvent(state, npcId, "sent_gift", { uniqueKey: "gift:" + npcId + ":" + itemId + ":" + absoluteDay(state.gameClock), deltas: { affection: delta, trust: liked ? 2 : 0 } });
+    const delta = disliked ? -6 : liked ? 8 : 1; giftDay.count += 1;
+    recordRelationshipEvent(state, npcId, "sent_gift", { uniqueKey: "gift:" + npcId + ":" + itemId + ":" + day, deltas: { affection: delta } });
     history(state, delta < 0 ? "warn" : "narr", "Ngươi đặt " + itemName(itemId) + " vào tay " + (npc.name || npcId) + (delta < 0 ? "; món quà khiến người ấy hiểu lầm ý ngươi." : liked ? "; ánh mắt người ấy dịu đi khi nhận đúng thứ mình cần." : "; người ấy nhận lễ vật nhưng chỉ khẽ gật đầu."));
     return { success: true, affectionDelta: delta };
   }
@@ -2178,7 +2191,7 @@
     npc.intimidatedPermanently = true;
     recordRelationshipEvent(state, npcId, "threatened", { uniqueKey: "intimidate:" + npcId + ":" + absoluteDay(state.gameClock), deltas: { trust: -100, affection: -100, suspicion: 35, fear: 30 } });
     const faction = npc.factionId && state.worldSimulation.factionState[npc.factionId];
-    if (faction && seeded(state, "intimidate-report:" + npcId, absoluteDay(state.gameClock)) < 0.45) {
+    if (faction && seeded(state, "intimidate-report:" + npcId, absoluteDay(state.gameClock)) < 0.30) {
       faction.stability = clamp(Number(faction.stability || 50) - 2, 0, 100); faction.playerReputation = clamp(Number(faction.playerReputation || 0) - 8, -100, 100);
       const organizationRelation = state.organizationState?.relations?.[npc.factionId]; if (organizationRelation) organizationRelation.reputation = clamp(Number(organizationRelation.reputation || 0) - 8, -100, 100);
     }
@@ -2228,7 +2241,7 @@
       if (npc.status !== "alive" || npc.betrayalWarning?.status === "resolved") return;
       const relation = state.relationships?.[npc.npcId] || {}, playerCorruption = Number(state.player.corruptionRating || 0);
       const rivalOffer = Number(npc.rivalOffer || 0);
-      const hasBond = Boolean(npc.companionUntilDay > day || Number(relation.trust || 0) >= 75);
+      const hasBond = Boolean(npc.companionUntilDay > day || Number(relation.trust || 0) >= 70);
       const condition = hasBond && (playerCorruption > Number(npc.corruptionTolerance || 40) || rivalOffer >= 70);
       if (!condition) { if (npc.betrayalWarning?.status === "warning") npc.betrayalWarning.status = "withdrawn"; return; }
       if (!npc.betrayalWarning || npc.betrayalWarning.status !== "warning") { npc.betrayalWarning = { status: "warning", warnedDay: day, reason: playerCorruption > Number(npc.corruptionTolerance || 40) ? "corruption" : "rival_offer", resolvesDay: day + 1 }; return; }
@@ -2514,8 +2527,8 @@
       if (ownerKey) influenceMap[ownerKey] = Number(influenceMap[ownerKey] || 0) + Number(structure.effects?.influence || 0);
     });
     const values = Object.entries(influenceMap).sort((a, b) => b[1] - a[1]); const top = values[0], second = values[1];
-    const contested = Boolean(top && second && top[1] > 0 && ((top[1] - second[1]) / top[1]) < 0.15); const pressure = values.reduce((sum, [, value]) => sum + Number(value || 0), 0); const result = { nodeId, discovered: true, source: "canonical_gradient", influenceMap: { ...influenceMap }, factions: values.map(([factionId, score], index) => ({ factionId, score, tier: index === 0 ? "dominant" : score >= top[1] * 0.6 ? "strong" : "weak" })), ownerFactionId: node.ownerFactionId && node.ownerFactionId.startsWith?.("player_") ? node.ownerFactionId : (top && top[1] >= 10 && !contested ? top[0] : null), contested, pressure, confidence: top ? clamp(Number(top[1] / Math.max(1, pressure)), 0, 1) : 0, revision: map.influenceRevision };
-    node.influenceMap = influenceMap; node.contested = contested; node.ownerFactionId = result.ownerFactionId; map.influenceCache[nodeId] = { revision: map.influenceRevision, snapshot: copy(result) }; state.runtimeMetrics.mapInfluence.totalMs += (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now()) - startedAt; return result;
+    const contested = Boolean(top && second && top[1] > 0 && ((top[1] - second[1]) / top[1]) < 0.15); const pressure = values.reduce((sum, [, value]) => sum + Number(value || 0), 0); const result = { nodeId, discovered: true, source: "canonical_gradient", influenceMap: { ...influenceMap }, factions: values.map(([factionId, score], index) => ({ factionId, score, tier: index === 0 ? "dominant" : score >= top[1] * 0.6 ? "strong" : "weak" })), ownerFactionId: top && top[1] >= 35 && !contested ? top[0] : null, contested, stable: Boolean(top && top[1] >= 35 && !contested), frontier: Boolean(top && second && top[1] >= 35 && second[1] >= top[1] * 0.6), pressure, confidence: top ? clamp(Number(top[1] / Math.max(1, pressure)), 0, 1) : 0, revision: map.influenceRevision };
+    node.influenceMap = influenceMap; node.contested = contested; map.influenceCache[nodeId] = { revision: map.influenceRevision, snapshot: copy(result) }; state.runtimeMetrics.mapInfluence.totalMs += (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now()) - startedAt; return result;
   }
   function refreshMapInfluence(state) {
     ensure(state); const ids = new Set([...Object.keys(state.openWorld?.nodePool || {}), ...Object.keys(runtimeLocationPool(state) || {})]);
@@ -2817,7 +2830,7 @@
     const influence = mapInfluenceSnapshot(state, nodeId); if (influence.ownerFactionId || influence.contested) return { success: false, reason: "Nơi này chưa đủ vô chủ để lập trạm." };
     if (Number(state.inventory?.linh_thach || 0) < 10) return { success: false, reason: "Cần 10 Linh Thạch để lập trạm." };
     removeItem(state, "linh_thach", 10); const id = "player_outpost_" + state.player.id; const outpost = { id, nodeId, ownerType: "player", ownerId: state.player.id, power: 5, createdDay: absoluteDay(state.gameClock), structures: [] };
-    ensureMapState(state).outposts[nodeId] = outpost; node.ownerFactionId = id; node.influenceMap[id] = outpost.power; node.fastTravelUnlocked = true; ensureMapState(state).fastTravel[nodeId] = true; invalidateMapInfluence(state, nodeId);
+    ensureMapState(state).outposts[nodeId] = outpost; node.influenceMap ||= {}; node.influenceMap[id] = outpost.power; node.fastTravelUnlocked = true; ensureMapState(state).fastTravel[nodeId] = true; invalidateMapInfluence(state, nodeId);
     appendNodeHistory(state, nodeId, { type: "faction_change", summary: "Một trạm mới mang cờ của người chơi được dựng lên." }); return { success: true, outpost };
   }
   function petitionOutpostToFaction(state, nodeId = state.locationId) {
@@ -2827,7 +2840,7 @@
     const outpost = ensureMapState(state).outposts[nodeId]; const factionId = state.guildMembership?.guildId || state.player.tainted?.faction;
     if (!outpost || !factionId) return { success: false, reason: "Cần có trạm của riêng mình và đang phục vụ một thế lực." };
     outpost.donatedToFactionId = factionId; outpost.ownerType = "faction"; outpost.ownerId = factionId; const faction = state.worldSimulation.factionState[factionId]; if (faction) { faction.power = Number(faction.power || 0) + 5; faction.reputationWithPlayer = Number(faction.reputationWithPlayer || 0) + 20; }
-    const node = mapNode(state, nodeId); node.ownerFactionId = factionId; invalidateMapInfluence(state, nodeId); appendNodeHistory(state, nodeId, { type: "faction_change", summary: "Trạm được dâng cho thế lực đang phụng sự." }); return { success: true, factionId, outpost };
+    const node = mapNode(state, nodeId); outpost.factionId = factionId; invalidateMapInfluence(state, nodeId); appendNodeHistory(state, nodeId, { type: "faction_change", summary: "Trạm được dâng cho thế lực đang phụng sự." }); return { success: true, factionId, outpost };
   }
   function transferMapStructure(state, nodeId, structureId, npcId) {
     const list = ensureMapState(state).structures[nodeId] || []; const structure = list.find((entry) => entry.id === structureId); const npc = state.worldSimulation.npcState?.[npcId];
@@ -3922,7 +3935,7 @@
     ensure(state); const active = state.activeHiddenRealm, definition = active && (X.hiddenRealms || []).find((entry) => entry.id === active.realmId), runtime = active && state.worldSimulation.hiddenRealms[active.realmId];
     const day = absoluteDay(state.gameClock);
     if (!active || !definition || !runtime || state.locationId !== active.coreNodeId || runtime.status !== "open" || Number(runtime.cycleIndex) !== Number(active.cycleIndex) || day > Number(runtime.closesDay)) return false;
-    const rewardKey = active.cycleIndex + ":main"; if (runtime.claimedRewardKeys.includes(rewardKey) || runtime.status !== "open") return false;
+    const rewardKey = "hidden_realm:" + active.realmId + ":" + active.cycleIndex + ":main"; if (runtime.claimedRewardKeys.includes(rewardKey) || runtime.status !== "open") return false;
     const granted = grantCanonicalReward(state, "hidden_realm:" + active.realmId, definition.reward, rewardKey); if (!granted.success) return false; runtime.claimedRewardKeys.push(rewardKey); collectDiscovery(state, "hiddenRealms", active.realmId, "core"); rewardDiscovery(state, "hiddenRealms", active.realmId, "hidden_realm_reward"); discover(state, "hiddenRealms", active.realmId, "core", 2);
     history(state, "narr", "Ở tận lõi " + definition.name + ", ngươi chạm tay vào phần thưởng: Tu vi +" + definition.reward.exp + ", Công Đức +" + definition.reward.merit + "."); return true;
   }

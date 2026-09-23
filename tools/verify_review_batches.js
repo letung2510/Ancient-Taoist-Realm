@@ -369,13 +369,14 @@ function testContestedAndHiddenRealmTransitions() {
   const expBefore = Number(state.player.exp || 0);
   const firstHiddenClaim = sandbox.window.GameExpansion.claimHiddenRealmCore(state);
   assert(firstHiddenClaim, "hidden realm core must grant once");
-  assert(Number(state.player.exp || 0) > expBefore && state.rewardLedger["1:main"]?.exp === 120, "hidden realm reward must apply once");
+  const hiddenRewardKey = "hidden_realm:co_mo_vo_danh:1:main";
+  assert(Number(state.player.exp || 0) > expBefore && state.rewardLedger[hiddenRewardKey]?.exp === 120, "hidden realm reward must apply once");
   const expAfter = Number(state.player.exp || 0);
   assert(!sandbox.window.GameExpansion.claimHiddenRealmCore(state), "hidden realm core must reject duplicate claim");
   assert(Number(state.player.exp || 0) === expAfter, "duplicate hidden realm claim must not change exp");
   const exited = sandbox.window.GameExpansion.exitHiddenRealm(state);
   assert(exited.success && state.locationId === "co_mieu");
-  runtime.claimedRewardKeys.push("1:main");
+  runtime.claimedRewardKeys.push(hiddenRewardKey);
   assert(!sandbox.window.GameExpansion.validateHiddenRealmRuntimeState(state).ok, "hidden realm reward keys must remain unique");
   runtime.claimedRewardKeys.pop();
 
@@ -588,7 +589,7 @@ function testNpcRumorMultiNodeExpiry() {
   E.simulateWorldUntil(state, now + 1);
   assert(relay.rumorLedger["qa:war"] && relay.rumorLedger["qa:war"].confidence === 0.8, JSON.stringify({ source: source.npcId, sourceNode: source.currentNodeId, relay: relay.npcId, relayNode: relay.currentNodeId, ledger: relay.rumorLedger, statuses: npcs.map((npc) => npc.status) }));
   const rumorPolicy = sandbox.window.GameExpansion.rumorPolicySnapshot();
-  assert(rumorPolicy.defaultTtlDays === 30 && sandbox.window.GameExpansion.validateRumorPolicy(state).ok);
+  assert(rumorPolicy.defaultTtlDays === 14 && rumorPolicy.minConfidence === 0.1 && sandbox.window.GameExpansion.validateRumorPolicy(state).ok);
   state.worldSimulation.lastProcessedDay = now + 1;
   E.simulateWorldUntil(state, now + 2);
   assert(witness.rumorLedger["qa:war"], "rumor must cross a second valid edge");
