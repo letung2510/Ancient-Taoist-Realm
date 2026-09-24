@@ -32,6 +32,9 @@ assert(/data-technique-stance/.test(main) && /technique-stance-picker/.test(main
 assert(!/Thế vận công:[^\n]*prompt\(/.test(main), 'combat technique path still contains a prompt stance fallback');
 assert(/data-mark-input/.test(main) && /data-mark-submit/.test(main), 'mark action must use canonical overlay input');
 assert(/data-secluded-hours-input/.test(main) && /data-secluded-hours/.test(main), 'secluded cultivation hours must use canonical overlay input');
+assert(/if \(btn\.disabled\) return/.test(ui) && /btn\.disabled = true/.test(ui), 'action buttons must lock before enqueueing to prevent rapid duplicate execution');
+assert((main.match(/if \(expansionCommand\.disabled\) return/g) || []).length >= 2, 'delegated expansion commands must lock before execution');
+assert(/if \(markSubmit\.disabled\) return/.test(main) && /if \(secludedHours\.disabled\) return/.test(main), 'overlay action buttons must lock before execution');
 assert(!/Khắc lại dấu vết[^\n]*prompt\(/.test(main) && !/Bế quan bao nhiêu giờ[^\n]*prompt\(/.test(main), 'legacy mark/secluded prompt path remains');
 assert(/resourcesReady/.test(main) && /preview\.blockers/.test(main), 'technique resource rejection must happen before confirmation');
 assert(/techniqueEvolutionPreview/.test(expansion) && /technique_evolve/.test(expansion) && /requiresConfirmation/.test(expansion), 'technique evolution preview-confirm contract missing');
