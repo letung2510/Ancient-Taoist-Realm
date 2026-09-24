@@ -2972,3 +2972,13 @@ Evidence: `node --check js/main.js`, `node tools/verify_browser_ui_contract.js`,
 | Browser action variants | SỬA MỘT PHẦN | Tất cả prompt route đã chuyển sang canonical overlay ở runtime/static contract; native file chooser và full interactive browser lifecycle vẫn bị connector boundary giới hạn. |
 
 Evidence: `node --check js/main.js`, `node tools/verify_browser_ui_contract.js`, `node tools/verify_action_dispatch_matrix.js` PASS; action matrix giữ `27 visible actions` và `220 variant-surface entries`.
+
+## Status override - physique modifier consumers 2026-09-24
+
+| Scope | Status mới | Evidence / phạm vi còn mở |
+|---|---|---|
+| N23 / corruption resistance | ĐÃ SỬA | Mọi producer corruption chính (technique commit/preview, madness, Dị Thể activation, world-event choice, hidden-path ritual, breakthrough backlash, dark interrogation, prisoner execution và companion mutation) đều đi qua resolver dùng chung; `corruptionResist` và ward `corruptionGainMult` được áp trước khi ghi state. |
+| N23 / element penalty + stealth | ĐÃ SỬA | `elementPenalty` được nhân vào combat projection; `stealth` giảm encounter chance sau khi tổng hợp weather/Dị Thể. |
+| N23 / poison resistance | SỬA MỘT PHẦN | Modifier được giữ trong world-modifier contract nhưng chưa có poison-status producer canonical để áp dụng; không tự thêm status ngoài yêu cầu N27. |
+
+Evidence: `node --check js/engine.js`, `node --check js/expansion.js`, `node tools/verify_dichi_deep.js` PASS. N24 (`reviveOnce`) đã có consumer combat; các phần browser/file persistence vẫn giữ boundary đã nêu ở các override trước.
