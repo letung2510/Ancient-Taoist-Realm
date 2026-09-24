@@ -2962,3 +2962,13 @@ Evidence mới nhất: `node tools/verify_action_dispatch_matrix.js` PASS — `2
 | D6.10 browser click-through | SỬA MỘT PHẦN | Static/runtime route đã đóng; refreshed browser confirmation bị connector timeout sau native confirm, nên chưa nâng bằng chứng interactive browser. |
 
 Evidence: `node --check js/main.js`, `node tools/verify_browser_ui_contract.js`, `node tools/verify_technique_channel_matrix.js` đều PASS.
+
+## Status override - remaining prompt action variants 2026-09-24
+
+| Scope | Status mới | Evidence / phạm vi còn mở |
+|---|---|---|
+| N122-N140 / mark action modal | ĐÃ SỬA | Action `mark` không còn gọi `prompt()`; dùng overlay với textarea giới hạn 120 ký tự và commit qua `runExpansionCommand("mark", ...)`. |
+| D7 / secluded cultivation input | ĐÃ SỬA | `act_be_quan` không còn gọi `prompt()`; dùng numeric overlay 1–8 giờ, clamp tại UI rồi commit qua `submitActionId()`. |
+| Browser action variants | SỬA MỘT PHẦN | Tất cả prompt route đã chuyển sang canonical overlay ở runtime/static contract; native file chooser và full interactive browser lifecycle vẫn bị connector boundary giới hạn. |
+
+Evidence: `node --check js/main.js`, `node tools/verify_browser_ui_contract.js`, `node tools/verify_action_dispatch_matrix.js` PASS; action matrix giữ `27 visible actions` và `220 variant-surface entries`.
