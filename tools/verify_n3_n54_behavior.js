@@ -127,6 +127,39 @@ offensiveTechniques.forEach(([id, definition]) => {
 });
 assert(eligibleTargetTechniques === 1, "explicit-target matrix did not exercise the known offensive technique");
 
+// N14/N16/N19: lethal combat resolution is idempotent, malformed enemy state
+// cannot trap a restored save in combat, and loot receipts are scoped to an
+// encounter rather than only to an entity ID.
+const damageState = make("damage-receipt-boundary");
+const damageEntityId = combatCatalog[0];
+const damageInfo = E.combatEntity(damageState, damageEntityId);
+damageState.enemies[damageEntityId] = 1;
+const expBeforeDamage = Number(damageState.player.exp || 0);
+const lethal = E.applyPlayerDamage(damageState, damageEntityId, 1);
+assert(lethal.success && lethal.defeated, "lethal damage fixture did not defeat the enemy");
+const replayDamage = E.applyPlayerDamage(damageState, damageEntityId, 1);
+assert(replayDamage.duplicate && Number(damageState.player.exp || 0) >= expBeforeDamage, "lethal damage replay was not rejected idempotently");
+
+const malformedEnemies = make("malformed-enemy-boundary");
+malformedEnemies.enemies = { missing_catalog_enemy: 10 };
+let restoredMalformed = null;
+assert.doesNotThrow(() => { restoredMalformed = E.deserialize(E.serialize(malformedEnemies)); }, "malformed enemy save was not safely normalized");
+assert(!E.aliveEnemies(restoredMalformed).some(([id]) => id === "missing_catalog_enemy"), "unknown enemy remained combat-live after restore");
+
+const lootEntityId = combatCatalog.find((entityId) => {
+  const info = E.combatEntity(make("loot-catalog:" + entityId), entityId);
+  return info?.loot?.length || info?.lootTableId;
+}) || damageEntityId;
+const lootState = make("loot-encounter-receipt");
+const lootInfo = E.combatEntity(lootState, lootEntityId);
+lootState.combatEncounterId = "loot-encounter-a";
+const lootA = E.rollEntityLoot(lootState, lootInfo);
+const lootReplay = E.rollEntityLoot(lootState, lootInfo);
+assert.deepStrictEqual(lootReplay, lootA, "loot replay changed within one encounter");
+lootState.combatEncounterId = "loot-encounter-b";
+const lootB = E.rollEntityLoot(lootState, lootInfo);
+assert(Array.isArray(lootB), "loot producer did not roll a new encounter receipt");
+
 // N9/N10/N17: projection lists are deduplicated, enemy spawn is idempotent
 // for a live wounded entity, and a zero-turn cooldown leaves no stale record.
 const projectionState = make("projection-boundaries");
