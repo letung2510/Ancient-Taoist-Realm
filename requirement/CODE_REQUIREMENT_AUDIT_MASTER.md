@@ -2914,3 +2914,12 @@ Evidence: `node tools/verify_n3_n54_behavior.js` PASS; tất cả fixture đi qu
 | M65-M78 aggregate | SỬA MỘT PHẦN | Producer/runtime catalog parity đã đóng; browser teacher/trial/discovery/reward click-through và file/browser evidence vẫn mở. |
 
 Evidence: `node tools/verify_audit_deep.js` PASS; không tạo mutation learning path riêng ngoài `runExpansionCommand`/guild teaching resolver.
+
+## Status override - N3 contested opportunity combat priority 2026-09-24
+
+| Scope | Status mới | Evidence / phạm vi còn mở |
+|---|---|---|
+| N3 / combat priority over contested opportunity | ĐÃ SỬA | `contextState()` không còn trả pending opportunity trước khi xét combat; fixture đồng thời có enemy live + opportunity pending xác nhận action `act_tan_cong_thuong` hiện diện, action opportunity không leak và pending record không bị mutate. |
+| N3-N10 aggregate | SỬA MỘT PHẦN | Combat/departure priority đã có fixture; các legacy encounter/action ID và browser click-through còn mở. |
+
+Evidence: `node tools/verify_n3_n54_behavior.js` PASS; thay đổi dùng resolver priority canonical trong `js/engine.js`.

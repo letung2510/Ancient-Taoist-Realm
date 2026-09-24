@@ -76,6 +76,32 @@ assert.strictEqual(E.move(combat, "bac").success, false, "movement escaped comba
 assert.strictEqual(E.search(combat).success, false, "search escaped combat boundary");
 assert.strictEqual(JSON.stringify(combat.pendingMapEvent), combatBefore, "combat rejection mutated pending event");
 
+// N3: an unresolved contested opportunity must not mask a live combat. The
+// opportunity remains pending and is surfaced again after combat ends.
+const combatOpportunity = make("combat-opportunity-priority");
+combatOpportunity.flags.journeyIntentPending = false;
+combatOpportunity.flags.originChoicePending = false;
+combatOpportunity.flags.pathChoicePending = false;
+combatOpportunity.player.tainted = combatOpportunity.player.tainted || {};
+combatOpportunity.player.tainted.attentionPending = false;
+combatOpportunity.player.tainted.factionPending = false;
+combatOpportunity.enemies = { [combatCatalog[0]]: E.combatEntity(combatOpportunity, combatCatalog[0]).hpMax };
+combatOpportunity.pendingContestedOpportunity = {
+  id: "n3-live-combat-opportunity",
+  nodeId: combatOpportunity.locationId,
+  status: "pending",
+  kind: "contested",
+  options: ["fight", "scheme", "share"],
+  reward: 10,
+  createdDay: 0,
+  expiresDay: 2
+};
+const combatOpportunityContext = E.contextState(combatOpportunity);
+assert.strictEqual(combatOpportunityContext.inCombat, true, "combat state was lost beside pending opportunity");
+assert(combatOpportunityContext.actions.some((action) => action.id === "act_tan_cong_thuong"), "combat action was masked by contested opportunity");
+assert(!combatOpportunityContext.actions.some((action) => action.id.startsWith("act_opportunity_")), "contested opportunity action leaked into live combat");
+assert.strictEqual(combatOpportunity.pendingContestedOpportunity.status, "pending", "combat priority mutated pending opportunity");
+
 const departure = make("departure-boundary");
 departure.pendingMapEvent = { id: "n3-map-event", eventId: "fixture", nodeId: departure.locationId, status: "pending", choices: [] };
 departure.mapEvents = { nodes: {}, history: [] };

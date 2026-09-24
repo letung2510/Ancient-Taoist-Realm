@@ -6063,7 +6063,7 @@ window.GameEngine = (function () {
     // Pending scenes are a hard gate. Build their actions before ordinary
     // movement/search/combat actions so the UI cannot lose the resolution step.
     const pendingOpportunity = state.pendingContestedOpportunity?.status === "pending" ? state.pendingContestedOpportunity : null;
-    if (pendingOpportunity) {
+    if (pendingOpportunity && !inCombat) {
       // Legacy saves may only contain the opportunity id/status. Keep the
       // old single-entry action for those records; fully populated runtime
       // opportunities expose the explicit resolution choices below.
