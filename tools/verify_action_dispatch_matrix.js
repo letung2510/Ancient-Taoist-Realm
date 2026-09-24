@@ -47,7 +47,15 @@ const makeState = (variant) => {
   return state;
 };
 const states = ["base", "companion", "recovering", "mutation", "combat", "progression", "pending", "cave", "pursuit", "npc", "org", "hidden"].map(makeState);
-const actions = [...new Map(states.flatMap((state) => X.expansionActions(state).filter((action) => action?.id).map((action) => [action.id, { action, state }]))).values()];
+// Include both expansion producers and the base engine context surface. The
+// older matrix only exercised expansionActions(), leaving combat, movement,
+// utility and pending-scene legacy IDs unverified at the dispatcher boundary.
+const actions = [...new Map(states.flatMap((state) => {
+  const contextActions = E.contextState(state)?.actions || [];
+  return [...X.expansionActions(state), ...contextActions]
+    .filter((action) => action?.id)
+    .map((action) => [action.id, { action, state }]);
+})).values()];
 assert(Array.isArray(actions) && actions.length > 0, "canonical expansion action catalog is empty");
 const unknown = [];
 const seen = new Set();
