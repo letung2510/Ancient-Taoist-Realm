@@ -2895,6 +2895,17 @@ Evidence: `node tools/verify_n3_n54_behavior.js` PASS; chain dùng `ensureSearch
 
 Evidence: `node tools/verify_n3_n54_behavior.js` PASS; commit đi qua `E.useTechnique` canonical, không gọi helper damage riêng để giả lập kết quả.
 
+## Status override - N11-N22 combat boundary matrix 2026-09-24
+
+| Scope | Status mới | Evidence / phạm vi còn mở |
+|---|---|---|
+| N14 / lethal damage idempotency | ĐÃ SỬA | Matrix xác nhận lethal resolution lần hai trả `duplicate` và không cấp lại EXP/loot/Mệnh. |
+| N16 / restored enemy catalog boundary | ĐÃ SỬA | Matrix serialize/deserialize một save có enemy ID không tồn tại và xác nhận enemy đó không còn combat-live sau restore. |
+| N19 / encounter-scoped loot receipt | ĐÃ SỬA | Matrix xác nhận cùng `combatEncounterId` trả đúng loot receipt cũ, còn encounter ID mới tạo receipt scope mới qua `rollEntityLoot`. |
+| N11-N22 aggregate | SỬA MỘT PHẦN | Receipt save/load, target parity, lethal idempotency, enemy normalization, loot scope và cooldown đã có fixture; các legacy action ID/browser combat variants còn lại vẫn mở. |
+
+Evidence: `node tools/verify_n3_n54_behavior.js` PASS; tất cả fixture đi qua producer canonical của engine.
+
 ## Status override - M65-M78 guild catalog producer parity 2026-09-24
 
 | Scope | Status mới | Evidence / phạm vi còn mở |
