@@ -1065,7 +1065,7 @@
     state.player.san = Math.max(0, Number(state.player.san || 0) - Number(cost.san || 0));
     if (cost.taintedAttention) { tainted.attention = true; tainted.attentionPending = false; }
     if (cost.lifespan) state.player.lifespan = Math.max(0, Number(state.player.lifespan || 0) - Number(cost.lifespan));
-    if (cost.corruptionGain) state.player.corruptionRating = clamp(Number(state.player.corruptionRating || 0) + Number(cost.corruptionGain), 0, 100);
+    if (cost.corruptionGain) applyCorruptionGain(state, cost.corruptionGain);
     if (cost.uniqueClaim) { state.flags ||= {}; state.flags.uniquePowerCreated = true; }
     state.specialPhysiqueState.activeId = id; state.player.specialPhysique = id;
     state.specialPhysiqueState.history.push({ id, trigger: def.trigger, day: playerDay(state), cost: copy(cost), stage: 1, result: { stage: 1, branch: def.branch || null } });
@@ -1350,6 +1350,18 @@
 
   function worldEventTemplate(id) { return (X.worldEvents || []).find((entry) => entry.id === id); }
 
+  function applyCorruptionGain(state, amount) {
+    const raw = Math.max(0, Number(amount || 0));
+    if (!raw) return 0;
+    const modifiers = getWorldModifiers(state, { activity: "corruption" });
+    const resistance = clamp(Number(modifiers.corruptionResist || 0), 0, 0.95);
+    const gainMult = Math.max(0, Number(modifiers.corruptionGainMult || 1));
+    const applied = Math.max(0, raw * (1 - resistance) * gainMult);
+    const before = Number(state.player.corruptionRating || 0);
+    state.player.corruptionRating = clamp(before + applied, 0, 100);
+    return state.player.corruptionRating - before;
+  }
+
   function getWorldModifiers(state, context = {}) {
     ensure(state);
     const dayNow = absoluteDay(state.gameClock);
@@ -1413,7 +1425,8 @@
     if (Number(state.flags?.hiddenGateSealUntilDay || 0) >= day) result.encounterChanceMult *= 0.8;
     if (Number(state.flags?.namelessCultivationUntilDay || 0) >= day) result.cultivationMult *= 1.12;
     result.cultivationMult = clamp(result.cultivationMult, 0.5, 2);
-    result.encounterChanceMult = clamp(result.encounterChanceMult, 0.5, 2);
+    result.encounterChanceMult *= clamp(1 - Number(result.stealth || 0), 0.25, 1);
+    result.encounterChanceMult = clamp(result.encounterChanceMult, 0.25, 2);
     result.searchRewardMult = clamp(result.searchRewardMult, 0.5, 2);
     result.marketPriceMult = clamp(result.marketPriceMult, 0.6, 2.5);
     result.sanDrainMult = clamp(result.sanDrainMult, 0.5, 2);
@@ -1492,7 +1505,7 @@
     const rewardGrant = grantCanonicalReward(state, "world_event:" + event.id, { item: choice.item || null, quantity: Number(choice.quantity || 0), exp: Number(choice.exp || 0), merit: Number(choice.merit || 0) }, rewardKey);
     if (!rewardGrant.success) return { success: false, reason: rewardGrant.duplicate ? "Lựa chọn biến cố đã nhận thưởng." : "Không thể nhận phần thưởng biến cố." };
     state.player.san = clamp(Number(state.player.san || 0) + Number(choice.san || 0), 0, state.player.maxSan || 100);
-    state.player.corruptionRating = clamp(Number(state.player.corruptionRating || 0) + Number(choice.corruption || 0), 0, 100);
+    applyCorruptionGain(state, choice.corruption);
     Object.entries(choice.influence || {}).forEach(([factionId, score]) => recordMapEventInfluence(state, event.regionId, factionId, score, absoluteDay(state.gameClock) + Number(choice.influenceDurationDays || 7)));
     event.playerContribution += Number(choice.contribution || 1);
     event.choiceHistory.push({ choiceId, day: absoluteDay(state.gameClock) });
@@ -2601,7 +2614,7 @@
     const day = absoluteDay(state.gameClock), outcome = choices[choice];
     if (Number(state.player.san || 0) < 5) return { success: false, reason: "Cần Thanh Tỉnh để xử lý tàn hồn." };
     state.player.san = Math.max(0, Number(state.player.san || 0) - 5);
-    state.player.corruptionRating = clamp(Number(state.player.corruptionRating || 0) + outcome.corruption, 0, 100);
+    applyCorruptionGain(state, outcome.corruption);
     state.hiddenPathState.encounters[id] = { id, status: "resolved", choice, day, oncePerCharacter: true };
     state.hiddenPathState.status = outcome.status;
     state.hiddenPathState.clues[id] = [{ id: id + ":ritual", sourceType: "co_than_tan_hon", choice, day }];
@@ -4113,7 +4126,7 @@
     if (method === "dark" && !options.confirmed) return { success: false, requiresConfirmation: true, reason: "Tà thuật thẩm vấn cần xác nhận." };
     let chance = 0.45 + state.player.comprehension / 250;
     if (method === "threaten") chance += state.player.basePhy / 200;
-    if (method === "dark") { chance += state.player.baseMag / 180; E.drainSan(state, 5, "thẩm vấn tà thuật"); state.player.corruptionRating = clamp(state.player.corruptionRating + 2, 0, 100); }
+    if (method === "dark") { chance += state.player.baseMag / 180; E.drainSan(state, 5, "thẩm vấn tà thuật"); applyCorruptionGain(state, 2); }
     const success = seeded(state, "interrogate:" + prisonerId + ":" + method, absoluteDay(state.gameClock), state.meta.turn) < clamp(chance, 0.15, 0.95);
     prisoner.resistance = clamp(prisoner.resistance - (success ? 30 : 10), 0, 100);
     if (success) {
@@ -4306,7 +4319,7 @@
       corruption += Number((X.fateEvolutionBranches || []).find((entry) => entry.id === branchId)?.corruptionOnBreakthrough || 0);
     });
     if (corruption > 0) {
-      state.player.corruptionRating = clamp(Number(state.player.corruptionRating || 0) + corruption, 0, 100);
+      applyCorruptionGain(state, corruption);
       history(state, "warn", "× Nghịch Diễn phản phệ sau Đột Phá: Tà Nhiễm +" + corruption + ".");
     }
   }
@@ -4768,7 +4781,7 @@
       history(state, "sys", "✦ Đã thanh tẩy Dị Biến cho " + companion.customName + "."); return { success: true, choice };
     }
     if (choice === "accept") {
-      companion.state = "active"; companion.mutationPending = false; companion.mutation = "tainted_claw"; companion.passiveId = "corrupted_scout"; companion.loyalty = clamp(companion.loyalty + 5, 0, 100); state.player.corruptionRating = clamp(Number(state.player.corruptionRating || 0) + 5, 0, 100);
+      companion.state = "active"; companion.mutationPending = false; companion.mutation = "tainted_claw"; companion.passiveId = "corrupted_scout"; companion.loyalty = clamp(companion.loyalty + 5, 0, 100); applyCorruptionGain(state, 5);
       history(state, "warn", "× Chấp nhận Dị Biến: " + companion.customName + " nhận Tà Trảo, chủ nhân Tà Nhiễm +5."); return { success: true, choice };
     }
     if (choice === "release") {
@@ -4851,7 +4864,7 @@
     prisoner.status = outcome;
     if (outcome === "released") grantCanonicalReward(state, "prisoner:" + prisonerId, { merit: 2 }, "prisoner:" + prisonerId + ":released");
     if (outcome === "turned_in") { grantCanonicalReward(state, "prisoner:" + prisonerId, { merit: 3 }, "prisoner:" + prisonerId + ":turned_in"); if (state.guildMembership) state.guildMembership.contribution += 5; }
-    if (outcome === "executed") state.player.corruptionRating = clamp(state.player.corruptionRating + 2, 0, 100);
+    if (outcome === "executed") applyCorruptionGain(state, 2);
     const labels = { released: "phóng thích", turned_in: "giao nộp", executed: "xử quyết" };
     prisoner.resolvedDay = absoluteDay(state.gameClock); history(state, "narr", "Số phận tù binh được định đoạt: " + labels[outcome] + "."); return { success: true };
   }

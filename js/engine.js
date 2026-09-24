@@ -1723,7 +1723,8 @@ window.GameEngine = (function () {
     const resonance = techniqueFateResonance(state, technique);
     const fateElementMult = 1 + resonance.bonusPct / 100;
     const corruptionPenalty = corruptionRating > 70 ? Math.min(0.15, (corruptionRating - 70) / 200) : 0;
-    const worldElementPower = window.GameExpansion?.getWorldModifiers ? Number(window.GameExpansion.getWorldModifiers(state, { activity: "combat", element: technique.element }).combatPowerByElement?.[technique.element] || 1) : 1;
+    const worldModifiers = window.GameExpansion?.getWorldModifiers ? window.GameExpansion.getWorldModifiers(state, { activity: "combat", element: technique.element }) : {};
+    const worldElementPower = Number(worldModifiers.combatPowerByElement?.[technique.element] || 1) * Number(worldModifiers.elementPenalty || 1);
     const stancePower = stance === "burst" ? 1.2 : stance === "guarded" ? 0.85 : 1;
     const evolvedPower = Number(effect.powerCoefficient ?? visible.powerCoefficient ?? 1) * Number(evolution.powerMult || 1) * worldElementPower * stancePower;
     const power = family === "cam_thuat" ? evolvedPower * (1 + corruptionRating / 50) : evolvedPower;
@@ -1756,7 +1757,8 @@ window.GameEngine = (function () {
       : {};
     const masteryStage = progress.masteryStage;
     const resolvedCosts = resolveTechniqueCosts(technique, progress, stats, evolution, stance);
-    const { manaCost, staminaCost, sanCost, lifespanCost, corruptionCost, dangerous } = resolvedCosts;
+    const { manaCost, staminaCost, sanCost, lifespanCost, dangerous } = resolvedCosts;
+    const corruptionCost = effectiveCorruptionGain(state, resolvedCosts.corruptionCost);
     const worldModifiers = typeof window !== "undefined" && window.GameExpansion?.getWorldModifiers
       ? window.GameExpansion.getWorldModifiers(state, { activity: "technique", element: technique.element })
       : { combatPowerByElement: {} };
@@ -1817,7 +1819,8 @@ window.GameEngine = (function () {
       : {};
     const masteryStage = progress.masteryStage;
     const resolvedCosts = resolveTechniqueCosts(technique, progress, stats, evolution, stance);
-    const { manaCost, staminaCost, sanCost, lifespanCost, corruptionCost, dangerous } = resolvedCosts;
+    const { manaCost, staminaCost, sanCost, lifespanCost, dangerous } = resolvedCosts;
+    const corruptionCost = effectiveCorruptionGain(state, resolvedCosts.corruptionCost);
     if (dangerous && !options.confirmed) return { success: false, requiresConfirmation: true, reason: "Công pháp nguy hiểm cần được xác nhận trước khi trả giá." };
     const supportedCategories = ["chieu_thuc", "cam_thuat", "than_phap", "phu_tro", "tran_phap"];
     if (!supportedCategories.includes(technique.category)) return { success: false, reason: "Loại Công pháp này phải dùng qua action chuyên biệt." };
@@ -1833,7 +1836,7 @@ window.GameEngine = (function () {
     state.player.qi -= manaCost;
     state.player.san -= sanCost;
     state.player.lifespan -= lifespanCost;
-    state.player.corruptionRating = clamp(Number(state.player.corruptionRating || 0) + corruptionCost, 0, 100);
+    applyCorruptionGain(state, resolvedCosts.corruptionCost);
     if (state.player.san <= 0) {
       triggerMadness(state, "cái giá của " + technique.name);
       updateDerived(state); actionReceipt.success = false; actionReceipt.outcome = "madness";
@@ -3952,6 +3955,24 @@ window.GameEngine = (function () {
     return state.player.san - before;
   }
 
+  function effectiveCorruptionGain(state, amount) {
+    const raw = Math.max(0, Number(amount || 0));
+    if (!raw) return 0;
+    const modifiers = typeof window !== "undefined" && window.GameExpansion?.getWorldModifiers
+      ? window.GameExpansion.getWorldModifiers(state, { activity: "corruption" }) : {};
+    const resistance = clamp(Number(modifiers.corruptionResist || 0), 0, 0.95);
+    const gainMult = Math.max(0, Number(modifiers.corruptionGainMult || 1));
+    return Math.max(0, raw * (1 - resistance) * gainMult);
+  }
+
+  function applyCorruptionGain(state, amount) {
+    const applied = effectiveCorruptionGain(state, amount);
+    if (!applied) return 0;
+    const before = Number(state.player.corruptionRating || 0);
+    state.player.corruptionRating = clamp(before + applied, 0, 100);
+    return state.player.corruptionRating - before;
+  }
+
   function drainSan(state, amount, source) {
     const stats = computeStats(state.player);
     const resist = stats.eff.sanResist;
@@ -3988,7 +4009,7 @@ window.GameEngine = (function () {
       corruptionGained: Math.min(100 - Number(state.player.corruptionRating || 0), 10)
     };
     state.player.exp -= state.flags.madnessPenalty.lostExp;
-    state.player.corruptionRating = clamp(Number(state.player.corruptionRating || 0) + state.flags.madnessPenalty.corruptionGained, 0, 100);
+    applyCorruptionGain(state, state.flags.madnessPenalty.corruptionGained);
     pushMemory(state, "Rơi vào trạng thái Mất Trí.");
     pushHistory(state, { type: "warn", text: "§ NGƯƠI ĐÃ MẤT TRÍ — " + source + ". Hình phạt: mất " + state.flags.madnessPenalty.lostExp + " Tu vi, Corruption +" + state.flags.madnessPenalty.corruptionGained + "." });
     state.pendingEnding = "succumb";
