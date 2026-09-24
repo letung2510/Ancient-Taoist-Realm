@@ -379,9 +379,9 @@
         let arg = expansionCommand.dataset.expansionArg || "";
         const arg2 = expansionCommand.dataset.expansionArg2 || "";
         if (command === "mark") {
-          const note = prompt("Khắc lại dấu vết tại node này (tối đa 120 ký tự):", state.playerMarks?.[state.locationId]?.text || "");
-          if (note === null) return;
-          arg = note;
+          const existing = UI.escapeHtml(state.playerMarks?.[state.locationId]?.text || "");
+          UI.openOverlay("Khắc dấu tại node", '<div class="mark-editor"><p class="muted">Ghi tối đa 120 ký tự cho node hiện tại.</p><textarea data-mark-input maxlength="120" rows="3" placeholder="Dấu vết cần ghi">' + existing + '</textarea><button class="choice" data-mark-submit>Ghi dấu</button></div>');
+          return;
         }
         let result = E.runExpansionCommand(state, command, arg, arg2);
         if (result?.requiresConfirmation && confirm(result.reason + "\nXác nhận tiếp tục?")) result = E.runExpansionCommand(state, command, arg, arg2, { confirmed: true });
@@ -528,6 +528,26 @@
     });
 
     $("overlay-content").addEventListener("click", (event) => {
+      const markSubmit = event.target.closest("[data-mark-submit]");
+      if (markSubmit && state && E.runExpansionCommand) {
+        const input = document.querySelector("[data-mark-input]");
+        const note = String(input?.value || "").slice(0, 120);
+        const result = E.runExpansionCommand(state, "mark", note, "");
+        if (!result?.success) alert(result?.reason || "Không thể ghi dấu tại node này.");
+        else { UI.closeOverlay(); renderAfterTurn(); }
+        return;
+      }
+      const secludedHours = event.target.closest("[data-secluded-hours]");
+      if (secludedHours && state) {
+        const raw = Number(document.querySelector("[data-secluded-hours-input]")?.value || 1);
+        const hours = Math.max(1, Math.min(8, Number.isFinite(raw) ? Math.floor(raw) : 1));
+        enqueueAction(() => {
+          E.submitActionId(state, "act_be_quan", { hours });
+          UI.closeOverlay();
+          renderAfterTurn();
+        });
+        return;
+      }
       const techniqueStance = event.target.closest("[data-technique-stance]");
       if (techniqueStance && state) {
         const actionId = techniqueStance.dataset.techniqueAction || "";
@@ -944,13 +964,7 @@
         }
       }
       if (action.id === "act_be_quan") {
-        const rawHours = prompt("Bế quan bao nhiêu giờ? (1–8)", "1");
-        if (rawHours === null) return;
-        const hours = Math.max(1, Math.min(8, Number(rawHours) || 1));
-        enqueueAction(() => {
-          E.submitActionId(state, action.id, { hours });
-          renderAfterTurn();
-        });
+        showSecludedHoursOverlay(action);
         return;
       }
       if (action.id.startsWith("act_ritual_")) {
@@ -984,6 +998,10 @@
 
   function showMapOverlay() {
     UI.openOverlay("Bản Đồ", UI.renderMapDetail(state));
+  }
+
+  function showSecludedHoursOverlay(action) {
+    UI.openOverlay("Bế quan", '<div class="secluded-hours-picker"><p class="muted">Chọn thời lượng bế quan từ 1 đến 8 giờ.</p><label>Số giờ <input type="number" min="1" max="8" value="1" data-secluded-hours-input></label><button class="choice" data-secluded-hours>Xác nhận bế quan</button></div>');
   }
 
   function showRealmOverlay() {

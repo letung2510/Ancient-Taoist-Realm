@@ -30,6 +30,9 @@ assert(/command === "technique_prepare"/.test(main) && /UI\.renderTechniqueDetai
 assert(/requiresConfirmation/.test(main) && /technique_prepare/.test(main), 'technique prepare preview-confirm bridge missing');
 assert(/data-technique-stance/.test(main) && /technique-stance-picker/.test(main) && /\$\("overlay-content"\)\.addEventListener/.test(main) && !/stanceInput/.test(main), 'technique stance must use a canonical UI picker, not window.prompt');
 assert(!/Thế vận công:[^\n]*prompt\(/.test(main), 'combat technique path still contains a prompt stance fallback');
+assert(/data-mark-input/.test(main) && /data-mark-submit/.test(main), 'mark action must use canonical overlay input');
+assert(/data-secluded-hours-input/.test(main) && /data-secluded-hours/.test(main), 'secluded cultivation hours must use canonical overlay input');
+assert(!/Khắc lại dấu vết[^\n]*prompt\(/.test(main) && !/Bế quan bao nhiêu giờ[^\n]*prompt\(/.test(main), 'legacy mark/secluded prompt path remains');
 assert(/resourcesReady/.test(main) && /preview\.blockers/.test(main), 'technique resource rejection must happen before confirmation');
 assert(/techniqueEvolutionPreview/.test(expansion) && /technique_evolve/.test(expansion) && /requiresConfirmation/.test(expansion), 'technique evolution preview-confirm contract missing');
 assert(/data-expansion-command="technique_channel"|technique_channel/.test(ui), 'technique channel action surface missing');
