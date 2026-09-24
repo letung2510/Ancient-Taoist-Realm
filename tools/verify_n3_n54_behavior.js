@@ -27,6 +27,36 @@ eventCatalog.templates.forEach((template) => {
   const resolved = E.resolveMapEvent(fixture, template.choices[0].id);
   assert(resolved && (resolved.success || resolved.duplicate || resolved.reason), "map-event template has no canonical resolver result: " + template.id);
   assert(!fixture.pendingMapEvent || fixture.pendingMapEvent.status !== "pending", "map-event template remained pending: " + template.id);
+
+  // Every authored template with a cooldown must enforce that cooldown at
+  // the producer boundary; a second pending instance must not bypass it.
+  if (Number(template.cooldownDays || 0) > 0 && resolved.success) {
+    fixture.pendingMapEvent = { id: template.id + ":cooldown", eventId: template.id, nodeId: fixture.locationId, status: "pending", choices: template.choices.map((choice) => ({ ...choice })) };
+    const replay = E.resolveMapEvent(fixture, template.choices[0].id);
+    assert(!replay.success && replay.reason, "map-event cooldown was bypassed: " + template.id);
+  }
+});
+
+// N45-N50: every combat entity in the canonical monster catalog must expose
+// a usable combat producer and preserve the three HP-ratio action bands.
+const combatCatalog = Object.keys(E.entityCatalog()).filter((entityId) => {
+  const probe = E.combatEntity(make("combat-catalog-shape:" + entityId), entityId);
+  return probe && Number(probe.hpMax) > 0;
+});
+assert(combatCatalog.length >= 3, "combat entity catalog is unexpectedly empty");
+combatCatalog.forEach((entityId) => {
+  [
+    ["basic", 0.8],
+    ["special", 0.5],
+    ["desperation", 0.2]
+  ].forEach(([expected, ratio]) => {
+    const fixture = make("combat-catalog:" + entityId + ":" + expected);
+    const info = E.combatEntity(fixture, entityId);
+    assert(info && info.hpMax > 0, "combat producer missing catalog entity: " + entityId);
+    assert(E.spawnCombatEntity(fixture, entityId), "combat spawn rejected catalog entity: " + entityId);
+    fixture.enemies[entityId] = Math.max(1, Math.floor(info.hpMax * ratio));
+    assert.strictEqual(E.monsterAction(fixture, entityId), expected, "monster action band drifted: " + entityId + ":" + expected);
+  });
 });
 
 // N3-N10: combat and pending-departure boundaries must reject unsafe actions
@@ -144,4 +174,4 @@ assert(X.resolveCaveChallenge(cave, "sealed_ward").success);
 assert(Object.values(cave.rewardLedger || {}).some((entry) => String(entry.key).includes("cave_abode:")), "cave completion receipt missing");
 assert.strictEqual(X.resolveCaveChallenge(cave, "sealed_ward").success, false, "cave completion replay was not rejected");
 
-console.log("OK: N3-N54 behavior matrix (combat/departure, receipts, findings, hidden path, event cooldown, competitor catalog, cave sequence)");
+console.log("OK: N3-N54 behavior matrix (" + eventCatalog.templates.length + " map-event templates, " + combatCatalog.length + " combat entities, cooldown/action bands, combat/departure, receipts, findings, hidden path, competitor catalog, cave sequence)");

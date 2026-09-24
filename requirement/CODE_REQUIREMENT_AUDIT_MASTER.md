@@ -2866,3 +2866,13 @@ Evidence manual browser run: local Chrome tab `http://127.0.0.1:4173/`, modal re
 | Runtime/UI canonical wave | DA SUA | Stance picker, canonical prompt-transition helpers, companion/rumor/discovery read models, technique trial archive and reward preview are integrated. Full regression remains **42/42 PASS**, including requirement validation and diff check. |
 | Browser file import and refreshed stance click-through | SỬA MỘT PHẦN | Browser reached the native file chooser and prior technique Prepare confirmation; the current connector rejected `setFiles()` with `Not allowed`, so valid import and post-change stance click-through are not promoted to closed. |
 | Overall audit | SỬA MỘT PHẦN | All newly implemented runtime groups are backed by dedicated probes, but the explicit browser/file-persistence gaps and exhaustive modal/action variants remain open. |
+
+## Status override - N45-N50 catalog producer matrix 2026-09-24
+
+| Scope | Status mới | Evidence / phạm vi còn mở |
+|---|---|---|
+| N45-N50 / map-event cooldown producers | ĐÃ SỬA | `verify_n3_n54_behavior.js` duyệt toàn bộ 5 map-event templates canonical; mỗi template được resolve qua receipt lifecycle và template có `cooldownDays` được kiểm tra không thể bypass bằng pending instance thứ hai. |
+| N45-N50 / monster catalog action bands | ĐÃ SỬA | Cùng probe duyệt toàn bộ 9 combat entities có `hpMax` hợp lệ; mỗi entity được spawn qua `combatEntity`/`spawnCombatEntity` và kiểm tra độc lập ba band `basic`, `special`, `desperation` của `monsterAction`. |
+| N3-N54 aggregate | SỬA MỘT PHẦN | Runtime catalog/producer matrix đã đầy đủ hơn; browser clue/action variants và exhaustive legacy one-to-one mapping vẫn mở, nên không nâng aggregate. |
+
+Evidence: `node tools/verify_n3_n54_behavior.js` PASS — `5 map-event templates`, `9 combat entities`; full regression sẽ được chạy lại sau override này.
