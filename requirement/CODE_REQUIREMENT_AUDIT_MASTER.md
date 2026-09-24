@@ -2923,3 +2923,13 @@ Evidence: `node tools/verify_audit_deep.js` PASS; không tạo mutation learning
 | N3-N10 aggregate | SỬA MỘT PHẦN | Combat/departure priority đã có fixture; các legacy encounter/action ID và browser click-through còn mở. |
 
 Evidence: `node tools/verify_n3_n54_behavior.js` PASS; thay đổi dùng resolver priority canonical trong `js/engine.js`.
+
+## Status override - canonical context action legacy matrix 2026-09-24
+
+| Scope | Status mới | Evidence / phạm vi còn mở |
+|---|---|---|
+| N3-N22 / base + combat action dispatcher | ĐÃ SỬA | `verify_action_dispatch_matrix.js` nay thu cả `contextState().actions` cùng expansion actions; 49 action ID visible được chạy trên save clone qua `submitActionId()`, gồm combat attack/skill/flee, utility, movement và pending-state variants. Không còn action visible nào trả unknown/unsupported dispatcher. |
+| N33-N54 / pending map/cave/hidden action dispatcher | ĐÃ SỬA | Cùng matrix chạy các context pending map-event, cave, pursuit và hidden-realm action producer qua canonical dispatcher; unknown-action rejection và throw rollback vẫn được assert. |
+| N3-N22, N33-N54 aggregate | SỬA MỘT PHẦN | Runtime producer/dispatcher coverage đã đóng; browser click-through, file persistence và exhaustive legacy UI variants vẫn mở. |
+
+Evidence: `node tools/verify_action_dispatch_matrix.js` PASS — `49 visible actions`; matrix không thay đổi state fixture dùng chung.
