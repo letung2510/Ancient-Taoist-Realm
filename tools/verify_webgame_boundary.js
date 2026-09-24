@@ -1,0 +1,13 @@
+"use strict";
+const assert = require("assert");
+const fs = require("fs");
+const path = require("path");
+const root = path.join(__dirname, "..");
+const app = fs.readFileSync(path.join(root, "webgame", "app.js"), "utf8");
+const contract = fs.readFileSync(path.join(root, "webgame", "CANONICAL_BOUNDARY.md"), "utf8");
+assert(contract.includes("isolated visual micro-runtime"));
+assert(!/Math\.random\s*\(/.test(app), "webgame must not use ambient entropy");
+assert(app.includes("co-di-dien-visual-v1"), "webgame storage namespace changed");
+assert(app.includes("function webRandom"), "webgame deterministic random boundary missing");
+assert(!/GameEngine|GameExpansion|window\.parent|indexedDB/.test(app), "webgame must not mutate canonical runtime");
+console.log("OK: webgame canonical boundary (isolated, deterministic, non-importable)");

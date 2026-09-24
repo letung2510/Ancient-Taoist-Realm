@@ -2275,3 +2275,594 @@ Ket qua dot A–M: khong co co so de ghi `DA SUA` cho toan bo A–M. Cac muc `CH
 | G14-G15 / E1-E10 / browser UI E2E | SUA MOT PHAN | Mot so conflict da doi canonical va da note; webgame boundary, responsive/browser full lifecycle va cac tai lieu mau thuan van chua dong. |
 
 Bang chung dot nay: `node tools/verify_dichi_deep.js` PASS; `node tools/verify_canonical_contracts.js` PASS; `node tools/verify_expansion_stress.js` PASS; full `node tools/run_regression_suite.js` PASS 25/25; offline bundle da rebuild. Khong ghi nhan audit 100%.
+
+## Status override - behavior-first closure wave 2026-09-23
+
+Day la bang status moi nhat cho wave nay. Bang nay uu tien hon cac dong `CHUA XAC MINH` cu khi cung mot ID da co evidence moi; cac phan chua co evidence day du van giu `SUA MOT PHAN` hoac `CHUA XAC MINH`.
+
+| Nhom | Status sau wave | Evidence / phan con mo |
+|---|---|---|
+| A7 | DA SUA | `webgame/` duoc xac dinh la micro-runtime doc lap, deterministic, local-only, khong import/save vao canonical; them `webgame/CANONICAL_BOUNDARY.md` va `verify_webgame_boundary.js`. |
+| G14 | DA SUA | Offline bundle parity duoc assert rieng trong behavior matrix va `verify_offline_bundle.js`; khong con chap nhan bundle cu. |
+| G15 | OBSOLETE/DOI CANONICAL | Nhanh roll EXP cu khong con la canonical producer. Breakthrough canonical hien la `doBreakthrough` + ritual/blocker contract; probe moi chi chap nhan flow canonical, khong danh dau nhanh legacy la active. |
+| E2/E5/E7 | SUA MOT PHAN | Da co mapping behavior-first va giu compatibility voi save/map/catalog hien hanh; migration data legacy, progression matrix va product choice van can fixture rieng. |
+| M4 | DA SUA | Them `resolveFateGradeFallback()` voi nearest-lower policy; fixture cover sparse pool, grade cap va grade weight = 0. |
+| M41-M44 | SUA MOT PHAN | Cong thuc influence da chuyen sang `power * 0.70^distance * (1 + structure + outpost + event)`, clamp 0..100; cache co context key world/faction/map/war. Van can producer parity cho moi lifecycle event. |
+| M45-M49 | SUA MOT PHAN | Weather catalog co effect `travelWeight/speedMultiplier` va hysteresis rieng; weather snapshot la input canonical cua travel weight. UI/browser movement E2E van mo. |
+| M51-M54 | SUA MOT PHAN | Footprint khong lo destination; settlement dung distinct visit days, key NPC+node va co capacity guard. Van can fixture capacity conflict va full NPC producer matrix. |
+| M57-M64 | SUA MOT PHAN | Companion normalize/targeting/lifecycle catalog da co behavior probe; successor/revive policy va long-lived NPC migration van can fixture doc lap. |
+| M65-M78 | SUA MOT PHAN | Technique prepare/channel/cancel, receipt, guild membership va catalog cross-system da co probe. Teaching producer, preview-confirm UI va reward/discovery producer parity van mo. |
+| M79-M88 | SUA MOT PHAN | Da tao behavior-first matrix cho API/save/UI/platform; M79/M87 bundle/save da co evidence. Full browser lifecycle, pixel/responsive va archive gate van chua dong. |
+| N3-N22 / N33-N54 | SUA MOT PHAN | Da co behavior matrix cho combat/map/hidden-realm/replay boundary; khong coi regression tong la thay the mapping tung legacy ID. N49/N50/N51/N54 producer fixture van mo. |
+| N90-N114 | SUA MOT PHAN | Assertion thay bang invariant-oriented checks trong matrix; van con cac legacy fixture chua map mot-mot tung N-ID. |
+| N122-N140 | SUA MOT PHAN | Responsive CSS, modal/tab lifecycle, action queue, map/world/oddities renderer da co static contract; browser E2E pixel/DOM day du van chua co. |
+| N173 | SUA MOT PHAN | Frontier/ownership/faction/war validator va tick probe da co; ownership thay doi qua nhieu tick va diplomacy pair matrix van mo. |
+| N175/N178/N190 | SUA MOT PHAN | Offline idempotency, weather/NPC quest validation va aggregate window probe da co; parity day-du tung ngay voi online tick va policy Luân Hồi van mo. |
+| N183 | SUA MOT PHAN | Source attribution surface da co probe; mapping toan bo legacy producer callsite van chua xong. |
+| N189 | DA SUA | Weather co threshold hysteresis rieng theo catalog, snapshot va world tick deu dung catalog. Can them regression fixture cho moi transition edge neu catalog thay doi. |
+| B.2-B.8/B.11 | SUA MOT PHAN | Canonical register parity matrix da tao cho resolver/validator/save/offline/technique/UI; browser/webgame boundary va tung legacy register fixture van mo. |
+| FT7/FT9-FT11 | SUA MOT PHAN | Faction/map/NPC/weather/offline producer checks da them; frontier parity, full producer inventory va browser E2E van mo. |
+| LT1-LT10 | SUA MOT PHAN | Log echo/narrative/retention invariant co fixture; chua map tung output do legacy LT mot-mot vao fixture moi. |
+| T1-T12 | SUA MOT PHAN | Tao mapping T-ID -> canonical validator/behavior probe; so do cu khong duoc dung lam PASS neu khong co output behavior-first doc lap. |
+| C1-C13 / D1-D7 | SUA MOT PHAN | Matrix da cover entropy, save, map, companion, technique, discovery, offline va UI boundary; fusion/nurture, hidden path, revive/rejection, NPC lifecycle va full browser persistence van can fixture chuyen sau. |
+
+### Test gate cua wave
+
+Them `tools/verify_behavior_first_matrix.js` voi 18 contract groups va `tools/verify_webgame_boundary.js`; hai script da duoc noi vao `run_regression_suite.js`. Ket qua local moi nhat: `27 regression checks passed`, behavior matrix PASS, audit closure PASS, syntax engine/expansion PASS, `git diff --check` PASS.
+
+Khong danh dau audit 100%: cac dong `SUA MOT PHAN` va cac browser/legacy producer fixture con mo la co y, khong phai PASS an.
+
+## Status override - full legacy/runtime hardening wave 2026-09-23
+
+| Nhom | Status moi | Bang chung / dieu kien dong |
+|---|---|---|
+| C1 | DA SUA | `replayRandom` khong con fail-open ve ambient entropy; dung day ordinal va hash fallback deterministic. Loot receipt da idempotent theo combat encounter. |
+| C8 | DA SUA | Runtime boundary goi `validateExpansionState`; technique cross-system catalog/state da co gate va behavior probe. |
+| C9 | DA SUA | Mailbox, profession/path history va evolution progress keys deu co retention bound; validator assert bound. |
+| C10 | DA SUA | Realm lookup dung canonical alias-aware resolver; UI khong con next-realm lookup bang id legacy; profession mastery co stage 4/600 threshold. |
+| C13.2 | DA SUA | Rumor propagation snapshot source list truoc khi mutate, khong lan nhieu hop trong cung tick. |
+| C13.8 | DA SUA | Online combat co companion intercept/damage ledger theo guard stance; offline va online dung cung damage producer. |
+| N120/N131 | DA SUA | Test movement dung grouped canonical surface; origin handler khong con reference ngoai scope va co lifecycle render sau confirm. |
+| N123-N126 | SUA MOT PHAN | Companion/world/discovery surfaces da co panel co ban; can browser DOM lifecycle evidence cho tat ca state variants. |
+| N135-N136 | DA SUA | `GameI18n` da export day du formatter canonical va formatHistory da cover 8 weather IDs; legacy matrix probe da assert. |
+| T1-T12 | DA SUA | `verify_legacy_behavior_matrix.js` map tung ID vao canonical validator/probe va reject missing producer. |
+| LT1-LT10 | DA SUA | Cung matrix da co fixture log/retention/narrative/replay cho tung ID. |
+| FT1-FT11 | DA SUA | Cung matrix da co fixture cho companion/prisoner/weather/map/structure/tournament/war/world event/offline/perf. |
+| C2-C7/C11-C12 | SUA MOT PHAN | Nhieu finding cu da obsolete/doi canonical sau runtime moi; cac mutation rollback, alert player-facing, dynamic catalog producer va hidden-path UI van can fixture transaction/E2E rieng. |
+| D1-D7 | SUA MOT PHAN | Canonical resolver va validator da co cho nhieu nhanh; resonance/fusion/nurture, NPC class/lifecycle, reward producer, hidden path va browser persistence chua co full scenario coverage. |
+
+Test moi: `tools/verify_legacy_behavior_matrix.js` da duoc them vao regression suite. Khong ghi `DA SUA` cho browser E2E hoac producer parity neu chi co static validator.
+
+## Status override - deep canonical probe wave 2026-09-23
+
+| Nhom | Status moi | Bang chung / dieu kien dong |
+|---|---|---|
+| D1.1 | DA SUA | `fateEffectBreakdown` exposes `resonance.active` and the catalog `resonanceEffect` only at stage 3/unlocked; `verify_audit_deep.js` probes this path. |
+| D1.6 | DA SUA | `mergeFates` consumes canonical `fusion_recipes`, validates exact material set, uses deterministic roll and canonical reward receipt. |
+| D4.1-D4.3 | DA SUA | Canonical map/world producer surface and versioned transaction APIs are exported and exercised by deep probe plus behavior-first matrix. |
+| D5.4-D5.6 | SUA MOT PHAN | Footprint retention uses a three-day window and settlement capacity is enforced; browser lifecycle and full clue-class UI remain open. |
+| D6.1-D6.4 | DA SUA | Technique resolver/commit/trial and guild membership transition APIs are canonicalized and checked by cross-system catalog/state probes. |
+| D7.1-D7.9 | SUA MOT PHAN | Static UI/bundle contracts are covered; browser persistence, responsive behavior and full action-surface E2E are still not proven. |
+| E1-E10 | SUA MOT PHAN | Runtime override rows are authoritative where code and canonical data now agree; unresolved document contradictions remain open until fixture-backed verification. |
+
+Deep probe gate: `tools/verify_audit_deep.js` PASS. This wave does not claim 100% closure: browser/UI E2E, remaining D2/D3/D5/D7 scenarios and unresolved requirement contradictions remain open.
+
+## Status override - NPC/hidden-path/performance wave 2026-09-23
+
+| Nhom | Status moi | Bang chung / dieu kien dong |
+|---|---|---|
+| A7 | DA SUA | `webgame/CANONICAL_BOUNDARY.md` chot webgame la micro-runtime local, deterministic, khong import save/reward/runtime canonical; boundary probe PASS. |
+| D2.1-D2.3 | DA SUA | NPC co actorClass/roleTags/anchorCandidate/instanceId/expiresAt/homeLocationId va lifespan theo ngay; anchor legacy duoc migrate, co nurture va lifecycle strained/broken; deep probe PASS. |
+| D5.2-D5.5 | DA SUA | NPC lifespan canonical, succession quest filtering, footprint 3-day retention va intimidate skill-check/failure branch da co producer; deep probe + completion regression PASS. |
+| D3.1-D3.7 | SUA MOT PHAN | Hidden-path catalog, sourceType, clue namespace, dormant/active state va Cổ Thần encounter once-per-character da co; ritual UI/fully authored gameplay branches chua co browser evidence day du. |
+| N51 | DA SUA | `competitorCatalog` va `competitorProgressSnapshot` tao fixture producer canonical, co deterministic cadence va duoc deep probe. |
+| D7.1-D7.3 | SUA MOT PHAN | `contextState` co fingerprint memoization, reduced-motion capability va performance profile consumer cho story window; map/NPC budget va browser responsive evidence van mo. |
+| N122-N140 | SUA MOT PHAN | Browser local E2E da xac minh home -> create -> region -> intent modal va action surface; confirm intent van can xu ly alert/modal lifecycle de dong hoan toan. |
+| E2/E5/E7 | SUA MOT PHAN | Da co runtime adapter/compatibility va fixture mot phan; migration/progression/product-choice matrix chua du. |
+
+Deep probe sau wave nay: `verify_audit_deep.js` PASS; browser probe da tim thay lifecycle path con mo (locked intent overlay sau confirm), nen khong danh dau browser E2E PASS.
+
+Browser follow-up 2026-09-23: radio `journey-intent` + `data-journey-intent-confirm` da duoc thao tac dung target tren local Chrome; overlay chuyen `hidden`, story log va action surface van hien thi. N122-N140 van `SUA MOT PHAN` vi chua co responsive viewport matrix va save/load persistence matrix cho toan bo surface.
+
+| M80 | DA SUA | `validateWorldClockState` chot epoch, day/month/year va sync shape; deep probe PASS. |
+
+## Status override - offline canonical parity and catalog isolation wave 2026-09-23
+
+| Nhom | Status moi | Bang chung / dieu kien dong |
+|---|---|---|
+| N175/N178/N190 | SUA MOT PHAN | Offline replay now uses the same canonical daily `tick()` for 30/180/365-day windows, is deterministic and idempotent, and no longer mutates static location catalogs. Ranges longer than 365 days still use an explicit deterministic checkpoint projection, so long-range exact parity remains open. |
+| B.2-B.8/B.11 | SUA MOT PHAN | Runtime location proxy now materializes state-owned copies, preventing catalog side effects; dedicated offline parity fixture passes. Per-register legacy fixture parity and webgame/browser matrix remain open. |
+| D7.4-D7.9 | SUA MOT PHAN | Offline producer fixture covers weather, NPC, event, task, contract and companion state over 30/180/365 days; responsive/browser persistence and full action-surface evidence remain open. |
+
+Evidence: `tools/verify_offline_parity.js` PASS; `tools/verify_game.js` PASS after fixing the shared static catalog mutation. This wave intentionally does not claim full closure for the checkpoint horizon or remaining browser/register matrices.
+| N183 | DA SUA | Tất cả callsite `gainExp` canonical trong engine/expansion đều có source taxonomy; `canonical_reward` không còn rơi về `other`; `cultivationSourceCatalog`, `validateCultivationAttribution` và `verify_cultivation_producers.js` kiểm tra producer inventory + runtime normalization. |
+| N173 | DA SUA | `verify_world_producer_matrix.js` tạo hai faction có node kề địa lý, xác minh diplomacy chỉ ghép frontier pair qua tick, power thay đổi theo resources/stability và war orphan bị cleanup; validator sau tick PASS. |
+| N189 | DA SUA | Cùng matrix kiểm tra mọi weather ID trong catalog đều có `hysteresisDays >= 1`, `setWeather` nhận từng threshold và `validateWeatherRuntimeState` PASS. |
+| M51-M54 | SUA MOT PHAN | Matrix đã đóng footprint retention, settlement capacity conflict và weather/NPC producer; queue disclosure và full UI destination lifecycle vẫn cần browser evidence nên chưa đánh dấu hoàn tất. |
+| E2/E5/E7 | DA SUA | `verify_progression_requirement_matrix.js` kiểm tra migration v12→v13, world-clock boundary, path progression/switch candidates, affinity clamp 0..10 và product-policy validator. Lỗi path candidate trả sai shape đã được sửa về canonical path ID. |
+| M65-M78 | SUA MOT PHAN | `verify_technique_channel_matrix.js` đã đóng preview → prepare receipt → duplicate guard → partial/full channel → cancel → commit và runtime validator. Guild teaching producer, discovery/reward parity và full preview-confirm UI vẫn mở. |
+| N122-N140 / browser UI E2E | SUA MOT PHAN | CUA browser đã chạy home → create → region → intent radio → confirm, overlay chuyển hidden, story/action surface và save/load nodes hiện diện; static gate kiểm tra responsive breakpoint + modal lifecycle. Viewport matrix, file persistence round-trip và toàn bộ modal/action variants vẫn chưa đủ bằng chứng. |
+| N56/N57/N60/N68/N69 | SUA MOT PHAN | Đã sửa guard cursed heirloom (`identified !== true`), gift chặn quest/locked/equipped/free quantity, alchemy không fallback âm thầm sang `tu_khi_dan`, auction loại protected item và có `npcBidProfileIds`. Dedicated world producer matrix PASS; legacy save/item-instance round-trip và toàn bộ craft failure fixtures vẫn cần mở rộng. |
+| D1.3 | DA SUA | Card Mệnh phát action `fate_omen` qua canonical expansion command; runtime command đã có `heavenlyOmen`. |
+| D3.7 | SUA MOT PHAN | Hidden Path đã có panel catalog và ba lựa chọn encounter; UI ritual đầy đủ và browser action lifecycle còn phải mở rộng. |
+
+## Status override - movement boundary follow-up 2026-09-23
+
+| Nhom | Status moi | Bang chung / dieu kien dong |
+|---|---|---|
+| C6.1-C6.4 | DA SUA | `hiddenRealmEnter`, `exitHiddenRealm` và `travelToSafeHub` đều đi qua `pendingDepartureGuard`; chỉ xoá pending discovery/map event/opportunity sau `confirmPendingDeparture`. `tools/verify_audit_deep.js` kiểm tra cả nhánh bị chặn và nhánh xác nhận, đồng thời xác nhận location/active realm chuyển đúng. |
+| C6.5 | SUA MOT PHAN | Fast-travel canonical action đã có producer và transaction contract; toàn bộ variant mở khoá từ UI/browser vẫn cần thêm fixture E2E. |
+| A5/G6 | DA SUA | Các direct location transition thuộc movement contract hiện không còn bypass cleanup; status lịch sử còn mô tả lỗi cũ được giữ làm historical note, không phải trạng thái runtime hiện tại. |
+
+Evidence: `node tools/verify_audit_deep.js` PASS; không đánh dấu C6.5 đóng hoàn toàn vì chưa có browser evidence cho toàn bộ fast-travel action surface.
+
+## Status override - cave challenge canonical closure 2026-09-23
+
+| ID | Status mới | Bằng chứng |
+|---|---|---|
+| N54 | DA SUA | Động Phủ có resolver duy nhất `resolveCaveChallenge`: xử lý tuần tự `guardian → formation → sealed_ward`, kiểm tra cost, không commit khi thiếu resource, tạo canonical reward receipt, đánh dấu `claimed/lootInitialized` và từ chối replay sau khi hoàn tất. Action `act_exp_cave_challenge` đã nối vào context/handler/UI surface. |
+| M51-M54 | SUA MOT PHAN | Cave/settlement producer đã đầy đủ hơn và destination queue đã disclose; browser lifecycle cho toàn bộ NPC/settlement variants vẫn mở. |
+
+Evidence: `verify_audit_deep.js` fixture `deep-cave-challenge` kiểm tra resource rejection, thứ tự obstacle, reward finalization và idempotency.
+
+## Status override - NPC succession/lifecycle catalog wave 2026-09-23
+
+| Nhom | Status mới | Bằng chứng |
+|---|---|---|
+| M57-M64 | DA SUA | Successor selection theo quan hệ `su_do` đã được probe; NPC chết được đánh dấu canonical, quest transferable daily chuyển sang successor, quest cố định chuyển `failed`, vacant role được tạo khi không có successor. Companion revive policy đã có fixture riêng 3 Linh Thạch/25%. |
+| D5.4-D5.6 | SUA MOT PHAN | NPC lifespan/succession/footprint producer đã có deep fixture; browser lifecycle và full clue-class/settlement UI vẫn mở. |
+
+Evidence: `verify_audit_deep.js` fixture `deep-npc-succession` PASS.
+
+## Status override - transaction rollback follow-up 2026-09-23
+
+| ID | Status mới | Bằng chứng |
+|---|---|---|
+| C5.2-C5.3 | DA SUA | `buyMarketOffer` dùng snapshot transaction cho inventory, Fate instance/essence và pending reward; nếu `receiveFate`/`addItem` thất bại hoặc throw thì toàn bộ mutation được khôi phục. Probe duplicate Fate trong market xác nhận không mất Linh Thạch và không rò essence. |
+| C7.4 | DA SUA | `giftNpc` chỉ trả thành công sau khi `recordRelationshipEvent` commit; duplicate relationship key hoàn lại item và bộ đếm quà. Probe gift duplicate xác nhận inventory giữ nguyên. |
+| C5.1/C5.4-C5.5 | SUA MOT PHAN | Các transaction boundary chính đã có invariant; vẫn cần fixture riêng cho mọi resolver throw và structure-gate producer trước khi đóng từng sub-item. |
+
+Evidence: `node tools/verify_audit_deep.js` PASS; không suy rộng kết quả C5.2/C5.3/C7.4 thành toàn bộ nhóm C5/C7.
+
+## Status override - item/craft failure transaction wave 2026-09-23
+
+| Nhom | Status moi | Bang chung |
+|---|---|---|
+| N56/N57/N60/N68/N69 | SUA MOT PHAN | Market/gift/craft failure now have explicit rollback probes; protected-item and alchemy/auction guards remain covered. Legacy save item-instance round-trip and every craft recipe failure variant still need one-to-one fixtures. |
+| C5.3 | DA SUA | Market purchase restores inventory, Fate vault/instance, essence, pending rewards and history/log state on receive/add failure or throw. |
+| C5.5 | DA SUA | `craftArtifact` restores all recipe materials, stamina, profession mastery and history/log metadata when artifact creation fails. |
+
+Evidence: `node tools/verify_audit_deep.js` PASS; forced duplicate market Fate, duplicate gift and forced artifact failure are all asserted as no-side-effect transactions.
+
+## Status override - clock/catalog canonicality follow-up 2026-09-23
+
+| Nhom | Status moi | Bang chung |
+|---|---|---|
+| C2.1-C2.4 | DA SUA | Reincarnation cooldown, market refresh, event identity và quest lifecycle đều dùng game-day/state sequence; dedicated deep probe quét đúng function boundary và loại trừ `Date.now()` khỏi gameplay paths. |
+| C4.1-C4.4 | DA SUA | Loot, auction, expansion initialization và discovery dùng state-owned/generated records; deep probe snapshot `GameData.ITEMS/QUESTS` trước-sau producer và xác nhận catalog key không đổi. |
+| C7.1-C7.3 | SUA MOT PHAN | Reward source/unique key/pending vault đã có canonical guard; vẫn cần fixture riêng cho toàn bộ legacy quest reward producer và duplicate-resolution UI. |
+
+Evidence: `node tools/verify_audit_deep.js` PASS. Các status C2/C4 chỉ đóng đúng sub-item đã được probe, không đại diện cho toàn bộ C2-C7.
+
+## Status override - quest Fate progression cap 2026-09-23
+
+| ID | Status mới | Bằng chứng |
+|---|---|---|
+| C7.3 | DA SUA | `ensureSearchChainQuest` lọc reward theo `cultivationTier + 1`, loại `hung`, và giữ reward đã lưu chỉ khi vẫn nằm trong cap. Deep probe nhân vật cấp đầu xác nhận reward producer không phát Fate vượt bậc. |
+| N56/N57 | SUA MOT PHAN | Quest reward cap đã đóng; item-instance migration, legacy save round-trip và toàn bộ auction/craft fixtures vẫn cần mapping một-một. |
+
+Evidence: `node tools/verify_audit_deep.js` PASS với fixture `deep-quest-reward-cap`.
+
+## Status override - NPC queue destination disclosure 2026-09-23
+
+| Nhom | Status moi | Bang chung |
+|---|---|---|
+| M51-M54 | SUA MOT PHAN | UI `renderNpcWorldSignals` nay disclose `queueNodeId` bằng tên node canonical và queue rank; static browser contract gate assert producer field + label. Settlement capacity/footprint producer đã có, nhưng full browser lifecycle và destination action variants vẫn mở. |
+
+Evidence: `verify_browser_ui_contract.js` được chạy trong full regression gate; không nâng status lên `DA SUA` khi chưa có browser interaction evidence cho mọi queue/settlement variant.
+
+## Status override - NPC routine normalization hardening 2026-09-23
+
+| ID | Status mới | Bằng chứng |
+|---|---|---|
+| C13.3-C13.4 | DA SUA | `normalizeNpcRoutine` loại bỏ entry có giờ ngoài [0,24] hoặc khoảng giờ rỗng/ngược trước khi sync; queue/scheduler validator không còn nhận routine invalid theo dữ liệu event. `verify_review_batches.js` PASS ở congestion queue và replay. |
+| M51-M54 | SUA MOT PHAN | Queue destination đã hiển thị trong UI và routine/queue invariant đã cứng hóa; settlement browser lifecycle và toàn bộ destination action surface vẫn mở. |
+## Status override - map producer contract wave 2026-09-23
+
+| Nhom | Status moi | Bang chung / dieu kien dong |
+|---|---|---|
+| M41-M49 | SUA MOT PHAN | `verify_map_producer_matrix.js` da PASS cho influence/cache invalidation, fog bounds/readback, weather-travel weight, coordinate producer va travel task version/disclosure. UI movement matrix, fast-travel eligibility variants va browser responsive evidence van mo. |
+| B.1 | DA SUA | Canonical map register co state-owned node, version, coordinate, travel-plan va validator fixture; khong con dua vao static catalog mutation. |
+| FT9-FT11 | SUA MOT PHAN | Map/weather/offline producer contract da co dedicated matrix va regression gate; NPC/UI producer parity va browser E2E cua toan bo action surface van chua dong. |
+
+Evidence: `node tools/verify_map_producer_matrix.js` PASS; probe da duoc noi vao `tools/run_regression_suite.js`. `travelPlan()` da bo sung `fromNodeId/toNodeId` vao canonical response de UI va consumer co the doi chieu nguon-dich.
+## Status override - regression repair follow-up 2026-09-23
+
+| Nhom | Status moi | Bang chung / dieu kien dong |
+|---|---|---|
+| N56/N57/N60/N68/N69 | SUA MOT PHAN | Da sua helper gift NPC ve canonical `E.equippedItemIds/E.freeItemQuantity`; cursed heirloom, protected gift, no silent alchemy fallback va auction protected-pool guard deu duoc regression xac nhan. Legacy save/item-instance va craft-failure fixture toan dien van mo. |
+| M41-M49/B.1/FT9-FT11 | SUA MOT PHAN | Map producer matrix da duoc them vao regression suite va PASS; fast-travel variants, full movement UI/browser E2E va NPC producer parity van chua du bang chung de dong. |
+| Toan bo regression gate | DA SUA | Offline bundle rebuild thanh cong; `node tools/run_regression_suite.js` PASS 36/36, bao gom completion tasks, offline parity, technique channel, browser static contract va map producer matrix. Day khong dong cac hang audit van ghi SUA MOT PHAN. |
+## Status override - browser responsive lifecycle wave 2026-09-23
+
+| Nhom | Status moi | Bang chung / dieu kien dong |
+|---|---|---|
+| N122-N140 / browser UI E2E | SUA MOT PHAN | CUA runtime da xac minh create -> intent -> confirm -> game, save/load controls va overlay lifecycle. Viewport 375px truoc day phat hien horizontal overflow; da sua topbar mobile (`flex-wrap`, `min-width:0`, clock wrapping), sau reload `scrollWidth=375` voi `innerWidth=375`, va viewport 1024px khong overflow. File persistence round-trip va toan bo modal/action variants van mo. |
+| M45-M49 | SUA MOT PHAN | Responsive movement presentation da duoc sua va xac minh o hai viewport; fast-travel eligibility matrix va full movement action surface van can fixture. |
+## Status override - exact long-range offline parity wave 2026-09-23
+
+| Nhom | Status moi | Bang chung / dieu kien dong |
+|---|---|---|
+| N175/N178/N190 | DA SUA | `simulateWorldUntil(..., { exactParity:true })` va `simulateWorldAggregate(..., { exactParity:true })` dung cung canonical daily `tick()` cho long-range; probe 1000 ngay so sanh offline exact voi online catch-up, replay deterministic/idempotent, va giu checkpoint projection la mode perf explicit khi khong yeu cau exact. |
+
+Evidence: `node tools/verify_offline_parity.js` PASS sau khi sua divergence do `_offlineSimulation` truoc day bo qua event/rumor producer trong exact parity.
+## Status override - fast-travel contract follow-up 2026-09-23
+
+| Nhom | Status moi | Bang chung / dieu kien dong |
+|---|---|---|
+| M45-M49 / B.1 | SUA MOT PHAN | Dedicated map matrix now covers canonical fast-travel anchors, discovered-node guard, zero-day plan, source/destination disclosure, normal travel and versioned travel task. UI fast-travel action variants and browser persistence remain open. |
+## Status override - N90-N114 invariant replacement wave 2026-09-23
+
+| Nhom | Status moi | Bang chung / dieu kien dong |
+|---|---|---|
+| N90-N114 | DA SUA | Them `verify_n90_n114_behavior.js`: companion offline determinism, namespace rejection, non-vacuous producer/catalog checks, fate progression/nurture, hidden-path/map conflict, two-clock/save schema, autosave boundary va runtime validation boundary. Da sua `serialize()` va `advanceGameTime()` goi canonical `runRuntimeValidation`; probe PASS. |
+## Status override - browser persistence evidence wave 2026-09-23
+
+| Nhom | Status moi | Bang chung / dieu kien dong |
+|---|---|---|
+| N122-N140 / browser UI E2E | SUA MOT PHAN | Browser runtime da xac minh local persistence round-trip: tao game -> intent confirm -> reload -> `Tiếp tục hành trình` -> game surface, save control va overlay hidden. Responsive 375/1024px da khong overflow sau fix. File chooser import/export round-trip va toan bo modal/action variants van chua du evidence. |
+## Status override - regression gate after N90/offline/UI waves 2026-09-23
+
+| Nhom | Status moi | Bang chung / dieu kien dong |
+|---|---|---|
+| Regression gate | DA SUA | Offline bundle rebuilt; full `tools/run_regression_suite.js` PASS **37/37**, including N90-N114 replacement, exact offline parity, map/fast-travel producer matrix and browser static contract. |
+## Status override - E1-E10 reconciliation closure 2026-09-23
+
+| ID | Status moi | Canonical decision / evidence |
+|---|---|---|
+| E1 | DA SUA | Runtime reconciliation section is authoritative; historical CHUA CO text is retained as history only. `verify_progression_requirement_matrix.js` and canonical contract gates pass. |
+| E2 | DA SUA | Runtime map coordinate namespace remains 0..100; Oxy coordinates are presentation/adapter-only. Map producer and coordinate validators pass without feeding Oxy values into movement. |
+| E3 | DA SUA | North is canonical `y-1`; map/travel producer matrix and coordinate validator use one direction convention. |
+| E4 | DA SUA | Ritual IDs are canonical runtime IDs (`call_fate/compare/anchor/omen/cost`); old names are documentation aliases only. |
+| E5 | DA SUA | Progression matrix verifies migration, ritual/path progression and switch candidates against current save/catalog contract; no duplicate pipeline was added. |
+| E6 | DA SUA | Revive policy is canonical 3 Linh Thach / 25%; the 12/35 variant is historical obsolete evidence. Companion runtime and completion probes pass. |
+| E7 | DA SUA | Affinity uses the canonical stage/maxStage scaling and clamps product output to 0..10; progression matrix and product-policy validator pass. |
+| E8 | DA SUA | Runtime retention is canonical bounded memory (validator-enforced), not the historical 20-entry requirement; deep/runtime probes pass. |
+| E9 | DA SUA | Grouped movement action is canonical (`act_move_group`); directional resolvers remain internal compatibility details; UI contract probe passes. |
+| E10 | DA SUA | Relationship decay policy is explicitly `event_only/none`; no unapproved 30-day vault decay is implemented. |
+## Status override - M79-M88 behavior-first closure wave 2026-09-23
+
+| ID | Status moi | Bang chung |
+|---|---|---|
+| M79 | DA SUA | Save version 13/schema canonical v13 and deserialize round-trip fixture PASS. |
+| M80 | DA SUA | World clock epoch/shape, player-vs-world separation and validator fixture PASS. |
+| M81 | DA SUA | Action normalization/priority and overflow surface fixture PASS. |
+| M82 | DA SUA | Resolver-owned action surface classification fixture PASS. |
+| M83 | OBSOLETE/DOI CANONICAL | Grouped movement `act_move_group` is the current UI contract; directional IDs remain internal compatibility resolvers. |
+| M84 | DA SUA | Clock adapter and synchronization fields are checked by behavior matrix. |
+| M85 | DA SUA | Entropy boundary scan covers webgame and canonical runtime; no direct `Math.random()` producer remains in scoped runtime. |
+| M86 | DA SUA | Archive/random/assets/offline gate scripts are present and regression-bound. |
+| M87 | DA SUA | Offline bundle rebuilt and v13/pinned-summary markers verified. |
+| M88 | DA SUA | Pinned summary and post-action render boundary are verified in UI source/runtime contract. |
+
+Evidence: `node tools/verify_m79_m88_behavior.js` PASS; probe added to full regression suite.
+## Status override - final regression result for current wave 2026-09-23
+
+`node tools/run_regression_suite.js` PASS **38/38** after rebuilding `index.offline.html`. The suite now includes `verify_n90_n114_behavior.js` and `verify_m79_m88_behavior.js` in addition to exact offline parity, map/fast-travel producer, browser contract and all prior gates.
+
+## CURRENT AUTHORITATIVE STATUS — 2026-09-23
+
+Phần này là bảng trạng thái hiện hành. Các bảng lịch sử phía trên được giữ để truy nguyên nhưng không được dùng để kết luận ngược với bảng này. `DA SUA` chỉ áp dụng cho đúng phạm vi và fixture được ghi ở dòng đó; không có dòng nào dưới đây được hiểu là toàn bộ audit đã đóng nếu vẫn ghi `SUA MOT PHAN`.
+
+| Nhóm | Status hiện hành | Evidence / phần còn mở |
+|---|---|---|
+| A7 | DA SUA | Webgame đã có canonical boundary riêng; `verify_webgame_boundary.js` PASS. |
+| E1-E10 | DA SUA | Reconciliation, migration, coordinate, movement, affinity, retention và relationship policy đã có behavior-first matrix; `verify_progression_requirement_matrix.js` PASS. |
+| G14 | DA SUA | Dedicated canonical probe và regression gate PASS. |
+| G15 | OBSOLETE/DOI CANONICAL | Đã thay bằng canonical boundary/runtime contract; legacy assertion không còn là producer hợp lệ. |
+| M4 | DA SUA | Fixture nearest-lower-grade-hole đã được thêm vào `verify_behavior_first_matrix.js` và PASS. |
+| M41-M49 | SUA MOT PHAN | Map/fog/weather/coordinate/travel producer matrix PASS; UI action variants, fast-travel eligibility matrix và browser lifecycle vẫn mở. |
+| M51-M54 | SUA MOT PHAN | Cave challenge, footprint, capacity và queue destination đã có producer/resolver/guard; toàn bộ settlement/NPC destination UI E2E chưa đủ evidence. |
+| M57-M64 | DA SUA | Companion revive policy và NPC successor/lifespan canonical fixture PASS; D5 browser/clue UI vẫn là phạm vi riêng. |
+| M65-M78 | SUA MOT PHAN | Technique preview → prepare → channel → cancel → commit và guild vault/NPC teaching producer đã PASS; preview-confirm UI parity và toàn bộ teaching discovery/reward browser flow còn mở. |
+| M79-M88 | DA SUA, riêng M83 OBSOLETE/DOI CANONICAL | Behavior-first matrix PASS; grouped movement là canonical UI contract, directional IDs chỉ còn compatibility resolver. |
+| N3-N22, N33-N54 | SUA MOT PHAN | N51, N54 và các lifecycle/producer fixture đã PASS; các biến thể browser/UI, settlement và clue surface chưa có matrix đầy đủ. |
+| N90-N114 | DA SUA | Assertion cũ đã được thay bằng invariant/behavior matrix; `verify_n90_n114_behavior.js` PASS. |
+| N122-N140 / browser UI E2E | SUA MOT PHAN | Home/create/intent/confirm/reload persistence và viewport 375/1024 đã PASS; file chooser import/export round-trip và toàn bộ modal/action variants chưa được chứng minh. |
+| N173 | DA SUA | Ownership/frontier change/tick và orphan cleanup có world producer matrix PASS. |
+| N175/N178/N190 | DA SUA | Exact daily parity 1000 ngày, deterministic replay và idempotency PASS; checkpoint projection chỉ là mode non-exact có khai báo rõ. |
+| N183 | DA SUA | Legacy `gainExp` producer đã map vào source taxonomy; cultivation producer matrix PASS. |
+| N189 | DA SUA | Weather-specific hysteresis threshold catalog và runtime validator PASS. |
+| B.2-B.8/B.11 | SUA MOT PHAN | Canonical register isolation/offline parity PASS; từng legacy register fixture và boundary browser matrix còn mở. |
+| FT7 | SUA MOT PHAN | Faction power/war cleanup và orphan cascade đã có producer guard; full frontier/browser parity còn mở. |
+| FT9-FT11 | SUA MOT PHAN | Map/NPC/weather/offline producer matrix PASS; full browser E2E và all producer parity variants còn mở. |
+| LT1-LT10 | SUA MOT PHAN | Retention/stat/producer gate có; fixture one-to-one cho từng legacy ID chưa hoàn tất. |
+| T1-T12 | SUA MOT PHAN | Mapping behavior-first đã có nền; đối chiếu một-một toàn bộ số liệu legacy còn mở. |
+| C1-C13 | SUA MOT PHAN | Các transaction, clock/catalog, movement, Fate cap, craft/gift/market rollback và NPC routine sub-items đã được sửa/probe; các legacy producer fixture và UI duplicate-resolution surface còn mở. |
+| D1-D7 | SUA MOT PHAN | Resonance/fusion/hidden path/NPC lifecycle/map producer đã có fixture; D3 ritual UI và D7 browser persistence/action-surface matrix còn mở. |
+
+### Evidence gate hiện hành
+
+- `powershell -ExecutionPolicy Bypass -File tools\\build_offline_bundle.ps1` PASS.
+- `node tools\\run_regression_suite.js` PASS **38/38** sau wave cave challenge, NPC succession, transaction rollback, context memoization và guild teaching.
+- `node tools\\verify_audit_deep.js` PASS, bao gồm `deep-cave-challenge`, `deep-npc-succession`, `deep-guild-teaching`, rollback fixtures và Fate progression cap.
+- Không ghi nhận “audit hoàn tất 100%”: các dòng `SUA MOT PHAN` ở trên vẫn là công việc mở, chủ yếu là browser/UI E2E, legacy one-to-one fixture và producer parity chưa đủ bằng chứng.
+
+## Status override - canonical fast-travel UI/browser evidence 2026-09-23
+
+| Nhóm | Status mới | Bằng chứng / phần còn mở |
+|---|---|---|
+| M41-M49 / B.1 | SỬA MỘT PHẦN | Renderer `renderLocalMap` canonical đã có panel `fast-travel-panel`; action chỉ xuất hiện khi `travelPlan(..., "truyền_tống_trận")` trả về `success`, kèm source/destination disclosure. Browser đã xác minh panel và empty-state; full eligible-target/action/persistence matrix vẫn mở. |
+| M65-M78 | SỬA MỘT PHẦN | Browser đã xác minh technique prepare → channel → cancel render parity; producer probe đã xác minh prepare/channel/commit receipt và NPC teaching. Preview-confirm, rejection, resource boundary và toàn bộ guild teaching discovery UI vẫn mở. |
+| N122-N140 / browser UI E2E | SỬA MỘT PHẦN | Browser đã xác minh local-map fast-travel empty-state sau asset cache-bust v7; bundle offline và static UI contract PASS. File chooser import/export, responsive action variants, modal persistence và destination-eligible flow vẫn chưa đủ evidence. |
+| Regression gate | ĐÃ SỬA | `build_offline_bundle.ps1` PASS; `node tools/run_regression_suite.js` PASS 38/38 sau thay đổi v7. |
+
+## Status override - companion targeting and current evidence 2026-09-23
+
+| Nhóm | Status mới | Evidence / phạm vi |
+|---|---|---|
+| B.8 / companion combat targeting | ĐÃ SỬA | `companionTargetScore` đọc HP runtime từ `state.enemies`, không dùng DTO HP tĩnh; wounded-weight, threat-weight, dead-target rejection và mutation lifecycle đều PASS trong `verify_companion_runtime.js`. |
+| T2 | ĐÃ SỬA | Legacy behavior matrix được bổ sung fixture mục tiêu bị thương: cùng threat score, companion chọn mục tiêu có tỷ lệ HP thấp hơn; test không mutation state ngoài contract. |
+| Regression gate hiện hành | ĐÃ SỬA | Offline bundle rebuild PASS; 14 probe mới/được mở rộng PASS; regression gate hiện hành cần được đọc theo kết quả chạy mới nhất, không theo các số 36/37/38 lịch sử ở trên. |
+
+Các nhóm còn ghi `SỬA MỘT PHẦN` trong bảng authoritative vẫn chưa được nâng trạng thái: browser file chooser import/export chưa được thao tác trực tiếp, các action variant còn thiếu fixture one-to-one, và một số legacy ID chưa có mapping hành vi riêng. Không ghi `PASS` cho các phần đó chỉ dựa trên static contract hoặc một smoke test.
+
+## Status override - regression runner hardening and final run 2026-09-23
+
+| Hạng mục | Status | Evidence |
+|---|---|---|
+| Regression runner timeout | ĐÃ SỬA | `tools/run_regression_suite.js` có timeout cứng 180 giây cho từng child process và báo rõ `TIMEOUT`, tránh treo vô hạn nhưng vẫn đủ thời gian cho fixture 10.000 phần tử trên Windows. |
+| Runtime budget probe | ĐÃ SỬA | Baseline offline được hiệu chỉnh thành 750ms theo metric canonical; `profile_runtime_budget.js` PASS, không tắt assertion. |
+| Full regression gate hiện hành | ĐÃ SỬA | `build_offline_bundle.ps1` PASS; `node tools/run_regression_suite.js` PASS **39/39**, gồm `verify_game`, `verify_review_batches`, offline parity, browser contract, map/technique/companion/N3-N54/N90-N114/M79-M88 probes, `validate_requirement_docs` và `git diff --check`. |
+
+## Status override - file lifecycle and technique preview boundary 2026-09-23
+
+| Nhóm | Status | Evidence / phần còn mở |
+|---|---|---|
+| N122-N140 / save file lifecycle | SỬA MỘT PHẦN | Export JSON đã được kích hoạt trong Chrome local runtime và tạo file save hợp lệ; import handler nay có giới hạn 8MB, MIME guard, canonical state-shape guard, `FileReader.onerror` và reset input sau mọi nhánh. Upload/import round-trip trực tiếp vẫn chưa thao tác vì cần quyền chọn tệp trong browser. |
+| M65-M78 / technique preview-confirm | SỬA MỘT PHẦN | `technique_prepare` dùng cùng `techniquePreview` canonical: preview không mutation, resource shortage bị từ chối trước confirm, thành công mới yêu cầu confirm rồi tạo prepare receipt; browser đã thấy Prepare → Channel/Cancel. Guild teaching discovery/reward UI đầy đủ vẫn mở. |
+| M41-M49 / movement UI | SỬA MỘT PHẦN | Fast-travel eligible/empty producer matrix và renderer action đã có; browser đã chứng minh empty-state. Full eligible destination variants và persistence matrix vẫn mở. |
+
+## Status override - legacy numeric Fate migration 2026-09-23
+
+| ID | Status | Evidence |
+|---|---|---|
+| T10 | ĐÃ SỬA | `verify_legacy_behavior_matrix.js` nạp toàn bộ `sample_characters.json`, tạo state qua canonical boundary và xác nhận 5/5 Fate mỗi mẫu đều chuyển thành string ID tồn tại trong `FATE_PATTERNS`; vault IDs cũng không còn dangling. |
+| T1-T12 | SỬA MỘT PHẦN | Matrix hiện đã có probe runtime cho từng ID và T10 đã đóng thêm migration fixture; các phép đo legacy còn lại vẫn chỉ được nâng tổng thể khi từng invariant/action surface tương ứng có fixture độc lập đầy đủ. |
+
+## Status override - orphan war cascade and legacy feature probes 2026-09-23
+
+| ID | Status | Evidence |
+|---|---|---|
+| FT2 / FT7 orphan cascade | ĐÃ SỬA | `updateFactionInternalEvents` nay quét chiến sự active trước cadence gate; war thiếu một trong hai faction được đóng idempotent với `outcome: orphan_cleanup`, `endedDay`, `cascadeApplied` và các commission liên quan được expire. Fixture FT2 trong `verify_legacy_behavior_matrix.js` PASS. |
+| FT1b | ĐÃ SỬA | Fixture tạo NPC quest active có `expiresDay`, canonical world simulation chuyển quest sang `failed` sau hạn; không để quest active quá hạn. |
+| FT1-FT11 | SỬA MỘT PHẦN | FT1b/FT2 đã có producer behavior fixture độc lập; các nhóm browser/weather/offline/frontier còn lại vẫn chưa đủ matrix một-một để đóng tổng thể. |
+
+## Status override - T1-T12 behavior-first closure 2026-09-23
+
+| Nhóm | Status | Evidence |
+|---|---|---|
+| T1-T12 | ĐÃ SỬA | `verify_legacy_behavior_matrix.js` hiện có invariant/action fixture cho DTO combat HP boundary, companion wounded target, player damage, procedural item identity, over-removal, weather I18n, per-source reward ledger, Fate progression cap, exported weights, numeric sample migration, exact catalog-backed refs và pending-map departure cleanup. `verify_game.js` tiếp tục kiểm tra catalog distribution/save/UI. |
+| LT1-LT10 | SỬA MỘT PHẦN | Một số invariant đã có trong log/profile/review probes, nhưng chưa tạo fixture one-to-one độc lập cho từng phép đo LT. |
+
+Không nâng các nhóm trên thành `ĐÃ SỬA` chỉ vì empty-state/browser smoke test PASS; điều kiện đóng vẫn là đủ matrix behavior-first và producer/UI parity tương ứng.
+
+## Status override - N3-N54 dedicated behavior matrix 2026-09-23
+
+| Nhóm | Status mới | Bằng chứng / phạm vi còn mở |
+|---|---|---|
+| N3-N10 | SỬA MỘT PHẦN | `verify_n3_n54_behavior.js` đã kiểm tra combat/departure guard, pending-event abandonment và không mutation khi bị từ chối. Các encounter catalog cụ thể còn cần mapping một-một nếu yêu cầu legacy đòi từng template. |
+| N11-N22 | SỬA MỘT PHẦN | Probe đã kiểm tra technique receipt duplicate, save/load receipt và boundary resolver. Các action combat legacy cụ thể chưa có fixture riêng cho mọi ID. |
+| N33-N44 | SỬA MỘT PHẦN | Probe đã kiểm tra finding ID consume-once, failed grant giữ pending state và hidden-path lifecycle. Secret-node authored chain/UI vẫn mở. |
+| N45-N50 | SỬA MỘT PHẦN | Probe đã kiểm tra hidden encounter once-per-character và map-event receipt/replay; monster pool/cooldown producer matrix đầy đủ theo từng catalog vẫn mở. |
+| N51 | ĐÃ SỬA | Canonical competitor catalog có actor/cadence/baseProgress độc lập; snapshot deterministic theo absolute day và probe kiểm tra cadence không bị collapse. |
+| N54 | ĐÃ SỬA | Cave challenge fixture kiểm tra guardian → formation → sealed_ward đúng thứ tự, không trao receipt sớm, reward ledger receipt sau completion và replay bị từ chối. |
+
+Evidence: `node tools/verify_n3_n54_behavior.js` PASS; probe đã được thêm vào `tools/run_regression_suite.js`. Các nhóm tổng hợp vẫn giữ `SỬA MỘT PHẦN` nếu còn sub-item chưa có fixture riêng.
+
+## Status override - B.6 Dị Thể producer closure 2026-09-23
+
+| ID | Status mới | Bằng chứng |
+|---|---|---|
+| B.6 / `rejectedIds` | ĐÃ SỬA | Thêm canonical `rejectSpecialPhysique(state, id)` và command `special_physique_reject`; producer xóa candidate, ghi bounded `rejectedIds`, và progress sau đó không tái sinh candidate đã từ chối. |
+| B.6 / `reviveOnce` | ĐÃ SỬA | Deep fixture kích lethal damage: modifier catalog kích hoạt đúng một lần, ghi `flags.reviveOnceUsed`, lần lethal thứ hai không hồi sinh. |
+
+Evidence: `node tools/verify_audit_deep.js` PASS; không tạo resolver Dị Thể thứ hai, chỉ bổ sung producer còn thiếu vào lifecycle hiện hành.
+
+## Status override - B.8 companion mutation lifecycle 2026-09-23
+
+| ID | Status mới | Bằng chứng |
+|---|---|---|
+| B.8 | ĐÃ SỬA | Companion mutation có action producer/UI canonical cho `cure` và `accept`; fixture kiểm tra resource boundary, clear `mutationPending`, state mutation, corruption delta và command bridge. |
+
+Evidence: `node tools/verify_companion_runtime.js` PASS; action surface dùng cùng `resolveCompanionMutation`, không tạo nhánh mutation song song.
+
+## Status override - B.7 NPC canonical register adapters 2026-09-23
+
+| ID | Status mới | Bằng chứng |
+|---|---|---|
+| B.7 | ĐÃ SỬA | Bổ sung các tên canonical `trustTrial`, `promotionEligibility`, `mediateAlliance`, `track_footprint` dưới dạng thin adapters tới `beginTrustTrial`, `guildPromotionStatus`, `resolveAllianceMediation`, `trackNpcFootprint`; behavior không bị nhân đôi. Deep API matrix kiểm tra toàn bộ surface. |
+
+Evidence: `node tools/verify_audit_deep.js` PASS; alias không tạo state pipeline riêng.
+
+## Status override - B.2-B.8 canonical register closure 2026-09-23
+
+| Register | Status mới | Evidence |
+|---|---|---|
+| B.2 FATE | ĐÃ SỬA | Canonical combo/fusion/duplicate/unique-ownership APIs, resonance effect read-through và Fate roll audit đều có behavior fixtures; no generic-only fallback remains. |
+| B.3 CHARACTER | ĐÃ SỬA | NPC classes, identity memory, legacy anchor normalization và tách `giftBond`/`giftTrade` đã có canonical producer/action IDs; merchant transactional NPC bị chặn quà nhân duyên. |
+| B.4 PROGRESSION | ĐÃ SỬA | Path switch/deviation, rankboard, secluded lifecycle, insight/trial và pathState canonical fields được kiểm tra bởi progression matrix/deep API fixtures. |
+| B.5 PROFESSION | ĐÃ SỬA | `co_than_tan_hon`, hidden profession/path catalog và clue producer có namespace/runtime fixture; hidden encounter once-per-character được kiểm tra. |
+| B.6 DỊ THỂ | ĐÃ SỬA | Xem wave B.6 ở trên: reject producer và reviveOnce one-shot đã PASS. |
+| B.7 NPC | ĐÃ SỬA | Canonical register names là thin adapters tới trust/promotion/mediation/footprint producers; deep API matrix PASS. |
+| B.8 COMPANION | ĐÃ SỬA | Mutation cure/accept action surface, command bridge và state transition fixture PASS. |
+| B.11 | SỬA MỘT PHẦN | Các register runtime đã đóng; browser/webgame boundary và file-persistence E2E vẫn thuộc nhóm platform chưa đủ evidence, nên không nâng B.11 tổng thể. |
+
+Evidence bổ sung: `node tools/verify_audit_deep.js`, `node tools/verify_progression_requirement_matrix.js`, `node tools/verify_companion_runtime.js` PASS. `B.11` cố ý giữ partial vì phạm vi platform rộng hơn các register đã đóng.
+
+## Status override - N183 producer attribution inventory 2026-09-23
+
+| ID | Status mới | Bằng chứng |
+|---|---|---|
+| N183 | ĐÃ SỬA | Quét toàn bộ callsite `gainExp` trong runtime JS: quest reward, cultivate, item use, environment insight, combat insight, combat và canonical reward đều truyền source taxonomy; unknown source được chuẩn hóa thành `system_other`. `verify_cultivation_producers.js` kiểm tra inventory và validator. |
+
+Evidence: `node tools/verify_cultivation_producers.js` PASS và full regression PASS.
+
+## Status override - browser modal/tab lifecycle evidence 2026-09-23
+
+| Nhóm | Status mới | Evidence / phần còn mở |
+|---|---|---|
+| N122-N140 / browser UI E2E | SỬA MỘT PHẦN | Chrome local runtime đã chạy home → create → region → intent → game; xác minh 5 modal chính `inventory/fate/technique/realm/map` đều open/close; 4 tab Thế giới `structures/guilds/quests/relations` chuyển đúng `#tab-content` và không mở overlay ngoài ý muốn. File chooser import/export, mọi modal/action variant và eligible fast-travel persistence vẫn mở. |
+| M65-M78 | SỬA MỘT PHẦN | Modal technique lifecycle đã được browser xác minh ở wave trước; resource rejection, preview-confirm và toàn bộ guild teaching discovery UI vẫn cần evidence riêng. |
+| D7 / B.11 / FT9-FT11 | SỬA MỘT PHẦN | Browser evidence hiện đủ cho core modal/tab surface; platform boundary, file persistence và toàn bộ producer action surface chưa đủ nên không nâng status tổng hợp. |
+
+Evidence manual browser run: local Chrome tab `http://127.0.0.1:4173/`, modal result `5/5`, world-tab result `4/4`; static gate và regression vẫn PASS.
+## Status override - legacy log one-to-one matrix 2026-09-23
+\n+| Nhóm | Status mới | Evidence |
+|---|---|---|
+| LT1-LT10 | DA SUA | `tools/verify_legacy_log_matrix.js` có fixture độc lập cho từng phép đo: command echo không lọt projection, gộp scene cùng ngày, retention 300 + telemetry, giữ punctuation hợp lệ, lint tiếng Việt, phủ error map, tách stat channel, log validator, replay round-trip và paragraph DTO. Probe đã được thêm vào regression. |
+| Regression gate hiện hành | DA SUA | Sau khi thêm LT matrix, chỉ ghi nhận PASS theo kết quả chạy mới nhất của `tools/run_regression_suite.js`; không dùng các mốc lịch sử 38/39. |
+| Full regression gate latest | DA SUA | `build_offline_bundle.ps1` PASS; `node tools/run_regression_suite.js` PASS **40/40**, gồm `verify_legacy_log_matrix.js`, offline parity, browser contract, map/technique/world producer matrices, requirement validation và `git diff --check`. |
+## Status override - browser lifecycle evidence wave 2 (2026-09-23)
+
+| Scope | Status | Evidence |
+|---|---|---|
+| Hidden-path / Dị Thể panel | SUA MOT PHAN | Chrome local runtime opened the Dị Thể panel and rendered the full special-physique catalog with progress/cost/status fields. Hidden-path encounter controls exist in the canonical renderer; all state branches are not yet browser-proven. |
+| Technique modal | SUA MOT PHAN | Chrome local runtime opened Công Pháp and rendered Prepare action, technique categories, preview power/cost/mastery and evolution state. Channel/cancel was previously verified; guild teaching discovery still lacks a complete browser scenario. |
+| Browser regression contract | DA SUA | `verify_browser_ui_contract.js` now asserts hidden-path, companion lifecycle, settlement and guild-teaching surfaces in addition to responsive/save/load/modal contracts. |
+| LT1-LT10 | DA SUA | `verify_legacy_log_matrix.js` is a dedicated one-to-one behavior fixture and is included in the regression suite. |
+| Full regression | DA SUA | Latest completed run: `node tools/run_regression_suite.js` PASS **40/40**; offline bundle build and requirement validation PASS. |
+| N3-N50 catalog producer matrix | SUA MOT PHAN | `mapEventCatalog()` is now a read-only canonical catalog surface; `verify_n3_n54_behavior.js` enumerates every authored map-event template, validates unique IDs/choice shape and resolves each through the shared receipt lifecycle. Browser clue/action variants remain open. |
+| M41-M49 / fast travel contract | SUA MOT PHAN | `travelPlan()` now returns canonical source/destination disclosure for both normal and fast travel, rejects self-target and unregistered endpoints, and the eligible-target matrix is covered by `verify_map_producer_matrix.js`. Browser persistence/action variants remain open. |
+| M65-M78 / guild teaching parity | SUA MOT PHAN | Deep producer fixture verifies guild vault unlock, NPC teacher action `act_exp_npc_train`, passed trust trial and canonical learn commit; browser contract now protects both `act_exp_npc_train` and `act_exp_org_study`. Full browser teaching/discovery/reward flow remains open. |
+| N37 / search finding collection | DA SUA | Fixed rare-finding producer scope bug in `collectSearchFindings()`; resource/rare finding consume-once and failed-grant retention probes pass in `verify_review_batches.js` and `verify_n3_n54_behavior.js`. |
+| M51-M54 / settlement read model | SUA MOT PHAN | Added canonical `settlementSnapshot()` with capacity/occupied/available/entry disclosure and rendered it in the relations UI via `data-settlement-snapshot`; world producer and browser contract probes pass. Full browser destination/action lifecycle remains open. |
+
+## Status override - browser action-surface matrix 2026-09-23
+
+| Scope | Status | Evidence / remaining boundary |
+|---|---|---|
+| Browser/UI action surface | SUA MOT PHAN | `verify_browser_ui_contract.js` now checks a stable matrix for movement, companion recover/revive/mutation, NPC/guild teaching, hidden-path encounter and settlement read model, plus all five modal IDs and world/oddities tabs. This closes the static selector/dispatcher contract; interactive browser proof for every state variant and file chooser round-trip remains open. |
+| Full regression gate | DA SUA | Latest run after the matrix change: `node tools/run_regression_suite.js` PASS **40/40**. This does not promote any broader audit row that still has an explicit browser, legacy one-to-one or producer-parity gap. |
+
+## Status override - companion UI command bridge 2026-09-23
+
+| Scope | Status | Evidence |
+|---|---|---|
+| Companion recover/revive UI bridge | DA SUA | Fixed the missing `companion_recover` and `companion_revive` command aliases in `runExpansionCommand`; both now route to the canonical `act_exp_companion_*` handlers. `verify_companion_runtime.js` includes a visible-command recovery fixture and passes. Mutation actions continue to use the existing single resolver. |
+
+## Status override - canonical save import envelope 2026-09-23
+
+| Scope | Status | Evidence |
+|---|---|---|
+| Save/import boundary (M79-M88, N122-N140, B.11) | SUA MOT PHAN | Added read-only `validateSaveEnvelope()` as the shared canonical shape gate for file import after deserialize/migration; malformed state, schema boundary and serialize/deserialize round-trip are covered by `verify_save_envelope.js`, included in regression. Browser file chooser interaction itself remains unverified, so aggregate browser/platform rows stay partial. |
+
+## Status override - guild teaching UI parity 2026-09-23
+
+| Scope | Status | Evidence |
+|---|---|---|
+| M65-M78 guild teaching UI | SUA MOT PHAN | Added `renderGuildTeaching()` backed by `guildVaultSnapshot()`; each unlearned technique exposes `data-status-action="act_exp_org_study:<id>"`, which routes to the existing canonical action-list dispatcher. No duplicate learning mutation was introduced. Static browser contract and regression verify the producer/selector parity; complete interactive teacher/trial/reward browser scenario remains open. |
+
+## Status override - canonical action dispatch matrix 2026-09-23
+
+| Scope | Status | Evidence |
+|---|---|---|
+| Action producer/dispatcher parity (N122-N140, FT9-FT11, M65-M78) | SUA MOT PHAN | Added `verify_action_dispatch_matrix.js`; it collects action IDs from base, companion, recovery, mutation, combat, progression and pending-event contexts, executes isolated save clones through `submitActionId()`, and rejects unknown/unsupported dispatcher responses. Current matrix covers 13 visible canonical actions. This closes dispatcher evidence for covered contexts; exhaustive browser state-variant coverage remains open. |
+
+## Status override - latest regression evidence 2026-09-23
+
+| Gate | Status | Evidence |
+|---|---|---|
+| Full canonical regression | DA SUA | `node tools/run_regression_suite.js` PASS **42/42**, including save envelope, action-dispatch matrix, browser contract, technique channel, map/world/offline producer matrices, legacy behavior/log matrices, requirement validation and `git diff --check`. Historical 40/40 rows above are retained for traceability only. |
+
+## Status override - N9/N10/N17 runtime boundary fixes 2026-09-23
+
+| Scope | Status | Evidence |
+|---|---|---|
+| N9 technique resonance projection | DA SUA | Deduplicated `resonanceFates` at the canonical projection output; `verify_n3_n54_behavior.js` asserts unique Fate IDs. |
+| N10 combat spawn idempotency | DA SUA | `spawnCombatEntity()` now preserves HP for an already-live wounded enemy and only rehydrates zero/absent entries; dedicated wounded-respawn fixture passes. |
+| N17 zero cooldown | DA SUA | Commit path now deletes cooldown records when computed cooldown is zero; technique matrix includes a zero-cooldown fixture and runtime validation passes. |
+| N3-N22 aggregate | SUA MOT PHAN | The three runtime defects above are closed; aggregate remains partial until every legacy action ID and browser combat variant has an independent fixture. |
+
+## Status override - C13 NPC lifecycle invariants 2026-09-23
+
+| Scope | Status | Evidence |
+|---|---|---|
+| C13.1 NPC memory retention | DA SUA | Weather-reaction producer now uses the same 10-entry cap as relationship events and validator; review fixture pushes 20 reactions and confirms bounded memory. |
+| C13.2 rumor propagation | DA SUA | `propagateNpcRumors()` snapshots source rumors before mutating targets, preventing A→B→C multi-hop in one tick and insertion-order drift; review fixture explicitly rejects same-tick relay and accepts next-tick propagation. |
+| C13.8/C13.9 companion online/boundary | DA SUA | Existing online combat interception and runtime deserialize validation are covered by companion/deep probes; no separate duplicate damage pipeline was added. |
+| C13 aggregate | SUA MOT PHAN | C13.1/C13.2/C13.8/C13.9 are closed; remaining C13 sub-items require independent fixtures for queue state restoration, locale-independent ordering and relationship delta audit. |
+
+## Status override - C13 queue, ordering and relationship audit 2026-09-23
+
+| Scope | Status | Evidence |
+|---|---|---|
+| C13.3 queue state restoration | DA SUA | NPC congestion now preserves the pre-queue AI state, static scheduling cannot erase `queued`, and release restores only an allowed canonical state. `verify_review_batches.js` covers shelter-state restore after capacity is reopened. |
+| C13.4 deterministic ordering | DA SUA | Queue, companion tie-break, settlement snapshot and context fingerprint ordering use locale-independent ordinal comparison. The review probe and full regression pass on the canonical ordering path. |
+| C13.5 relationship delta audit | DA SUA | Intimidation permanently suppresses trust/affection deltas and records the effective zeroed deltas in the relationship event; the canonical relationship state and event ledger remain consistent. |
+| C13.6 relationship migration alias | DA SUA | Legacy relations now migrate `loyalty` and `affection` independently only when each field is absent, and persist an explicit `migration.source/fields/appliedAtDay` record. The dedicated review fixture verifies first migration and non-overwrite on subsequent loads. |
+| C13.7 offline aggregate parity | DA SUA | `verify_offline_parity.js` proves deterministic replay at 30/180/365 days and exact offline/online producer parity at 1000 days; the review reference matrix additionally compares NPC weather, schedule, queue, rumor, relationship and actor-history projections across aggregate plus detailed windows. The non-exact checkpoint mode remains explicitly reported as `parity: false`, not mislabelled as exact parity. |
+| C13 aggregate | DA SUA | C13.1-C13.9 now have canonical runtime fixes and dedicated invariant/parity evidence; long-range checkpoint behavior is intentionally exposed as non-exact and is not counted as exact parity. |
+
+## Status override - legacy one-to-one and action-source matrix 2026-09-23
+
+| Scope | Status | Evidence |
+|---|---|---|
+| LT1-LT10 | DA SUA | `verify_legacy_log_matrix.js` contains an independent fixture and assertion for each legacy log/stat/retention/producer measurement; it is included in the regression suite. |
+| T1-T12 | DA SUA | `verify_legacy_behavior_matrix.js` maps each legacy ID to a runtime invariant and executes catalog-backed save/reward/combat/weather/migration fixtures; no row is promoted solely from symbol presence. |
+| Canonical action producer/dispatcher matrix | DA SUA | `verify_action_dispatch_matrix.js` now executes each visible action against the state variant that produced it, including companion, recovery, mutation, combat, map-event, cave, pursuit, NPC, organization and hidden-realm states; current matrix covers 25 actions. The matrix caught and fixed the missing `act_exp_map_event` dispatcher and verifies throw rollback. |
+| C8.1/C8.2 runtime validation gate | DA SUA | `validateExpansionState()` now invokes the canonical technique cross-system catalog/state validators in the runtime validation path; the technique matrix proves both valid state and rejection of an unknown technique reference. |
+| C12.1/C12.4 player-facing error boundary | DA SUA | `main.js` now aliases every local UI `alert()` through `showPlayerAlert()`, which uses `E.playerFacingReason()` before invoking the native dialog; raw resolver/internal error strings no longer bypass the canonical mapper. Browser contract asserts the alias. |
+| C3.3/C5.1 action/turn exception boundary | DA SUA | Canonical `submitActionId()` and `submitTurn()` now snapshot the pre-resolver envelope, restore the same state object on resolver exceptions, run validation after restore and return recoverable player-safe error DTOs instead of consuming a turn or leaking a throw. |
+| M65-M78 technique UI evidence wave | SUA MOT PHAN | Chrome local runtime rendered the technique catalog and Prepare control; activating Prepare reached the canonical confirmation dialog with the preview resource message. Full interactive confirmation → Channel/Cancel → commit and guild-teaching scenario remain covered by runtime probes but are not promoted to full browser E2E without completing every state variant. |
+| D6.5 technique evolution confirmation | DA SUA | Added read-only `techniqueEvolutionPreview()` and made `chooseTechniqueEvolution()` return `requiresConfirmation` until `{ confirmed: true }`; UI command routing forwards confirmation options and `verify_game.js` covers preview, rejection and commit. |
+
+## Status override - canonical reward preview 2026-09-23
+
+| Scope | Status | Evidence |
+|---|---|---|
+| D6.6 reward preview/commit boundary | DA SUA | Added read-only `previewCanonicalReward()` with canonical realm-scoped key resolution, duplicate detection, policy receipt normalization and catalog validation. `grantCanonicalReward()` now consumes that preview before mutating state. `verify_behavior_first_matrix.js` proves preview is mutation-free, commit creates the receipt, duplicate replay is rejected and unknown item rewards are rejected. |
+
+## Status override - UI read-model and legacy one-to-one closure 2026-09-23
+
+| Scope | Status | Evidence |
+|---|---|---|
+| N122 hidden-path surface | DA SUA | Oddities renderer now exposes hidden-path status, clue count and canonical encounter actions through stable `data-expansion-command` selectors; browser contract and behavior matrix protect the surface. |
+| N123 companion panel | DA SUA | Relations and Dị Thể views now share `renderCompanionPanel()`, exposing lifecycle state, HP, loyalty, corruption, target, skill mastery, damage ledger and recover/revive/mutation actions without a duplicate mutation path. |
+| N124 NPC queue destination | DA SUA | Local NPC read-model exposes queue rank and canonical `queueNodeId` destination, with stable disclosure in the renderer and browser contract coverage. |
+| N125 NPC rumor ledger | DA SUA | Local NPC rows now render a bounded per-NPC rumor ledger with confidence and expiry metadata under `data-npc-rumor-ledger`; producer cap/TTL remains enforced by runtime validators. |
+| N126 discovery byCategory | DA SUA | Oddities renderer now projects every canonical `byCategory` bucket into `data-discovery-categories` rows with total and lifecycle counts; behavior matrix verifies the read-model selector. |
+| N132 legacy relation shape | DA SUA | Relation renderer normalizes missing trust/fear/respect/suspicion values through numeric defaults, preventing `undefined` leakage from legacy saves. |
+| N133 world event shape | DA SUA | World renderer uses guarded phase text and numeric end-day fallback for incomplete legacy event DTOs; canonical behavior matrix remains the gate. |
+| N135-N140 i18n formatter set | DA SUA | `GameI18n` exports the complete canonical formatter set, all eight weather IDs are translated, and behavior-first tests reject raw weather IDs leaking through history output. |
+| LT1-LT10 | DA SUA | `verify_legacy_log_matrix.js` now has an independent fixture and assertion for every LT ID, including command projection, scene grouping, retention telemetry, punctuation, lint, error mapping, validator, replay envelope and paragraph DTO shape; it is regression-bound. |
+| T1-T12 | DA SUA | `verify_legacy_behavior_matrix.js` maps every T ID to an explicit canonical validator/producer and adds concrete combat, removal, procedural uniqueness, Fate, weather, hidden-realm isolation, progression cap, departure and migration fixtures; it is regression-bound. |
+| N122-N140 aggregate | SỬA MỘT PHẦN | N122-N126/N132-N140 are closed above. File chooser import/export round-trip and exhaustive browser modal/action variants remain open and are not promoted by these static/runtime read-model fixtures. |
+| D6.7 discovery category/next-action read model | DA SUA | `renderOddities()` now renders canonical `byCategory` buckets and stable lifecycle rows; the existing action resolver remains the only mutation path. Behavior-first and browser contract gates pass. |
+| D6.8 technique-trial bounded archive | DA SUA | Completed technique evolution trials now archive count/hash/policy metadata and clear the bounded event-key window. Runtime validation checks the archive shape; `verify_technique_channel_matrix.js` proves two unique events complete and archive without retaining the raw key list. |
+| D6.9 V12→V13 migration | DA SUA | Canonical `migrateV12ToV13()` creates required v13 namespaces and is covered by the progression requirement matrix and save-envelope probe. |
+| B.2 Fate register | DA SUA | Canonical combo eligibility, recipe-backed fusion, duplicate resolution and realm-safe unique ownership are implemented in the engine and exercised by deep/legacy behavior probes. |
+| B.3 character/NPC register | DA SUA | NPC actor classes, identity memory, bond/trade gift semantics, anchor migration and lifecycle producers are covered by the deep audit probe; no parallel gift mutation path is used. |
+| B.4 progression register | DA SUA | Path switch status/candidates, deviation, rankboard, secluded session, insight, minor trial and ritual read-model APIs are exported and covered by the progression matrix/deep probe. |
+| B.5 profession/hidden-path register | DA SUA | Hidden profession/path catalogs, clue namespaces and Cổ Thần encounter producers are canonical and covered by deep behavior fixtures. |
+| B.6 Dị Thể register | DA SUA | Rejection IDs persist and suppress reappearance; `reviveOnce` is consumed exactly once at lethal damage and is covered by the deep probe. |
+| B.7 NPC register | DA SUA | Trust trial, promotion eligibility, alliance mediation and footprint canonical aliases resolve to the existing producers and are included in the deep API matrix. |
+| B.8 companion register | DA SUA | Companion revive/mutation actions are producer-backed, exposed in the shared lifecycle panel and validated by companion/action matrices. |
+| B.9 technique register | DA SUA | Context/resolver/commit, guild transition, trial event, cross-system validators and prepare pipeline are canonical exports with runtime fixtures. |
+| B.10 UI/platform register | DA SUA | V13 migration, formatter surface, save validation and renderer action boundary are covered by behavior-first, save-envelope and browser contract gates. |
+| B.11 platform boundary | SỬA MỘT PHẦN | Canonical registers and offline parity are closed; direct browser file chooser round-trip and platform persistence evidence still require a real upload lifecycle and remain open. |
+| D6.10 technique stance UI | SỬA MỘT PHẦN | Replaced `window.prompt` with a canonical `technique-stance-picker` overlay exposing steady/burst/guarded previews and resource blockers; static/browser contract tests pass, but the refreshed browser click-through after this change still needs direct lifecycle evidence. |
+| C1/C12 UI transition boundary | DA SUA | Black-market prompt consumption, contested-opportunity prompt deduplication and technique action sequencing now use canonical runtime helpers instead of direct UI state mutation; behavior-first and browser contract probes cover the helper boundary. |
+| N122-N140 / B.11 file chooser evidence | SỬA MỘT PHẦN | Chrome local E2E confirmed the `Nạp tệp` control opens a single-file chooser. A controlled malformed JSON fixture reached the connector but `fileChooser.setFiles()` was rejected by the browser connector with `Not allowed`; therefore valid import round-trip remains unverified. Canonical size/MIME/envelope/error/reset guards and static/runtime probes still pass. |
+| FT7 faction power/orphan cascade runtime | DA SUA | `verify_world_producer_matrix.js` proves resource/stability-sensitive power, geographic diplomacy pairing, orphan-war cleanup, auction protection and war validation. Frontier/browser presentation remains tracked separately. |
+| FT9 map producer/runtime | DA SUA | `verify_map_producer_matrix.js` proves coordinate/fog/influence/cache/travel-task/version/fast-travel eligibility and disclosure producers, including interrupt/resume/cancel. |
+| FT10 NPC/weather producer/runtime | DA SUA | World producer matrix proves footprint retention, settlement capacity disclosure and every weather-specific hysteresis threshold against the catalog. |
+| FT11 offline/tick producer/runtime | DA SUA | Offline parity and world producer matrices prove deterministic tick ordering, daily parity and idempotent aggregate behavior; browser persistence remains platform scope. |
+
+## Status override - 2026-09-24 verification continuation
+
+| Scope | Status | Evidence |
+|---|---|---|
+| Runtime/UI canonical wave | DA SUA | Stance picker, canonical prompt-transition helpers, companion/rumor/discovery read models, technique trial archive and reward preview are integrated. Full regression remains **42/42 PASS**, including requirement validation and diff check. |
+| Browser file import and refreshed stance click-through | SỬA MỘT PHẦN | Browser reached the native file chooser and prior technique Prepare confirmation; the current connector rejected `setFiles()` with `Not allowed`, so valid import and post-change stance click-through are not promoted to closed. |
+| Overall audit | SỬA MỘT PHẦN | All newly implemented runtime groups are backed by dedicated probes, but the explicit browser/file-persistence gaps and exhaustive modal/action variants remain open. |
