@@ -2871,8 +2871,35 @@ Evidence manual browser run: local Chrome tab `http://127.0.0.1:4173/`, modal re
 
 | Scope | Status mới | Evidence / phạm vi còn mở |
 |---|---|---|
-| N45-N50 / map-event cooldown producers | ĐÃ SỬA | `verify_n3_n54_behavior.js` duyệt toàn bộ 5 map-event templates canonical; mỗi template được resolve qua receipt lifecycle và template có `cooldownDays` được kiểm tra không thể bypass bằng pending instance thứ hai. |
+| N45-N50 / map-event choice + cooldown producers | ĐÃ SỬA | `verify_n3_n54_behavior.js` duyệt toàn bộ 5 map-event templates và từng choice của mỗi template qua receipt lifecycle; template có `cooldownDays` được kiểm tra không thể bypass bằng pending instance thứ hai. |
 | N45-N50 / monster catalog action bands | ĐÃ SỬA | Cùng probe duyệt toàn bộ 9 combat entities có `hpMax` hợp lệ; mỗi entity được spawn qua `combatEntity`/`spawnCombatEntity` và kiểm tra độc lập ba band `basic`, `special`, `desperation` của `monsterAction`. |
 | N3-N54 aggregate | SỬA MỘT PHẦN | Runtime catalog/producer matrix đã đầy đủ hơn; browser clue/action variants và exhaustive legacy one-to-one mapping vẫn mở, nên không nâng aggregate. |
 
 Evidence: `node tools/verify_n3_n54_behavior.js` PASS — `5 map-event templates`, `9 combat entities`; full regression sẽ được chạy lại sau override này.
+
+## Status override - N33-N44 secret discovery chain 2026-09-24
+
+| Scope | Status mới | Evidence / phạm vi còn mở |
+|---|---|---|
+| N33-N44 / secret-node authored chain | ĐÃ SỬA | `verify_n3_n54_behavior.js` điều tra ba information findings độc lập qua stage 1 → stage 2 → stage 3; stage 2 tạo `secretLocationId` + `secretDirection`, stage 3 tạo follow-up quest canonical ở trạng thái `active`. |
+| N33-N44 aggregate | SỬA MỘT PHẦN | Secret-node runtime producer đã có fixture độc lập; browser clue/action rendering và exhaustive legacy one-to-one mapping vẫn mở. |
+
+Evidence: `node tools/verify_n3_n54_behavior.js` PASS; chain dùng `ensureSearchSite`/`investigateSearchFinding` canonical, không tạo mutation path thứ hai.
+
+## Status override - N11-N22 explicit technique target fixture 2026-09-24
+
+| Scope | Status mới | Evidence / phạm vi còn mở |
+|---|---|---|
+| N13 / technique preview-commit target parity | ĐÃ SỬA | `verify_n3_n54_behavior.js` tạo hai enemy theo cùng fixture, preview `kiem_khi_so_cap` với `targetId` thứ hai, commit cùng `targetId`, xác nhận enemy thứ hai nhận damage còn enemy thứ nhất không bị trúng nhầm. |
+| N11-N22 aggregate | SỬA MỘT PHẦN | Receipt save/load, cooldown/idempotency và target parity đã có fixture; các legacy action ID/combat browser variants còn lại vẫn mở. |
+
+Evidence: `node tools/verify_n3_n54_behavior.js` PASS; commit đi qua `E.useTechnique` canonical, không gọi helper damage riêng để giả lập kết quả.
+
+## Status override - M65-M78 guild catalog producer parity 2026-09-24
+
+| Scope | Status mới | Evidence / phạm vi còn mở |
+|---|---|---|
+| M65-M78 / guild teaching catalog runtime | ĐÃ SỬA | `verify_audit_deep.js` không còn chỉ kiểm tra một technique; fixture duyệt từng entry chưa học trong `guildVaultSnapshot`, xác nhận `act_exp_npc_train:<npc>:<technique>` được producer tạo và mỗi entry được commit qua `runExpansionCommand` canonical rồi phản ánh lại trong vault. |
+| M65-M78 aggregate | SỬA MỘT PHẦN | Producer/runtime catalog parity đã đóng; browser teacher/trial/discovery/reward click-through và file/browser evidence vẫn mở. |
+
+Evidence: `node tools/verify_audit_deep.js` PASS; không tạo mutation learning path riêng ngoài `runExpansionCommand`/guild teaching resolver.

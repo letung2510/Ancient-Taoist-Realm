@@ -28,6 +28,14 @@ eventCatalog.templates.forEach((template) => {
   assert(resolved && (resolved.success || resolved.duplicate || resolved.reason), "map-event template has no canonical resolver result: " + template.id);
   assert(!fixture.pendingMapEvent || fixture.pendingMapEvent.status !== "pending", "map-event template remained pending: " + template.id);
 
+  template.choices.slice(1).forEach((choice, choiceIndex) => {
+    const choiceFixture = make("map-event-choice:" + template.id + ":" + choice.id + ":" + choiceIndex);
+    choiceFixture.pendingMapEvent = { id: template.id + ":choice:" + choice.id, eventId: template.id, nodeId: choiceFixture.locationId, status: "pending", choices: template.choices.map((entry) => ({ ...entry })) };
+    const choiceResult = E.resolveMapEvent(choiceFixture, choice.id);
+    assert(choiceResult && (choiceResult.success || choiceResult.duplicate || choiceResult.reason), "map-event choice has no canonical resolver result: " + template.id + ":" + choice.id);
+    assert(!choiceFixture.pendingMapEvent || choiceFixture.pendingMapEvent.status !== "pending", "map-event choice remained pending: " + template.id + ":" + choice.id);
+  });
+
   // Every authored template with a cooldown must enforce that cooldown at
   // the producer boundary; a second pending instance must not bypass it.
   if (Number(template.cooldownDays || 0) > 0 && resolved.success) {
@@ -91,6 +99,34 @@ if (cast.success || cast.committed) {
   assert(restored.player.techniqueActionReceipts?.["n11-cast"], "technique receipt was not persisted");
 }
 
+// N13: every offensive technique must commit against the same explicit target
+// that its preview projected, even when another enemy is inserted first.
+const offensiveTechniques = [[techniqueId, E.techniqueCatalog()[techniqueId]]].filter(([, definition]) => ["chieu_thuc", "cam_thuat"].includes(definition?.category));
+assert(offensiveTechniques.length === 1, "known offensive technique fixture is missing");
+const targetEntityIds = combatCatalog.slice(0, 2);
+let eligibleTargetTechniques = 0;
+offensiveTechniques.forEach(([id, definition]) => {
+  const targetState = make("technique-target:" + id);
+  targetState.player.techniques[id] ||= { masteryStage: 0, masteryExp: 0, usageCount: 0 };
+  targetState.player.qi = targetState.player.maxQi = 9999;
+  targetState.player.stamina = targetState.player.maxStamina = 9999;
+  targetState.player.san = targetState.player.maxSan = 9999;
+  targetState.player.lifespan = 9999;
+  targetState.enemies = {};
+  targetEntityIds.forEach((entityId) => { targetState.enemies[entityId] = E.combatEntity(targetState, entityId).hpMax; });
+  const explicitTarget = targetEntityIds[1];
+  const preview = E.techniquePreview(targetState, id, { stance: "steady", targetId: explicitTarget });
+  if (!preview.success) return;
+  eligibleTargetTechniques += 1;
+  assert(preview.success && preview.combatPreview?.targetId === explicitTarget, "technique preview ignored explicit target: " + id);
+  const otherBefore = targetState.enemies[targetEntityIds[0]];
+  const committed = E.useTechnique(targetState, id, { actionId: "n13-target:" + id, stance: "steady", targetId: explicitTarget, confirmed: true });
+  assert(committed.success || committed.committed, "technique target fixture could not commit: " + id + " " + JSON.stringify(committed));
+  assert.strictEqual(targetState.enemies[targetEntityIds[0]], otherBefore, "technique committed against preview-mismatched target: " + id);
+  assert(targetState.enemies[explicitTarget] < E.combatEntity(targetState, explicitTarget).hpMax, "explicit technique target was not damaged: " + id);
+});
+assert(eligibleTargetTechniques === 1, "explicit-target matrix did not exercise the known offensive technique");
+
 // N9/N10/N17: projection lists are deduplicated, enemy spawn is idempotent
 // for a live wounded entity, and a zero-turn cooldown leaves no stale record.
 const projectionState = make("projection-boundaries");
@@ -121,6 +157,26 @@ const invalidResult = E.collectSearchFindings(invalidFinding);
 assert.strictEqual(invalidResult.success, true);
 assert.strictEqual(invalidResult.collected.length, 0);
 assert.strictEqual(JSON.stringify(invalidFinding.pendingExploration), invalidBefore, "failed finding grant was consumed");
+
+// N33-N44: an authored information finding must advance the canonical secret
+// node chain exactly once per investigation stage and create the follow-up
+// quest only at the terminal stage.
+const secretChain = make("secret-node-chain");
+const investigateStage = (stage) => {
+  const pending = { locationId: secretChain.locationId, nodeId: secretChain.locationId, session: 40 + stage, expiresTurn: 99, findings: [{ findingId: "secret-clue:" + stage, type: "information", label: "clue" }] };
+  secretChain.pendingSearch = pending;
+  secretChain.pendingExploration = pending;
+  return E.investigateSearchFinding(secretChain);
+};
+const clueOne = investigateStage(1);
+assert(clueOne.success && clueOne.chainStage === 1, "secret clue chain did not start at stage one");
+const clueTwo = investigateStage(2);
+assert(clueTwo.success && clueTwo.chainStage === 2, "secret clue chain did not advance to stage two");
+const searchSite = E.ensureSearchSite(secretChain);
+assert(searchSite.secretLocationId && searchSite.secretDirection, "secret clue chain did not produce a hidden node target");
+const clueThree = investigateStage(3);
+assert(clueThree.success && clueThree.chainStage === 3 && clueThree.questId, "secret clue chain did not produce its terminal quest");
+assert(secretChain.quests?.[clueThree.questId]?.status === "active", "secret clue chain quest is not active");
 
 // N45-N50: hidden-realm and map-event receipts have explicit lifecycle and
 // cooldown/duplicate guards.

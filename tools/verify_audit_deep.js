@@ -217,6 +217,14 @@ assert(teachingActions.some((entry) => entry.id === actionId), 'guild teaching a
 const teachingResult = X.runExpansionCommand(teachingState, 'npc_train', teacher.npcId, teachable.id);
 assert(teachingResult?.success && teachingState.player.techniques?.[teachable.id], 'NPC teaching action did not commit canonical technique learning');
 assert(X.guildVaultSnapshot(teachingState, teachingGuild.id).techniques.find((entry) => entry.id === teachable.id)?.learned, 'guild vault did not reflect learned teaching result');
+const remainingTeachable = X.guildVaultSnapshot(teachingState, teachingGuild.id).techniques.filter((entry) => !entry.learned);
+remainingTeachable.forEach((entry) => {
+  const entryActionId = 'act_exp_npc_train:' + teacher.npcId + ':' + entry.id;
+  assert(X.expansionActions(teachingState).some((action) => action.id === entryActionId), 'guild teaching action missing for vault entry ' + entry.id);
+  const entryResult = X.runExpansionCommand(teachingState, 'npc_train', teacher.npcId, entry.id);
+  assert(entryResult?.success && teachingState.player.techniques?.[entry.id], 'guild teaching commit failed for vault entry ' + entry.id);
+  assert(X.guildVaultSnapshot(teachingState, teachingGuild.id).techniques.find((candidate) => candidate.id === entry.id)?.learned, 'guild vault did not persist learned entry ' + entry.id);
+});
 
 // B.6: special-physique rejection is a real producer, and reviveOnce is a
 // one-shot consumer rather than a passive catalog field.
