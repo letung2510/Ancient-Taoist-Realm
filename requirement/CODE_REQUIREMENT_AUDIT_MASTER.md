@@ -2952,3 +2952,13 @@ Evidence: `node tools/verify_action_dispatch_matrix.js` PASS — `45 visible act
 | N3-N22, N33-N54 aggregate | SỬA MỘT PHẦN | Execution producer/dispatcher và variant surface đã được kiểm tra; browser click-through, native file persistence và exhaustive UI rendering vẫn mở. |
 
 Evidence mới nhất: `node tools/verify_action_dispatch_matrix.js` PASS — `27 visible actions, 27 execution cases, 220 variant-surface entries`; execution matrix được giới hạn để không vượt regression timeout 180s.
+
+## Status override - D6.10 stance route hardening 2026-09-24
+
+| Scope | Status mới | Evidence / phạm vi còn mở |
+|---|---|---|
+| D6.10 / all combat-technique UI routes | ĐÃ SỬA | Loại bỏ nhánh `prompt()` còn sót trong action-list handler; mọi `act_skill_*` giờ đi qua `confirmTechniqueAction()` và stance picker canonical, dùng cùng preview/resource blockers trước commit. |
+| M65-M78 / technique UI runtime | ĐÃ SỬA | Technique channel matrix, browser static contract và action route cùng bảo vệ preview → stance → confirm → commit/cancel; không còn route thi triển kỹ năng bypass picker trong `main.js`. |
+| D6.10 browser click-through | SỬA MỘT PHẦN | Static/runtime route đã đóng; refreshed browser confirmation bị connector timeout sau native confirm, nên chưa nâng bằng chứng interactive browser. |
+
+Evidence: `node --check js/main.js`, `node tools/verify_browser_ui_contract.js`, `node tools/verify_technique_channel_matrix.js` đều PASS.

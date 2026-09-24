@@ -958,12 +958,13 @@
         UI.openOverlay("Nghi Thức Đột Phá", UI.renderRitualModal(state, gate, action));
         return;
       }
-      let actionOptions = departure;
+      // Route every combat technique through the canonical stance picker so
+      // preview/resource blockers cannot be bypassed by a legacy UI path.
       if (action.id.startsWith("act_skill_")) {
-        const selected = prompt("Thế vận công: nhập steady (ổn định), burst (bạo phát), hoặc guarded (thủ ngự).", "steady");
-        if (selected === null) return;
-        actionOptions = { ...(departure || {}), stance: String(selected).trim().toLowerCase() };
+        confirmTechniqueAction(action);
+        return;
       }
+      let actionOptions = departure;
       enqueueAction(() => {
         submitUiAction(action.id, actionOptions);
         renderAfterTurn();
