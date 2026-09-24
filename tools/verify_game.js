@@ -244,7 +244,9 @@ function verifyExpansionSystems(sandbox) {
   E.ensureTechniqueTrials(state);
   assert.strictEqual(state.player.techniques.kiem_khi_so_cap.evolution.status, "trial");
   state.player.techniques.kiem_khi_so_cap.evolution.status = "ready";
-  assert(E.chooseTechniqueEvolution(state, "kiem_khi_so_cap", "doan_niem").success);
+  assert(E.techniqueEvolutionPreview(state, "kiem_khi_so_cap", "doan_niem").success);
+  assert(E.chooseTechniqueEvolution(state, "kiem_khi_so_cap", "doan_niem").requiresConfirmation);
+  assert(E.chooseTechniqueEvolution(state, "kiem_khi_so_cap", "doan_niem", { confirmed: true }).success);
   assert(E.techniqueEvolutionModifiers(state, "kiem_khi_so_cap").powerMult > 1);
   assert(E.validateTechniqueRuntimeState(state).ok);
   assert(E.validateCharacterRuntimeState(state).ok);
@@ -567,8 +569,15 @@ function verifyBrowserEngine(sandbox) {
   assert(E.contextState(searchState).actions.some((action) => action.id === "act_search_collect"));
   assert(E.collectSearchFindings(searchState).success);
   assert(Object.values(searchState.inventory).reduce((sum, qty) => sum + qty, 0) > inventoryBeforeSearch);
+  // The depth contract is independent from a random encounter spawned by the
+  // first search; resolve that encounter before probing the next session.
+  searchState.enemies = {};
+  if (searchState.pendingSearch?.findings?.some((finding) => finding.type === "information")) E.investigateSearchFinding(searchState);
+  if (searchState.pendingSearch) E.leaveSearchSession(searchState);
   assert.strictEqual(E.search(searchState).rolls, 2);
   E.collectSearchFindings(searchState);
+  if (searchState.pendingSearch?.findings?.some((finding) => finding.type === "information")) E.investigateSearchFinding(searchState);
+  if (searchState.pendingSearch) E.leaveSearchSession(searchState);
   assert.strictEqual(E.search(searchState).rolls, 1);
   E.collectSearchFindings(searchState);
   assert(E.searchStatus(searchState).depleted);
@@ -585,12 +594,15 @@ function verifyBrowserEngine(sandbox) {
   assert(chainState.searchSites[chainState.locationId].secretLocationId);
   assert(E.locationExits(chainState)[chainState.searchSites[chainState.locationId].secretDirection]);
 
-  const dangerState = E.createState({ character: E.createCharacter({ name: "Mạo Hiểm", archetypeId: "kiem_tong", fates: E.drawInitialFates(), comprehension: 100 }) });
-  dangerState.locationId = "hac_lam";
-  vm.runInContext("Math.random = () => 0", sandbox);
-  const dangerSearch = E.search(dangerState);
-  assert(dangerSearch.findings.some((finding) => finding.type === "rare"));
-  assert(dangerSearch.findings.some((finding) => finding.type === "encounter"));
+  let dangerSearch = null;
+  for (let seedIndex = 0; seedIndex < 512 && !dangerSearch; seedIndex += 1) {
+    const candidate = E.createState({ character: E.createCharacter({ name: "Mạo Hiểm", archetypeId: "kiem_tong", fates: E.drawInitialFates(), comprehension: 100 }) });
+    candidate.locationId = "hac_lam";
+    candidate.worldSimulation.seed = "danger-fixture:" + seedIndex;
+    const result = E.search(candidate);
+    if (result?.findings?.some((finding) => finding.type === "rare") && result.findings.some((finding) => finding.type === "encounter")) dangerSearch = result;
+  }
+  assert(dangerSearch);
   sandbox.__originalRandom = originalRandom;
   vm.runInContext("Math.random = __originalRandom", sandbox);
   delete sandbox.__originalRandom;

@@ -365,6 +365,14 @@
         else { saveGame(); UI.renderPanel(state); }
         return;
       }
+      const techniqueStance = event.target.closest("[data-technique-stance]");
+      if (techniqueStance && state) {
+        const actionId = techniqueStance.dataset.techniqueAction || "";
+        const stance = techniqueStance.dataset.techniqueStance || "steady";
+        const action = (E.contextState(state)?.actions || []).find((entry) => entry.id === actionId) || (/^act_skill_/.test(actionId) ? { id: actionId } : null);
+        if (action) commitTechniqueAction(action, stance);
+        return;
+      }
       const expansionCommand = event.target.closest("[data-expansion-command]");
       if (expansionCommand && state && E.runExpansionCommand) {
         const command = expansionCommand.dataset.expansionCommand;
@@ -520,6 +528,14 @@
     });
 
     $("overlay-content").addEventListener("click", (event) => {
+      const techniqueStance = event.target.closest("[data-technique-stance]");
+      if (techniqueStance && state) {
+        const actionId = techniqueStance.dataset.techniqueAction || "";
+        const stance = techniqueStance.dataset.techniqueStance || "steady";
+        const action = (E.contextState(state)?.actions || []).find((entry) => entry.id === actionId) || (/^act_skill_/.test(actionId) ? { id: actionId } : null);
+        if (action) commitTechniqueAction(action, stance);
+        return;
+      }
       const pendingDiscoveryResolve = event.target.closest("[data-pending-resolve]");
       if (pendingDiscoveryResolve && state) {
         resolvePendingThenMove(pendingDiscoveryResolve.dataset.pendingResolve, pendingDiscoveryResolve.dataset.pendingMove || "");
@@ -563,6 +579,8 @@
              else overlayContent.innerHTML = UI.renderMapEventModal(state);
            } else if (command.startsWith("guild_")) {
             overlayContent.innerHTML = UI.renderGuildProjectModal(state);
+          } else if (command === "technique_prepare" || command === "technique_channel" || command === "technique_cancel") {
+            overlayContent.innerHTML = UI.renderTechniqueDetail(state);
           }
         }
         return;
@@ -748,19 +766,22 @@
     renderActionButtons();
     updateClockDisplay();
     updateAtmosphereClass();
-    if (state.flags?.blackMarketOpen) { state.flags.blackMarketOpen = false; UI.openOverlay("Nghịch Thương Nhân", UI.renderBlackMarket(state)); }
+    if (state.flags?.blackMarketOpen) { E.consumeBlackMarketPrompt?.(state); UI.openOverlay("Nghịch Thương Nhân", UI.renderBlackMarket(state)); }
     if ((state.flags?.journeyIntentPending || state.flags?.originChoicePending) && UI.renderOriginChoice) showOriginModal();
     const opportunity = state.pendingContestedOpportunity;
     if (!state.flags?.journeyIntentPending && !state.flags?.originChoicePending && opportunity?.status === "pending" && state.flags?.lastOpportunityPromptId !== opportunity.id) {
-      state.flags ||= {};
-      state.flags.lastOpportunityPromptId = opportunity.id;
+      E.markOpportunityPrompted?.(state, opportunity.id);
       UI.openOverlay("Cơ Duyên Tranh Đoạt", UI.renderContestedOpportunityModal(state));
     }
   }
 
   function renderStoryWindow() {
     if (!state || !UI.renderStoryWindow) return;
-    const profile = window.GameExpansion?.performanceProfile?.(state);
+    const profile = window.GameExpansion?.performanceProfile?.(state, {
+      reducedMotion: Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches),
+      hardwareConcurrency: window.navigator?.hardwareConcurrency,
+      deviceMemory: window.navigator?.deviceMemory
+    });
     if (profile) document.documentElement.dataset.performanceProfile = profile.id;
     const history = Array.isArray(state.history) ? state.history : [];
     UI.renderStoryWindow(history, storyWindowSize, () => {
@@ -775,7 +796,7 @@
       const id = nurture.dataset.fateNurture; const relation = state.player?.fateRelationships?.[id] || {};
       const level = E.fateEnhancementLevel(state.player, id);
       const actions = card.querySelector(".fate-actions"); if (!actions) return;
-      const add = (key, label) => { const button = document.createElement("button"); button.className = "guild-action"; button.dataset[key] = id; button.textContent = label; actions.appendChild(button); };
+      const add = (key, label) => { const button = document.createElement("button"); button.className = "guild-action"; button.setAttribute("data-" + key, id); button.textContent = label; actions.appendChild(button); };
       if (!relation.insightRevealed) add("fate-insight", "Giác Ngộ");
       if (Number(relation.stagnantDays || 0) >= 60) add("fate-release", "Buông Mệnh");
       const fate = window.GameData.FATE_PATTERNS.find((item) => item.id === id); if (fate?.sign === "hung") { add("fate-defy", "Nghịch Mệnh"); add("fate-suppress", "Trấn Mệnh"); }
@@ -796,7 +817,8 @@
     UI.clearStory();
     window._renderedTurn = 0;
     renderedHistoryEntries = new WeakSet();
-    storyWindowSize = Math.min(20, Number(window.GameExpansion?.performanceProfile?.(state)?.historyWindow || 20));
+    const renderProfile = window.GameExpansion?.performanceProfile?.(state, { reducedMotion: Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches), hardwareConcurrency: window.navigator?.hardwareConcurrency, deviceMemory: window.navigator?.deviceMemory });
+    storyWindowSize = Math.min(20, Number(renderProfile?.historyWindow || 20));
     renderStoryWindow();
     window._renderedTurn = state.history.length;
     UI.renderPanel(state);
@@ -981,14 +1003,11 @@
     if (type === "realm") showRealmOverlay();
   }
 
-  function confirmTechniqueAction(action) {
+  function commitTechniqueAction(action, stance) {
     const techniqueId = action.id.slice("act_skill_".length);
-    const stanceInput = prompt("Thế vận công: steady (ổn định), burst (uy lực +20%, Tà Nhiễm +50%), guarded (uy lực -15%, giảm nửa phí Thanh Tỉnh/Tà Nhiễm).", "steady");
-    if (stanceInput === null) return;
-    const stance = String(stanceInput).trim().toLowerCase();
     const preview = E.techniquePreview(state, techniqueId, { stance });
     if (!preview || !preview.success) { alert(preview?.reason || "Không thể thi triển công pháp này."); return; }
-    if (preview.resourcesReady === false) { alert(preview.blockers.map((entry) => entry.message).join("\n")); return; }
+    if (preview.resourcesReady === false) { alert((preview.blockers || []).map((entry) => entry.message).join("\n")); return; }
     const c = preview.costs;
     const lines = ["Công pháp: " + preview.name, "Loại: " + preview.family + " · Thế: " + stance, "Giá phải trả:", "  Linh Khí: " + c.manaCost, "  Thể Lực: " + c.staminaCost, "  Thanh Tỉnh: " + c.sanCost, "  Thọ Nguyên: " + c.lifespanCost, "  Tà Nhiễm: " + c.corruptionCost];
     if (preview.combatPreview) lines.push("Sát thương dự kiến: " + preview.combatPreview.damageMin + "–" + preview.combatPreview.damageMax);
@@ -997,12 +1016,26 @@
     if (preview.pathResonanceFates?.length) lines.push("Cộng hưởng Con Đường: " + preview.pathResonanceFates.length + " Mệnh · +" + preview.fateResonancePct + "% uy lực");
     if (preview.guildCombatPowerPct > 0) lines.push("Trận pháp Tông Môn: +" + preview.guildCombatPowerPct + "% uy lực (" + (preview.guildCombatSources || []).join(", ") + ")");
     if (!confirm(lines.join("\n"))) return;
-    state.player.techniqueActionSequence = Number(state.player.techniqueActionSequence || 0) + 1;
-    const actionId = "technique-ui:" + state.player.techniqueActionSequence;
+    const actionId = E.nextTechniqueActionId(state);
     enqueueAction(() => {
       E.submitActionId(state, action.id, { confirmed: true, stance, actionId });
       renderAfterTurn();
     });
+  }
+  function confirmTechniqueAction(action) {
+    const techniqueId = action.id.slice("act_skill_".length);
+    const stances = [
+      ["steady", "Ổn định", "Giữ uy lực và chi phí cân bằng."],
+      ["burst", "Bộc phát", "Uy lực +20%, Tà Nhiễm +50%."],
+      ["guarded", "Hộ thể", "Uy lực -15%, giảm nửa phí Thanh Tỉnh/Tà Nhiễm."]
+    ];
+    const rows = stances.map(([id, label, description]) => {
+      const preview = E.techniquePreview(state, techniqueId, { stance: id });
+      const disabled = !preview?.success || preview.resourcesReady === false;
+      const blocker = disabled ? '<small class="inline-blocker">' + UI.escapeHtml(preview?.reason || (preview?.blockers || []).map((entry) => entry.message).join(" · ") || "Không đủ tài nguyên") + '</small>' : '<small>Chi phí: Khí ' + Number(preview.costs?.manaCost || 0) + ' · Thể ' + Number(preview.costs?.staminaCost || 0) + ' · Tỉnh ' + Number(preview.costs?.sanCost || 0) + '</small>';
+      return '<div class="technique-stance-row"><b>' + UI.escapeHtml(label) + '</b><p>' + UI.escapeHtml(description) + '</p>' + blocker + '<button class="guild-action" data-technique-stance="' + id + '" data-technique-action="' + UI.escapeHtml(action.id) + '"' + (disabled ? ' disabled' : '') + '>Chọn thế này</button></div>';
+    }).join('');
+    UI.openOverlay("Chọn thế vận công", '<div class="technique-stance-picker"><p class="muted">' + UI.escapeHtml(techniqueId) + ' · xem preview trước khi xác nhận thi triển.</p>' + rows + '</div>');
   }
   function flashSave(text) {
     UI.setSaveIndicator(text);
@@ -1070,10 +1103,24 @@
   function importSaveFile(event) {
     const file = event.target.files?.[0];
     if (!file) return;
+    const resetInput = () => { event.target.value = ""; };
+    if (Number(file.size || 0) > 8 * 1024 * 1024) {
+      resetInput();
+      alert("Tệp lưu quá lớn và không thể nạp.");
+      return;
+    }
+    if (file.type && file.type !== "application/json" && file.type !== "text/json") {
+      resetInput();
+      alert("Chỉ chấp nhận tệp lưu JSON.");
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       try {
         const imported = E.deserialize(String(reader.result || ""));
+        const envelope = E.validateSaveEnvelope?.(imported);
+        if (envelope && !envelope.ok) throw new Error("invalid_save_shape:" + envelope.errors.join(","));
+        if (!envelope && (!imported?.player || !imported?.meta || !imported?.worldSimulation)) throw new Error("invalid_save_shape");
         state = imported;
         saveGame(true);
         UI.showScreen("game");
@@ -1081,7 +1128,11 @@
         flashSave("Đã nạp tệp lưu");
       } catch (err) {
         alert("Tệp lưu không hợp lệ hoặc đã hỏng.");
-      } finally { event.target.value = ""; }
+      } finally { resetInput(); }
+    };
+    reader.onerror = () => {
+      resetInput();
+      alert("Không thể đọc tệp lưu.");
     };
     reader.readAsText(file);
   }

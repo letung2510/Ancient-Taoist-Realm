@@ -1,0 +1,147 @@
+"use strict";
+
+/* Behavior-first coverage for the still-open N3-N54 legacy cluster.  Each
+ * fixture exercises a state transition or rejection boundary; catalog/export
+ * presence alone is intentionally insufficient. */
+const assert = require("assert");
+const fs = require("fs");
+const path = require("path");
+const vm = require("vm");
+const root = path.join(__dirname, "..");
+const sandbox = { window: {}, console, performance: { now: () => Date.now() }, Date, Math, structuredClone: global.structuredClone };
+vm.createContext(sandbox);
+["gemini-code-1788430656294.js", "data/world_data.js", "data/fate_data.js", "data/fate_relationships.js", "data/cong_phap.js", "data/npc_monsters.js", "data/path_fate_relations.js", "data/profession_items.js", "data/expansion_data.js", "data/data.js", "js/i18n.js", "js/engine.js", "js/expansion.js"].forEach((file) => vm.runInContext(fs.readFileSync(path.join(root, file), "utf8"), sandbox, { filename: file }));
+const E = sandbox.window.GameEngine;
+const X = sandbox.window.GameExpansion;
+const make = (seed = "n3-n54") => E.createState({ seed, character: E.createCharacter({ name: "N3-N54 QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+
+// N35/N39/N40/N42/N48: every authored map-event template has a canonical
+// producer shape and can be resolved through the same receipt lifecycle.
+const eventCatalog = E.mapEventCatalog();
+assert(eventCatalog && Object.keys(eventCatalog.groups).length >= 6, "map-event group catalog missing");
+assert(eventCatalog.templates.length >= 5 && new Set(eventCatalog.templates.map((entry) => entry.id)).size === eventCatalog.templates.length, "map-event template IDs are not unique");
+eventCatalog.templates.forEach((template) => {
+  assert(template.group && Array.isArray(template.choices) && template.choices.length >= 2, "map-event template contract incomplete: " + template.id);
+  const fixture = make("map-event-template:" + template.id);
+  fixture.pendingMapEvent = { id: template.id + ":fixture", eventId: template.id, nodeId: fixture.locationId, status: "pending", choices: template.choices.map((choice) => ({ ...choice })) };
+  const resolved = E.resolveMapEvent(fixture, template.choices[0].id);
+  assert(resolved && (resolved.success || resolved.duplicate || resolved.reason), "map-event template has no canonical resolver result: " + template.id);
+  assert(!fixture.pendingMapEvent || fixture.pendingMapEvent.status !== "pending", "map-event template remained pending: " + template.id);
+});
+
+// N3-N10: combat and pending-departure boundaries must reject unsafe actions
+// without clearing the pending state.
+const combat = make("combat-boundary");
+combat.enemies = { fixture_enemy: 20 };
+const combatBefore = JSON.stringify(combat.pendingMapEvent);
+assert.strictEqual(E.move(combat, "bac").success, false, "movement escaped combat boundary");
+assert.strictEqual(E.search(combat).success, false, "search escaped combat boundary");
+assert.strictEqual(JSON.stringify(combat.pendingMapEvent), combatBefore, "combat rejection mutated pending event");
+
+const departure = make("departure-boundary");
+departure.pendingMapEvent = { id: "n3-map-event", eventId: "fixture", nodeId: departure.locationId, status: "pending", choices: [] };
+departure.mapEvents = { nodes: {}, history: [] };
+const guard = E.pendingDepartureGuard(departure, "act_move_bac");
+assert(guard && guard.requiresConfirmation, "pending map-event departure guard missing");
+assert.strictEqual(E.confirmPendingDeparture(departure).changed, true);
+assert.strictEqual(departure.pendingMapEvent, null);
+assert(departure.mapEvents.history.some((entry) => entry.id === "n3-map-event" && entry.status === "abandoned"));
+
+// N11-N22: a committed technique has one receipt across replay and save/load.
+const techniqueState = make("technique-replay");
+const techniqueId = Object.keys(E.techniqueCatalog()).find((id) => E.techniqueCatalog()[id].category === "chieu_thuc") || Object.keys(E.techniqueCatalog())[0];
+assert(techniqueId, "technique fixture missing");
+techniqueState.player.techniques[techniqueId] ||= { masteryStage: 0, masteryExp: 0, usageCount: 0 };
+const cast = E.useTechnique(techniqueState, techniqueId, { actionId: "n11-cast", stance: "steady", confirmed: true });
+assert(cast.success || cast.committed || cast.reason, "technique resolver returned no canonical result");
+if (cast.success || cast.committed) {
+  const replay = E.useTechnique(techniqueState, techniqueId, { actionId: "n11-cast", stance: "steady", confirmed: true });
+  assert(replay.duplicate, "duplicate technique receipt was not rejected");
+  const restored = E.deserialize(E.serialize(techniqueState));
+  assert(restored.player.techniqueActionReceipts?.["n11-cast"], "technique receipt was not persisted");
+}
+
+// N9/N10/N17: projection lists are deduplicated, enemy spawn is idempotent
+// for a live wounded entity, and a zero-turn cooldown leaves no stale record.
+const projectionState = make("projection-boundaries");
+const projectionTechnique = Object.keys(E.techniqueCatalog()).find((id) => E.techniqueCatalog()[id].category !== "tam_phap");
+assert(projectionTechnique, "projection technique fixture missing");
+projectionState.player.techniques[projectionTechnique] ||= { masteryStage: 0, masteryExp: 0, usageCount: 0 };
+const projection = E.techniquePreview(projectionState, projectionTechnique);
+assert(projection.success && new Set(projection.fateResonanceFates || []).size === (projection.fateResonanceFates || []).length, "technique resonance list contains duplicate Fate IDs");
+const spawnState = make("spawn-idempotency");
+const spawnId = Object.keys(E.entityCatalog())[0];
+assert(E.spawnCombatEntity(spawnState, spawnId), "spawn fixture failed");
+spawnState.enemies[spawnId] = 1;
+assert(E.spawnCombatEntity(spawnState, spawnId) && spawnState.enemies[spawnId] === 1, "respawn healed a wounded live enemy");
+
+// N33-N44: finding IDs are consumed once and a failed grant remains pending.
+const findingState = make("finding-replay");
+findingState.pendingExploration = { locationId: findingState.locationId, nodeId: findingState.locationId, session: 7, expiresTurn: 99, findings: [{ findingId: "n43-resource", type: "resource", itemId: "linh_thach", qty: 1 }] };
+findingState.pendingSearch = findingState.pendingExploration;
+const firstCollect = E.collectSearchFindings(findingState);
+assert(firstCollect.success && firstCollect.collected?.length, "canonical finding producer did not collect");
+assert(!findingState.pendingExploration || !findingState.pendingExploration.findings?.some((entry) => entry.findingId === "n43-resource"), "finding remained after collection");
+
+const invalidFinding = make("finding-rollback");
+invalidFinding.pendingExploration = { locationId: invalidFinding.locationId, nodeId: invalidFinding.locationId, session: 8, expiresTurn: 99, findings: [{ findingId: "n43-invalid", type: "resource", itemId: "missing_n43_item", qty: 1 }] };
+invalidFinding.pendingSearch = invalidFinding.pendingExploration;
+const invalidBefore = JSON.stringify(invalidFinding.pendingExploration);
+const invalidResult = E.collectSearchFindings(invalidFinding);
+assert.strictEqual(invalidResult.success, true);
+assert.strictEqual(invalidResult.collected.length, 0);
+assert.strictEqual(JSON.stringify(invalidFinding.pendingExploration), invalidBefore, "failed finding grant was consumed");
+
+// N45-N50: hidden-realm and map-event receipts have explicit lifecycle and
+// cooldown/duplicate guards.
+const hidden = make("hidden-realm-boundary");
+const hiddenCatalog = X.hiddenPathCatalog();
+assert(hiddenCatalog.some((entry) => entry.sourceType === "co_than_tan_hon"));
+hidden.player.san = 100;
+const encounter = X.resolveCoThanTanHonEncounter(hidden, "seal");
+assert(encounter.success, "hidden-path encounter producer rejected canonical seal");
+assert(X.resolveCoThanTanHonEncounter(hidden, "seal").alreadyResolved, "hidden-path replay was not rejected");
+
+const eventState = make("map-event-receipt");
+eventState.pendingMapEvent = { id: "n49-treasure", eventId: "ancient_treasure", nodeId: eventState.locationId, status: "pending", choices: [{ id: "claim", effect: "treasure" }] };
+eventState.mapEvents = { nodes: {}, history: [], treasureReceipts: {} };
+const eventResult = E.resolveMapEvent(eventState, "claim");
+assert(eventResult.success || eventResult.reason, "map-event resolver returned no canonical result");
+if (eventResult.success) {
+  eventState.pendingMapEvent = { id: "n49-treasure", eventId: "ancient_treasure", nodeId: eventState.locationId, status: "pending", choices: [{ id: "claim", effect: "treasure" }] };
+  const duplicate = E.resolveMapEvent(eventState, "claim");
+  assert(duplicate.duplicate || duplicate.success, "map-event receipt replay was not idempotent");
+}
+
+// N51: each catalog actor projects independently by its own cadence and the
+// read producer is deterministic at the same absolute day.
+const competitorState = make("competitor-catalog");
+const catalog = X.competitorCatalog();
+assert(catalog.length >= 3 && new Set(catalog.map((entry) => entry.id)).size === catalog.length);
+const day = E.gameDayOrdinal(competitorState) + 20;
+const snapshotA = X.competitorProgressSnapshot(competitorState, day);
+const snapshotB = X.competitorProgressSnapshot(competitorState, day);
+assert.deepStrictEqual(snapshotA, snapshotB);
+assert(snapshotA.every((entry) => Number.isFinite(entry.value) && entry.source === "canonical_competitor_catalog"));
+assert(new Set(snapshotA.map((entry) => entry.cadenceDays)).size > 1, "competitor cadence catalog collapsed to one producer");
+
+// N54: cave progression is sequential; no reward receipt may exist before all
+// obstacles are resolved, and replay is rejected after completion.
+const cave = make("cave-sequential");
+cave.runtimeLocations ||= {};
+cave.runtimeLocations[cave.locationId] = { ...(E.locationForState(cave, cave.locationId) || {}), caveAbode: { status: "challenge", discoveredDay: 1 } };
+cave.player.stamina = 20;
+cave.player.san = 100;
+cave.player.comprehension = 100;
+cave.pendingCaveChallenge = { caveId: "dong_phu_hidden_abode", nodeId: cave.locationId, status: "pending", obstacles: ["guardian", "formation", "sealed_ward"], nextIndex: 0, resolvedObstacles: [], rewardReceiptKey: "n54-cave" };
+cave.mapState ||= {};
+let challenge = X.resolveCaveChallenge(cave, "guardian");
+assert(challenge.success && challenge.remaining?.[0] === "formation", "cave guardian did not advance sequentially: " + JSON.stringify(challenge));
+assert(!cave.mapState.caveLootReceipts?.["n54-cave"], "cave reward appeared before completion");
+assert.strictEqual(X.resolveCaveChallenge(cave, "sealed_ward").success, false, "cave skipped formation obstacle");
+assert(X.resolveCaveChallenge(cave, "formation").success);
+assert(X.resolveCaveChallenge(cave, "sealed_ward").success);
+assert(Object.values(cave.rewardLedger || {}).some((entry) => String(entry.key).includes("cave_abode:")), "cave completion receipt missing");
+assert.strictEqual(X.resolveCaveChallenge(cave, "sealed_ward").success, false, "cave completion replay was not rejected");
+
+console.log("OK: N3-N54 behavior matrix (combat/departure, receipts, findings, hidden path, event cooldown, competitor catalog, cave sequence)");

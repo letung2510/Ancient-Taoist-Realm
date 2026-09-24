@@ -343,6 +343,18 @@ function testRelationshipDimensions() {
   assert(sandbox.window.GameExpansion.validateRelationshipPolicy(E.deserialize(E.serialize(state))).ok);
 }
 
+function testRelationshipDimensionMigrationAudit() {
+  const state = makeState();
+  state.relationships.legacy_dimension = { trust: 42, respect: 3, fear: 0, suspicion: 0 };
+  const migrated = E.deserialize(E.serialize(state)).relationships.legacy_dimension;
+  assert.strictEqual(migrated.loyalty, 42, "legacy loyalty dimension migrates from trust once");
+  assert.strictEqual(migrated.affection, 42, "legacy affection dimension migrates from trust once");
+  assert.deepStrictEqual(Array.from(migrated.migration.fields).sort(), ["affection", "loyalty"], "migration records independent legacy aliases");
+  migrated.loyalty = 7;
+  const second = E.deserialize(E.serialize({ ...state, relationships: { ...state.relationships, legacy_dimension: migrated } })).relationships.legacy_dimension;
+  assert.strictEqual(second.loyalty, 7, "explicit loyalty is not overwritten by migration");
+}
+
 function testContestedAndHiddenRealmTransitions() {
   const state = makeState();
   const opportunity = sandbox.window.GameExpansion.createContestedOpportunity(state);
@@ -552,6 +564,31 @@ function testWarCascadeAndOfflineDeterminism() {
   assert.deepStrictEqual(offlineA, offlineB);
 }
 
+function testOfflineOnlineNpcParityReferenceMatrix() {
+  const online = makeState();
+  const offline = E.deserialize(E.serialize(online));
+  const start = E.gameDayOrdinal(online);
+  const project = (state) => ({
+    day: E.gameDayOrdinal(state),
+    lastProcessedDay: state.worldSimulation.lastProcessedDay,
+    regions: state.worldSimulation.regionState,
+    factions: state.worldSimulation.factionState,
+    wars: state.worldSimulation.wars,
+    npcs: Object.values(state.worldSimulation.npcState || {}).map((npc) => ({
+      npcId: npc.npcId, status: npc.status, node: npc.currentNodeId, subLocation: npc.currentSubLocationId,
+      aiState: npc.aiState, activity: npc.currentActivity, queueNodeId: npc.queueNodeId || null,
+      queueRank: npc.queueRank || null, rumors: npc.rumors || [], rumorLedger: npc.rumorLedger || {},
+      memory: npc.memoryWithPlayer || []
+    })).sort((a, b) => String(a.npcId) < String(b.npcId) ? -1 : String(a.npcId) > String(b.npcId) ? 1 : 0),
+    relationshipEvents: state.relationshipEvents,
+    actorHistory: state.worldSimulation.actorHistory
+  });
+  for (let day = start + 1; day <= start + 45; day += 1) E.simulateWorldUntil(online, day, { exactParity: true });
+  const result = E.simulateWorldUntil(offline, start + 45, { offline: true, exactParity: true });
+  assert(result.aggregateCadence?.parity === true && result.aggregateCadence?.cadence === "canonical_daily_tick", "offline aggregate must declare canonical daily parity");
+  assert.deepStrictEqual(project(offline), project(online), "offline NPC aggregate must match daily online canonical projection");
+}
+
 function testTravelPreviewCommitParity() {
   const state = makeState();
   const direction = "bac";
@@ -588,6 +625,7 @@ function testNpcRumorMultiNodeExpiry() {
   state.worldSimulation.lastProcessedDay = now;
   E.simulateWorldUntil(state, now + 1);
   assert(relay.rumorLedger["qa:war"] && relay.rumorLedger["qa:war"].confidence === 0.8, JSON.stringify({ source: source.npcId, sourceNode: source.currentNodeId, relay: relay.npcId, relayNode: relay.currentNodeId, ledger: relay.rumorLedger, statuses: npcs.map((npc) => npc.status) }));
+  assert(!witness.rumorLedger["qa:war"], "rumor propagation must not multi-hop through a newly mutated relay in one tick");
   const rumorPolicy = sandbox.window.GameExpansion.rumorPolicySnapshot();
   assert(rumorPolicy.defaultTtlDays === 14 && rumorPolicy.minConfidence === 0.1 && sandbox.window.GameExpansion.validateRumorPolicy(state).ok);
   state.worldSimulation.lastProcessedDay = now + 1;
@@ -596,6 +634,8 @@ function testNpcRumorMultiNodeExpiry() {
   state.worldSimulation.lastProcessedDay = now + 2;
   E.simulateWorldUntil(state, now + 31);
   assert(!relay.rumorLedger["qa:war"] && !witness.rumorLedger["qa:war"], "expired rumor must be removed");
+  for (let i = 0; i < 20; i += 1) sandbox.window.GameExpansion.resolveNpcWeatherReaction(state, source.npcId, "loi_vu");
+  assert(source.memoryWithPlayer.length <= 10, "NPC memory exceeded canonical bounded retention");
 }
 
 function testFactionBulletinProjection() {
@@ -624,6 +664,12 @@ function testNpcCongestionQueue() {
   const queued = npcs.filter((npc) => npc.aiState === "queued");
   assert(queued.length >= 1 && queued.every((npc) => npc.queueNodeId === "son_mon" && npc.queueRank >= 1));
   assert(sandbox.window.GameExpansion.validateNpcScheduler(state).ok, JSON.stringify(sandbox.window.GameExpansion.validateNpcScheduler(state)));
+  queued[0].queuePreviousAiState = "shelter";
+  const node = sandbox.window.GameExpansion.mapNode(state, "son_mon");
+  node.npcCapacity = 99;
+  state.worldSimulation.lastProcessedDay = E.gameDayOrdinal(state);
+  E.simulateWorldUntil(state, E.gameDayOrdinal(state) + 1);
+  assert(queued[0].aiState === "shelter", "queue release did not restore prior shelter state");
   npcs[0].travelFrom = "son_mon"; npcs[0].travelTo = "missing_node";
   assert(!sandbox.window.GameExpansion.validateNpcScheduler(state).ok, "NPC scheduler must reject invalid topology edge");
 }
@@ -817,6 +863,7 @@ testCharacterCreationReplayBoundary();
 testCatalogRecipeAndRewardIdempotency();
 testQuestRewardCanonicalIdempotency();
 testRelationshipDimensions();
+testRelationshipDimensionMigrationAudit();
 testContestedAndHiddenRealmTransitions();
 testFateNoDecayAcrossLongDays();
 testUnresolvedDesignPoliciesAreCanonical();
@@ -826,6 +873,7 @@ testProfessionLegacyNamespaceMigration();
 testMultiVersionMigrationFixtures();
 testWeatherCatalogTransitions();
 testWarCascadeAndOfflineDeterminism();
+testOfflineOnlineNpcParityReferenceMatrix();
 testTravelPreviewCommitParity();
 testNpcRumorMultiNodeExpiry();
 testFactionBulletinProjection();

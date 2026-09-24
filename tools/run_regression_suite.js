@@ -28,10 +28,43 @@ const checks = [
   , ["verify_offline_bundle", "tools/verify_offline_bundle.js"]
   , ["verify_audit_closure", "tools/verify_audit_closure.js"]
   , ["verify_canonical_contracts", "tools/verify_canonical_contracts.js"]
+  , ["verify_behavior_first_matrix", "tools/verify_behavior_first_matrix.js"]
+  , ["verify_audit_deep", "tools/verify_audit_deep.js"]
+  , ["verify_webgame_boundary", "tools/verify_webgame_boundary.js"]
+  , ["verify_legacy_behavior_matrix", "tools/verify_legacy_behavior_matrix.js"]
+  , ["verify_legacy_log_matrix", "tools/verify_legacy_log_matrix.js"]
+  , ["verify_offline_parity", "tools/verify_offline_parity.js"]
+  , ["verify_cultivation_producers", "tools/verify_cultivation_producers.js"]
+  , ["verify_world_producer_matrix", "tools/verify_world_producer_matrix.js"]
+  , ["verify_progression_requirement_matrix", "tools/verify_progression_requirement_matrix.js"]
+  , ["verify_technique_channel_matrix", "tools/verify_technique_channel_matrix.js"]
+  , ["verify_browser_ui_contract", "tools/verify_browser_ui_contract.js"]
+  , ["verify_save_envelope", "tools/verify_save_envelope.js"]
+  , ["verify_action_dispatch_matrix", "tools/verify_action_dispatch_matrix.js"]
+  , ["verify_map_producer_matrix", "tools/verify_map_producer_matrix.js"]
+  , ["verify_n90_n114_behavior", "tools/verify_n90_n114_behavior.js"]
+  , ["verify_n3_n54_behavior", "tools/verify_n3_n54_behavior.js"]
+  , ["verify_m79_m88_behavior", "tools/verify_m79_m88_behavior.js"]
 ];
 
 const runCheck = ([name, file]) => new Promise((resolve) => {
-  execFile(process.execPath, [file], { cwd: root, maxBuffer: 16 * 1024 * 1024 }, (error, stdout, stderr) => resolve({ name, file, ok: !error, output: (stdout || "") + (stderr || "") }));
+  execFile(process.execPath, [file], {
+    cwd: root,
+    maxBuffer: 16 * 1024 * 1024,
+    // Some canonical data-integrity probes intentionally generate the full
+    // 10k Fate/character fixture set. Keep a hard ceiling, but do not confuse
+    // a cold CI/Windows run with a hung test.
+    timeout: 180 * 1000,
+    killSignal: "SIGTERM"
+  }, (error, stdout, stderr) => {
+    const timeout = Boolean(error && error.killed && error.signal === "SIGTERM");
+    resolve({
+      name,
+      file,
+      ok: !error,
+      output: (stdout || "") + (stderr || "") + (timeout ? "\nTIMEOUT: check exceeded 180s\n" : "")
+    });
+  });
 });
 
 const failures = [];
