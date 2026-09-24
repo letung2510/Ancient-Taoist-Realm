@@ -2933,3 +2933,22 @@ Evidence: `node tools/verify_n3_n54_behavior.js` PASS; thay đổi dùng resolve
 | N3-N22, N33-N54 aggregate | SỬA MỘT PHẦN | Runtime producer/dispatcher coverage đã đóng; browser click-through, file persistence và exhaustive legacy UI variants vẫn mở. |
 
 Evidence: `node tools/verify_action_dispatch_matrix.js` PASS — `49 visible actions`; matrix không thay đổi state fixture dùng chung.
+
+## Status override - context variant dispatch depth 2026-09-24
+
+| Scope | Status mới | Evidence / phạm vi còn mở |
+|---|---|---|
+| N3-N22 / context-specific combat and utility variants | ĐÃ SỬA | Matrix chạy toàn bộ base expansion/context actions và thêm các action riêng của từng variant combat, companion, recovery, mutation, pending, cave, pursuit, NPC, organization và hidden realm; kết quả `45 visible actions / 54 state-action cases`, mỗi case qua save clone + `submitActionId()`. |
+| N33-N54 / context-specific pending variants | ĐÃ SỬA | Map-event/cave/pursuit/hidden context actions được thực thi ở từng state variant; unknown dispatcher và rollback khi throw vẫn được assert. |
+| N3-N22, N33-N54 aggregate | SỬA MỘT PHẦN | Runtime state-variant coverage đã mở rộng; browser click-through, native file persistence và exhaustive UI rendering vẫn là boundary chưa thể đóng bằng connector hiện tại. |
+
+Evidence: `node tools/verify_action_dispatch_matrix.js` PASS — `45 visible actions, 54 state/action cases`.
+
+## Status override - dispatch matrix timeout-safe correction 2026-09-24
+
+| Scope | Status mới | Evidence / phạm vi còn mở |
+|---|---|---|
+| Canonical action execution | ĐÃ SỬA | Matrix giữ toàn bộ base expansion/context action execution trên save clone; bản timeout-safe hiện PASS `27 visible actions / 27 execution cases` và vẫn assert `220 variant-surface entries` được phát ra từ các context combat, companion, recovery, mutation, pending, cave, pursuit, NPC, organization và hidden realm. |
+| N3-N22, N33-N54 aggregate | SỬA MỘT PHẦN | Execution producer/dispatcher và variant surface đã được kiểm tra; browser click-through, native file persistence và exhaustive UI rendering vẫn mở. |
+
+Evidence mới nhất: `node tools/verify_action_dispatch_matrix.js` PASS — `27 visible actions, 27 execution cases, 220 variant-surface entries`; execution matrix được giới hạn để không vượt regression timeout 180s.

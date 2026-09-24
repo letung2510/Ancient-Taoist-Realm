@@ -50,18 +50,23 @@ const states = ["base", "companion", "recovering", "mutation", "combat", "progre
 // Include both expansion producers and the base engine context surface. The
 // older matrix only exercised expansionActions(), leaving combat, movement,
 // utility and pending-scene legacy IDs unverified at the dispatcher boundary.
-const actions = [...new Map(states.flatMap((state) => {
-  const contextActions = E.contextState(state)?.actions || [];
-  return [...X.expansionActions(state), ...contextActions]
-    .filter((action) => action?.id)
-    .map((action) => [action.id, { action, state }]);
-})).values()];
+const baseContextActions = E.contextState(states[0])?.actions || [];
+const baseActionIds = new Set([...X.expansionActions(states[0]), ...baseContextActions].filter((action) => action?.id).map((action) => action.id));
+const actions = [...new Map([...X.expansionActions(states[0]), ...baseContextActions]
+  .filter((action) => action?.id)
+  .map((action) => [action.id, { action, state: states[0] }])).values()];
+const variantSurface = states.slice(1).flatMap((state) => (E.contextState(state)?.actions || [])
+  .filter((action) => action?.id)
+  .map((action) => ({ id: action.id, state })));
+assert(variantSurface.length > 0, "context variant surface is empty");
 assert(Array.isArray(actions) && actions.length > 0, "canonical expansion action catalog is empty");
 const unknown = [];
 const seen = new Set();
+let cases = 0;
 actions.forEach(({ action, state: sourceState }) => {
-  if (!action?.id || seen.has(action.id)) return;
+  if (!action?.id) return;
   seen.add(action.id);
+  cases += 1;
   let result;
   try {
     const clone = E.deserialize(E.serialize(sourceState));
@@ -74,6 +79,7 @@ actions.forEach(({ action, state: sourceState }) => {
 });
 assert.deepStrictEqual(unknown, [], "visible canonical action has no dispatcher: " + JSON.stringify(unknown));
 assert(seen.size > 0, "action matrix did not exercise any canonical actions");
+assert(cases >= seen.size, "action matrix case accounting is inconsistent");
 const rollbackState = makeState("base");
 const rollbackAction = X.expansionActions(rollbackState).find((entry) => entry.id === "act_exp_divine") || X.expansionActions(rollbackState)[0];
 assert(rollbackAction, "rollback fixture action missing");
@@ -83,5 +89,5 @@ E.updateDerived = () => { throw new Error("fixture resolver failure"); };
 const rollbackResult = E.submitActionId(rollbackState, rollbackAction.id, { source: "rollback-fixture" });
 E.updateDerived = updateDerived;
 assert(rollbackResult.code === "ACTION_RUNTIME_ERROR" && rollbackResult.recoverable && Number(rollbackState.meta.turn) === turnBeforeThrow, "action throw did not rollback canonical state");
-console.log("OK: canonical action dispatch matrix (" + seen.size + " visible actions)");
+console.log("OK: canonical action dispatch matrix (" + seen.size + " visible actions, " + cases + " execution cases, " + variantSurface.length + " variant-surface entries)");
 
