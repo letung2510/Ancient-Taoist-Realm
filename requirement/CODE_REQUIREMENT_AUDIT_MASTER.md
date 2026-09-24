@@ -2982,3 +2982,12 @@ Evidence: `node --check js/main.js`, `node tools/verify_browser_ui_contract.js`,
 | N23 / poison resistance | SỬA MỘT PHẦN | Modifier được giữ trong world-modifier contract nhưng chưa có poison-status producer canonical để áp dụng; không tự thêm status ngoài yêu cầu N27. |
 
 Evidence: `node --check js/engine.js`, `node --check js/expansion.js`, `node tools/verify_dichi_deep.js` PASS. N24 (`reviveOnce`) đã có consumer combat; các phần browser/file persistence vẫn giữ boundary đã nêu ở các override trước.
+
+## Status override - duplicate action surface 2026-09-24
+
+| Scope | Status mới | Evidence / phạm vi |
+|---|---|---|
+| Action list duplicate labels | ĐÃ SỬA | UI presentation dedupe theo action ID và nhãn đã chuẩn hóa; khi static talk action trùng expansion NPC action, ưu tiên action expansion có metadata đầy đủ. Journey/action labels trùng cũng chỉ còn một nút hiển thị. |
+| Rapid repeated click | ĐÃ SỬA | Nút action và các delegated/overlay expansion controls tự khóa ngay khi nhận click, trước khi đưa task vào queue; UI render lại sẽ mở khóa theo state mới. |
+
+Evidence: `node --check js/ui.js`, `node --check js/main.js`, `node tools/verify_browser_ui_contract.js`, `node tools/verify_action_dispatch_matrix.js` PASS.

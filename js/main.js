@@ -375,6 +375,8 @@
       }
       const expansionCommand = event.target.closest("[data-expansion-command]");
       if (expansionCommand && state && E.runExpansionCommand) {
+        if (expansionCommand.disabled) return;
+        expansionCommand.disabled = true;
         const command = expansionCommand.dataset.expansionCommand;
         let arg = expansionCommand.dataset.expansionArg || "";
         const arg2 = expansionCommand.dataset.expansionArg2 || "";
@@ -530,6 +532,8 @@
     $("overlay-content").addEventListener("click", (event) => {
       const markSubmit = event.target.closest("[data-mark-submit]");
       if (markSubmit && state && E.runExpansionCommand) {
+        if (markSubmit.disabled) return;
+        markSubmit.disabled = true;
         const input = document.querySelector("[data-mark-input]");
         const note = String(input?.value || "").slice(0, 120);
         const result = E.runExpansionCommand(state, "mark", note, "");
@@ -539,6 +543,8 @@
       }
       const secludedHours = event.target.closest("[data-secluded-hours]");
       if (secludedHours && state) {
+        if (secludedHours.disabled) return;
+        secludedHours.disabled = true;
         const raw = Number(document.querySelector("[data-secluded-hours-input]")?.value || 1);
         const hours = Math.max(1, Math.min(8, Number.isFinite(raw) ? Math.floor(raw) : 1));
         enqueueAction(() => {
@@ -577,6 +583,8 @@
       }
       const expansionCommand = event.target.closest("[data-expansion-command]");
       if (expansionCommand && state && E.runExpansionCommand) {
+        if (expansionCommand.disabled) return;
+        expansionCommand.disabled = true;
         const command = expansionCommand.dataset.expansionCommand;
         const arg = expansionCommand.dataset.expansionArg || "";
         const arg2 = expansionCommand.dataset.expansionArg2 || "";

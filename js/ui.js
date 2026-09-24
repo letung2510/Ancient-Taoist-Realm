@@ -124,7 +124,35 @@ window.GameUI = (function () {
       return { ...action, category, tier, urgency, surface, _sourceIndex: action._sourceIndex };
     };
     const unique = new Map();
-    (ctx.actions || []).forEach((action, index) => { if (action?.id && !unique.has(action.id)) unique.set(action.id, classify({ ...action, _sourceIndex: index })); });
+    const labelsSeen = new Map();
+    const labelKey = (label) => String(label || "").trim().toLocaleLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const preferAction = (current, candidate) => {
+      const currentTalk = String(current.id || "").startsWith("act_talk_");
+      const candidateTalk = String(candidate.id || "").startsWith("act_talk_");
+      if (currentTalk !== candidateTalk) return candidateTalk ? candidate : current;
+      const currentExpansion = String(current.id || "").startsWith("act_exp_");
+      const candidateExpansion = String(candidate.id || "").startsWith("act_exp_");
+      if (candidateExpansion !== currentExpansion) return candidateExpansion ? candidate : current;
+      if (!current.description && candidate.description) return candidate;
+      return current;
+    };
+    (ctx.actions || []).forEach((action, index) => {
+      if (!action?.id) return;
+      const classified = classify({ ...action, _sourceIndex: index });
+      const existingById = unique.get(classified.id);
+      if (existingById) unique.set(classified.id, preferAction(existingById, classified));
+      else unique.set(classified.id, classified);
+      const semanticKey = labelKey(classified.label);
+      const existingByLabel = labelsSeen.get(semanticKey);
+      if (existingByLabel && existingByLabel.id !== classified.id) {
+        const preferred = preferAction(existingByLabel, classified);
+        unique.delete(preferred.id === existingByLabel.id ? classified.id : existingByLabel.id);
+        unique.set(preferred.id, preferred);
+        labelsSeen.set(semanticKey, preferred);
+      } else {
+        labelsSeen.set(semanticKey, classified);
+      }
+    });
     let actions = [...unique.values()];
     const movementActions = actions.filter((action) => action.category === "movement" && /^act_move_(bac|nam|dong|tay)$/.test(action.id));
     if (movementActions.length) {
@@ -174,7 +202,14 @@ window.GameUI = (function () {
         btn.disabled = true;
         btn.title = action.disabled_reason || "Chưa sẵn sàng";
       }
-      btn.addEventListener("click", () => { box.querySelectorAll("details.action-more").forEach((menu) => { menu.open = false; }); onAction(action); });
+      btn.addEventListener("click", () => {
+        if (btn.disabled) return;
+        // Lock the clicked action before enqueueing it. A rapid double-click
+        // must not place the same turn-consuming action into the UI queue twice.
+        btn.disabled = true;
+        box.querySelectorAll("details.action-more").forEach((menu) => { menu.open = false; });
+        onAction(action);
+      });
       return btn;
     };
     presentation.quick.forEach((action) => box.appendChild(makeButton(action)));
