@@ -84,9 +84,19 @@ state.combatIntents = { ho_phap_huyen_lan: { entityId: "ho_phap_huyen_lan", inte
 state.combatStatuses = { player: { poison: { id: "poison", duration: 2, potency: 1 } }, enemies: {} };
 html("combat readout", UI.renderCombatReadout(state), ["data-combat-readout", "data-combat-intent=\"ho_phap_huyen_lan\"", "data-combat-status=\"poison\""]);
 
+const originalHiddenCatalog = X.hiddenPathCatalog;
+const originalHiddenStatus = X.hiddenPathStatus;
+X.hiddenPathCatalog = () => [{ id: "co_than_tan_hon", name: "Cổ Thần Tàn Hồn", status: "open" }];
+X.hiddenPathStatus = () => ({ status: "open", clues: ["clue_qa"], encounter: { status: "pending" } });
+html("hidden path", UI.renderOddities(state), ["Hidden Path", "data-expansion-command=\"co_than_encounter\"", "data-expansion-arg2=\"seal\""]);
+X.hiddenPathCatalog = originalHiddenCatalog;
+X.hiddenPathStatus = originalHiddenStatus;
+
+html("breakthrough ritual", UI.renderRitualModal(state, "anchor", { disabled_reason: "blocked" }), ["data-ritual-open=\"fate\"", "data-ritual-open=\"technique\""]);
+
 const actionNode = document.getElementById("action-list");
 UI.renderActions(state, () => {});
 assert(actionNode.children.length > 0, "action variant renderer produced no buttons");
 assert(actionNode.children.every((child) => child.tagName === "BUTTON" || child.tagName === "DETAILS"), "action renderer leaked non-action root node");
 
-console.log("OK: headless UI variant render matrix (map/discovery/opportunity/guild/companion/combat/action)");
+console.log("OK: headless UI variant render matrix (map/discovery/opportunity/guild/companion/combat/hidden-path/ritual/action)");

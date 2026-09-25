@@ -3042,7 +3042,7 @@ Phần còn mở duy nhất trong các nhóm trên là browser E2E qua connector
 |---|---|---|
 | N122-N140 / modal-action render variants | PARTIAL | `verify_ui_variant_render_matrix.js` calls real `GameUI` renderers for map event, pending discovery, contested opportunity and action bar, and asserts generated selectors/commands. Browser viewport and file chooser behavior remain connector-bound. |
 | M65-M78 / guild teaching UI | PARTIAL | Headless renderer asserts `data-status-action="act_exp_org_study:<technique>"` for an unlearned technique and the learned state label. |
-| C/D / companion and combat UI lifecycle | PARTIAL | Headless renderer asserts recovery/revive/mutation buttons and combat intent/status readout selectors. Full browser click-through remains open. |
+| C/D / companion, combat, hidden-path and ritual UI lifecycle | PARTIAL | Headless renderer asserts recovery/revive/mutation buttons, combat intent/status readout, hidden-path encounter choices and blocked breakthrough ritual shortcuts. Full browser click-through remains open. |
 | UI regression integration | CLOSED | Fixture is registered in `run_regression_suite.js`; full regression passes 43/43, including browser contract, offline bundle and offline parity. |
 
 ## Status override - offline/platform parity rebuild 2026-09-25
