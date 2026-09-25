@@ -3025,3 +3025,14 @@ Evidence mới: `node tools/verify_companion_runtime.js` PASS; `node tools/run_r
 | N3-N54 / map clue/action variants | ĐÃ SỬA MỘT PHẦN | `verify_n3_n54_behavior.js` duyệt 5 map-event templates, 9 combat entities, finding/secret-chain/hidden-path/cave/receipt variants; `verify_action_dispatch_matrix.js` giữ 220 variant-surface entries. Browser clue rendering và exhaustive legacy browser mapping vẫn mở. |
 
 Evidence mới: `node tools/verify_companion_runtime.js`, `node tools/verify_n3_n54_behavior.js`, `node tools/verify_action_dispatch_matrix.js`, `node tools/verify_browser_ui_contract.js`, `node tools/verify_game.js` PASS; `index.html` đã bump cache-buster cho engine/expansion/ui/data combat-status wave. Native file chooser vẫn không thể set file vì connector trả `Not allowed`.
+
+## Status override - offline/platform parity rebuild 2026-09-25
+
+| Scope | Status mới | Evidence / phạm vi |
+|---|---|---|
+| B.11 / offline platform bundle | ĐÃ SỬA | `index.offline.html` đã được rebuild từ `index.html`, inline đủ CSS/script hiện hành và chứa combat intent/status, companion lifecycle cùng UI selectors mới. |
+| FT9-FT11 / offline producer parity | ĐÃ SỬA | `verify_offline_parity.js` PASS cho replay canonical 30/180/365 ngày và explicit long-range checkpoint contract; `verify_offline_bundle.js` PASS self-contained/current markers. |
+| B.11 / browser file persistence | SỬA MỘT PHẦN | Offline/static parity đã đóng; valid native file chooser import round-trip vẫn chưa thể chứng minh vì connector chặn `fileChooser.setFiles` với `Not allowed`. |
+| N122-N140 / modal/action browser variants | SỬA MỘT PHẦN | Static selector/read-model và offline bundle đã đồng bộ; interactive browser state-variant click-through vẫn thiếu bằng chứng do URL/file chooser policy của connector. |
+
+Evidence mới: `node tools/verify_offline_bundle.js` PASS; `node tools/verify_offline_parity.js` PASS. Generator `tools/build_offline_bundle.ps1` chạy thành công sau khi được cấp quyền ghi bundle.
