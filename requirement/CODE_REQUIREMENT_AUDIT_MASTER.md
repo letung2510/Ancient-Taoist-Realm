@@ -3026,6 +3026,16 @@ Evidence mới: `node tools/verify_companion_runtime.js` PASS; `node tools/run_r
 
 Evidence mới: `node tools/verify_companion_runtime.js`, `node tools/verify_n3_n54_behavior.js`, `node tools/verify_action_dispatch_matrix.js`, `node tools/verify_browser_ui_contract.js`, `node tools/verify_game.js` PASS; `index.html` đã bump cache-buster cho engine/expansion/ui/data combat-status wave. Native file chooser vẫn không thể set file vì connector trả `Not allowed`.
 
+## Status override - variant dispatcher execution matrix 2026-09-25
+
+| Scope | Status má»›i | Evidence / pháº¡m vi |
+|---|---|---|
+| N3-N54 / action variants + legacy mapping | ÄÃƒ Sá»¬A Má»˜T PHáº¦N | `verify_action_dispatch_matrix.js` Ä‘Ã£ thu tháº­p action tá»« base context vÃ  tá»«ng expansion state variant, sau Ä‘Ã³ dispatch one-to-one 49 canonical action IDs trÃªn clone state; khÃ´ng cÃ²n unknown/unsupported response; variant surface quan sÃ¡t 305 entries. |
+| M41-M49, M51-M54, M65-M78 / action exposure | ÄÃƒ Sá»¬A Má»˜T PHáº¦N | Fast-travel, settlement/NPC queue, companion lifecycle, hidden-path, pursuit, teaching/guild vÃ  pending-scene action IDs Ä‘Ã£ Ä‘Æ°á»£c dispatch qua state variants. Browser click-through/persistence native file chooser váº«n phá»¥ thuá»™c connector. |
+| Regression contract | ÄÃƒ Sá»¬A | `node tools/verify_action_dispatch_matrix.js` PASS: 49 action IDs, 49 variant execution cases, 305 variant-surface entries; `git diff --check` PASS. |
+
+Pháº§n cÃ²n má»Ÿ duy nháº¥t trong cÃ¡c nhÃ³m trÃªn lÃ  browser E2E qua connector (Ä‘áº·c biá»‡t native file chooser vÃ  click-through state variants). KhÃ´ng Ä‘Ã¡nh dáº¥u khÃ©p pháº§n nÃ y khi cÃ´ng cá»¥ tráº£ `Not allowed`.
+
 ## Status override - offline/platform parity rebuild 2026-09-25
 
 | Scope | Status mới | Evidence / phạm vi |
