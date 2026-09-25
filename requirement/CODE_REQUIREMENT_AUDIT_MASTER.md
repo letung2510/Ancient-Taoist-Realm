@@ -3047,6 +3047,14 @@ Phần còn mở duy nhất trong các nhóm trên là browser E2E qua connector
 | Browser localhost lifecycle | PARTIAL | Chrome connector completed home -> create -> region -> journey-intent radio -> confirm on http://127.0.0.1:4173; overlay closed and action surface rendered. Native import was retried on the same HTTP page and `fileChooser.setFiles` returned `Not allowed`. |
 | Browser action-bar layout | CLOSED | Live DOM measurement at 1920x1031 reports `flex-wrap: nowrap`, `overflow-x: auto`, `clientHeight=50`, `scrollHeight=50`; three visible actions share one row with no second-line overflow. |
 
+## Status override - legacy producer mapping follow-up 2026-09-25
+
+| Scope | Status | Evidence |
+|---|---|---|
+| N51 / competitor progress | CLOSED | `verify_n3_n54_behavior.js` uses the canonical competitor catalog, checks unique actor IDs, projects each actor at its own cadence, asserts deterministic same-day snapshots and rejects a collapsed single cadence. |
+| M79-M88 / save-clock-action-platform boundary | PARTIAL | `verify_m79_m88_behavior.js` maps each M-ID to a concrete save/schema, clock, action-priority, grouped-movement, entropy, offline-bundle or UI-boundary assertion. Full browser persistence, pixel/responsive and native chooser evidence remain connector-bound. |
+| T1-T12 / LT1-LT10 | CLOSED | `verify_legacy_behavior_matrix.js` and `verify_legacy_log_matrix.js` provide one fixture/assertion per legacy ID and are regression-bound. |
+
 ## Status override - offline/platform parity rebuild 2026-09-25
 
 | Scope | Status mới | Evidence / phạm vi |
