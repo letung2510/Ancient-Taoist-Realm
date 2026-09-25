@@ -3045,6 +3045,7 @@ Phần còn mở duy nhất trong các nhóm trên là browser E2E qua connector
 | C/D / companion, combat, hidden-path and ritual UI lifecycle | PARTIAL | Headless renderer asserts recovery/revive/mutation buttons, combat intent/status readout, hidden-path encounter choices and blocked breakthrough ritual shortcuts. Full browser click-through remains open. |
 | UI regression integration | CLOSED | Fixture is registered in `run_regression_suite.js`; full regression passes 43/43, including browser contract, offline bundle and offline parity. |
 | Browser localhost lifecycle | PARTIAL | Chrome connector completed home -> create -> region -> journey-intent radio -> confirm on http://127.0.0.1:4173; overlay closed and action surface rendered. Native import was retried on the same HTTP page and `fileChooser.setFiles` returned `Not allowed`. |
+| Browser action-bar layout | CLOSED | Live DOM measurement at 1920x1031 reports `flex-wrap: nowrap`, `overflow-x: auto`, `clientHeight=50`, `scrollHeight=50`; three visible actions share one row with no second-line overflow. |
 
 ## Status override - offline/platform parity rebuild 2026-09-25
 
