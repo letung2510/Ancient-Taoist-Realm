@@ -3044,6 +3044,7 @@ Phần còn mở duy nhất trong các nhóm trên là browser E2E qua connector
 | M65-M78 / guild teaching UI | PARTIAL | Headless renderer asserts `data-status-action="act_exp_org_study:<technique>"` for an unlearned technique and the learned state label. |
 | C/D / companion, combat, hidden-path and ritual UI lifecycle | PARTIAL | Headless renderer asserts recovery/revive/mutation buttons, combat intent/status readout, hidden-path encounter choices and blocked breakthrough ritual shortcuts. Full browser click-through remains open. |
 | UI regression integration | CLOSED | Fixture is registered in `run_regression_suite.js`; full regression passes 43/43, including browser contract, offline bundle and offline parity. |
+| Browser localhost lifecycle | PARTIAL | Chrome connector completed home -> create -> region -> journey-intent radio -> confirm on http://127.0.0.1:4173; overlay closed and action surface rendered. Native import was retried on the same HTTP page and `fileChooser.setFiles` returned `Not allowed`. |
 
 ## Status override - offline/platform parity rebuild 2026-09-25
 
