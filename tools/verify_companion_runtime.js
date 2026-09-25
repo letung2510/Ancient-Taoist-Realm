@@ -58,6 +58,10 @@ state.player.hp = state.player.maxHp;
 E.spawnCombatEntity(state, "ho_phap_huyen_lan");
 E.monsterAction(state, "ho_phap_huyen_lan");
 assert(state.combatStatuses.player.player?.id === "poison", "enemy combat profile must produce poison status");
+assert(E.enemyIntentSnapshot(state).ho_phap_huyen_lan?.intent === "venom", "enemy intent telegraph did not expose catalog intent");
+assert(E.validateCombatStatusState(state).ok, "combat status save invariant failed");
+const statusRestored = E.deserialize(E.serialize(state));
+assert(statusRestored.combatStatuses?.player?.player?.id === "poison", "combat status was not persisted through save/load");
 // Mutation is a blocking companion action with explicit cure/accept branches;
 // both must clear the pending state through the same canonical command resolver.
 state.companion.mutationPending = true; state.companion.state = "mutated"; state.companion.corruption = 80;

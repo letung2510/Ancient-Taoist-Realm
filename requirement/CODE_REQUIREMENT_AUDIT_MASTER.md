@@ -3012,3 +3012,16 @@ Evidence: `node tools/verify_log_narrative.js`, `node tools/verify_game.js` PASS
 | Companion legacy notes | ĐÃ ĐỐI CHIẾU | Policy revive giữ theo `COMPANION_CANONICAL.md` (3 Linh Thạch/25%); note lịch sử 12/35/soul_scar không được áp dụng. Loyalty/cooldown/flee/attack đã có fixture one-to-one trong `verify_companion_runtime.js`. |
 
 Evidence mới: `node tools/verify_companion_runtime.js` PASS; `node tools/run_regression_suite.js` PASS các check runtime/UI hiện hành; `node validate_requirement_docs.js` PASS; `git diff --check` PASS sau khi loại blank-line thừa. Browser native file chooser vẫn là blocker connector ngoài code.
+
+## Status override - combat telegraph/read-model parity 2026-09-25
+
+| Scope | Status mới | Evidence / phạm vi |
+|---|---|---|
+| N27 / combat state persistence | ĐÃ SỬA | `combatIntents` và `combatStatuses` là state-owned namespaces, có validator runtime, save/load round-trip và deterministic status tick. `enemyIntentSnapshot()` expose telegraph trước khi UI render action. |
+| N27 / combat UI surface | ĐÃ SỬA | `renderCombatReadout()` render `data-combat-readout`, từng `data-combat-intent` và `data-combat-status`; browser UI contract kiểm tra selector/read-model này. |
+| M41-M49 / fast travel | ĐÃ SỬA | Producer matrix đã kiểm tra eligible target, self/unregistered guard, source/destination disclosure, zero-day plan, task version, interrupt/resume/cancel và UI command bridge. Browser click-through eligible persistence vẫn phụ thuộc connector. |
+| M51-M54 / settlement/NPC destination | ĐÃ SỬA | Settlement snapshot, capacity conflict, footprint retention, queue destination/rank và UI disclosure đã có producer + static selector contract. Interactive lifecycle từng NPC/settlement vẫn cần browser connector. |
+| M65-M78 / teaching | ĐÃ SỬA | Vault duyệt từng technique chưa học, producer tạo action teacher, trust-trial passed và learn commit; UI selector/preview route có static contract. Browser teacher/trial/reward click-through vẫn là phần chưa được connector chứng minh. |
+| N3-N54 / map clue/action variants | ĐÃ SỬA MỘT PHẦN | `verify_n3_n54_behavior.js` duyệt 5 map-event templates, 9 combat entities, finding/secret-chain/hidden-path/cave/receipt variants; `verify_action_dispatch_matrix.js` giữ 220 variant-surface entries. Browser clue rendering và exhaustive legacy browser mapping vẫn mở. |
+
+Evidence mới: `node tools/verify_companion_runtime.js`, `node tools/verify_n3_n54_behavior.js`, `node tools/verify_action_dispatch_matrix.js`, `node tools/verify_browser_ui_contract.js`, `node tools/verify_game.js` PASS; `index.html` đã bump cache-buster cho engine/expansion/ui/data combat-status wave. Native file chooser vẫn không thể set file vì connector trả `Not allowed`.

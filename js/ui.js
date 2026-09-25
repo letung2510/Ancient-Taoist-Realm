@@ -622,6 +622,15 @@ window.GameUI = (function () {
     if (!actions.length) return '<div class="detail-block status-actions"><small class="muted">Chưa có hành động khả dụng trong bối cảnh hiện tại.</small></div>';
     return '<div class="section-title">Hành động hiện có</div><div class="detail-block status-actions">' + actions.map((action) => '<button type="button" class="action-chip action-category-' + escapeHtml(action.category || "other") + '" data-status-action="' + escapeHtml(action.id) + '"' + ((action.disabled || action.disabled_reason) ? ' disabled title="' + escapeHtml(action.disabled_reason || "Chưa sẵn sàng") + '"' : '') + '>' + escapeHtml(action.label || action.id) + '</button>').join(" ") + '</div>';
   }
+  function renderCombatReadout(state) {
+    const ctx = window.GameEngine.contextState?.(state) || {};
+    if (!ctx.inCombat) return '';
+    const intents = ctx.enemyIntents || window.GameEngine.enemyIntentSnapshot?.(state) || {};
+    const statuses = ctx.combatStatuses || window.GameEngine.combatStatusStore?.(state) || { player: {} };
+    const intentRows = Object.values(intents).map((intent) => '<div class="combat-intent-row" data-combat-intent="' + escapeHtml(intent.entityId) + '"><b>' + escapeHtml(intent.entityId) + '</b><span>Ý đồ: ' + escapeHtml(intent.intent || intent.action || 'basic') + '</span>' + ((intent.statusEffects || []).length ? '<small> · Hiệu ứng: ' + escapeHtml(intent.statusEffects.map((effect) => effect.id).join(', ')) + '</small>' : '') + '</div>').join('');
+    const statusRows = Object.values(statuses.player || {}).map((status) => '<span class="combat-status" data-combat-status="' + escapeHtml(status.id) + '">' + escapeHtml(status.id) + ' · ' + Number(status.duration || 0) + ' lượt · lực ' + Number(status.potency || 0) + '</span>').join('');
+    return '<section class="combat-readout" data-combat-readout><div class="section-title">Chiến đấu · Ý đồ đối thủ</div>' + (intentRows || '<small class="muted">Chưa có ý đồ được telegraph.</small>') + (statusRows ? '<div class="combat-status-list">Trạng thái của ngươi: ' + statusRows + '</div>' : '') + '</section>';
+  }
   function renderStatus(state) {
     const p = state.player;
     const s = p.stats;
@@ -664,7 +673,7 @@ window.GameUI = (function () {
     const madness = p.san <= 0 || state.flags.madness
       ? '<div class="san-penalty"><b>⚠ Hình phạt Mất Trí đã kích hoạt</b><span>Mất ' + (state.flags.madnessPenalty?.lostExp || 0) + ' Tu vi · Tà Nhiễm +' + (state.flags.madnessPenalty?.corruptionGained || 0) + ' · Kết cục Tha Hóa</span></div>'
       : '';
-    return avatar + perceptionNote +
+    return renderCombatReadout(state) + avatar + perceptionNote +
       '<div class="section-title">' + p.name + " · " + escapeHtml(window.GameEngine.pathTitle(state)) + "</div>" + madness +
       bar("Khí Huyết", p.hp, p.maxHp, "hp-bar", "Sinh lực của thân thể. Khí Huyết về 0 khiến mệnh nhân bại trận hoặc tử vong tùy tình cảnh.") +
       bar("Linh Khí", p.qi, p.maxQi, "qi-bar", "Năng lượng dùng để tu luyện và thi triển công pháp; nghỉ ngơi hoặc vật phẩm có thể phục hồi.") +
