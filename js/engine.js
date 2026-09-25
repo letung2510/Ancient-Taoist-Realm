@@ -1990,7 +1990,7 @@ window.GameEngine = (function () {
       flags: { journeyIntentPending: !character.journeyIntent, journeyIntent: character.journeyIntent || null, openingPlan: character.openingPlan || null, originChoicePending: false, originSituation: null, originChoice: null, originLocked: Boolean(character.origin) },
       memory: { shortTerm: [], longTerm: [], worldFacts: [] },
       history: [],
-      logState: { sequence: 0, recentNarratives: [], groups: {}, lastEventId: null },
+      logState: { sequence: 0, recentNarratives: [], recentNarrativeTemplates: [], groups: {}, lastEventId: null },
       enemies: {},
       pendingEnding: null,
       pendingRewardSummaries: [],
@@ -4657,7 +4657,7 @@ window.GameEngine = (function () {
     state.flags.searches = state.flags.searches || {};
     const sessionNumber = Number(state.flags.searches[state.locationId] || 0) + 1;
     state.flags.searches[state.locationId] = sessionNumber;
-    state.logState = state.logState || { sequence: 0, recentNarratives: [], groups: {}, lastEventId: null };
+    state.logState = state.logState || { sequence: 0, recentNarratives: [], recentNarrativeTemplates: [], groups: {}, lastEventId: null };
     state.logState.activeSceneId = "scene:search:" + state.locationId + ":" + sessionNumber;
     const site = ensureSearchSite(state);
     const stats = computeStats(state.player);
@@ -5855,8 +5855,12 @@ window.GameEngine = (function () {
     if (event.type === "COMMAND_ECHO" || event.debugOnly) return "";
     if (event.narrative?.text) return narrativeSafe(event.narrative.text, event);
     const pool = LOG_TEMPLATES[event.type] || LOG_TEMPLATES.SYSTEM;
-    const recent = state.logState?.recentNarratives || [];
-    let template = pool.find((item) => !recent.includes(item)) || pool[0];
+    const recent = state.logState?.recentNarrativeTemplates || [];
+    const templateIndex = pool.findIndex((item, index) => !recent.includes(event.type + ":" + index));
+    const selectedIndex = templateIndex >= 0 ? templateIndex : 0;
+    state.logState ||= { sequence: 0, recentNarratives: [], recentNarrativeTemplates: [], groups: {}, lastEventId: null };
+    state.logState.lastNarrativeTemplateKey = event.type + ":" + selectedIndex;
+    const template = pool[selectedIndex];
     const vars = { ...(event.context || {}), ...(event.result || {}) };
     let text = template.replace(/\{(\w+)\}/g, (_, key) => logValue(vars[key], key === "text" ? event.text : "—"));
     return narrativeSafe(text, event);
@@ -5882,7 +5886,7 @@ window.GameEngine = (function () {
     return { ok: issues.length === 0, issues, text: value };
   }
   function createGameEvent(state, input = {}) {
-    state.logState = state.logState || { sequence: 0, recentNarratives: [], groups: {}, lastEventId: null };
+    state.logState = state.logState || { sequence: 0, recentNarratives: [], recentNarrativeTemplates: [], groups: {}, lastEventId: null };
     state.logState.sequence = Number(state.logState.sequence || 0) + 1;
     const type = canonicalLogType(input.type || input.eventType);
     const event = {
@@ -5915,6 +5919,11 @@ window.GameEngine = (function () {
     if (typeof window !== "undefined" && window.GameI18n?.formatHistory) event.text = window.GameI18n.formatHistory(event.text, state);
     const recent = state.logState.recentNarratives || [];
     state.logState.recentNarratives = recent.concat([event.text]).slice(-8);
+    const templateKey = state.logState.lastNarrativeTemplateKey;
+    if (templateKey) {
+      const recentTemplates = state.logState.recentNarrativeTemplates || [];
+      state.logState.recentNarrativeTemplates = recentTemplates.concat([templateKey]).slice(-8);
+    }
     state.logState.lastEventId = event.id;
     return event;
   }
@@ -5944,7 +5953,7 @@ window.GameEngine = (function () {
     const event = normalizeHistoryEvent(state, entry.id && entry.timestamp && entry.context && entry.result ? { ...entry } : createGameEvent(state, entry));
     if (event?.text !== undefined) event.text = sanitizeLogUtf8(event.text);
     state.history = Array.isArray(state.history) ? state.history : [];
-    state.logState = state.logState || { sequence: 0, recentNarratives: [], groups: {}, lastEventId: null, totalEvents: 0 };
+    state.logState = state.logState || { sequence: 0, recentNarratives: [], recentNarrativeTemplates: [], groups: {}, lastEventId: null, totalEvents: 0 };
     state.logState.totalEvents = Number(state.logState.totalEvents || 0) + 1;
     state.history.push(event);
     if (state.history.length > 300) state.history.splice(0, state.history.length - 300);
@@ -6701,7 +6710,7 @@ window.GameEngine = (function () {
     const data = JSON.parse(json);
     const state = migrateV12ToV13(data.state);
     if (state) {
-      state.logState = { sequence: 0, recentNarratives: [], groups: {}, lastEventId: null, ...(state.logState || {}) };
+      state.logState = { sequence: 0, recentNarratives: [], recentNarrativeTemplates: [], groups: {}, lastEventId: null, ...(state.logState || {}) };
       state.history = Array.isArray(state.history) ? state.history : [];
       state.history = state.history.map((entry, index) => {
         if (entry && entry.id && entry.timestamp && entry.context && entry.result) return entry;
