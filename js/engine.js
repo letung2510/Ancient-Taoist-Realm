@@ -1992,6 +1992,8 @@ window.GameEngine = (function () {
       history: [],
       logState: { sequence: 0, recentNarratives: [], recentNarrativeTemplates: [], groups: {}, lastEventId: null },
       enemies: {},
+      combatIntents: {},
+      combatStatuses: { player: {}, enemies: {} },
       pendingEnding: null,
       pendingRewardSummaries: [],
       market: { generatedAt: 0, refreshIntervalMs: 60000, offers: [], purchased: {} },
@@ -5214,11 +5216,33 @@ window.GameEngine = (function () {
       if (status.id === "poison" && Number(status.potency) > 0 && state.player.hp > 0) {
         state.player.hp = Math.max(0, Number(state.player.hp) - Math.max(1, Math.round(Number(status.potency))));
         pushHistory(state, { type: "warn", text: "Độc phát tác, HP -" + Math.max(1, Math.round(Number(status.potency))) + "." });
+        if (state.player.hp <= 0) state.pendingEnding = state.pendingEnding || "succumb";
       }
       status.duration = Number(status.duration || 0) - 1;
       if (status.duration <= 0) delete playerStatuses[key];
     });
     return store;
+  }
+
+  function enemyIntentSnapshot(state) {
+    const result = {};
+    aliveEnemies(state).forEach(([entityId, hp]) => {
+      const info = combatEntity(state, entityId);
+      if (!info) return;
+      const ratio = Number(hp) / Math.max(1, Number(info.hpMax || 1));
+      const action = ratio <= 0.25 ? "desperation" : ratio <= 0.6 ? "special" : "basic";
+      result[entityId] = { entityId, action, intent: info.intent || action, statusEffects: (info.statusEffects || []).map((effect) => ({ ...effect })) };
+    });
+    return result;
+  }
+
+  function validateCombatStatusState(state) {
+    const store = combatStatusStore(state), errors = [];
+    ["player", "enemies"].forEach((bucketName) => Object.entries(store[bucketName] || {}).forEach(([key, status]) => {
+      if (!status || !status.id || !Number.isFinite(Number(status.duration)) || Number(status.duration) < 1 || !Number.isFinite(Number(status.potency)) || Number(status.potency) < 0) errors.push(bucketName + ":" + key);
+    }));
+    Object.entries(state.combatIntents || {}).forEach(([key, intent]) => { if (!intent || intent.entityId !== key || !intent.action) errors.push("intent:" + key); });
+    return { ok: errors.length === 0, errors };
   }
 
   function rollEntityLoot(state, info) {
@@ -6232,6 +6256,8 @@ window.GameEngine = (function () {
   }
   function resolveActionPriority(state, context) {
     const result = context || { actions: [] };
+    result.enemyIntents = enemyIntentSnapshot(state);
+    result.combatStatuses = combatStatusStore(state);
     const actions = Array.isArray(result.actions) ? result.actions : [];
     if (result.forced) return { ...result, actions: resolveActions(state, result.actions) };
     if (result.inCombat) {
@@ -6954,7 +6980,7 @@ window.GameEngine = (function () {
     cultivationTier, fateRewardWeights, rollFateByProgression, anchorCandidates, establishHumanAnchor, breakthroughRitualPlan, breakthroughRitualStatus, pathRitualStatus: breakthroughRitualStatus, breakthroughRitualGateRequirements, performBreakthroughRitualStep, breakthroughRequirements, getBreakthroughBlockers, getChuyenSinhBlockers, processLuanHoi, processChuyenSinh, chooseTaintedAttention, rollTaintedAttention, chooseTaintedFaction, factionStatus, grantTaintedRewardCanonical, grantQuestMerit, resolveFactionHunt, switchTaintedFaction, selectPath, pathTitle, completeUnboundTrial, canUnlockDevourHeaven, recordTaintedMilestones, normalizeAction, resolveActions, resolveActionSurfaces, validateActionPriorityMatrix,
     elementRelation, familyMatchup, toCanonicalCharacter, fromCanonicalCharacter,
     gainExp, recordCultivationGain, cultivationSourceCatalog, validateCultivationAttribution, cultivationVelocityStatus, adjustDaoTam, cultivationJournalPush, enterLuyenKhi, cultivate, autoCultivate, secludedCultivation, startSecludedCultivation, advanceSecludedCultivation, rest, doBreakthrough, drainSan, restoreSan, move, locationExits, materializeLocalConstellation, localBfsConstellation, locationPool: runtimeLocationPool, locationForState, look, ensureSearchSite, pendingExplorationAt, pendingDepartureGuard, confirmPendingDeparture, searchStatus, search, ensureSearchChainQuest, collectSearchFindings, investigateSearchFinding, leaveSearchSession, useItem,
-    talk, combat, beginCombat, aliveEnemies, firstAliveEnemy, enemyTurn, afterPlayerCombatAction, applyPlayerDamage, endCombat, combatEntity, spawnCombatEntity, maybeSpawnCombatExtras, lootTable, rollEntityLoot, rollDefeatBonus, entityCatalog, getEntity, entityForPlayer, dialogueState, presentEntities, mapAddressCatalog, mapAddressesAtNode, mapOxyAddress, mapEventCatalog, rollMapEvent, resolveMapEvent, validateMapEventState, maybeTriggerRandomEncounter, findEntityByName, interactEntity, monsterAction, applyCombatStatus, tickCombatStatuses, combatStatusStore, useTechnique, techniquePreview, prepareTechnique, advanceTechniqueChannel, cancelTechniquePreparation, ensureTechniqueCombatState, learnTechnique, getKnownTechniques, techniqueCatalog, validateTechniqueCatalog, techniqueStatus, techniqueProgress, contextState, resolveActionPriority, moveActions, talkActions, skillActions, parseAction, resolveAction, submitActionId, submitTurn, describeStatus, describeInventory, describeQuests, coordinateKey, neighborCoordinate, getNodeAtCoordinate, nodeCoordinates, validateOpenWorldGrid,
+    talk, combat, beginCombat, aliveEnemies, firstAliveEnemy, enemyTurn, afterPlayerCombatAction, applyPlayerDamage, endCombat, combatEntity, spawnCombatEntity, maybeSpawnCombatExtras, lootTable, rollEntityLoot, rollDefeatBonus, entityCatalog, getEntity, entityForPlayer, dialogueState, presentEntities, mapAddressCatalog, mapAddressesAtNode, mapOxyAddress, mapEventCatalog, rollMapEvent, resolveMapEvent, validateMapEventState, maybeTriggerRandomEncounter, findEntityByName, interactEntity, monsterAction, applyCombatStatus, tickCombatStatuses, combatStatusStore, enemyIntentSnapshot, validateCombatStatusState, useTechnique, techniquePreview, prepareTechnique, advanceTechniqueChannel, cancelTechniquePreparation, ensureTechniqueCombatState, learnTechnique, getKnownTechniques, techniqueCatalog, validateTechniqueCatalog, techniqueStatus, techniqueProgress, contextState, resolveActionPriority, moveActions, talkActions, skillActions, parseAction, resolveAction, submitActionId, submitTurn, describeStatus, describeInventory, describeQuests, coordinateKey, neighborCoordinate, getNodeAtCoordinate, nodeCoordinates, validateOpenWorldGrid,
     describeFate, describeMap, serialize, deserialize, migrateV12ToV13, pushMemory, pushHistory, createGameEvent, emitEvent, emitGameEvent, normalizeHistoryEvent, groupIntoScenes, renderGameEvent, renderScene, lintNarrativeText, repairMojibakeText, sanitizeLogUtf8, narrativeSafe, formatPlayerLogText, getGameLog, novelLogParagraphs, validateLogSurfaceState, detectMilestones, formatEventChanges, ensureGameClock, ensureWorldClock, validateWorldClockState, syncWorldClock, clockLabel, worldClockLabel, advanceGameTime, processOnlineFateReward, applyOfflineProgress, GAME_TIME_CONFIG, ERROR_NARRATIVE_MAP, playerFacingReason
   };
 })();

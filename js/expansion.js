@@ -3431,6 +3431,8 @@
     }
     const companionAudit = validateCompanionState(state);
     if (!companionAudit.ok) companionAudit.errors.forEach((error) => errors.push("companionState:" + error));
+    const combatStatusAudit = typeof E.validateCombatStatusState === "function" ? E.validateCombatStatusState(state) : { ok: false, errors: ["combat-status-validator-missing"] };
+    if (!combatStatusAudit.ok) combatStatusAudit.errors.forEach((error) => errors.push("combatStatus:" + error));
     const prisonerAudit = validatePrisonerState(state);
     if (!prisonerAudit.ok) prisonerAudit.errors.forEach((error) => errors.push("prisonerState:" + error));
     const reincarnationAudit = validateReincarnationRuntimeState(state);

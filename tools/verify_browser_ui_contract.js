@@ -50,6 +50,7 @@ assert(/act_exp_npc_train/.test(expansion) && /act_exp_org_study/.test(expansion
 assert(/settlement|resolveNpcSettlements/.test(ui + expansion), 'settlement lifecycle surface missing');
 assert(/settlementSnapshot/.test(expansion) && /data-settlement-snapshot/.test(ui), 'settlement capacity read-model UI missing');
 assert(/fast-travel-action/.test(ui) && /travel_fast/.test(ui) && /travel_fast/.test(expansion), 'canonical fast-travel UI bridge missing');
+assert(/renderCombatReadout/.test(ui) && /data-combat-readout/.test(ui) && /data-combat-intent/.test(ui) && /data-combat-status/.test(ui), 'enemy intent/status UI readout missing');
 
 // Action-surface matrix: every stateful UI action must expose a stable
 // canonical command/selector and be routed through the single expansion
