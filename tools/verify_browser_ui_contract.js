@@ -11,6 +11,10 @@ const expansion = fs.readFileSync(path.join(root, 'js', 'expansion.js'), 'utf8')
 for (const id of ['screen-home', 'screen-create', 'screen-game', 'overlay', 'overlay-close', 'btn-save-file', 'btn-load-file', 'save-file-input']) assert(html.includes('id="' + id + '"'), 'missing UI lifecycle node: ' + id);
 assert(/@media\s*\(max-width:\s*760px\)/.test(css), 'responsive breakpoint contract missing');
 assert(/#topbar\s*\{[^}]*flex-wrap:\s*wrap/.test(css), 'mobile topbar wrap contract missing');
+assert(/\.action-list[\s\S]*flex-wrap:\s*nowrap/.test(css), 'action bar must remain a single horizontal row');
+assert(/\.action-list[\s\S]*overflow-x:\s*auto/.test(css), 'action bar horizontal overflow contract missing');
+assert(/\.action-more-menu[\s\S]*position:\s*fixed/.test(css), 'more action table must be viewport anchored');
+assert(/\.action-more-menu[\s\S]*max-height:/.test(css), 'more action table max-height contract missing');
 assert(/\.topbar-actions\s*\{[^}]*min-width:\s*0/.test(css), 'mobile topbar shrink contract missing');
 assert(/\.topbar-actions \.game-clock\s*\{[^}]*overflow-wrap:\s*anywhere/.test(css), 'mobile clock wrap contract missing');
 assert(/data-journey-intent-confirm/.test(ui) && /journey-intent/.test(ui), 'journey intent action surface missing');
