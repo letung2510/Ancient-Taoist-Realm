@@ -39,6 +39,7 @@ const checks = [
   , ["verify_progression_requirement_matrix", "tools/verify_progression_requirement_matrix.js"]
   , ["verify_technique_channel_matrix", "tools/verify_technique_channel_matrix.js"]
   , ["verify_browser_ui_contract", "tools/verify_browser_ui_contract.js"]
+  , ["verify_ui_variant_render_matrix", "tools/verify_ui_variant_render_matrix.js"]
   , ["verify_save_envelope", "tools/verify_save_envelope.js"]
   , ["verify_action_dispatch_matrix", "tools/verify_action_dispatch_matrix.js"]
   , ["verify_map_producer_matrix", "tools/verify_map_producer_matrix.js"]

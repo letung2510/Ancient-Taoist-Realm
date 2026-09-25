@@ -3028,13 +3028,22 @@ Evidence mới: `node tools/verify_companion_runtime.js`, `node tools/verify_n3_
 
 ## Status override - variant dispatcher execution matrix 2026-09-25
 
-| Scope | Status má»›i | Evidence / pháº¡m vi |
+| Scope | Status | Evidence |
 |---|---|---|
-| N3-N54 / action variants + legacy mapping | ÄÃƒ Sá»¬A Má»˜T PHáº¦N | `verify_action_dispatch_matrix.js` Ä‘Ã£ thu tháº­p action tá»« base context vÃ  tá»«ng expansion state variant, sau Ä‘Ã³ dispatch one-to-one 49 canonical action IDs trÃªn clone state; khÃ´ng cÃ²n unknown/unsupported response; variant surface quan sÃ¡t 305 entries. |
-| M41-M49, M51-M54, M65-M78 / action exposure | ÄÃƒ Sá»¬A Má»˜T PHáº¦N | Fast-travel, settlement/NPC queue, companion lifecycle, hidden-path, pursuit, teaching/guild vÃ  pending-scene action IDs Ä‘Ã£ Ä‘Æ°á»£c dispatch qua state variants. Browser click-through/persistence native file chooser váº«n phá»¥ thuá»™c connector. |
-| Regression contract | ÄÃƒ Sá»¬A | `node tools/verify_action_dispatch_matrix.js` PASS: 49 action IDs, 49 variant execution cases, 305 variant-surface entries; `git diff --check` PASS. |
+| N3-N54 / action variants + legacy mapping | ĐÃ SỬA MỘT PHẦN | `verify_action_dispatch_matrix.js` đã thu thập action từ base context và từng expansion state variant, sau đó dispatch one-to-one 49 canonical action IDs trên clone state; không còn unknown/unsupported response; variant surface quan sát 305 entries. |
+| M41-M49, M51-M54, M65-M78 / action exposure | ĐÃ SỬA MỘT PHẦN | Fast-travel, settlement/NPC queue, companion lifecycle, hidden-path, pursuit, teaching/guild và pending-scene action IDs đã được dispatch qua state variants. Browser click-through/persistence native file chooser vẫn phụ thuộc connector. |
+| Regression contract | ĐÃ SỬA | `node tools/verify_action_dispatch_matrix.js` PASS: 49 action IDs, 49 variant execution cases, 305 variant-surface entries; `git diff --check` PASS. |
 
-Pháº§n cÃ²n má»Ÿ duy nháº¥t trong cÃ¡c nhÃ³m trÃªn lÃ  browser E2E qua connector (Ä‘áº·c biá»‡t native file chooser vÃ  click-through state variants). KhÃ´ng Ä‘Ã¡nh dáº¥u khÃ©p pháº§n nÃ y khi cÃ´ng cá»¥ tráº£ `Not allowed`.
+Phần còn mở duy nhất trong các nhóm trên là browser E2E qua connector (đặc biệt native file chooser và click-through state variants). Không đánh dấu khép phần này khi công cụ trả `Not allowed`.
+
+## Status override - headless UI variant render matrix 2026-09-25
+
+| Scope | Status | Evidence |
+|---|---|---|
+| N122-N140 / modal-action render variants | PARTIAL | `verify_ui_variant_render_matrix.js` calls real `GameUI` renderers for map event, pending discovery, contested opportunity and action bar, and asserts generated selectors/commands. Browser viewport and file chooser behavior remain connector-bound. |
+| M65-M78 / guild teaching UI | PARTIAL | Headless renderer asserts `data-status-action="act_exp_org_study:<technique>"` for an unlearned technique and the learned state label. |
+| C/D / companion and combat UI lifecycle | PARTIAL | Headless renderer asserts recovery/revive/mutation buttons and combat intent/status readout selectors. Full browser click-through remains open. |
+| UI regression integration | CLOSED | Fixture is registered in `run_regression_suite.js`; full regression passes 43/43, including browser contract, offline bundle and offline parity. |
 
 ## Status override - offline/platform parity rebuild 2026-09-25
 

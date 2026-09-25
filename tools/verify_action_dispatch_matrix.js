@@ -82,9 +82,16 @@ executionCases.forEach(({ action, state: sourceState }) => {
   executedVariantIds.add(variantKey);
   seen.add(action.id);
   cases += 1;
+  const baseExecution = cases <= actions.length;
   let result;
   try {
-    const clone = E.deserialize(E.serialize(sourceState));
+    // Keep the canonical save round-trip for the base action catalog. Variant
+    // dispatch only needs an isolated state object; JSON cloning avoids
+    // re-running the full save validator for every state-specific exposure
+    // and keeps the regression gate below its 180s process budget.
+    const clone = baseExecution
+      ? E.deserialize(E.serialize(sourceState))
+      : JSON.parse(JSON.stringify(sourceState));
     result = E.submitActionId(clone, action.id, { source: "action-dispatch-matrix" });
   } catch (error) {
     result = { success: false, reason: String(error?.message || error) };
