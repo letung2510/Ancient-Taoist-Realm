@@ -1094,6 +1094,10 @@
     companion.hpMax = Math.max(1, Number(companion.hpMax || 30));
     companion.hp = clamp(companion.hp == null ? companion.hpMax : companion.hp, 0, companion.hpMax);
     companion.role = companion.role || (companion.passiveId === "scout" ? "scout" : "striker");
+    const entity = companion.entityId && typeof E.getEntity === "function" ? E.getEntity(companion.entityId) : null;
+    const derivedAttack = Number(entity?.attack || entity?.stats?.PHY || 0) > 0 ? Math.max(1, Math.round(Number(entity.attack || entity.stats.PHY) / 5)) : 8;
+    companion.attack = Math.max(1, Number(companion.attack || derivedAttack));
+    companion.attackSource ||= companion.attackSource || (entity?.attack ? "catalog.attack" : entity?.stats?.PHY ? "catalog.stats.PHY/5" : "migration.default");
     companion.guardStance = companion.guardStance || "balanced";
     companion.state = companion.state || (companion.hp > 0 ? "active" : "recovering");
     companion.loyalty = companion.loyalty == null ? 50 : Number(companion.loyalty);
@@ -1102,6 +1106,8 @@
     companion.mutation ||= null;
     companion.passiveId ||= null;
     companion.skillMastery = companion.skillMastery || {};
+    companion.skillCooldowns = companion.skillCooldowns || {};
+    companion.fleeCount = Number(companion.fleeCount || 0);
     companion.damageLedger = Array.isArray(companion.damageLedger) ? companion.damageLedger.slice(-20) : [];
     companion.lastDamageSource = companion.lastDamageSource || null;
     companion.recoveryUntilDay = Number(companion.recoveryUntilDay || 0);
@@ -1111,7 +1117,7 @@
     return companion;
   }
   function validateCompanionState(state) {
-    const companion = state.companion, errors = [], allowed = new Set(["active", "mutated", "recovering", "dead", "released"]);
+    const companion = state.companion, errors = [], allowed = new Set(["active", "mutated", "recovering", "dead", "fled", "released"]);
     if (!companion) return { ok: true, present: false, errors };
     normalizeCompanion(companion);
     if (!allowed.has(companion.state)) errors.push("state");
@@ -1119,7 +1125,7 @@
     Object.entries(companion.skillMastery || {}).forEach(([id, value]) => { if (!id || !Number.isFinite(Number(value)) || Number(value) < 0) errors.push("mastery:" + id); });
     if (!Array.isArray(companion.damageLedger) || companion.damageLedger.length > 20) errors.push("damageLedger");
     (companion.damageLedger || []).forEach((entry) => { if (!Number.isFinite(Number(entry.amount)) || Number(entry.amount) < 0 || !Number.isFinite(Number(entry.day))) errors.push("damageEntry"); });
-    if (!Number.isFinite(Number(companion.recoveryUntilDay || 0)) || !Number.isFinite(Number(companion.reviveCount || 0)) || Number(companion.reviveCount || 0) < 0) errors.push("recovery");
+    if (!Number.isFinite(Number(companion.recoveryUntilDay || 0)) || !Number.isFinite(Number(companion.reviveCount || 0)) || Number(companion.reviveCount || 0) < 0 || !Number.isFinite(Number(companion.attack)) || Number(companion.attack) <= 0 || !Number.isFinite(Number(companion.fleeCount || 0)) || Number(companion.fleeCount || 0) < 0) errors.push("recovery");
     return { ok: errors.length === 0, present: true, state: companion.state, errors };
   }
   function validatePrisonerState(state) {
@@ -1162,12 +1168,21 @@
     ensure(state); const companion = normalizeCompanion(state.companion), skill = X.companionSkills?.[skillId];
     if (!companion || !skill) return { success: false, reason: "Kỹ năng Dị Thú không tồn tại.", code: "UNKNOWN_COMPANION_SKILL" };
     if (!skill.roles?.includes(companion.role)) return { success: false, reason: "Vai trò Dị Thú không thể dùng kỹ năng này.", code: "COMPANION_ROLE_MISMATCH" };
+    if (Number(companion.loyalty || 0) <= 0) {
+      companion.state = "fled"; companion.fleeCount += 1; companion.fledDay = absoluteDay(state.gameClock);
+      history(state, "warn", "× " + (companion.customName || "Dị Thú") + " mất hết trung thành và bỏ đi.");
+      return { success: false, reason: "Dị Thú đã bỏ đi vì trung thành bằng 0.", code: "COMPANION_FLED" };
+    }
+    const turn = Number(state.meta?.turn || 0);
+    if (turn < Number(companion.skillCooldowns[skillId] || 0)) return { success: false, reason: "Kỹ năng Dị Thú đang hồi chiêu.", code: "COMPANION_SKILL_COOLDOWN", cooldownUntilTurn: companion.skillCooldowns[skillId] };
     const target = selectCompanionTarget(state) || E.aliveEnemies(state)[0]?.[0];
     if (!companion || !target) return { success: false, reason: "Dị Thú chưa có mục tiêu." };
-    const damage = Math.max(1, Math.round((Number(companion.attack || 8) + Number(companion.loyalty || 0) * Number(skill.loyaltyDamagePct || 0) / 100) * Number(skill.powerMultiplier || 1)));
+    const damage = Math.max(1, Math.round((Number(companion.attack) + Number(companion.loyalty || 0) * Number(skill.loyaltyDamagePct || 0) / 100) * Number(skill.powerMultiplier || 1)));
     if (typeof E.applyPlayerDamage === "function") E.applyPlayerDamage(state, target, damage);
     else state.enemies[target] = Math.max(0, Number(state.enemies[target] || 0) - damage);
     companion.skillMastery[skillId] = Number(companion.skillMastery[skillId] || 0) + 1;
+    companion.loyalty = clamp(Number(companion.loyalty || 0) - Number(skill.loyaltyCost || 0), 0, 100);
+    companion.skillCooldowns[skillId] = turn + Math.max(1, Number(skill.cooldownTurns || 1));
     return { success: true, damage, targetId: target, skillId };
   }
 
@@ -4140,7 +4155,7 @@
     if (state.companion) return { success: false, reason: "Chỉ có thể đồng hành cùng một Dị Thú." };
     const entity = E.getEntity(prisoner.entityId); const success = seeded(state, "tame:" + prisonerId, absoluteDay(state.gameClock), state.player.aptitude) < clamp(0.35 + state.player.aptitude / 180 + (state.player.pathId === "ngu_thu_dao" ? 0.2 : 0), 0.2, 0.95);
     if (!success) { history(state, "warn", "× Dị Thú cự tuyệt huyết khế."); return { success: false, attempted: true }; }
-    state.companion = normalizeCompanion({ entityId: prisoner.entityId, customName: entity?.name || prisoner.entityId, bondedDay: absoluteDay(state.gameClock), loyalty: 50, element: entity?.element || "vo_he", originRegionId: currentRegion(state), corruption: 0, passiveId: "scout", role: "scout", guardStance: "balanced", state: "active", lastScoutDay: 0, hpMax: 30, hp: 30 });
+    state.companion = normalizeCompanion({ entityId: prisoner.entityId, customName: entity?.name || prisoner.entityId, bondedDay: absoluteDay(state.gameClock), loyalty: 50, element: entity?.element || "vo_he", originRegionId: currentRegion(state), corruption: 0, passiveId: "scout", role: "scout", guardStance: "balanced", state: "active", lastScoutDay: 0, hpMax: 30, hp: 30, attack: Number(entity?.attack || entity?.stats?.PHY || 40) / 5, attackSource: "catalog.stats.PHY/5" });
     prisoner.status = "tamed"; prisoner.tamedDay = absoluteDay(state.gameClock); registerCollection(state, "beasts", prisoner.entityId, entity?.rarity || "hiếm"); history(state, "narr", "Dị Thú hạ đầu trước huyết khế; từ nay nó bước cùng ngươi qua những vùng đất chưa biết."); return { success: true, companion: state.companion };
   }
   function scoutWithCompanion(state) {

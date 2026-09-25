@@ -12,7 +12,7 @@
     ho_dao_gia: base({ entity_type: "monster", name: "Hộ Đạo Giả", level_tier: 6, is_hostile_by_default: true, guardian: true, stats: { PHY: 130, MAG: 90, HP: 1500, SAN_influence: 6 } }),
     phan_boi_gia: base({ entity_type: "monster", name: "Phản Bội Giả", level_tier: 6, is_hostile_by_default: true, stats: { PHY: 120, MAG: 110, HP: 1400, SAN_influence: 10 } }),
     ma_su: base({ entity_type: "monster", name: "Ma Sứ", level_tier: 7, is_hostile_by_default: true, stats: { PHY: 100, MAG: 150, HP: 1600, SAN_influence: 14 } }),
-    ho_phap_huyen_lan: base({ entity_type: "monster", name: "Hộ Pháp Huyền Lân", race: "Yêu Tộc", level_tier: 4, is_hostile_by_default: true, guardian: true, stats: { PHY: 110, MAG: 40, HP: 1200, SAN_influence: 4 } }),
+    ho_phap_huyen_lan: base({ entity_type: "monster", name: "Hộ Pháp Huyền Lân", race: "Yêu Tộc", level_tier: 4, is_hostile_by_default: true, guardian: true, stats: { PHY: 110, MAG: 40, HP: 1200, SAN_influence: 4 }, combatProfile: { intent: "venom", statusEffects: [{ id: "poison", duration: 2, potency: 2 }] } }),
     nghich_thuong_nhan: base({ name: "Nghịch Thương Nhân", race: "Vô Danh", black_market: true, trade_currency: "lifespan", shop_tier: [6, 8], location_tags: ["vo_tan_hai"] }),
     luan_hoi_su_gia: base({ name: "Luân Hồi Sứ Giả", race: "U Minh", reincarnation_envoy: true, requires_lifespan_zero: true, location_tags: ["u_minh_gioi"] })
   };

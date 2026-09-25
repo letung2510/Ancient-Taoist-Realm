@@ -152,8 +152,8 @@
     codex_complete: { id: "codex_complete", name: "Bảy Quyển Tà Thần", type: "collection", target: 7 }
   };
   const companionSkills = {
-    guard_bite: { id: "guard_bite", roles: ["striker"], powerMultiplier: 1, loyaltyDamagePct: 8, description: "Đòn cận chiến ổn định, tăng nhẹ theo trung thành." },
-    scout_strike: { id: "scout_strike", roles: ["scout"], powerMultiplier: 0.9, loyaltyDamagePct: 10, description: "Đòn đánh nhanh của trinh sát, tăng theo trung thành." }
+    guard_bite: { id: "guard_bite", roles: ["striker"], powerMultiplier: 1, loyaltyDamagePct: 8, loyaltyCost: 1, cooldownTurns: 1, description: "Đòn cận chiến ổn định, tăng nhẹ theo trung thành." },
+    scout_strike: { id: "scout_strike", roles: ["scout"], powerMultiplier: 0.9, loyaltyDamagePct: 10, loyaltyCost: 1, cooldownTurns: 1, description: "Đòn đánh nhanh của trinh sát, tăng theo trung thành." }
   };
 
   window.EXPANSION_DATA = {
