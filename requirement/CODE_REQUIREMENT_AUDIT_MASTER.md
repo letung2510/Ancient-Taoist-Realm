@@ -2999,3 +2999,16 @@ Evidence: `node --check js/ui.js`, `node --check js/main.js`, `node tools/verify
 | N150 / recent narrative rotation | ĐÃ SỬA | Bộ chọn narrative không còn so template thô với text đã render. Runtime lưu khóa `eventType:templateIndex` trong `logState.recentNarrativeTemplates`, nên các template Tu luyện/Nghỉ được xoay đúng và không lặp ngay lập tức. Save cũ vẫn tương thích vì field mới có default rỗng. |
 
 Evidence: `node tools/verify_log_narrative.js`, `node tools/verify_game.js` PASS.
+
+## Status override - combat status and companion lifecycle completion 2026-09-25
+
+| Scope | Status mới | Evidence / phạm vi |
+|---|---|---|
+| N23 / poisonResist | ĐÃ SỬA | `applyCombatStatus()` là producer/consumer canonical cho status chiến đấu; modifier `poisonResist` giảm potency trước khi ghi status. `Hộ Pháp Huyền Lân` có combat profile poison để tránh modifier tồn tại mà không có producer. |
+| N27 / enemy intent + status | ĐÃ SỬA | Combat lưu `state.combatIntents` cho từng enemy theo action/intent và lưu status runtime theo player/enemy bucket; status có duration/potency/source, tick deterministic, không dùng wall-clock. |
+| N26 / companion loyalty, cooldown, flee | ĐÃ SỬA | Catalog skill có `loyaltyCost`/`cooldownTurns`; runtime trừ loyalty, chặn dùng trùng lượt và chuyển `state=fled` khi loyalty bằng 0, tăng `fleeCount`. |
+| N29 / companion attack stat | ĐÃ SỬA | Companion migration/tame derive `attack` từ `catalog.attack` hoặc `catalog.stats.PHY/5`, lưu `attackSource`; skill không còn dùng hằng số 8. |
+| M41-M54, M65-M78, N3-N54, N122-N140, C1-C13, D1-D7, LT/T, B.11/FT9-FT11 | SỬA MỘT PHẦN | Runtime producer/dispatcher/fixture matrices hiện hành tiếp tục PASS và đã đóng các variant có thể chứng minh bằng headless/static contract. Các browser state-variant click-through và file chooser import/export chưa thể nâng thành E2E do connector trả `Not allowed` khi gọi `filechooser.setFiles`; không đánh dấu giả là đã hoàn tất. |
+| Companion legacy notes | ĐÃ ĐỐI CHIẾU | Policy revive giữ theo `COMPANION_CANONICAL.md` (3 Linh Thạch/25%); note lịch sử 12/35/soul_scar không được áp dụng. Loyalty/cooldown/flee/attack đã có fixture one-to-one trong `verify_companion_runtime.js`. |
+
+Evidence mới: `node tools/verify_companion_runtime.js` PASS; `node tools/run_regression_suite.js` PASS các check runtime/UI hiện hành; `node validate_requirement_docs.js` PASS; `git diff --check` PASS sau khi loại blank-line thừa. Browser native file chooser vẫn là blocker connector ngoài code.

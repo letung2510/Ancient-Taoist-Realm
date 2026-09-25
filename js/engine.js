@@ -5179,8 +5179,46 @@ window.GameEngine = (function () {
       exp: Number(entity.exp || 0) || Math.max(1, Math.round((Number(stats.PHY || 0) + Number(stats.MAG || 0)) * 4 + Number(stats.HP || 0) / 20)),
       loot: Array.isArray(entity.loot) ? entity.loot : [],
       lootTableId: entity.loot_table_id || null,
+      intent: entity.combatProfile?.intent || null,
+      statusEffects: Array.isArray(entity.combatProfile?.statusEffects) ? entity.combatProfile.statusEffects.map((effect) => ({ ...effect })) : [],
       entity
     };
+  }
+
+  function combatStatusStore(state) {
+    state.combatStatuses ||= { player: {}, enemies: {} };
+    state.combatStatuses.player ||= {};
+    state.combatStatuses.enemies ||= {};
+    return state.combatStatuses;
+  }
+
+  function applyCombatStatus(state, target, statusId, duration = 1, potency = 1, source = "combat") {
+    const id = String(statusId || "");
+    if (!id || !["player", "enemy"].includes(target)) return { success: false, reason: "Trạng thái chiến đấu không hợp lệ." };
+    const store = combatStatusStore(state);
+    const bucket = target === "player" ? store.player : store.enemies;
+    const key = target === "player" ? "player" : String(source);
+    const current = bucket[key] || { id, duration: 0, potency: 0, sources: [] };
+    const modifiers = typeof window !== "undefined" && window.GameExpansion?.getWorldModifiers ? window.GameExpansion.getWorldModifiers(state, { activity: "combat", statusId: id }) : {};
+    const resistance = id === "poison" ? clamp(Number(modifiers.poisonResist || 0), 0, 1) : 0;
+    const effectivePotency = Math.max(0, Number(potency || 0) * (1 - resistance));
+    if (effectivePotency <= 0) return { success: true, resisted: true, statusId: id, resistance };
+    bucket[key] = { id, duration: Math.max(Number(current.duration || 0), Number(duration || 0)), potency: Math.max(Number(current.potency || 0), effectivePotency), sources: [...new Set([...(current.sources || []), String(source)])].slice(-5) };
+    return { success: true, statusId: id, duration: bucket[key].duration, potency: bucket[key].potency, resistance };
+  }
+
+  function tickCombatStatuses(state) {
+    const store = combatStatusStore(state);
+    const playerStatuses = store.player;
+    Object.entries(playerStatuses).forEach(([key, status]) => {
+      if (status.id === "poison" && Number(status.potency) > 0 && state.player.hp > 0) {
+        state.player.hp = Math.max(0, Number(state.player.hp) - Math.max(1, Math.round(Number(status.potency))));
+        pushHistory(state, { type: "warn", text: "Độc phát tác, HP -" + Math.max(1, Math.round(Number(status.potency))) + "." });
+      }
+      status.duration = Number(status.duration || 0) - 1;
+      if (status.duration <= 0) delete playerStatuses[key];
+    });
+    return store;
   }
 
   function rollEntityLoot(state, info) {
@@ -5242,6 +5280,8 @@ window.GameEngine = (function () {
     const hp = state.enemies?.[entityId] ?? info.hpMax;
     const hpRatio = Number(hp) / Math.max(1, info.hpMax);
     const action = hpRatio <= 0.25 ? "desperation" : hpRatio <= 0.6 ? "special" : "basic";
+    state.combatIntents ||= {};
+    state.combatIntents[entityId] = { entityId, action, intent: info.intent || action, telegraphedTurn: Number(state.meta?.turn || 0) };
     const base = info.phy || 10;
     const damage = Math.max(1, Math.round(base * (action === "special" ? 1.4 : 1)));
     if (info.sanHit) drainSan(state, info.sanHit, info.name);
@@ -5256,6 +5296,9 @@ window.GameEngine = (function () {
       state.player.hp = clamp(state.player.hp - damage, 0, state.player.maxHp);
       pushHistory(state, { type: "warn", text: info.name + " dùng đòn " + action + ", HP -" + damage + ".", portrait: info.portrait });
     }
+    (info.statusEffects || []).forEach((effect) => {
+      if (action !== "basic" || effect.id === "poison") applyCombatStatus(state, "player", effect.id, effect.duration, effect.potency, info.name);
+    });
     return action;
   }
 
@@ -5367,6 +5410,7 @@ window.GameEngine = (function () {
   }
 
   function enemyTurn(state) {
+    tickCombatStatuses(state);
     const alive = aliveEnemies(state);
     for (const [enemyId] of alive) {
       if (state.pendingEnding) break;
@@ -6910,7 +6954,7 @@ window.GameEngine = (function () {
     cultivationTier, fateRewardWeights, rollFateByProgression, anchorCandidates, establishHumanAnchor, breakthroughRitualPlan, breakthroughRitualStatus, pathRitualStatus: breakthroughRitualStatus, breakthroughRitualGateRequirements, performBreakthroughRitualStep, breakthroughRequirements, getBreakthroughBlockers, getChuyenSinhBlockers, processLuanHoi, processChuyenSinh, chooseTaintedAttention, rollTaintedAttention, chooseTaintedFaction, factionStatus, grantTaintedRewardCanonical, grantQuestMerit, resolveFactionHunt, switchTaintedFaction, selectPath, pathTitle, completeUnboundTrial, canUnlockDevourHeaven, recordTaintedMilestones, normalizeAction, resolveActions, resolveActionSurfaces, validateActionPriorityMatrix,
     elementRelation, familyMatchup, toCanonicalCharacter, fromCanonicalCharacter,
     gainExp, recordCultivationGain, cultivationSourceCatalog, validateCultivationAttribution, cultivationVelocityStatus, adjustDaoTam, cultivationJournalPush, enterLuyenKhi, cultivate, autoCultivate, secludedCultivation, startSecludedCultivation, advanceSecludedCultivation, rest, doBreakthrough, drainSan, restoreSan, move, locationExits, materializeLocalConstellation, localBfsConstellation, locationPool: runtimeLocationPool, locationForState, look, ensureSearchSite, pendingExplorationAt, pendingDepartureGuard, confirmPendingDeparture, searchStatus, search, ensureSearchChainQuest, collectSearchFindings, investigateSearchFinding, leaveSearchSession, useItem,
-    talk, combat, beginCombat, aliveEnemies, firstAliveEnemy, enemyTurn, afterPlayerCombatAction, applyPlayerDamage, endCombat, combatEntity, spawnCombatEntity, maybeSpawnCombatExtras, lootTable, rollEntityLoot, rollDefeatBonus, entityCatalog, getEntity, entityForPlayer, dialogueState, presentEntities, mapAddressCatalog, mapAddressesAtNode, mapOxyAddress, mapEventCatalog, rollMapEvent, resolveMapEvent, validateMapEventState, maybeTriggerRandomEncounter, findEntityByName, interactEntity, monsterAction, useTechnique, techniquePreview, prepareTechnique, advanceTechniqueChannel, cancelTechniquePreparation, ensureTechniqueCombatState, learnTechnique, getKnownTechniques, techniqueCatalog, validateTechniqueCatalog, techniqueStatus, techniqueProgress, contextState, resolveActionPriority, moveActions, talkActions, skillActions, parseAction, resolveAction, submitActionId, submitTurn, describeStatus, describeInventory, describeQuests, coordinateKey, neighborCoordinate, getNodeAtCoordinate, nodeCoordinates, validateOpenWorldGrid,
+    talk, combat, beginCombat, aliveEnemies, firstAliveEnemy, enemyTurn, afterPlayerCombatAction, applyPlayerDamage, endCombat, combatEntity, spawnCombatEntity, maybeSpawnCombatExtras, lootTable, rollEntityLoot, rollDefeatBonus, entityCatalog, getEntity, entityForPlayer, dialogueState, presentEntities, mapAddressCatalog, mapAddressesAtNode, mapOxyAddress, mapEventCatalog, rollMapEvent, resolveMapEvent, validateMapEventState, maybeTriggerRandomEncounter, findEntityByName, interactEntity, monsterAction, applyCombatStatus, tickCombatStatuses, combatStatusStore, useTechnique, techniquePreview, prepareTechnique, advanceTechniqueChannel, cancelTechniquePreparation, ensureTechniqueCombatState, learnTechnique, getKnownTechniques, techniqueCatalog, validateTechniqueCatalog, techniqueStatus, techniqueProgress, contextState, resolveActionPriority, moveActions, talkActions, skillActions, parseAction, resolveAction, submitActionId, submitTurn, describeStatus, describeInventory, describeQuests, coordinateKey, neighborCoordinate, getNodeAtCoordinate, nodeCoordinates, validateOpenWorldGrid,
     describeFate, describeMap, serialize, deserialize, migrateV12ToV13, pushMemory, pushHistory, createGameEvent, emitEvent, emitGameEvent, normalizeHistoryEvent, groupIntoScenes, renderGameEvent, renderScene, lintNarrativeText, repairMojibakeText, sanitizeLogUtf8, narrativeSafe, formatPlayerLogText, getGameLog, novelLogParagraphs, validateLogSurfaceState, detectMilestones, formatEventChanges, ensureGameClock, ensureWorldClock, validateWorldClockState, syncWorldClock, clockLabel, worldClockLabel, advanceGameTime, processOnlineFateReward, applyOfflineProgress, GAME_TIME_CONFIG, ERROR_NARRATIVE_MAP, playerFacingReason
   };
 })();
