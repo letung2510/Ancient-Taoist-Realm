@@ -2991,3 +2991,11 @@ Evidence: `node --check js/engine.js`, `node --check js/expansion.js`, `node too
 | Rapid repeated click | ĐÃ SỬA | Nút action và các delegated/overlay expansion controls tự khóa ngay khi nhận click, trước khi đưa task vào queue; UI render lại sẽ mở khóa theo state mới. |
 
 Evidence: `node --check js/ui.js`, `node --check js/main.js`, `node tools/verify_browser_ui_contract.js`, `node tools/verify_action_dispatch_matrix.js` PASS.
+
+## Status override - narrative repeat guard 2026-09-25
+
+| Scope | Status mới | Evidence / phạm vi |
+|---|---|---|
+| N150 / recent narrative rotation | ĐÃ SỬA | Bộ chọn narrative không còn so template thô với text đã render. Runtime lưu khóa `eventType:templateIndex` trong `logState.recentNarrativeTemplates`, nên các template Tu luyện/Nghỉ được xoay đúng và không lặp ngay lập tức. Save cũ vẫn tương thích vì field mới có default rỗng. |
+
+Evidence: `node tools/verify_log_narrative.js`, `node tools/verify_game.js` PASS.

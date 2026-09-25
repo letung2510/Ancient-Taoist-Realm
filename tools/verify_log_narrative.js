@@ -42,6 +42,11 @@ function runSmokeTests() {
   const blockedText = engine.formatPlayerLogText(state, blocked);
   if (/TRAVEL_ALREADY_ACTIVE/.test(blockedText) || !blockedText.includes("trên đường")) throw new Error("blocked action must map to safe prose");
   if (state.history.length !== 4 || !state.history[2].debugOnly || !state.history[3].errorCode) throw new Error("system history must preserve raw event and error metadata");
+  const repeatState = { history: [], locationId: "node-a", meta: { turn: 1 }, logState: { sequence: 0, recentNarratives: [], recentNarrativeTemplates: [], groups: {}, lastEventId: null } };
+  const firstCultivation = engine.emitEvent(repeatState, { type: "cultivate" });
+  const secondCultivation = engine.emitEvent(repeatState, { type: "cultivate" });
+  if (firstCultivation.text === secondCultivation.text) throw new Error("narrative template rotation must avoid immediate duplicate cultivation text");
+  if (repeatState.logState.recentNarrativeTemplates.length !== 2) throw new Error("narrative template keys must be persisted in log state");
   return true;
 }
 
