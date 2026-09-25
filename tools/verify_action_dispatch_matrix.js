@@ -55,7 +55,10 @@ const baseActionIds = new Set([...X.expansionActions(states[0]), ...baseContextA
 const actions = [...new Map([...X.expansionActions(states[0]), ...baseContextActions]
   .filter((action) => action?.id)
   .map((action) => [action.id, { action, state: states[0] }])).values()];
-const variantSurface = states.slice(1).flatMap((state) => (E.contextState(state)?.actions || [])
+const variantSurface = states.slice(1).flatMap((state) => [
+  ...(E.contextState(state)?.actions || []),
+  ...(X.expansionActions(state) || [])
+]
   .filter((action) => action?.id)
   .map((action) => ({ id: action.id, state })));
 assert(variantSurface.length > 0, "context variant surface is empty");
@@ -63,8 +66,20 @@ assert(Array.isArray(actions) && actions.length > 0, "canonical expansion action
 const unknown = [];
 const seen = new Set();
 let cases = 0;
-actions.forEach(({ action, state: sourceState }) => {
+const executionCases = [
+  ...actions,
+  ...variantSurface.map(({ id, state }) => ({ action: { id }, state }))
+];
+const executedVariantIds = new Set();
+executionCases.forEach(({ action, state: sourceState }) => {
   if (!action?.id) return;
+  // Execute each canonical ID once against the first state that exposes it.
+  // The state matrix still records every exposure below; repeating a full
+  // serialize/dispatch cycle for the same ID in every location made this
+  // gate needlessly expensive without increasing dispatcher coverage.
+  const variantKey = String(action.id);
+  if (executedVariantIds.has(variantKey)) return;
+  executedVariantIds.add(variantKey);
   seen.add(action.id);
   cases += 1;
   let result;
@@ -89,5 +104,5 @@ E.updateDerived = () => { throw new Error("fixture resolver failure"); };
 const rollbackResult = E.submitActionId(rollbackState, rollbackAction.id, { source: "rollback-fixture" });
 E.updateDerived = updateDerived;
 assert(rollbackResult.code === "ACTION_RUNTIME_ERROR" && rollbackResult.recoverable && Number(rollbackState.meta.turn) === turnBeforeThrow, "action throw did not rollback canonical state");
-console.log("OK: canonical action dispatch matrix (" + seen.size + " visible actions, " + cases + " execution cases, " + variantSurface.length + " variant-surface entries)");
+console.log("OK: canonical action dispatch matrix (" + seen.size + " action IDs, " + cases + " variant execution cases, " + variantSurface.length + " variant-surface entries)");
 
