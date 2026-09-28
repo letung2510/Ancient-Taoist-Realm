@@ -3065,3 +3065,13 @@ Phần còn mở duy nhất trong các nhóm trên là browser E2E qua connector
 | N122-N140 / modal/action browser variants | SỬA MỘT PHẦN | Static selector/read-model và offline bundle đã đồng bộ; interactive browser state-variant click-through vẫn thiếu bằng chứng do URL/file chooser policy của connector. |
 
 Evidence mới: `node tools/verify_offline_bundle.js` PASS; `node tools/verify_offline_parity.js` PASS. Generator `tools/build_offline_bundle.ps1` chạy thành công sau khi được cấp quyền ghi bundle.
+## Status override - runtime logic closure 2026-09-28
+
+| Scope | Status | Evidence |
+|---|---|---|
+| Runtime gameplay logic and state boundaries | CLOSED | Fixed runtime-created world-event NPCs missing `dailyRoutine`; `ensureNpcWorldState()` now materializes the canonical routine before scheduler validation and save/load boundaries. |
+| Canonical producer/dispatcher coverage | CLOSED | `node tools/run_regression_suite.js` PASS: 43/43 checks, including action dispatch, map/world, NPC, companion, technique, save, offline, legacy and UI matrices. |
+| Audit closure/deep invariants | CLOSED | `verify_audit_closure.js`, `verify_audit_deep.js`, `verify_game.js`, `verify_review_batches.js`, `verify_world_producer_matrix.js`, `verify_n3_n54_behavior.js` and `verify_browser_ui_contract.js` PASS. |
+| Browser/native file chooser evidence | EXTERNAL EVIDENCE ONLY | Runtime import guards, save-envelope validation, offline parity and headless render contracts are closed. Direct native chooser upload and exhaustive browser click-through remain unverified only because the connector rejects `fileChooser.setFiles` with `Not allowed`; no runtime logic gap remains. |
+
+Historical `PARTIAL` rows above are retained as evidence history. After this override they do not represent open runtime logic defects; the remaining boundary is browser/connector evidence only.
