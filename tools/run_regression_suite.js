@@ -49,13 +49,16 @@ const checks = [
 ];
 
 const runCheck = ([name, file]) => new Promise((resolve) => {
+  const timeoutMs = ["verify_action_dispatch_matrix.js", "verify_review_batches.js"].some((name) => file.endsWith(name))
+    ? 300 * 1000
+    : 180 * 1000;
   execFile(process.execPath, [file], {
     cwd: root,
     maxBuffer: 16 * 1024 * 1024,
     // Some canonical data-integrity probes intentionally generate the full
     // 10k Fate/character fixture set. Keep a hard ceiling, but do not confuse
     // a cold CI/Windows run with a hung test.
-    timeout: 180 * 1000,
+    timeout: timeoutMs,
     killSignal: "SIGTERM"
   }, (error, stdout, stderr) => {
     const timeout = Boolean(error && error.killed && error.signal === "SIGTERM");
@@ -68,8 +71,30 @@ const runCheck = ([name, file]) => new Promise((resolve) => {
   });
 });
 
+// Keep the heavyweight VM fixtures from starving one another on CI/Windows.
+// Running all checks at once made the 10k-character and long-world simulations
+// exceed their individual timeout even though each check passes in isolation.
+const runChecks = (items, concurrency = 4) => new Promise((resolve) => {
+  const results = [];
+  let cursor = 0;
+  let active = 0;
+  const pump = () => {
+    if (cursor >= items.length && active === 0) return resolve(results);
+    while (active < concurrency && cursor < items.length) {
+      const item = items[cursor++];
+      active += 1;
+      runCheck(item).then((result) => {
+        results.push(result);
+        active -= 1;
+        pump();
+      });
+    }
+  };
+  pump();
+});
+
 const failures = [];
-Promise.all(checks.map(runCheck)).then((results) => {
+runChecks(checks, 1).then((results) => {
   results.forEach((result) => {
     if (!result.ok) failures.push(result);
     else process.stdout.write(`PASS ${result.name}\n`);
@@ -79,7 +104,7 @@ Promise.all(checks.map(runCheck)).then((results) => {
   // isolated check once so a transient fixture collision is not reported as a
   // deterministic regression.
   const retryFailures = failures.splice(0);
-  Promise.all(retryFailures.map((failure) => runCheck([failure.name, failure.file]))).then((retried) => {
+  runChecks(retryFailures.map((failure) => [failure.name, failure.file]), 1).then((retried) => {
     retried.forEach((result) => {
       if (!result.ok) failures.push(result);
       else process.stdout.write(`PASS ${result.name} (retry)\n`);

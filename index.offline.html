@@ -11571,6 +11571,10 @@ window.GameEngine = (function () {
       npc.npcId ||= id; npc.status ||= "alive"; npc.currentNodeId ||= state.locationId;
       const definition = D.NPCS?.[id];
       const roleText = String(npc.role || definition?.role || definition?.title || "");
+      // Runtime-created actors (for example world-event seers) do not come
+      // from the authored NPC catalog. Materialize the canonical routine
+      // before scheduler validation and save/load boundaries.
+      npc.dailyRoutine = normalizeNpcRoutine(npc.dailyRoutine, npc, state);
       npc.actorClass ||= npc.isImportant ? "persistent_named" : /merchant|vendor/i.test(roleText) ? "transactional_ephemeral" : "bondable_encounter";
       npc.roleTags = Array.isArray(npc.roleTags) ? [...new Set(npc.roleTags.filter(Boolean))] : [];
       if (npc.role) npc.roleTags.push(String(npc.role));
