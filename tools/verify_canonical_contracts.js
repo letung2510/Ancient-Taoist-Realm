@@ -47,12 +47,18 @@ function testTechniqueIdempotency() {
   const state = makeState();
   const id = Object.keys(E.techniqueCatalog()).find((key) => !["tam_phap", "dan_phu_phap"].includes(E.techniqueCatalog()[key].category));
   assert(id);
+  delete state.player.techniques[id];
+  const notLearned = X.techniqueEligibility(state, id, "use");
+  assert(!notLearned.ok && notLearned.blockers.some((entry) => entry.code === "NOT_LEARNED"), "use eligibility must gate unlearned techniques");
+  assert(notLearned.blockers.every((entry) => entry.scope === "use" && entry.sourceId === id && typeof entry.playerText === "string" && typeof entry.recoverable === "boolean"), "technique blocker DTO must be canonical");
   state.player.techniques[id] = { masteryStage: 0, masteryExp: 0, usageCount: 0 };
   const before = { qi: state.player.qi, stamina: state.player.stamina };
   const first = E.useTechnique(state, id, { actionId: "canonical-cast-1", stance: "steady", confirmed: true });
   const second = E.useTechnique(state, id, { actionId: "canonical-cast-1", stance: "steady", confirmed: true });
   assert(first.success || first.committed);
   assert(second.duplicate);
+  const afterCast = X.techniqueEligibility(state, id, "use");
+  assert(afterCast.blockers.every((entry) => entry.scope === "use" && typeof entry.playerText === "string"), "use eligibility must preserve canonical blocker shape after cast");
   assert(state.player.qi <= before.qi && state.player.stamina <= before.stamina);
   const prepared = E.prepareTechnique(state, id, "canonical-prepare-1");
   assert(!prepared.success || prepared.reason.includes("hồi chiêu"), "cooldown must block a second prepare immediately after a cast");

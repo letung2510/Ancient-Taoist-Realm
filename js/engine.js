@@ -1789,6 +1789,18 @@ window.GameEngine = (function () {
     };
   }
   function useTechnique(state, id, options = {}) {
+    // Idempotency must win before eligibility: a retried committed action must
+    // return its original receipt even if the first attempt started cooldown.
+    const earlyStance = options.stance || "steady";
+    const earlyActionKey = String(options.actionId || ("turn:" + Number(state.meta?.turn || 0) + ":technique:" + id));
+    const earlyReceipts = state.player.techniqueActionReceipts || {};
+    const earlyReceipt = earlyReceipts[earlyActionKey];
+    const earlyUiSequence = /^technique-ui:(\d+)$/.exec(earlyActionKey);
+    if (earlyUiSequence && Number(earlyUiSequence[1]) <= Number(state.player.techniqueActionReceiptHighWater || 0) && !earlyReceipt) return { success: false, duplicate: true, reason: "Action thi triển cũ đã được xử lý; không thể phát lại." };
+    if (earlyReceipt) {
+      if (earlyReceipt.techniqueId !== id || earlyReceipt.stance !== earlyStance) return { success: false, duplicate: true, reason: "Action ID đã được dùng cho một thao tác khác." };
+      return { success: earlyReceipt.success !== false, duplicate: true, receipt: copy(earlyReceipt) };
+    }
     const technique = techniqueCatalog()[id];
     if (!technique || !state.player.techniques?.[id]) return { success: false, reason: "Chưa lĩnh ngộ Công pháp này." };
     const eligibility = typeof window !== "undefined" && window.GameExpansion?.techniqueEligibility ? window.GameExpansion.techniqueEligibility(state, id, "use") : { ok: true, blockers: [] };
