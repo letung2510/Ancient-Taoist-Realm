@@ -3094,3 +3094,25 @@ The remaining PARTIAL items are evidence gaps, not unverified claims about those
 3. Full browser persistence and pixel/responsive evidence across all variants remains open; the action-bar layout has separate live DOM evidence.
 
 These three items require a browser/connector capability change or a real manual-browser run. They must not be relabeled as runtime logic defects, and they must not be marked as browser E2E complete without that evidence.
+
+## Open work tracker - items not fully completed 2026-09-29
+
+This is the active checklist. Only rows in this table are currently open. Historical `PARTIAL`, `SỬA MỘT PHẦN` and old blocker rows elsewhere in this document are retained as audit evidence and are not duplicated here unless the latest override still leaves work outstanding.
+
+| ID | Status | Incomplete scope | Why it is incomplete | Next action | Definition of done |
+|---|---|---|---|---|---|
+| OPEN-01 / B.11 / N122-N140 / M79-M88 | `[ ] OPEN - BLOCKED BY CONNECTOR` | Native file chooser import/export round-trip in the real browser. | The browser connector rejects `fileChooser.setFiles` with `Not allowed`; static guards, malformed-file handling, save-envelope validation, serialize/deserialize and offline parity are already covered. | Run a manual Chrome/Edge import and export cycle, or use a connector/session that permits native file attachment. Record valid JSON import, malformed JSON rejection, schema rejection, reset behavior and exported-file re-import. | A real browser evidence record shows export -> chooser import -> state restoration, plus malformed/schema-invalid rejection and no stale input state. |
+| OPEN-02 / N3-N54 / N122-N140 / M41-M54 / M65-M78 / C/D | `[ ] OPEN - E2E EVIDENCE` | Exhaustive interactive browser click-through for state variants: combat, companion recovery/revive/mutation, hidden path, ritual/breakthrough, map event/search, NPC/guild teaching and settlement/destination actions. | Headless renderer, action dispatcher matrix and browser selector contract pass, but they do not prove every variant through a real viewport and user click sequence. | Execute a browser scenario per variant, capture the visible action, click it, verify the resulting state/log/UI, reload where persistence is relevant, and record the scenario ID. | Every listed variant has one reproducible browser scenario with before/after state evidence and no unknown/unsupported action. |
+| OPEN-03 / M79-M88 / B.11 / D7 | `[ ] OPEN - E2E EVIDENCE` | Full browser persistence plus pixel/responsive evidence across all modal/action variants. | Save-envelope and offline/runtime tests pass; action-bar layout has live DOM evidence, but full viewport/responsive and persistence coverage for all variants has not been recorded. | Run the browser matrix at supported viewport sizes, exercise modal open/close and save/reload/import/export paths, and capture measurements/screenshots or equivalent DOM evidence. | The matrix records each supported viewport, modal/action variant, persistence checkpoint and expected layout constraint; all cases pass. |
+
+### Open-work execution log
+
+| Date | Item | Evidence/result | Follow-up |
+|---|---|---|---|
+| 2026-09-29 | OPEN-01 | Blocked: connector returned `Not allowed` for native `fileChooser.setFiles`. | Requires manual browser or a connector with file-upload permission. |
+| 2026-09-29 | OPEN-02 | Headless/static contracts pass; exhaustive real-browser click-through not yet recorded. | Execute the scenario matrix in a real browser session. |
+| 2026-09-29 | OPEN-03 | Offline/save validators and action-bar DOM layout pass; full responsive/persistence matrix not yet recorded. | Execute viewport and reload/persistence matrix. |
+
+### Explicitly closed and excluded from the open tracker
+
+`G1`, `G4`, `G6`, `M70`, runtime gameplay boundaries, canonical producer/dispatcher coverage, save-envelope validation, offline bundle parity and the existing headless/static UI contracts are closed by the latest code and verifier evidence. They should not be reopened merely because their historical audit rows contain `PARTIAL` or `BLOCKER` text.
