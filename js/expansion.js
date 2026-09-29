@@ -4549,7 +4549,7 @@
     return { success: true, completed: next, complete: true, duplicate: Boolean(receipt.duplicate), receipt };
   }
 
-  function handleExpansionAction(state, actionId) {
+  function handleExpansionAction(state, actionId, options = {}) {
     if (actionId === "act_exp_companion_recover") return recoverCompanion(state);
     if (actionId === "act_exp_companion_revive") return reviveCompanion(state);
     if (actionId === "act_exp_companion_cure") return resolveCompanionMutation(state, "cure");
@@ -4603,9 +4603,9 @@
     }
     if (actionId.startsWith("act_exp_org_vault_")) return { success: true, vault: guildVaultSnapshot(state, actionId.slice("act_exp_org_vault_".length)) };
     if (actionId.startsWith("act_exp_org_mediation:")) { const [, a, b] = actionId.split(":"); return resolveAllianceMediation(state, a, b); }
+    if (actionId.startsWith("act_exp_org_loyalty_decision:")) { const [, orgId, choice] = actionId.split(":"); return resolveLoyaltyTest(state, orgId, choice); }
     if (actionId.startsWith("act_exp_org_loyalty_investigate:")) return resolveLoyaltyTest(state, actionId.slice("act_exp_org_loyalty_investigate:".length), "investigate");
     if (actionId.startsWith("act_exp_org_loyalty_")) return resolveLoyaltyTest(state, actionId.slice("act_exp_org_loyalty_".length), "start");
-    if (actionId.startsWith("act_exp_org_loyalty_decision:")) { const [, orgId, choice] = actionId.split(":"); return resolveLoyaltyTest(state, orgId, choice); }
     if (actionId.startsWith("act_exp_org_defect_")) return resolveOrganizationDefection(state, actionId.slice("act_exp_org_defect_".length));
     if (actionId.startsWith("act_exp_org_")) {
       const match = actionId.match(/^act_exp_org_(status|donate|commission|special_commission|life_commission|promote|turnin)_(.+)$/);
@@ -5084,7 +5084,7 @@
   E.advanceGameTime = function (state, days) { const result = original.advanceGameTime.call(E, state, days); ensure(state); simulateWorldUntil(state, absoluteDay(state.gameClock)); advanceTravelTask(state); runRuntimeValidation(state); return result; };
   E.contextState = function (state) {
     const npcActionRevision = Object.values(state.worldSimulation?.npcState || {}).map((npc) => [npc.npcId, npc.status, npc.currentNodeId, npc.currentSubLocationId, npc.aiState, npc.canTeachRareTechnique]).sort((a, b) => String(a[0]) < String(b[0]) ? -1 : String(a[0]) > String(b[0]) ? 1 : 0);
-    const fingerprint = JSON.stringify({ turn: state.meta?.turn, location: state.locationId, subLocation: state.currentSubLocationId, worldDay: state.worldSimulation?.lastProcessedDay, mapVersion: state.mapState?.version, mapRevision: state.mapState?.influenceRevision, path: state.pathState?.pathLevel, profession: [state.professionState?.primaryId, state.professionState?.secondaryId], quest: Object.keys(state.questState?.active || {}).length, weather: state.worldSimulation?.regionState?.[currentRegion(state)]?.weather, corruption: state.player?.corruptionRating, war: Object.keys(state.worldSimulation?.wars || {}).length, pending: [state.pendingExploration?.nodeId || state.pendingExploration?.locationId, state.pendingContestedOpportunity?.status, state.travelTask?.status], companion: [state.companion?.state, state.companion?.hp, state.companion?.targetId], guild: [state.guildMembership?.guildId, state.guildMembership?.rankIndex, state.guildMembership?.status], npcActionRevision, trustTrials: state.npcTrustTrials, relationships: state.relationships, inventory: state.inventory });
+    const fingerprint = JSON.stringify({ turn: state.meta?.turn, location: state.locationId, subLocation: state.currentSubLocationId, worldDay: state.worldSimulation?.lastProcessedDay, mapVersion: state.mapState?.version, mapRevision: state.mapState?.influenceRevision, path: state.pathState?.pathLevel, profession: [state.professionState?.primaryId, state.professionState?.secondaryId], quest: Object.keys(state.questState?.active || {}).length, questRevision: JSON.stringify(state.questState?.active || {}), contractBoard: JSON.stringify(state.contractBoard || state.contracts || {}), organization: JSON.stringify(state.organizationState || {}), weather: state.worldSimulation?.regionState?.[currentRegion(state)]?.weather, corruption: state.player?.corruptionRating, war: Object.keys(state.worldSimulation?.wars || {}).length, pending: [state.pendingExploration?.nodeId || state.pendingExploration?.locationId, state.pendingMapEvent?.status, state.pendingMapEvent?.eventId, state.pendingContestedOpportunity?.status, state.travelTask?.status], companion: [state.companion?.state, state.companion?.hp, state.companion?.targetId], guild: [state.guildMembership?.guildId, state.guildMembership?.rankIndex, state.guildMembership?.status], npcActionRevision, trustTrials: state.npcTrustTrials, relationships: state.relationships, inventory: state.inventory });
     const memo = state._contextStateMemo;
     if (memo?.fingerprint === fingerprint) return copy(memo.value);
     const result = original.contextState.call(E, state);

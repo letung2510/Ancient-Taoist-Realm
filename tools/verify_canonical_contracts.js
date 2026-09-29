@@ -92,6 +92,31 @@ function testPendingDiscoveryBoundaries() {
   state.travelTask = null;
 }
 
+function testCriticalRegressionGuards() {
+  const state = makeState();
+  const missingNpc = E.talk(state, "__missing_npc_for_regression__");
+  assert.strictEqual(missingNpc.success, false, "talking to an unknown NPC must return a safe failure");
+  assert(!/ReferenceError|undefined|NaN/.test(JSON.stringify(missingNpc)));
+
+  const levelTwo = sandbox.window.GameData.REALMS.find((realm) => Number(realm.level) === 2);
+  assert(levelTwo);
+  state.player.realmId = levelTwo.id;
+  state.flags.pathChoicePending = true;
+  const unbound = E.selectPath(state, "ngoai_dao_gia");
+  assert(unbound.success && state.player.pathId === "ngoai_dao_gia" && state.player.unbound === true, "Ngoại Đạo Giả must persist canonical path state");
+  const restored = E.deserialize(E.serialize(state));
+  assert.strictEqual(restored.player.pathId, "ngoai_dao_gia", "Ngoại Đạo Giả path must survive save/load");
+
+  const firstBreakthrough = makeState();
+  const firstRealm = sandbox.window.GameData.REALMS.find((realm) => Number(realm.level) === 1);
+  const required = Number(firstRealm.breakExp || 100);
+  firstBreakthrough.player.exp = required;
+  const beforeExp = firstBreakthrough.player.exp;
+  const breakthrough = E.doBreakthrough(firstBreakthrough);
+  assert(breakthrough.changed, "first breakthrough fixture must advance");
+  assert.strictEqual(firstBreakthrough.player.exp, Math.max(0, beforeExp - required), "first breakthrough must consume required EXP");
+}
+
 function testMovementAndLogContracts() {
   const state = makeState();
   const actions = E.moveActions(state).map((action) => action.id);
@@ -155,6 +180,7 @@ testCanonicalSurface();
 testSaveRoundTripAndCatalogImmutability();
 testTechniqueIdempotency();
 testPendingDiscoveryBoundaries();
+testCriticalRegressionGuards();
 testMovementAndLogContracts();
 testMapAndNpcTransactions();
 testOfflineCadenceAndLifecycleContracts();

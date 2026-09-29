@@ -788,7 +788,8 @@
       return;
     }
 
-    UI.setLocation(D.LOCATIONS[state.locationId].name);
+    const renderLocation = E.locationForState?.(state) || D.LOCATIONS[state.locationId] || { name: state.locationId || "Vị trí chưa định danh" };
+    UI.setLocation(renderLocation.name || state.locationId || "Vị trí chưa định danh");
     UI.renderPanel(state);
     decorateFateAdvancedActions();
     renderActionButtons();
@@ -841,7 +842,8 @@
   }
 
   function renderFull() {
-    UI.setLocation(D.LOCATIONS[state.locationId].name);
+    const fullRenderLocation = E.locationForState?.(state) || D.LOCATIONS[state.locationId] || { name: state.locationId || "Vị trí chưa định danh" };
+    UI.setLocation(fullRenderLocation.name || state.locationId || "Vị trí chưa định danh");
     UI.clearStory();
     window._renderedTurn = 0;
     renderedHistoryEntries = new WeakSet();

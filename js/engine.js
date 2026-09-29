@@ -1406,7 +1406,7 @@ window.GameEngine = (function () {
     // sanDrainMult: hung cách làm tổn thất tà niệm nặng hơn.
     const resist = stats.eff.sanResist;
     const drainMult = stats.eff.sanDrainMult;
-    const sanStat = 100;
+    const sanStat = clamp(Number(character?.san ?? character?.currentSan ?? 100), 0, 100);
     const threshold = clamp(sanStat + resist * 100 - (corruption || 1) * 5 - drainMult * 100, 5, 95);
     const roll = state ? replayInt(state, scope, 1, 100) : rnd(1, 100);
     return { roll, threshold, success: roll <= threshold };
@@ -2293,7 +2293,6 @@ window.GameEngine = (function () {
   /* ---------- Mệnh Kho ---------- */
   function fateVaultCapacity(state) {
     state.flags = state.flags || {};
-    state.enemies = Object.fromEntries(Object.entries(state.enemies || {}).filter(([enemyId, hp]) => Boolean(combatEntity(state, enemyId)) && Number.isFinite(Number(hp)) && Number(hp) > 0));
     const equippedIds = (state.player?.fates || []).filter(Boolean);
     const realmSlots = Number(realmById(state.player.realmId)?.activeSlots || 0);
     const capacity = Math.max(equippedIds.length * 2, Number(state.flags.fateSlotCapacity || 0), realmSlots * 2);
@@ -2307,7 +2306,7 @@ window.GameEngine = (function () {
     const source = [fate.name, fate.type, fate.element, ...effects, ...(fate.tags || [])].join(" ");
     return normalizedText(source);
   }
-  const PATH_ID_ALIASES = Object.freeze({ di_hoa: "dan_dao", thien_co: "phong_thuy_dao", linh_van: "phu_dao", thien_menh: "tinh_tuong_dao", dao_the: "luyen_the_dao", ngu_thu: "ngu_thu_dao", khoi_loi: "khoi_loi_dao", ta_am: "am_luat_dao", mong_canh: "mong_canh_dao" });
+  const PATH_ID_ALIASES = Object.freeze({ di_hoa: "dan_dao", thien_co: "tinh_tuong_dao", linh_van: "phu_dao", thien_menh: "phong_thuy_dao", dao_the: "luyen_the_dao", ngu_thu: "ngu_thu_dao", khoi_loi: "khoi_loi_dao", ta_am: "am_luat_dao", mong_canh: "mong_canh_dao" });
   function canonicalPathId(pathId) { return PATH_ID_ALIASES[String(pathId || "")] || String(pathId || ""); }
   function pathRelation(pathId) {
     const canonical = canonicalPathId(pathId);
@@ -2321,6 +2320,9 @@ window.GameEngine = (function () {
       state.pathState ||= { schemaVersion: 2 };
       state.pathState.unbound = true;
       state.pathState.primaryPathId = null;
+      state.player.pathId = "ngoai_dao_gia";
+      state.player.unbound = true;
+      state.player.pathNamespace = "unbound";
       state.flags.pathChoicePending = false;
       state.player.unboundTrials = state.player.unboundTrials || {};
       pushHistory(state, { type: "sys", text: "§ Đã bước vào lộ trình Kẻ Vô Lộ — Ngoại Đạo Giả." });
@@ -2390,7 +2392,7 @@ window.GameEngine = (function () {
     const affinity = fatePathAffinity(fate);
     if (affinity.lead.includes(pathId)) return 10;
     if (affinity.support.includes(pathId)) return 6;
-    if (affinity.forbidden.includes(pathId)) return 1;
+    if (affinity.forbidden.includes(pathId)) return 0;
     const text = fateTags(fate);
     const lead = relation.lead.filter((tag) => normalizedText(text).includes(normalizedText(tag))).length;
     const support = relation.support.filter((tag) => normalizedText(text).includes(normalizedText(tag))).length;
@@ -2860,12 +2862,7 @@ window.GameEngine = (function () {
       fateIds.forEach((id) => { const fate = D().FATE_PATTERNS.find((f) => f.id === id); if (fate) summary.rewards.push({ type: "Mệnh Số", value: fate.name + " · " + (fate.gradeLabel || fate.grade || "") }); });
       techniqueIds.forEach((id) => { summary.rewards.push({ type: "Công Pháp", value: techniqueCatalog()[id]?.name || id }); });
       if (merit) summary.rewards.push({ type: "Công Đức", value: merit });
-      if (r.contribution) { state.player.contribution = Number(state.player.contribution || 0) + Number(r.contribution); summary.rewards.push({ type: "Cống Hiến", value: r.contribution }); }
-      // Canonical reward receipts already apply contribution; legacy fallback above owns it.
-      if (canonicalReward && r.contribution) {
-        // Canonical receipt owns contribution; this compensates only the legacy summary mutation above.
-        state.player.contribution = Number(state.player.contribution || 0) - Number(r.contribution);
-      }
+      if (r.contribution) summary.rewards.push({ type: "Cống Hiến", value: r.contribution });
       state.pendingRewardSummaries = Array.isArray(state.pendingRewardSummaries) ? state.pendingRewardSummaries : [];
       state.pendingRewardSummaries.push(summary);
       pushMemory(state, "Hoàn thành nhiệm vụ: " + def.title);
@@ -3767,7 +3764,9 @@ window.GameEngine = (function () {
     // the realm's experience threshold. Later realms use the full ritual and
     // path contract below; this keeps old saves and deterministic smoke tests
     // from being affected by higher-tier blockers.
-    if (cultivationTier(state) === 1 && Number(state.player.exp || 0) >= Number(realm.breakExp || 100)) {
+    const firstBreakthroughCost = Number(realm.breakExp || 100);
+    if (cultivationTier(state) === 1 && Number(state.player.exp || 0) >= firstBreakthroughCost) {
+      state.player.exp = Math.max(0, Number(state.player.exp || 0) - firstBreakthroughCost);
       const changed = enterLuyenKhi(state, "tích đủ 100 EXP");
       return { changed: Boolean(changed), reason: changed ? "Khai mở vận mệnh, bước vào Khai Lộ Cảnh." : "Không thể bước vào Khai Lộ Cảnh." };
     }
@@ -5482,7 +5481,7 @@ window.GameEngine = (function () {
     const found = findEntityByName(name);
     if (!found) {
       pushHistory(state, { type: "warn", text: "× Không có nhân vật nào như vậy." });
-    return { success: true, defeated: true, damage: amount, enemyId, exp: info.exp };
+      return { success: false, reason: "Không tìm thấy nhân vật phù hợp." };
     }
     const entityId = found.id;
     const special = entityCatalog()[entityId];
@@ -6769,6 +6768,7 @@ window.GameEngine = (function () {
     state.generatedItems ||= {};
     state.generatedItemSequence = Math.max(Number(state.generatedItemSequence || 0), Object.keys(state.generatedItems).length);
     state.player ||= {};
+    state.enemies = Object.fromEntries(Object.entries(state.enemies || {}).filter(([enemyId, hp]) => Boolean(combatEntity(state, enemyId)) && Number.isFinite(Number(hp)) && Number(hp) > 0));
     state.player.secludedSession ??= null;
     state.questState ||= { available: {}, active: {}, failed: {}, completed: {}, npcIndex: {} };
     state.questState.available ||= {}; state.questState.active ||= {}; state.questState.failed ||= {}; state.questState.completed ||= {};
