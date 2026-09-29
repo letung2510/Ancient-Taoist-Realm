@@ -3911,9 +3911,12 @@
 
   function techniqueEligibility(state, techniqueId, scope = "use") {
     const technique = E.techniqueCatalog?.()?.[techniqueId];
-    if (!technique) return { ok: false, blockers: [{ code: "UNKNOWN_TECHNIQUE", message: "Công Pháp không tồn tại." }] };
+    const blocker = (code, playerText, sourceId = techniqueId, recoverable = true) => ({ code, scope, sourceId, playerText, recoverable, message: playerText });
+    if (!technique) return { ok: false, blockers: [blocker("UNKNOWN_TECHNIQUE", "Công Pháp không tồn tại.")] };
     const requirements = technique[scope + "Requirements"] || technique.requirements || {};
     const blockers = [], player = state.player || {}, pathId = player.pathId || state.pathId || null;
+    const learned = Boolean(player.techniques?.[techniqueId]);
+    if ((scope === "use" || scope === "training") && !learned) blockers.push(blocker("NOT_LEARNED", "Ngươi chưa lĩnh ngộ Công Pháp này."));
     const pathDefinition = window.PATH_FATE_RELATIONS?.paths?.[pathId] || {};
     const pathTags = [...(pathDefinition.lead || []), ...(pathDefinition.support || [])].map((tag) => String(tag).toLowerCase());
     const realm = E.cultivationTier(state);
@@ -3941,7 +3944,25 @@
     }
     if (requirements.fateScope !== "owned" && Array.isArray(requirements.fateIdsAny) && requirements.fateIdsAny.length && !requirements.fateIdsAny.some((id) => activeFateIds.includes(id)) && !blockers.some((blocker) => blocker.code === "FATE_REQUIRED")) blockers.push({ code: "FATE_REQUIRED", message: "Required Fate is not actively equipped." });
     if (guild && (guild.suspended || ["suspended", "expelled", "left", "inactive"].includes(String(guild.status || "active"))) && !blockers.some((blocker) => ["GUILD_REQUIRED", "GUILD_RANK_REQUIRED"].includes(blocker.code))) blockers.push({ code: "GUILD_REQUIRED", message: "Guild membership is not active." });
-    return { ok: blockers.length === 0, blockers, scope, techniqueId };
+    if (scope === "use" && learned) {
+      const cooldown = typeof player.techniqueCooldowns?.[techniqueId] === "object"
+        ? Number(player.techniqueCooldowns[techniqueId]?.readyAtTurn || 0)
+        : Number(player.techniqueCooldowns?.[techniqueId] || 0);
+      if (cooldown > Number(state.meta?.turn || 0)) blockers.push(blocker("COOLDOWN", "Công pháp đang hồi chiêu."));
+      const declared = technique.cost || {}, visible = technique.visibleStats || {};
+      const costs = [
+        ["qi", Number(declared.mana ?? visible.manaCost ?? 0), "Linh Khí"],
+        ["stamina", Number(declared.stamina ?? visible.staminaCost ?? 0), "Thể Lực"],
+        ["san", Number(declared.san ?? visible.sanCost ?? 0), "Thanh Tỉnh"]
+      ];
+      costs.forEach(([key, cost, label]) => {
+        if (cost > 0 && Number(player[key] || 0) < cost) blockers.push(blocker("RESOURCE_SHORTAGE", "Thiếu " + label + " (cần " + cost + ")."));
+      });
+      const gateCodes = new Set(["REALM_TOO_LOW", "REALM_TOO_HIGH", "PATH_MISMATCH", "FATE_REQUIRED", "GUILD_REQUIRED", "GUILD_RANK_REQUIRED", "FACTION_REQUIRED"]);
+      if (blockers.some((entry) => gateCodes.has(entry.code))) blockers.push(blocker("TECHNIQUE_DORMANT", "Công pháp hiện đang ở trạng thái dormant do điều kiện sử dụng chưa phù hợp."));
+    }
+    const normalized = blockers.map((entry) => ({ ...entry, scope: entry.scope || scope, sourceId: entry.sourceId || techniqueId, playerText: entry.playerText || entry.message || "Điều kiện Công Pháp chưa đáp ứng.", recoverable: entry.recoverable !== false, message: entry.playerText || entry.message || "Điều kiện Công Pháp chưa đáp ứng." }));
+    return { ok: normalized.length === 0, blockers: normalized, scope, techniqueId };
   }
   function guildTechniqueSnapshot(state, technique) {
     const membership = state.guildMembership, policies = X.guildTechniquePolicies || [];
