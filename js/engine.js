@@ -3268,13 +3268,23 @@ window.GameEngine = (function () {
   }
 
   // Nghi thức được mở dần theo cấp đích: cấp thấp dễ học, cấp cao mới cần đủ 5 cửa.
-  function breakthroughRitualPlan(level) {
+  // Ngoại Đạo Giả không có Con Đường để đối chiếu và không phải vượt cửa Tà Thần;
+  // vẫn giữ Gọi Mệnh/Dựng Neo/Dị Tượng/Trả Giá như phần nghi thức chung.
+  function breakthroughRitualPlan(level, stateOrPathId = null) {
+    const pathId = typeof stateOrPathId === "string" ? stateOrPathId : stateOrPathId?.player?.pathId;
+    const isUnbound = pathId === "ngoai_dao_gia";
+    if (isUnbound) {
+      if (level <= 2) return [];
+      if (level <= 10) return ["call_fate", "anchor", "omen"];
+      if (level <= 13) return ["call_fate", "anchor", "omen", "cost"];
+      return ["call_fate", "anchor", "omen", "cost"];
+    }
     if (level <= 2) return [];
     if (level <= 4) return ["call_fate", "anchor", "compare"];
     if (level <= 7) return ["call_fate", "anchor", "compare", "omen"];
-    if (level <= 10) return ["call_fate", "compare", "anchor", "omen"];
-    if (level <= 13) return ["call_fate", "compare", "anchor", "omen", "cost"];
-    return ["call_fate", "compare", "anchor", "omen", "cost", "trial"];
+    if (level <= 10) return ["call_fate", "anchor", "compare", "omen"];
+    if (level <= 13) return ["call_fate", "anchor", "compare", "omen", "cost"];
+    return ["call_fate", "anchor", "compare", "omen", "cost", "trial"];
   }
   const BREAKTHROUGH_RITUAL_LABELS = {
     call_fate: "Gọi Mệnh",
@@ -3287,7 +3297,7 @@ window.GameEngine = (function () {
   function breakthroughRitualStatus(state) {
     const next = D().REALMS[realmIndex(state) + 1];
     if (!next) return { next: null, plan: [], completed: [], remaining: [], ready: true };
-    const plan = breakthroughRitualPlan(Number(next.level || 1));
+    const plan = breakthroughRitualPlan(Number(next.level || 1), state);
     const saved = state.flags?.breakthroughRitual;
     const completed = saved && saved.targetRealmId === next.id ? [...(saved.completed || [])] : [];
     return { next, plan, completed, remaining: plan.filter((step) => !completed.includes(step)), ready: plan.every((step) => completed.includes(step)) };
@@ -3373,7 +3383,10 @@ window.GameEngine = (function () {
       flags.costCommitted = true;
     }
     if (step === "trial") {
-    const passed = Boolean(canonicalHiddenProfessionId(state) === "luan_hoi_tien" || state.player.tainted?.taintedGodDefeated || state.flags.finalVictory);
+      const isUnbound = state.player.pathId === "ngoai_dao_gia";
+      const passed = isUnbound
+        ? Boolean(state.player.unboundPathProven)
+        : Boolean(canonicalHiddenProfessionId(state) === "luan_hoi_tien" || state.player.tainted?.taintedGodDefeated || state.flags.finalVictory);
       if (!passed) return { changed: false, reason: "Cần đánh bại Tà Thần hoặc Ngoại Đạo Giả trước khi vượt thử thách cuối." };
     }
     flags.completed = [...new Set([...(flags.completed || []), step])];
@@ -3390,7 +3403,10 @@ window.GameEngine = (function () {
     if (step === "call_fate" || step === "compare" || step === "omen") return breakthroughRitualGateRequirements(state, step).filter((item) => !item.met).map((item) => item.label + ": " + item.current + " / " + item.target).join("; ");
     if (step === "anchor" && !anchorCandidates(state).length && !(state.player.anchors || []).some((anchor) => anchor.source === "npc" && !anchor.broken && Number(anchor.stability || 0) > 0)) return "Chưa có NPC đủ quan hệ để dựng Neo Nhân Tính.";
     if (step === "cost" && Number(state.player.san || 0) < 5) return "Thanh Tỉnh: " + state.player.san + " / 5";
-    if (step === "trial" && !Boolean(canonicalHiddenProfessionId(state) === "luan_hoi_tien" || state.player.tainted?.taintedGodDefeated || state.flags.finalVictory)) return "Cần đánh bại Tà Thần hoặc Ngoại Đạo Giả.";
+     if (step === "trial") {
+       if (state.player.pathId === "ngoai_dao_gia") return state.player.unboundPathProven ? "" : "Cần hoàn thành Vô Lộ Chứng Đạo.";
+       if (!Boolean(canonicalHiddenProfessionId(state) === "luan_hoi_tien" || state.player.tainted?.taintedGodDefeated || state.flags.finalVictory)) return "Cần đánh bại Tà Thần hoặc Ngoại Đạo Giả.";
+     }
     return "";
   }
 
@@ -3412,6 +3428,15 @@ window.GameEngine = (function () {
     if (cultivationTier(state) === 1) return { current, next, requiredExp, ready: requirements.every((item) => item.met), requirements };
     const ritual = breakthroughRitualStatus(state);
     add("Nghi thức đột phá", ritual.completed.length, ritual.plan.length, ritual.ready);
+    if (isUnbound) {
+      const unboundTrial = {
+        8: ["selfProof", "Tự Chứng"],
+        11: ["severLaw", "Đoạn Luật"],
+        13: ["establishPath", "Lập Đạo"],
+        14: ["unboundPathProven", "Vô Lộ Chứng Đạo"]
+      }[Number(next.level)];
+      if (unboundTrial) add("Thử thách Vô Lộ · " + unboundTrial[1], Boolean(unboundTrial[0] === "unboundPathProven" ? player.unboundPathProven : player.unboundTrials?.[unboundTrial[0]]), "Đã hoàn thành", Boolean(unboundTrial[0] === "unboundPathProven" ? player.unboundPathProven : player.unboundTrials?.[unboundTrial[0]]));
+    }
     if (cultivationTier(state) > 1 && !player.pathId) add("Con Đường", "Chưa chọn", "Chọn một Con Đường", false);
     if (Number(next.minFate || 0) > 0) add("Mệnh hiệu dụng", fate.effective, Number(next.minFate) * fateMultiplier, fate.effective >= Number(next.minFate) * fateMultiplier);
     if (Number(next.minNormalFate || 0) > 0) add("Mệnh Cát/Bình", fate.normal, Number(next.minNormalFate) * fateMultiplier, fate.normal >= Number(next.minNormalFate) * fateMultiplier);
@@ -6714,6 +6739,8 @@ window.GameEngine = (function () {
       presentation: { archetypeId: player.archetypeId, portrait: player.portrait },
       realm: { id: realm.id, level: realm.level, title: pathTitle(state), exp: player.exp },
       path: { primary: player.pathId || null, secondary: player.secondaryPathId || null, pathScore: player.pathId ? pathMatchSummary(player, player.pathId).score : 0, professionStage: player.professionStage || null },
+      pathNamespace: player.pathNamespace || (player.pathId === "ngoai_dao_gia" ? "unbound" : null),
+      unbound: Boolean(player.unbound || player.pathId === "ngoai_dao_gia"),
       stats: { phy: player.basePhy, mag: player.baseMag, aptitude: player.aptitude, comprehension: player.comprehension, vitality: player.hp, vitalityMax: player.maxHp, qi: player.qi, qiMax: player.maxQi, staminaCurrent: player.stamina, staminaMax: player.maxStamina, san: player.san, sanMax: player.maxSan, corruption: player.corruptionRating, lifespan: player.lifespan, lifespanConsumableBonus: Number(player.lifespanConsumableBonus || 0), currentAge: player.currentAge, fortune: player.baseFortune, sat: player.sat, merit: player.merit },
       fate: { equippedIds: (player.fates || []).slice(), vaultIds: (state.fateInventory || []).slice(), vaultCapacity: fateVaultCapacity(state), total: fate.total, normal: fate.normal, ratioR: fate.ratio, debt: fate.debt, surplus: fate.surplus, excessEssence: Number(state.fateExcessEssence || player.fateExcessEssence || 0), instances: JSON.parse(JSON.stringify(state.fateInstances || player.fateInstances || {})), pacts: (player.fatePacts || []).slice(), enhancements: { ...(player.fateEnhancements || {}) }, relationships: JSON.parse(JSON.stringify(player.fateRelationships || {})), evolutions: JSON.parse(JSON.stringify(player.fateEvolutions || {})), advancedActions: JSON.parse(JSON.stringify(player.fateAdvancedActions || {})) },
       anchors: (player.anchors || []).map((anchor) => ({ ...anchor })),
@@ -6745,7 +6772,8 @@ window.GameEngine = (function () {
       taintedGodDefeated: Boolean(faction.taintedGodDefeated),
       rewards: { heaven_merit: Number(faction.heavenMerit || 0), balance_token: Number(faction.balanceTokens || 0) }
     };
-    return createCharacter({
+    const restoredUnbound = character.path?.primary === "ngoai_dao_gia" || character.unbound === true || character.pathNamespace === "unbound";
+    const restored = createCharacter({
       id: character.id, name: character.name, archetypeId: character.presentation?.archetypeId,
       portrait: character.presentation?.portrait, realmId: character.realm?.id,
       race: origin.race, startRegionId: origin.regionId, spiritualRoots: origin.spiritualRoots, spiritualRootBranch: origin.spiritualRootBranch,
@@ -6757,8 +6785,12 @@ window.GameEngine = (function () {
       fateRelationships: character.fate?.relationships, fateEvolutions: character.fate?.evolutions, fateAdvancedActions: character.fate?.advancedActions || character.fateAdvancedActions,
       anchors: character.anchors, techniques: character.techniqueProgress || Object.fromEntries((character.techniqueIds || []).map((id) => [id, { masteryStage: 0, masteryExp: 0, usageCount: 0 }])),
       hiddenFates: character.hiddenFates, hiddenProfessionCandidate: character.hiddenProfessionCandidate,
-      hiddenProfession: character.hiddenProfession, pathId: character.path?.primary, tainted, equipment: character.equipment
+      hiddenProfession: character.hiddenProfession, pathId: restoredUnbound ? "ngoai_dao_gia" : character.path?.primary, tainted, equipment: character.equipment
     });
+    if (restoredUnbound) { restored.unbound = true; restored.pathNamespace = "unbound"; }
+    restored.unboundTrials = { ...(character.unboundTrials || {}) };
+    restored.unboundPathProven = Boolean(character.unboundPathProven);
+    return restored;
   }
 
   function migrateV12ToV13(state) {
@@ -6768,6 +6800,15 @@ window.GameEngine = (function () {
     state.generatedItems ||= {};
     state.generatedItemSequence = Math.max(Number(state.generatedItemSequence || 0), Object.keys(state.generatedItems).length);
     state.player ||= {};
+    const legacyUnbound = state.pathState?.unbound === true || state.player.unbound === true || state.player.pathNamespace === "unbound";
+    if (legacyUnbound) {
+      state.pathState ||= {};
+      state.pathState.unbound = true;
+      state.pathState.primaryPathId = state.pathState.primaryPathId || null;
+      state.player.pathId = state.player.pathId || "ngoai_dao_gia";
+      state.player.unbound = true;
+      state.player.pathNamespace = "unbound";
+    }
     state.enemies = Object.fromEntries(Object.entries(state.enemies || {}).filter(([enemyId, hp]) => Boolean(combatEntity(state, enemyId)) && Number.isFinite(Number(hp)) && Number(hp) > 0));
     state.player.secludedSession ??= null;
     state.questState ||= { available: {}, active: {}, failed: {}, completed: {}, npcIndex: {} };

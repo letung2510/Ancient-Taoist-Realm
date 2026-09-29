@@ -4388,6 +4388,29 @@
 
   function expansionActions(state) {
     ensure(state); const actions = [], combat = E.aliveEnemies(state).length > 0, day = absoluteDay(state.gameClock);
+    if (!combat && state.player?.pathId === "ngoai_dao_gia") {
+      const nextLevel = Number(E.breakthroughRequirements(state).next?.level || 0);
+      const trialByLevel = {
+        8: ["self_proof", "Tự Chứng"],
+        11: ["sever_law", "Đoạn Luật"],
+        13: ["establish_path", "Lập Đạo"],
+        14: ["prove_unbound", "Vô Lộ Chứng Đạo"]
+      }[nextLevel];
+      const completed = {
+        self_proof: Boolean(state.player.unboundTrials?.selfProof),
+        sever_law: Boolean(state.player.unboundTrials?.severLaw),
+        establish_path: Boolean(state.player.unboundTrials?.establishPath),
+        prove_unbound: Boolean(state.player.unboundPathProven)
+      };
+      if (trialByLevel && !completed[trialByLevel[0]]) actions.push({
+        id: "act_exp_unbound_trial:" + trialByLevel[0],
+        label: "Thử Thách Vô Lộ · " + trialByLevel[1],
+        aliases: ["thử thách vô lộ", "" + trialByLevel[1]],
+        priority: 0,
+        category: "progression",
+        blocking: true
+      });
+    }
     const companion = state.companion && normalizeCompanion(state.companion);
     if (!combat && companion) {
       if (companion.state === "recovering") actions.push({ id: "act_exp_companion_recover", label: "Hồi phục Dị Thú", aliases: ["hồi phục dị thú"], priority: 1, category: "companion" });
@@ -4550,6 +4573,7 @@
   }
 
   function handleExpansionAction(state, actionId, options = {}) {
+    if (actionId.startsWith("act_exp_unbound_trial:")) return E.completeUnboundTrial(state, actionId.slice("act_exp_unbound_trial:".length));
     if (actionId === "act_exp_companion_recover") return recoverCompanion(state);
     if (actionId === "act_exp_companion_revive") return reviveCompanion(state);
     if (actionId === "act_exp_companion_cure") return resolveCompanionMutation(state, "cure");
@@ -5084,7 +5108,7 @@
   E.advanceGameTime = function (state, days) { const result = original.advanceGameTime.call(E, state, days); ensure(state); simulateWorldUntil(state, absoluteDay(state.gameClock)); advanceTravelTask(state); runRuntimeValidation(state); return result; };
   E.contextState = function (state) {
     const npcActionRevision = Object.values(state.worldSimulation?.npcState || {}).map((npc) => [npc.npcId, npc.status, npc.currentNodeId, npc.currentSubLocationId, npc.aiState, npc.canTeachRareTechnique]).sort((a, b) => String(a[0]) < String(b[0]) ? -1 : String(a[0]) > String(b[0]) ? 1 : 0);
-    const fingerprint = JSON.stringify({ turn: state.meta?.turn, location: state.locationId, subLocation: state.currentSubLocationId, worldDay: state.worldSimulation?.lastProcessedDay, mapVersion: state.mapState?.version, mapRevision: state.mapState?.influenceRevision, path: state.pathState?.pathLevel, profession: [state.professionState?.primaryId, state.professionState?.secondaryId], quest: Object.keys(state.questState?.active || {}).length, questRevision: JSON.stringify(state.questState?.active || {}), contractBoard: JSON.stringify(state.contractBoard || state.contracts || {}), organization: JSON.stringify(state.organizationState || {}), weather: state.worldSimulation?.regionState?.[currentRegion(state)]?.weather, corruption: state.player?.corruptionRating, war: Object.keys(state.worldSimulation?.wars || {}).length, pending: [state.pendingExploration?.nodeId || state.pendingExploration?.locationId, state.pendingMapEvent?.status, state.pendingMapEvent?.eventId, state.pendingContestedOpportunity?.status, state.travelTask?.status], companion: [state.companion?.state, state.companion?.hp, state.companion?.targetId], guild: [state.guildMembership?.guildId, state.guildMembership?.rankIndex, state.guildMembership?.status], npcActionRevision, trustTrials: state.npcTrustTrials, relationships: state.relationships, inventory: state.inventory });
+    const fingerprint = JSON.stringify({ turn: state.meta?.turn, location: state.locationId, subLocation: state.currentSubLocationId, worldDay: state.worldSimulation?.lastProcessedDay, mapVersion: state.mapState?.version, mapRevision: state.mapState?.influenceRevision, path: [state.pathState?.pathLevel, state.player?.pathId, state.player?.unbound, state.player?.unboundPathProven, state.player?.unboundTrials], realm: state.player?.realmId, profession: [state.professionState?.primaryId, state.professionState?.secondaryId], quest: Object.keys(state.questState?.active || {}).length, questRevision: JSON.stringify(state.questState?.active || {}), contractBoard: JSON.stringify(state.contractBoard || state.contracts || {}), organization: JSON.stringify(state.organizationState || {}), weather: state.worldSimulation?.regionState?.[currentRegion(state)]?.weather, corruption: state.player?.corruptionRating, war: Object.keys(state.worldSimulation?.wars || {}).length, pending: [state.pendingExploration?.nodeId || state.pendingExploration?.locationId, state.pendingMapEvent?.status, state.pendingMapEvent?.eventId, state.pendingContestedOpportunity?.status, state.travelTask?.status], companion: [state.companion?.state, state.companion?.hp, state.companion?.targetId], guild: [state.guildMembership?.guildId, state.guildMembership?.rankIndex, state.guildMembership?.status], npcActionRevision, trustTrials: state.npcTrustTrials, relationships: state.relationships, inventory: state.inventory });
     const memo = state._contextStateMemo;
     if (memo?.fingerprint === fingerprint) return copy(memo.value);
     const result = original.contextState.call(E, state);
