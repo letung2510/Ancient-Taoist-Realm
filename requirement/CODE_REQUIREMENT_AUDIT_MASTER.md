@@ -3075,3 +3075,22 @@ Evidence mới: `node tools/verify_offline_bundle.js` PASS; `node tools/verify_o
 | Browser/native file chooser evidence | EXTERNAL EVIDENCE ONLY | Runtime import guards, save-envelope validation, offline parity and headless render contracts are closed. Direct native chooser upload and exhaustive browser click-through remain unverified only because the connector rejects `fileChooser.setFiles` with `Not allowed`; no runtime logic gap remains. |
 
 Historical `PARTIAL` rows above are retained as evidence history. After this override they do not represent open runtime logic defects; the remaining boundary is browser/connector evidence only.
+
+## Evidence reconciliation - historical blockers versus current gaps 2026-09-29
+
+The historical G1/G4/G6 findings are not being discarded without a code check. They are closed by the current runtime paths:
+
+| Historical ID | Current disposition | Direct code evidence |
+|---|---|---|
+| G1 / C8.1 | FIXED | `E.deserialize`, `E.serialize`, `E.advanceGameTime` and the expansion `E.updateDerived` wrapper call `runRuntimeValidation(state)`, which invokes `validateExpansionState(state)`. |
+| G4 | FIXED | `saveGame(explicit = false)` writes the canonical serialized state to `localStorage`; autosave call sites are no longer short-circuited by the optional flag. |
+| G6 / C6 | FIXED | `pendingDepartureGuard` covers movement, safe-hub travel and hidden-realm entry/exit; `confirmPendingDeparture` abandons map events, clears exploration and resolves contested opportunities before teleport. |
+| M70 | FIXED | `techniqueEligibility` now emits canonical blocker DTOs and gates learned state, cooldown, resource shortage and dormant requirements; replay/idempotency is checked before eligibility. |
+
+The remaining PARTIAL items are evidence gaps, not unverified claims about those runtime paths:
+
+1. Native file chooser import/export round-trip cannot be executed by the current browser connector because `fileChooser.setFiles` returns `Not allowed`.
+2. Exhaustive interactive click-through for every combat, companion, hidden-path, ritual, map-event, teaching and settlement state variant is not available; headless renderer and dispatcher matrices are the available evidence.
+3. Full browser persistence and pixel/responsive evidence across all variants remains open; the action-bar layout has separate live DOM evidence.
+
+These three items require a browser/connector capability change or a real manual-browser run. They must not be relabeled as runtime logic defects, and they must not be marked as browser E2E complete without that evidence.
