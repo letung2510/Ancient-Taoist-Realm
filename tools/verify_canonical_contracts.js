@@ -117,6 +117,34 @@ function testCriticalRegressionGuards() {
   assert.strictEqual(firstBreakthrough.player.exp, Math.max(0, beforeExp - required), "first breakthrough must consume required EXP");
 }
 
+function testUnboundProgressionContracts() {
+  const state = makeState();
+  state.player.pathId = "ngoai_dao_gia";
+  state.player.unbound = true;
+  state.player.pathNamespace = "unbound";
+  state.flags.pathChoicePending = false;
+  state.flags.originChoicePending = false;
+  const realm7 = sandbox.window.GameData.REALMS.find((realm) => Number(realm.level) === 7);
+  assert(realm7);
+  state.player.realmId = realm7.id;
+  const progress = E.breakthroughRequirements(state);
+  assert(progress.requirements.some((item) => item.label.includes("Tự Chứng") && !item.met), "level 8 must expose the missing Tự Chứng blocker");
+  const action = X.expansionActions(state).find((item) => item.id === "act_exp_unbound_trial:self_proof");
+  assert(action && action.blocking, "level 8 must expose a blocking Vô Lộ trial action");
+  const completed = E.completeUnboundTrial(state, action.id.slice("act_exp_unbound_trial:".length));
+  assert(completed.success && state.player.unboundTrials.selfProof, "Vô Lộ trial action must complete and persist the milestone");
+  const plan = E.breakthroughRitualPlan(8, state);
+  assert.strictEqual(JSON.stringify(plan), JSON.stringify(["call_fate", "anchor", "omen"]), "unbound ritual must omit path compare and final tainted trial");
+  assert.strictEqual(JSON.stringify(E.breakthroughRitualPlan(8)), JSON.stringify(["call_fate", "anchor", "compare", "omen"]), "generic ritual API must retain the canonical order");
+  const serializedState = JSON.parse(E.serialize(state)).state;
+  const legacy = E.deserialize(JSON.stringify({ version: 13, schema: "tu_vi_quy_di_canonical_v13", state: {
+    ...serializedState,
+    pathState: { unbound: true, primaryPathId: null },
+    player: { ...serializedState.player, path: { ...serializedState.player.path, primary: null }, unbound: false, pathNamespace: null }
+  }, savedAt: new Date().toISOString() }));
+  assert.strictEqual(legacy.player.pathId, "ngoai_dao_gia", "legacy unbound save must migrate null pathId to the canonical discriminator");
+}
+
 function testMovementAndLogContracts() {
   const state = makeState();
   const actions = E.moveActions(state).map((action) => action.id);
@@ -181,6 +209,7 @@ testSaveRoundTripAndCatalogImmutability();
 testTechniqueIdempotency();
 testPendingDiscoveryBoundaries();
 testCriticalRegressionGuards();
+testUnboundProgressionContracts();
 testMovementAndLogContracts();
 testMapAndNpcTransactions();
 testOfflineCadenceAndLifecycleContracts();

@@ -3107,6 +3107,9 @@ The following findings were rechecked against the current working tree. The fixe
 | Loyalty decision handler shadowed by generic prefix | FIXED | Decision route is checked before the generic loyalty-start route. |
 | Path alias cross-wiring | FIXED | `thien_co -> tinh_tuong_dao` and `thien_menh -> phong_thuy_dao`; canonical data IDs remain unchanged. |
 | Quest contribution double-count | FIXED | Reward summary no longer mutates contribution after the canonical/legacy reward producer has applied it. |
+| Ngoại Đạo Giả thiếu call site cho 4 thử thách Vô Lộ | FIXED | `expansionActions()` exposes `act_exp_unbound_trial:self_proof`, `sever_law`, `establish_path`, `prove_unbound`; the resolver calls `completeUnboundTrial()`, and `breakthroughRequirements()` reports the matching blocker. |
+| Nghi thức Ngoại Đạo Giả vẫn ép `compare`/`trial` | FIXED | `breakthroughRitualPlan(level, state)` uses the unbound plan without path comparison or Tà Thần trial; legacy direct `trial` calls accept `unboundPathProven`. |
+| Save cũ unbound có `pathId=null` bị mất nhận diện | FIXED | `migrateV12ToV13()` and canonical restore infer `ngoai_dao_gia` from `pathState.unbound`, `unbound` or `pathNamespace`. |
 | First breakthrough EXP not consumed | FIXED | First transition now subtracts the required EXP; regression coverage added. |
 | Forbidden Fate compatibility scored above neutral | FIXED | Forbidden direct affinity now scores `0`, matching the neutral floor. |
 | Fate-vault getter mutates combat state | FIXED | `fateVaultCapacity()` is now a read/normalization operation and does not filter `state.enemies`. |
@@ -3120,7 +3123,7 @@ The following findings remain open and are added to the active tracker below bec
 
 | ID | Status | Open scope | Required follow-up |
 |---|---|---|---|
-| OPEN-04 | `[ ] OPEN - SPEC ALIGNMENT` | Breakthrough ritual ordering differs between historical requirement passages and the current `breakthroughRitualPlan()` tiers. | Choose one canonical sequence per target level, update the canonical requirement and add a plan/status fixture; do not change runtime order before the decision is recorded. |
+| OPEN-04 | `[x] CLOSED - SPEC ALIGNMENT` | Breakthrough ritual ordering and the unbound exception were unresolved. | Runtime now uses `Gọi Mệnh → Dựng Neo → Đối Chiếu → Vượt Dị Tượng → Trả Giá` for normal paths; unbound omits `Đối Chiếu` and the final Tà Thần trial. Fixture coverage is in `verify_canonical_contracts.js`. |
 | OPEN-05 | `[ ] OPEN - DATA AUDIT` | Data topology review: asymmetric exits without explicit one-way metadata, fallback-realm coverage and orphan loot-table entries. | Enumerate every affected data ID, classify intentional one-way links, add missing metadata/catalog entries or update the canonical data contract, then add a verifier. |
 | OPEN-06 | `[ ] OPEN - DOC GOVERNANCE` | The repository intentionally contains canonical feature requirements plus the consolidated audit; this conflicts with a strict interpretation of “single audit file.” | Decide whether canonical feature documents remain source-of-truth references. If yes, mark them as sources in `README.md`; if no, archive/remove only after link and validator review. |
 
