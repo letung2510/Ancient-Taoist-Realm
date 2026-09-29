@@ -1120,7 +1120,7 @@ Nếu tương lai cho phép cùng ID nhiều instance, chuyển key sang instanc
 - không mất Mệnh khi kho đầy; dùng pending;
 - migration nhiều ô ↔ một ô phải giữ Mệnh mạnh nhất/được chọn và đưa phần còn lại vào kho;
 - `validateFateInventory()` chạy trong `updateDerived`;
-- save version 12 adapter `player.fate.vaultIds` ↔ `state.fateInventory` phải giữ nguyên.
+- save version 13 adapter `player.fate.vaultIds` ↔ `state.fateInventory` phải giữ nguyên.
 
 ---
 
@@ -1480,8 +1480,8 @@ Quan hệ dùng `tier` số và `type` nhãn, trong khi catalog dùng `grade` v�
 
 - `data/canh_gioi_tien_hiep.json` là nguồn chuẩn 14 cấp phẳng, từ `di_menh` đến `dao_ngoai`.
 - Cấp 3 là `dung_thai`, cấp 4 `kim_an`, cấp 5 `anh_linh`, cấp 6 `than_tinh`; cấp 7 bắt đầu có `minNormalFate`.
-- Save runtime version 12 lưu `player.fate.equippedIds`, `vaultIds`, `vaultCapacity`, `total`, `normal`, `ratioR`, `debt`, `surplus`, `pacts`, `enhancements`; engine adapter chuyển `vaultIds` thành `state.fateInventory`.
-- Save hiện chưa có metadata đầy đủ `fateInstances`, `relationshipStage`, `insightRevealed`, `stagnantDays` hoặc `effectiveGradeAtAcquisition`; Phase 2 phải migration bổ sung mà không phá format version 12.
+- Save runtime version 13 lưu `player.fate.equippedIds`, `vaultIds`, `vaultCapacity`, `total`, `normal`, `ratioR`, `debt`, `surplus`, `pacts`, `enhancements`; engine adapter chuyển `vaultIds` thành `state.fateInventory`.
+- Save runtime version 13 đã có namespace metadata mở rộng cho `fateInstances`, `relationshipStage`, `insightRevealed`, `stagnantDays` và `effectiveGradeAtAcquisition`; save v12 tiếp tục đi qua migration tương thích.
 - Save mẫu hiện có `than_dao_151`; migration unique lock phải grandfather chủ sở hữu hiện tại, không invalid một save hợp lệ.
 
 ### 16.4. Runtime đang thiếu so với rule
@@ -1532,7 +1532,7 @@ Nếu chấp thuận catalog 50% về sau:
 
 ### Gate C — save/UI
 
-- [ ] Adapter save v12 giữ nguyên equipped/vault/enhancements.
+- [x] Adapter save v13 giữ nguyên equipped/vault/enhancements.
 - [ ] Metadata instance có default/migration rõ ràng.
 - [ ] Save đang sở hữu `than_dao_151` không bị mất hoặc bị khóa sai.
 - [ ] UI hiển thị source, grade, score, match, effect before/after và pending.

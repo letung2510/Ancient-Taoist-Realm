@@ -3095,6 +3095,35 @@ The remaining PARTIAL items are evidence gaps, not unverified claims about those
 
 These three items require a browser/connector capability change or a real manual-browser run. They must not be relabeled as runtime logic defects, and they must not be marked as browser E2E complete without that evidence.
 
+## Critical follow-up reconciliation - code review findings 2026-09-29
+
+The following findings were rechecked against the current working tree. The fixed items are recorded here so an older line in the historical audit cannot be mistaken for an active defect.
+
+| Finding | Current status | Fix/evidence |
+|---|---|---|
+| `talk()` unknown NPC crash | FIXED | Unknown names now return a safe `{ success: false, reason }` result; regression coverage added to `verify_canonical_contracts.js`. |
+| Ngoại Đạo Giả path state/progression | FIXED | Selecting the path now persists `player.pathId`, `unbound` and `pathNamespace`; save/load regression verifies the canonical ID survives. |
+| Hidden-realm entry/exit options crash | FIXED | `handleExpansionAction` now accepts and forwards `options`. |
+| Loyalty decision handler shadowed by generic prefix | FIXED | Decision route is checked before the generic loyalty-start route. |
+| Path alias cross-wiring | FIXED | `thien_co -> tinh_tuong_dao` and `thien_menh -> phong_thuy_dao`; canonical data IDs remain unchanged. |
+| Quest contribution double-count | FIXED | Reward summary no longer mutates contribution after the canonical/legacy reward producer has applied it. |
+| First breakthrough EXP not consumed | FIXED | First transition now subtracts the required EXP; regression coverage added. |
+| Forbidden Fate compatibility scored above neutral | FIXED | Forbidden direct affinity now scores `0`, matching the neutral floor. |
+| Fate-vault getter mutates combat state | FIXED | `fateVaultCapacity()` is now a read/normalization operation and does not filter `state.enemies`. |
+| SAN check ignored current SAN | FIXED | Threshold uses the character's current SAN, clamped to the canonical range. |
+| Context memo omitted pending map event/contracts/organization | FIXED | Fingerprint now includes pending map-event identity, contract board, organization state and quest revision. |
+| Procedural/hidden location UI null dereference | FIXED | `main.js` now resolves location through `E.locationForState()` with a safe fallback. |
+| Numeric Fate IDs in `sample_characters.json` | NOT A CURRENT DEFECT | These are intentional legacy-index fixtures; `canonicalFateId()` migrates numeric indexes to canonical string IDs, covered by `verify_legacy_behavior_matrix.js`. |
+| `loyal_heaven` overwriting eldritch intervention | NOT REPRODUCED | Current `eldritch`/anchor branch executes before the loyal-heaven tier branch; retain as a watch item only if a runtime fixture reproduces it. |
+
+The following findings remain open and are added to the active tracker below because they require a canonical decision or a data/documentation pass rather than a safe one-line runtime fix:
+
+| ID | Status | Open scope | Required follow-up |
+|---|---|---|---|
+| OPEN-04 | `[ ] OPEN - SPEC ALIGNMENT` | Breakthrough ritual ordering differs between historical requirement passages and the current `breakthroughRitualPlan()` tiers. | Choose one canonical sequence per target level, update the canonical requirement and add a plan/status fixture; do not change runtime order before the decision is recorded. |
+| OPEN-05 | `[ ] OPEN - DATA AUDIT` | Data topology review: asymmetric exits without explicit one-way metadata, fallback-realm coverage and orphan loot-table entries. | Enumerate every affected data ID, classify intentional one-way links, add missing metadata/catalog entries or update the canonical data contract, then add a verifier. |
+| OPEN-06 | `[ ] OPEN - DOC GOVERNANCE` | The repository intentionally contains canonical feature requirements plus the consolidated audit; this conflicts with a strict interpretation of “single audit file.” | Decide whether canonical feature documents remain source-of-truth references. If yes, mark them as sources in `README.md`; if no, archive/remove only after link and validator review. |
+
 ## Open work tracker - items not fully completed 2026-09-29
 
 This is the active checklist. Only rows in this table are currently open. Historical `PARTIAL`, `SỬA MỘT PHẦN` and old blocker rows elsewhere in this document are retained as audit evidence and are not duplicated here unless the latest override still leaves work outstanding.

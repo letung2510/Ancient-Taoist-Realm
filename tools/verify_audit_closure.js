@@ -103,7 +103,7 @@ function testCrossCuttingAuditContracts() {
   assert.strictEqual(paths.namespace, "unbound");
   state.player.realmId = "khai_lo";
   const unbound = E.selectPath(state, "ngoai_dao_gia");
-  assert(unbound.success && state.pathState.unbound && !state.player.pathId);
+  assert(unbound.success && state.pathState.unbound && state.player.pathId === "ngoai_dao_gia" && state.player.unbound === true);
   E.pushHistory(state, { type: "action", text: "> internal-command" });
   assert(!E.novelLogParagraphs(state).some((entry) => entry.text.includes("internal-command")));
   const rollSources = Array.from({ length: 80 }, (_, index) => E.rollFateByProgression(state, { source: "qa:" + index, level: 9, allowUniqueTien: false })).filter(Boolean);
