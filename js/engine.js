@@ -2438,13 +2438,29 @@ window.GameEngine = (function () {
     return { current, realm: tier, next: tier < 2 ? "Đạt Khai Lộ Cảnh" : state.player.pathId ? "Bồi đắp Mệnh Dẫn và Công Pháp Cốt Lõi" : "Chọn một Con Đường tương hợp", requirements: ["Đạt Khai Lộ Cảnh", "Có ít nhất 1 Mệnh Dẫn", "Điểm tương hợp Con Đường ≥ 3", "Không mang toàn Hung Mệnh", "Công Pháp Cốt Lõi đạt tầng yêu cầu"], summary };
   }
 
+  const UNBOUND_TRIAL_DEFINITIONS = Object.freeze({
+    self_proof: Object.freeze({ minLevel: 7, field: "selfProof", label: "Tự Chứng" }),
+    sever_law: Object.freeze({ minLevel: 10, field: "severLaw", label: "Đoạn Luật" }),
+    establish_path: Object.freeze({ minLevel: 12, field: "establishPath", label: "Lập Đạo" }),
+    prove_unbound: Object.freeze({ minLevel: 13, field: "unboundPathProven", label: "Vô Lộ Chứng Đạo" })
+  });
+  const UNBOUND_TRIAL_BY_TARGET_LEVEL = Object.freeze({ 8: "self_proof", 11: "sever_law", 13: "establish_path", 14: "prove_unbound" });
+  function unboundTrialForLevel(level) {
+    const id = UNBOUND_TRIAL_BY_TARGET_LEVEL[Number(level)];
+    return id ? { id, ...UNBOUND_TRIAL_DEFINITIONS[id] } : null;
+  }
+  function unboundTrialStatus(state, targetLevel = null) {
+    const id = targetLevel == null ? null : UNBOUND_TRIAL_BY_TARGET_LEVEL[Number(targetLevel)];
+    if (!id) return null;
+    const definition = UNBOUND_TRIAL_DEFINITIONS[id];
+    const completed = definition.field === "unboundPathProven"
+      ? Boolean(state.player.unboundPathProven)
+      : Boolean(state.player.unboundTrials?.[definition.field]);
+    return { id, ...definition, completed };
+  }
   function completeUnboundTrial(state, trialId) {
     if (state.player.pathId !== "ngoai_dao_gia") return { success: false, reason: "Chỉ Ngoại Đạo Giả có thử thách Vô Lộ." };
-    const trials = {
-      self_proof: { minLevel: 7, field: "selfProof" }, sever_law: { minLevel: 10, field: "severLaw" },
-      establish_path: { minLevel: 12, field: "establishPath" }, prove_unbound: { minLevel: 13, field: "unboundPathProven" }
-    };
-    const trial = trials[trialId];
+    const trial = UNBOUND_TRIAL_DEFINITIONS[trialId];
     if (!trial || cultivationTier(state) < trial.minLevel) return { success: false, reason: "Thử thách chưa mở." };
     if (trial.field === "unboundPathProven") state.player.unboundPathProven = true;
     else {
@@ -3429,13 +3445,8 @@ window.GameEngine = (function () {
     const ritual = breakthroughRitualStatus(state);
     add("Nghi thức đột phá", ritual.completed.length, ritual.plan.length, ritual.ready);
     if (isUnbound) {
-      const unboundTrial = {
-        8: ["selfProof", "Tự Chứng"],
-        11: ["severLaw", "Đoạn Luật"],
-        13: ["establishPath", "Lập Đạo"],
-        14: ["unboundPathProven", "Vô Lộ Chứng Đạo"]
-      }[Number(next.level)];
-      if (unboundTrial) add("Thử thách Vô Lộ · " + unboundTrial[1], Boolean(unboundTrial[0] === "unboundPathProven" ? player.unboundPathProven : player.unboundTrials?.[unboundTrial[0]]), "Đã hoàn thành", Boolean(unboundTrial[0] === "unboundPathProven" ? player.unboundPathProven : player.unboundTrials?.[unboundTrial[0]]));
+      const unboundTrial = unboundTrialStatus(state, next.level);
+      if (unboundTrial) add("Thử thách Vô Lộ · " + unboundTrial.label, unboundTrial.completed, "Đã hoàn thành", unboundTrial.completed);
     }
     if (cultivationTier(state) > 1 && !player.pathId) add("Con Đường", "Chưa chọn", "Chọn một Con Đường", false);
     if (Number(next.minFate || 0) > 0) add("Mệnh hiệu dụng", fate.effective, Number(next.minFate) * fateMultiplier, fate.effective >= Number(next.minFate) * fateMultiplier);
@@ -3815,10 +3826,8 @@ window.GameEngine = (function () {
     if (next.minRatioR != null && fate.ratio < next.minRatioR) return { changed: false, reason: "Tỷ lệ R chưa đạt " + next.minRatioR + "." };
 
     if (isUnbound) {
-      if (next.level === 8 && !state.player.unboundTrials?.selfProof) return { changed: false, reason: "Cần hoàn thành thử thách Tự Chứng." };
-      if (next.level === 11 && !state.player.unboundTrials?.severLaw) return { changed: false, reason: "Cần hoàn thành thử thách Đoạn Luật." };
-      if (next.level === 13 && !state.player.unboundTrials?.establishPath) return { changed: false, reason: "Cần hoàn thành thử thách Lập Đạo." };
-      if (next.level === 14 && !state.player.unboundPathProven) return { changed: false, reason: "Cần hoàn thành Vô Lộ Chứng Đạo." };
+      const unboundTrial = unboundTrialStatus(state, next.level);
+      if (unboundTrial && !unboundTrial.completed) return { changed: false, reason: "Cần hoàn thành thử thách " + unboundTrial.label + "." };
     } else {
       const match = pathMatchSummary(state.player, state.player.pathId);
       if (match.lead < Number(next.requiredLeadTags || 0) || match.lead + match.support < Number(next.requiredCompatibleTags || 0) || match.score < Number(next.requiredPathScore || 0)) {
@@ -7030,7 +7039,7 @@ window.GameEngine = (function () {
     normalizeEquipment, equippedItemIds, equippedItemQuantity, freeItemQuantity, equipmentCategory, equipmentCategoryLabel, equipmentSummary, equipmentEligibility, protectionSlot, equipItem, inventoryActions, handleInventoryAction, cauldronItemSafety,
     GRADE_TO_TIER, TIER_TO_GRADE, SIGN_TO_TYPE_LABEL, TYPE_LABEL_TO_SIGN, fateDefinition, fateElement, fatePathAffinity, splitFateEffects, fateRelationshipsFor, fateCombosFor, fateFusionRecipesFor, fateRelationshipStatus, fateAdvancedActionRecord, fateAdvancedActionCatalog, validateFateAdvancedActionState, fateAdvancedEffectBreakdown, canonicalHiddenProfessionId, nurtureFate, resonateFate, revealFateInsight, releaseStagnantFate, defyFate, suppressFate, heavenlyOmen, transformFate, meritFateOffers, buyFateWithMerit,
     fateVaultCapacity, fateCompatibility, fateEnhancementLevel, enhancedFateEffects, fateEffectBreakdown, pathMatchSummary, availablePaths, pathProgression, receiveFate, sacrificeFate, fateVaultSummary, validateFateInventory, swapFateFromVault, fateSwapPreview, storeFateToVault, equipFateFromVault, fateUpgradePreview, upgradeFate, resolvePendingFateReward, dismissPendingFateReward, mergeFates, getComboEligibility, fuseFate, chooseDuplicateResolution, serverUniqueFateOwnership, suggestFateForRealmRequirement, auditFateRolls, buyFateAtMarket, sacrificeLifespanForFate, qintianFateOffers, refreshMarket, marketOffers, buyMarketOffer, refreshBlackMarket, blackMarketOffers, buyBlackMarketOffer, meritFateOffers, buyFateWithMerit, refineAtVoidCauldron,
-    cultivationTier, fateRewardWeights, rollFateByProgression, anchorCandidates, establishHumanAnchor, breakthroughRitualPlan, breakthroughRitualStatus, pathRitualStatus: breakthroughRitualStatus, breakthroughRitualGateRequirements, performBreakthroughRitualStep, breakthroughRequirements, getBreakthroughBlockers, getChuyenSinhBlockers, processLuanHoi, processChuyenSinh, chooseTaintedAttention, rollTaintedAttention, chooseTaintedFaction, factionStatus, grantTaintedRewardCanonical, grantQuestMerit, resolveFactionHunt, switchTaintedFaction, selectPath, pathTitle, completeUnboundTrial, canUnlockDevourHeaven, recordTaintedMilestones, normalizeAction, resolveActions, resolveActionSurfaces, validateActionPriorityMatrix,
+    cultivationTier, fateRewardWeights, rollFateByProgression, anchorCandidates, establishHumanAnchor, unboundTrialForLevel, unboundTrialStatus, breakthroughRitualPlan, breakthroughRitualStatus, pathRitualStatus: breakthroughRitualStatus, breakthroughRitualGateRequirements, performBreakthroughRitualStep, breakthroughRequirements, getBreakthroughBlockers, getChuyenSinhBlockers, processLuanHoi, processChuyenSinh, chooseTaintedAttention, rollTaintedAttention, chooseTaintedFaction, factionStatus, grantTaintedRewardCanonical, grantQuestMerit, resolveFactionHunt, switchTaintedFaction, selectPath, pathTitle, completeUnboundTrial, canUnlockDevourHeaven, recordTaintedMilestones, normalizeAction, resolveActions, resolveActionSurfaces, validateActionPriorityMatrix,
     elementRelation, familyMatchup, toCanonicalCharacter, fromCanonicalCharacter,
     gainExp, recordCultivationGain, cultivationSourceCatalog, validateCultivationAttribution, cultivationVelocityStatus, adjustDaoTam, cultivationJournalPush, enterLuyenKhi, cultivate, autoCultivate, secludedCultivation, startSecludedCultivation, advanceSecludedCultivation, rest, doBreakthrough, drainSan, restoreSan, move, locationExits, materializeLocalConstellation, localBfsConstellation, locationPool: runtimeLocationPool, locationForState, look, ensureSearchSite, pendingExplorationAt, pendingDepartureGuard, confirmPendingDeparture, searchStatus, search, ensureSearchChainQuest, collectSearchFindings, investigateSearchFinding, leaveSearchSession, useItem,
     talk, combat, beginCombat, aliveEnemies, firstAliveEnemy, enemyTurn, afterPlayerCombatAction, applyPlayerDamage, endCombat, combatEntity, spawnCombatEntity, maybeSpawnCombatExtras, lootTable, rollEntityLoot, rollDefeatBonus, entityCatalog, getEntity, entityForPlayer, dialogueState, presentEntities, mapAddressCatalog, mapAddressesAtNode, mapOxyAddress, mapEventCatalog, rollMapEvent, resolveMapEvent, validateMapEventState, maybeTriggerRandomEncounter, findEntityByName, interactEntity, monsterAction, applyCombatStatus, tickCombatStatuses, combatStatusStore, enemyIntentSnapshot, validateCombatStatusState, useTechnique, techniquePreview, prepareTechnique, advanceTechniqueChannel, cancelTechniquePreparation, ensureTechniqueCombatState, learnTechnique, getKnownTechniques, techniqueCatalog, validateTechniqueCatalog, techniqueStatus, techniqueProgress, contextState, resolveActionPriority, moveActions, talkActions, skillActions, parseAction, resolveAction, submitActionId, submitTurn, describeStatus, describeInventory, describeQuests, coordinateKey, neighborCoordinate, getNodeAtCoordinate, nodeCoordinates, validateOpenWorldGrid,

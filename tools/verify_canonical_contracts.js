@@ -118,6 +118,12 @@ function testCriticalRegressionGuards() {
 }
 
 function testUnboundProgressionContracts() {
+  const trialMatrix = [[8, "self_proof", "Tự Chứng"], [11, "sever_law", "Đoạn Luật"], [13, "establish_path", "Lập Đạo"], [14, "prove_unbound", "Vô Lộ Chứng Đạo"]];
+  trialMatrix.forEach(([level, id, label]) => {
+    const definition = E.unboundTrialForLevel(level);
+    assert(definition && definition.id === id && definition.label === label, "unbound trial contract mismatch at target level " + level);
+  });
+  assert.strictEqual(E.unboundTrialForLevel(9), null, "unbound trial must not appear at non-milestone levels");
   const state = makeState();
   state.player.pathId = "ngoai_dao_gia";
   state.player.unbound = true;
