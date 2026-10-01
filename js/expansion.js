@@ -4390,22 +4390,11 @@
     ensure(state); const actions = [], combat = E.aliveEnemies(state).length > 0, day = absoluteDay(state.gameClock);
     if (!combat && state.player?.pathId === "ngoai_dao_gia") {
       const nextLevel = Number(E.breakthroughRequirements(state).next?.level || 0);
-      const trialByLevel = {
-        8: ["self_proof", "Tự Chứng"],
-        11: ["sever_law", "Đoạn Luật"],
-        13: ["establish_path", "Lập Đạo"],
-        14: ["prove_unbound", "Vô Lộ Chứng Đạo"]
-      }[nextLevel];
-      const completed = {
-        self_proof: Boolean(state.player.unboundTrials?.selfProof),
-        sever_law: Boolean(state.player.unboundTrials?.severLaw),
-        establish_path: Boolean(state.player.unboundTrials?.establishPath),
-        prove_unbound: Boolean(state.player.unboundPathProven)
-      };
-      if (trialByLevel && !completed[trialByLevel[0]]) actions.push({
-        id: "act_exp_unbound_trial:" + trialByLevel[0],
-        label: "Thử Thách Vô Lộ · " + trialByLevel[1],
-        aliases: ["thử thách vô lộ", "" + trialByLevel[1]],
+      const trial = E.unboundTrialStatus?.(state, nextLevel);
+      if (trial && !trial.completed) actions.push({
+        id: "act_exp_unbound_trial:" + trial.id,
+        label: "Thử Thách Vô Lộ · " + trial.label,
+        aliases: ["thử thách vô lộ", trial.label],
         priority: 0,
         category: "progression",
         blocking: true

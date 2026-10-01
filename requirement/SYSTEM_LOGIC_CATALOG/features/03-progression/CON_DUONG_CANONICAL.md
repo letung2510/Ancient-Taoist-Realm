@@ -2125,3 +2125,5 @@ transaction và test tương ứng.
 Bốn mốc Vô Lộ là action tiến trình độc lập, lần lượt mở theo cấp đích: `self_proof` (Tự Chứng, cấp 8), `sever_law` (Đoạn Luật, cấp 11), `establish_path` (Lập Đạo, cấp 13) và `prove_unbound` (Vô Lộ Chứng Đạo, cấp 14). Chúng được expose trên Action Bar bằng `act_exp_unbound_trial:*`, ghi vào `unboundTrials`/`unboundPathProven`, và đồng thời xuất hiện trong `breakthroughRequirements` để UI không báo sẵn sàng giả.
 
 Nghi thức Ngoại Đạo Giả dùng chuỗi `Gọi Mệnh → Dựng Neo → Vượt Dị Tượng` từ các cấp tương ứng, thêm `Trả Giá` ở cấp cao; không chạy cổng `Đối Chiếu Con Đường` và không chạy cổng thử Tà Thần. Nghi thức thường dùng thứ tự chuẩn `Gọi Mệnh → Dựng Neo → Đối Chiếu → Vượt Dị Tượng → Trả Giá`; cấp 14 thường mới thêm thử thách cuối của hệ Tà Thần.
+
+Runtime source of truth cho bốn mốc là `UNBOUND_TRIAL_DEFINITIONS` và `UNBOUND_TRIAL_BY_TARGET_LEVEL` trong `js/engine.js`. `breakthroughRequirements()`, `maybeBreakthrough()` và `expansionActions()` không được tự khai báo lại bảng level/field/label; chúng phải đọc qua `unboundTrialStatus()` để tránh lệch blocker, action và resolver.

@@ -3148,3 +3148,18 @@ This is the active checklist. Only rows in this table are currently open. Histor
 ### Explicitly closed and excluded from the open tracker
 
 `G1`, `G4`, `G6`, `M70`, runtime gameplay boundaries, canonical producer/dispatcher coverage, save-envelope validation, offline bundle parity and the existing headless/static UI contracts are closed by the latest code and verifier evidence. They should not be reopened merely because their historical audit rows contain `PARTIAL` or `BLOCKER` text.
+
+## Executable logic contract and audit scope — 2026-10-01
+
+Đây là phạm vi kiểm tra hiện hành; các mô tả lịch sử phía trên không được dùng làm contract runtime nếu khác phần này.
+
+| Nhóm logic | Contract được kiểm tra | Bằng chứng chính | Ngoài phạm vi headless |
+|---|---|---|---|
+| Ngoại Đạo Giả | Mốc đích 8/11/13/14 lần lượt dùng `self_proof`/`sever_law`/`establish_path`/`prove_unbound`; engine và expansion dùng cùng `unboundTrialStatus`; ritual bỏ `compare` và trial Tà Thần. | `verify_canonical_contracts.js`, progression matrix, action dispatch matrix | Click thật qua mọi viewport |
+| Đột phá đường thường | Chuỗi gate là `call_fate → anchor → compare → omen → cost`; cấp 14 thêm `trial`; blocker và ritual status phải cùng một plan. | canonical contract, progression matrix, dispatch matrix | Xác nhận bằng mắt trong browser |
+| Action surface | Mọi action có trong surface phải có resolver; action blocking phải chặn đúng state; memo phải đổi khi realm/path/trial state đổi. | action dispatch matrix, UI variant matrix | Native chooser và click-through toàn bộ |
+| Save/load | Canonical v13, migration unbound cũ, `unboundTrials`, `unboundPathProven`, path namespace và state flags không mất sau round-trip. | canonical contract, save envelope, legacy matrix | File chooser native |
+| Offline/runtime parity | Cùng producer, deterministic replay và checkpoint 30/180/365 ngày; không đánh đồng parity với pixel/browser E2E. | offline bundle/parity, world producer matrix | Responsive layout và browser reload thật |
+| Data/documentation | Catalog, asset, UTF-8, link và code fence hợp lệ; các đoạn spec lịch sử phải được đánh dấu, không âm thầm override runtime. | catalog/asset/UTF-8/docs validators | Quyết định sản phẩm chưa có fixture |
+
+Nguyên tắc kết luận: verifier headless chỉ được đóng logic producer/resolver/state; không được dùng để tuyên bố đã hoàn tất native file chooser, browser click-through, responsive pixel hoặc persistence qua reload thật. Ba hạng mục đó vẫn nằm ở OPEN-01 đến OPEN-03.
