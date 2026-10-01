@@ -14,7 +14,7 @@ Examples:
 
 ## Single audit file
 
-`AUDIT_CANONICAL.md` is the only audit file. Audit/review/status/QA updates, validators, patches, and schemas belong there. Requirement logic belongs in the canonical feature file and must not be duplicated in the audit file.
+`CODE_REQUIREMENT_AUDIT_MASTER.md` is the only active audit file. Audit/review/status/QA updates, validators, patches, and schemas belong there. `AUDIT_CANONICAL.md` is a historical name/reference only if it appears in archived material; it is not an additional active audit. Requirement logic belongs in the canonical feature file and must not be duplicated in the audit file.
 
 ## Project-wide governing rules
 
@@ -24,7 +24,7 @@ The following rules are permanent requirements for the entire project and apply 
 - Any update must preserve Vietnamese Unicode text and must pass the UTF-8 validation gate before completion.
 - Mojibake markers, replacement characters, or stray C1 control characters are encoding errors and must block the update.
 - Requirement logic is updated only in the canonical file of its feature.
-- Validator, patch, schema, audit, review, status, and QA evidence is updated only in `AUDIT_CANONICAL.md`.
+- Validator, patch, schema, audit, review, status, and QA evidence is updated only in `CODE_REQUIREMENT_AUDIT_MASTER.md`.
 - Historical files under `archive-requirements/` are read-only reference material and are not a source for new updates.
 
 ## Mandatory consolidation workflow for new Markdown

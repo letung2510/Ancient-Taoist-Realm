@@ -3125,7 +3125,7 @@ The following findings remain open and are added to the active tracker below bec
 |---|---|---|---|
 | OPEN-04 | `[x] CLOSED - SPEC ALIGNMENT` | Breakthrough ritual ordering and the unbound exception were unresolved. | Runtime now uses `Gọi Mệnh → Dựng Neo → Đối Chiếu → Vượt Dị Tượng → Trả Giá` for normal paths; unbound omits `Đối Chiếu` and the final Tà Thần trial. Fixture coverage is in `verify_canonical_contracts.js`. |
 | OPEN-05 | `[ ] OPEN - DATA AUDIT` | Data topology review: asymmetric exits without explicit one-way metadata, fallback-realm coverage and orphan loot-table entries. | Enumerate every affected data ID, classify intentional one-way links, add missing metadata/catalog entries or update the canonical data contract, then add a verifier. |
-| OPEN-06 | `[ ] OPEN - DOC GOVERNANCE` | The repository intentionally contains canonical feature requirements plus the consolidated audit; this conflicts with a strict interpretation of “single audit file.” | Decide whether canonical feature documents remain source-of-truth references. If yes, mark them as sources in `README.md`; if no, archive/remove only after link and validator review. |
+| OPEN-06 | `[x] CLOSED - DOC GOVERNANCE` | The README still named the obsolete `AUDIT_CANONICAL.md`. | `requirement/README.md` now names `CODE_REQUIREMENT_AUDIT_MASTER.md` as the only active audit and explicitly classifies the old name as historical reference only. |
 
 ## Open work tracker - items not fully completed 2026-09-29
 
