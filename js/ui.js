@@ -1145,11 +1145,10 @@ window.GameUI = (function () {
     const horizonAngles = { bac: -90, dong: 0, nam: 90, tay: 180 };
     const reverseDirection = ({ bac: "nam", nam: "bac", dong: "tay", tay: "dong" }[state.flags?.lastMoveDirection] || "");
     const candidateDirections = Object.keys(horizonAngles).filter((direction) => {
-      if (direction === reverseDirection) return false;
       const delta = directionDelta[direction];
       const nextX = Number(currentPoint.x ?? currentPoint[0]) + delta[0], nextY = Number(currentPoint.y ?? currentPoint[1]) + delta[1];
       return nextX >= 0 && nextX <= 100 && nextY >= 0 && nextY <= 100;
-    }).slice(0, 3);
+    });
     let unexploredNodes = candidateDirections.map((direction) => {
       const degrees = horizonAngles[direction];
       if (exits[direction]) return "";

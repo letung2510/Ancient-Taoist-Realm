@@ -4,6 +4,12 @@
 
 ## Consolidated logic
 
+### Current status override — 2026-10-05
+
+Canonical revive policy: at a safe node, revive costs 3 Linh Thạch and
+restores 25% HP. Historical audit text mentioning 12 Linh Thạch, 35%, or
+`soul_scar` is superseded and is not a runtime requirement.
+
 
 ### Source: `archive-requirements\logic-history\04-interaction\COMPANION_RUNTIME_CONTRACT.md`
 
@@ -92,5 +98,4 @@ Offline combat chỉ được ghi damage qua cùng ledger/action như online.
   chỉ bảo vệ invariant chung và các mutation đã có.
 - Chưa có UI card chuyên biệt hiển thị toàn bộ damage ledger/recovery timeline; UI hiện
   chỉ dùng các trường companion đang được render bởi màn hình hiện hành.
-
 

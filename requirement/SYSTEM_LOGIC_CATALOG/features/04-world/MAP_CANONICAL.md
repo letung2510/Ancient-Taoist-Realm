@@ -4,6 +4,13 @@
 
 ## Consolidated logic
 
+### Current coordinate contract — 2026-10-05
+
+- The canonical Oxy domain is the inclusive integer grid `0..100` for both axes.
+- Cardinal deltas are fixed: Bắc `(x, y - 1)`, Nam `(x, y + 1)`, Đông `(x + 1, y)`, Tây `(x - 1, y)`.
+- Runtime movement must use adjacent coordinates and may not jump directly between distant region anchors.
+- Region identity is derived from the destination node; weather and NPC presentation must use that same node-region context.
+
 ### Cross-system world events
 
 World interconnection requirements are sourced from [`WORLD_SIMULATION_CANONICAL.md`](WORLD_SIMULATION_CANONICAL.md) and coordinated in [`WORLD_SIMULATION_CANONICAL.md`](WORLD_SIMULATION_CANONICAL.md). Map-generated arrivals, discoveries, faction changes, and travel results use the shared [`novel log event contract`](../07-ui/UI_ACTION_LOG_CANONICAL.md#unified-novel-style-event-log); player-facing text is a scene projection, while coordinates and diagnostic payloads remain metadata.
@@ -76,55 +83,55 @@ runtime behavior are implemented.
 
 ### Source: `archive-requirements\logic-history\03-world\MAP_CURRENT_REGION_UX_REQUIREMENT.md`
 
-# MAP V2  REQUIREMENT HO[encoding-loss]N CH[encoding-loss]NH: KHU V[encoding-loss]C HI[encoding-loss]N T[encoding-loss]I, [encoding-loss]A L[encoding-loss] V[encoding-loss] H[encoding-loss]NH TR[encoding-loss]NH
+# MAP V2 · REQUIREMENT HON CHNH: KHU VC HIN TI, ĐA L V HNH TRNH
 
-**Phi[encoding-loss]n b[encoding-loss]n:** 2.2  
-**Tr[encoding-loss]ng th[encoding-loss]i:** y[encoding-loss]u c[encoding-loss]u tri[encoding-loss]n khai b[encoding-loss]t bu[encoding-loss]c  
-**Ph[encoding-loss]m vi:** b[encoding-loss]n [encoding-loss] khu v[encoding-loss]c hi[encoding-loss]n t[encoding-loss]i, h[encoding-loss]nh [encoding-loss]nh b[encoding-loss]n [encoding-loss], node/sub-location, topology, di chuy[encoding-loss]n v[encoding-loss] to[encoding-loss]n b[encoding-loss] tr[encoding-loss]i nghi[encoding-loss]m ng[encoding-loss][encoding-loss]i d[encoding-loss]ng li[encoding-loss]n quan.
+**Phin bn:** 2.2
+**Trng thi:** yu cu trin khai bt buc
+**Phm vi:** bn đ khu vc hin ti, hnh nh bn đ, node/sub-location, topology, di chuyn v ton b tri nghim ngi dng lin quan.
 
-## 1. M[encoding-loss]c ti[encoding-loss]u s[encoding-loss]n ph[encoding-loss]m
+## 1. Mc tiu sn phm
 
-T[encoding-loss]nh nng **Khu v[encoding-loss]c hi[encoding-loss]n t[encoding-loss]i** ph[encoding-loss]i gi[encoding-loss]p ng[encoding-loss][encoding-loss]i ch[encoding-loss]i tr[encoding-loss] l[encoding-loss]i ngay b[encoding-loss]n c[encoding-loss]u h[encoding-loss]i:
+Tnh nng **Khu vc hin ti** phi gip ngi chi tr li ngay bn cu hi:
 
-1. Ta ang [encoding-loss] [encoding-loss]u, thu[encoding-loss]c v[encoding-loss]ng [encoding-loss]nh h[encoding-loss][encoding-loss]ng n[encoding-loss]o v[encoding-loss] m[encoding-loss]c [encoding-loss] an to[encoding-loss]n ra sao?
-2. T[encoding-loss] [encoding-loss]y i [encoding-loss][encoding-loss]c [encoding-loss]u b[encoding-loss]ng nh[encoding-loss]ng tuy[encoding-loss]n n[encoding-loss]o?
-3. M[encoding-loss]i tuy[encoding-loss]n ang [encoding-loss] tr[encoding-loss]ng th[encoding-loss]i g[encoding-loss]: th[encoding-loss]ng su[encoding-loss]t, nguy hi[encoding-loss]m, b[encoding-loss] tu[encoding-loss]n tra, phong t[encoding-loss]a hay c[encoding-loss]n ph[encoding-loss][encoding-loss]ng ti[encoding-loss]n?
-4. N[encoding-loss]u ch[encoding-loss]n m[encoding-loss]t ph[encoding-loss][encoding-loss]ng th[encoding-loss]c di chuy[encoding-loss]n, ta s[encoding-loss] m[encoding-loss]t bao nhi[encoding-loss]u ng[encoding-loss]y, t[encoding-loss]i nguy[encoding-loss]n v[encoding-loss] c[encoding-loss] th[encoding-loss] g[encoding-loss]p r[encoding-loss]i ro g[encoding-loss]?
+1. Ta đang  đu, thuc vng nh hng no v mc đ an ton ra sao?
+2. T đy đi đc đu bng nhng tuyn no?
+3. Mi tuyn đang  trng thi g: thng sut, nguy him, b tun tra, phong ta hay cn phng tin?
+4. Nu chn mt phng thc di chuyn, ta s mt bao nhiu ngy, ti nguyn v c th gp ri ro g?
 
-B[encoding-loss]n [encoding-loss] kh[encoding-loss]ng [encoding-loss][encoding-loss]c c[encoding-loss]n l[encoding-loss] danh s[encoding-loss]ch c[encoding-loss]c h[encoding-loss]p n[encoding-loss]i t[encoding-loss]y ti[encoding-loss]n. M[encoding-loss]i node ph[encoding-loss]i c[encoding-loss] v[encoding-loss] tr[encoding-loss], quy m[encoding-loss], tuy[encoding-loss]n h[encoding-loss]p l[encoding-loss], tr[encoding-loss]ng th[encoding-loss]i [encoding-loss]a l[encoding-loss] v[encoding-loss] l[encoding-loss]ch s[encoding-loss] kh[encoding-loss]m ph[encoding-loss] ri[encoding-loss]ng.
+Bn đ khng đc cn l danh sch cc hp ni ty tin. Mi node phi c v tr, quy m, tuyn hp l, trng thi đa l v lch s khm ph ring.
 
-## 2. V[encoding-loss]n [encoding-loss] b[encoding-loss]t bu[encoding-loss]c ph[encoding-loss]i gi[encoding-loss]i quy[encoding-loss]t
+## 2. Vn đ bt buc phi gii quyt
 
-### 2.1. L[encoding-loss]i S[encoding-loss]n m[encoding-loss]n Thi[encoding-loss]n Huy[encoding-loss]n Th[encoding-loss]ng
+### 2.1. Li Sn mn Thin Huyn Thng
 
-Hi[encoding-loss]n t[encoding-loss]i `locationExits()` l[encoding-loss]y c[encoding-loss]nh t[encoding-loss] catalog t)nh r[encoding-loss]i tr[encoding-loss]n v[encoding-loss]i `openWorld.exits`; khi thi[encoding-loss]u c[encoding-loss]nh, `move()` g[encoding-loss]i `generateOpenWorldNode()` v[encoding-loss] t[encoding-loss] n[encoding-loss]i node m[encoding-loss]i. C[encoding-loss] ch[encoding-loss] n[encoding-loss]y khi[encoding-loss]n S[encoding-loss]n m[encoding-loss]n Thi[encoding-loss]n Huy[encoding-loss]n Th[encoding-loss]ng c[encoding-loss] th[encoding-loss] n[encoding-loss]i th[encoding-loss]ng t[encoding-loss]i to[encoding-loss]n b[encoding-loss] node kh[encoding-loss]c, ph[encoding-loss] h[encoding-loss]y topology g[encoding-loss]c.
+Hin ti `locationExits()` ly cnh t catalog t)nh ri trn vi `openWorld.exits`; khi thiu cnh, `move()` gi `generateOpenWorldNode()` v t ni node mi. C ch ny khin Sn mn Thin Huyn Thng c th ni thng ti ton b node khc, ph hy topology gc.
 
-**Quy[encoding-loss]t [encoding-loss]nh ki[encoding-loss]n tr[encoding-loss]c:**
+**Quyt đnh kin trc:**
 
-- Catalog t)nh v[encoding-loss] graph runtime ph[encoding-loss]i t[encoding-loss]ch bi[encoding-loss]t tuy[encoding-loss]t [encoding-loss]i.
-- Node t)nh ch[encoding-loss] [encoding-loss][encoding-loss]c d[encoding-loss]ng c[encoding-loss]c c[encoding-loss]nh [encoding-loss][encoding-loss]c khai b[encoding-loss]o trong `WORLD_MAP`/`LOCATIONS`.
-- Node runtime ch[encoding-loss] [encoding-loss][encoding-loss]c n[encoding-loss]i qua c[encoding-loss]ng sinh procedural [encoding-loss][encoding-loss]c khai b[encoding-loss]o r[encoding-loss] (`proceduralGate: true`).
-- Kh[encoding-loss]ng [encoding-loss][encoding-loss]c t[encoding-loss] sinh node khi ng[encoding-loss][encoding-loss]i ch[encoding-loss]i i v[encoding-loss]o m[encoding-loss]t h[encoding-loss][encoding-loss]ng kh[encoding-loss]ng c[encoding-loss] c[encoding-loss]nh h[encoding-loss]p l[encoding-loss].
-- Kh[encoding-loss]ng [encoding-loss][encoding-loss]c t[encoding-loss] ghi [encoding-loss] `LOCATIONS`, `WORLD_MAP.locations` ho[encoding-loss]c c[encoding-loss]nh c[encoding-loss]a node t)nh.
-- M[encoding-loss]i node runtime ph[encoding-loss]i n[encoding-loss]m trong `state.openWorld.nodes`, c[encoding-loss] namespace `runtime:` v[encoding-loss] c[encoding-loss] `parentNodeId`/`regionId`.
-- M[encoding-loss]i c[encoding-loss]ng procedural c[encoding-loss] `maxChildren`, `allowedDirections`, `allowedRegionIds`, `minFog`, `cooldownDays`.
-- N[encoding-loss]u h[encoding-loss][encoding-loss]ng kh[encoding-loss]ng c[encoding-loss] c[encoding-loss]nh h[encoding-loss]p l[encoding-loss], action ph[encoding-loss]i tr[encoding-loss] `ROUTE_NOT_FOUND`; kh[encoding-loss]ng t[encoding-loss]o node ng[encoding-loss]m.
+- Catalog t)nh v graph runtime phi tch bit tuyt đi.
+- Node t)nh ch đc dng cc cnh đc khai bo trong `WORLD_MAP`/`LOCATIONS`.
+- Node runtime ch đc ni qua cng sinh procedural đc khai bo r (`proceduralGate: true`).
+- Khng đc t sinh node khi ngi chi đi vo mt hng khng c cnh hp l.
+- Khng đc t ghi đ `LOCATIONS`, `WORLD_MAP.locations` hoc cnh ca node t)nh.
+- Mi node runtime phi nm trong `state.openWorld.nodes`, c namespace `runtime:` v c `parentNodeId`/`regionId`.
+- Mi cng procedural c `maxChildren`, `allowedDirections`, `allowedRegionIds`, `minFog`, `cooldownDays`.
+- Nu hng khng c cnh hp l, action phi tr `ROUTE_NOT_FOUND`; khng to node ngm.
 
-### 2.2. Tr[encoding-loss]ng th[encoding-loss]i di chuy[encoding-loss]n ch[encoding-loss]a [encoding-loss]y [encoding-loss]
+### 2.2. Trng thi di chuyn cha đy đ
 
-`planned/active/interrupted/completed/cancelled` m[encoding-loss]i l[encoding-loss] tr[encoding-loss]ng th[encoding-loss]i k[encoding-loss] thu[encoding-loss]t t[encoding-loss]i thi[encoding-loss]u, ch[encoding-loss]a [encoding-loss] th[encoding-loss]ng tin [encoding-loss] UX ph[encoding-loss]n [encoding-loss]nh h[encoding-loss]nh tr[encoding-loss]nh. Requirement n[encoding-loss]y b[encoding-loss] sung l[encoding-loss]p tr[encoding-loss]ng th[encoding-loss]i hi[encoding-loss]n th[encoding-loss] v[encoding-loss] lu[encoding-loss]t chuy[encoding-loss]n tr[encoding-loss]ng th[encoding-loss]i.
+`planned/active/interrupted/completed/cancelled` mi l trng thi k thut ti thiu, cha đ thng tin đ UX phn nh hnh trnh. Requirement ny b sung lp trng thi hin th v lut chuyn trng thi.
 
-## 3. M[encoding-loss] h[encoding-loss]nh b[encoding-loss]n [encoding-loss] khu v[encoding-loss]c hi[encoding-loss]n t[encoding-loss]i
+## 3. M hnh bn đ khu vc hin ti
 
-### 3.1. Ba l[encoding-loss]p hi[encoding-loss]n th[encoding-loss]
+### 3.1. Ba lp hin th
 
-**L[encoding-loss]p A  B[encoding-loss]n [encoding-loss] khu v[encoding-loss]c:** hi[encoding-loss]n th[encoding-loss] node hi[encoding-loss]n t[encoding-loss]i, node [encoding-loss] bi[encoding-loss]t, h[encoding-loss][encoding-loss]ng i, tuy[encoding-loss]n [encoding-loss][encoding-loss]ng v[encoding-loss] [encoding-loss]nh h[encoding-loss][encoding-loss]ng th[encoding-loss] l[encoding-loss]c.
+**Lp A · Bn đ khu vc:** hin th node hin ti, node đ bit, hng đi, tuyn đng v nh hng th lc.
 
-**L[encoding-loss]p B  Chi ti[encoding-loss]t node:** m[encoding-loss] khi b[encoding-loss]m node, g[encoding-loss]m t[encoding-loss]n, lo[encoding-loss]i [encoding-loss]a i[encoding-loss]m, m[encoding-loss] t[encoding-loss], c[encoding-loss]p s[encoding-loss][encoding-loss]ng m[encoding-loss], [encoding-loss]nh h[encoding-loss][encoding-loss]ng, c[encoding-loss]ng tr[encoding-loss]nh, b[encoding-loss]ng tin v[encoding-loss] c[encoding-loss]c sub-location.
+**Lp B · Chi tit node:** m khi bm node, gm tn, loi đa đim, m t, cp sng m, nh hng, cng trnh, bng tin v cc sub-location.
 
-**L[encoding-loss]p C  H[encoding-loss]nh tr[encoding-loss]nh:** modal/panel x[encoding-loss]c nh[encoding-loss]n tuy[encoding-loss]n, ph[encoding-loss][encoding-loss]ng ti[encoding-loss]n, h[encoding-loss] t[encoding-loss]ng, ETA, chi ph[encoding-loss], nguy c[encoding-loss] v[encoding-loss] i[encoding-loss]u ki[encoding-loss]n phong t[encoding-loss]a.
+**Lp C · Hnh trnh:** modal/panel xc nhn tuyn, phng tin, h tng, ETA, chi ph, nguy c v điu kin phong ta.
 
-Kh[encoding-loss]ng m[encoding-loss] modal ch[encoding-loss]ng modal. Tr[encoding-loss]n m[encoding-loss]n h[encoding-loss]nh nh[encoding-loss], l[encoding-loss]p B/C ph[encoding-loss]i chuy[encoding-loss]n th[encoding-loss]nh bottom sheet c[encoding-loss] n[encoding-loss]t [encoding-loss]ng r[encoding-loss] r[encoding-loss]ng.
+Khng m modal chng modal. Trn mn hnh nh, lp B/C phi chuyn thnh bottom sheet c nt đng r rng.
 
 ### 3.2. Schema node
 
@@ -158,153 +165,153 @@ MapEdgeMeta {
 }
 ```
 
-### 3.3. Quy m[encoding-loss] sub-location
+### 3.3. Quy m sub-location
 
-- Tr[encoding-loss]m nh[encoding-loss]: 12 sub-location.
-- Th[encoding-loss]n/l[encoding-loss]ng: 24.
-- Th[encoding-loss]nh th[encoding-loss]: 46.
-- S[encoding-loss]n m[encoding-loss]n, v[encoding-loss][encoding-loss]ng kinh, cn c[encoding-loss] th[encoding-loss] l[encoding-loss]c: 68.
-- NPC ch[encoding-loss] xu[encoding-loss]t hi[encoding-loss]n t[encoding-loss]i sub-location c[encoding-loss] th[encoding-loss]; Action Bar ch[encoding-loss] hi[encoding-loss]n th[encoding-loss] action c[encoding-loss]a sub-location ang [encoding-loss]ng.
-- Chuy[encoding-loss]n sub-location trong c[encoding-loss]ng node kh[encoding-loss]ng roll s[encoding-loss] ki[encoding-loss]n [encoding-loss][encoding-loss]ng d[encoding-loss]i v[encoding-loss] kh[encoding-loss]ng [encoding-loss]i nodeId.
+- Trm nh: 12 sub-location.
+- Thn/lng: 24.
+- Thnh th: 46.
+- Sn mn, vng kinh, cn c th lc: 68.
+- NPC ch xut hin ti sub-location c th; Action Bar ch hin th action ca sub-location đang đng.
+- Chuyn sub-location trong cng node khng roll s kin đng di v khng đi nodeId.
 
-## 4. Topology v[encoding-loss] b[encoding-loss]o to[encoding-loss]n node
+## 4. Topology v bo ton node
 
-### 4.1. Resolver tuy[encoding-loss]n duy nh[encoding-loss]t
+### 4.1. Resolver tuyn duy nht
 
-T[encoding-loss]o `resolveMapTopology(state, nodeId)` v[encoding-loss]i th[encoding-loss] t[encoding-loss]:
+To `resolveMapTopology(state, nodeId)` vi th t:
 
-1. [encoding-loss]c node static n[encoding-loss]u `namespace=static`.
-2. [encoding-loss]c node runtime n[encoding-loss]u `namespace=runtime`.
-3. H[encoding-loss]p nh[encoding-loss]t ch[encoding-loss] c[encoding-loss]c c[encoding-loss]nh runtime [encoding-loss] [encoding-loss][encoding-loss]c c[encoding-loss]p ph[encoding-loss]p.
-4. L[encoding-loss]c c[encoding-loss]nh b[encoding-loss] v[encoding-loss] hi[encoding-loss]u, h[encoding-loss]t h[encoding-loss]n, phong t[encoding-loss]a ho[encoding-loss]c kh[encoding-loss]ng [encoding-loss]t fog.
-5. Kh[encoding-loss]ng g[encoding-loss]i h[encoding-loss]m sinh node trong b[encoding-loss][encoding-loss]c [encoding-loss]c.
+1. Đc node static nu `namespace=static`.
+2. Đc node runtime nu `namespace=runtime`.
+3. Hp nht ch cc cnh runtime đ đc cp php.
+4. Lc cnh b v hiu, ht hn, phong ta hoc khng đt fog.
+5. Khng gi hm sinh node trong bc đc.
 
-`locationExits()` v[encoding-loss] `mapNeighbors()` ph[encoding-loss]i d[encoding-loss]ng resolver n[encoding-loss]y; `move()` kh[encoding-loss]ng [encoding-loss][encoding-loss]c t[encoding-loss] fallback sang `generateOpenWorldNode()`.
+`locationExits()` v `mapNeighbors()` phi dng resolver ny; `move()` khng đc t fallback sang `generateOpenWorldNode()`.
 
 ### 4.2. Procedural gate
 
-`generateOpenWorldNode()` ch[encoding-loss] [encoding-loss][encoding-loss]c g[encoding-loss]i b[encoding-loss]i `openProceduralGate()` khi:
+`generateOpenWorldNode()` ch đc gi bi `openProceduralGate()` khi:
 
-- node hi[encoding-loss]n t[encoding-loss]i c[encoding-loss] `proceduralGate` t[encoding-loss][encoding-loss]ng [encoding-loss]ng h[encoding-loss][encoding-loss]ng;
-- [encoding-loss]t `minFog` v[encoding-loss] i[encoding-loss]u ki[encoding-loss]n nhi[encoding-loss]m v[encoding-loss];
-- ch[encoding-loss]a v[encoding-loss][encoding-loss]t `maxChildren`;
-- v[encoding-loss]ng [encoding-loss]ch n[encoding-loss]m trong `allowedRegionIds`;
-- c[encoding-loss] transaction journal v[encoding-loss] idempotency key;
-- t[encoding-loss]o node runtime [encoding-loss]c l[encoding-loss]p, kh[encoding-loss]ng s[encoding-loss]a catalog t)nh.
+- node hin ti c `proceduralGate` tng ng hng;
+- đt `minFog` v điu kin nhim v;
+- cha vt `maxChildren`;
+- vng đch nm trong `allowedRegionIds`;
+- c transaction journal v idempotency key;
+- to node runtime đc lp, khng sa catalog t)nh.
 
-### 4.3. Ki[encoding-loss]m tra to[encoding-loss]n v[encoding-loss]n
+### 4.3. Kim tra ton vn
 
-Tool ki[encoding-loss]m th[encoding-loss] ph[encoding-loss]i ph[encoding-loss]t hi[encoding-loss]n:
+Tool kim th phi pht hin:
 
-- node static b[encoding-loss] th[encoding-loss]m/x[encoding-loss]a/s[encoding-loss]a c[encoding-loss]nh sau khi t[encoding-loss]o state;
-- c[encoding-loss]nh hai chi[encoding-loss]u kh[encoding-loss]ng kh[encoding-loss]p;
-- node runtime tr[encoding-loss] ra ngo[encoding-loss]i namespace h[encoding-loss]p l[encoding-loss];
-- m[encoding-loss]t node c[encoding-loss] qu[encoding-loss] s[encoding-loss] con procedural;
-- S[encoding-loss]n m[encoding-loss]n Thi[encoding-loss]n Huy[encoding-loss]n Th[encoding-loss]ng n[encoding-loss]i t[encoding-loss]i node kh[encoding-loss]ng n[encoding-loss]m trong catalog c[encoding-loss]nh ho[encoding-loss]c gate [encoding-loss][encoding-loss]c c[encoding-loss]p ph[encoding-loss]p.
+- node static b thm/xa/sa cnh sau khi to state;
+- cnh hai chiu khng khp;
+- node runtime tr ra ngoi namespace hp l;
+- mt node c qu s con procedural;
+- Sn mn Thin Huyn Thng ni ti node khng nm trong catalog cnh hoc gate đc cp php.
 
-## 5. Influence, heatmap v[encoding-loss] tr[encoding-loss]ng th[encoding-loss]i [encoding-loss]a b[encoding-loss]n
+## 5. Influence, heatmap v trng thi đa bn
 
-M[encoding-loss]i node t[encoding-loss]nh influence t[encoding-loss] faction home, outpost, structure, event v[encoding-loss] kho[encoding-loss]ng c[encoding-loss]ch BFS. Kh[encoding-loss]ng l[encoding-loss]u owner t)nh.
+Mi node tnh influence t faction home, outpost, structure, event v khong cch BFS. Khng lu owner t)nh.
 
 ```text
-influence = factionPower [encoding-loss] 0.70^distance
-          [encoding-loss] (1 + structureBonus + outpostBonus + eventBonus)
+influence = factionPower  0.70^distance
+           (1 + structureBonus + outpostBonus + eventBonus)
 ```
 
-- `[encoding-loss]n [encoding-loss]nh`: top influence e 35 v[encoding-loss] ch[encoding-loss]nh l[encoding-loss]ch top/second e 15%.
-- `Tranh ch[encoding-loss]p`: top-two c[encoding-loss]ng hi[encoding-loss]n di[encoding-loss]n v[encoding-loss] ch[encoding-loss]nh l[encoding-loss]ch < 15%.
-- `Bi[encoding-loss]n gi[encoding-loss]i`: kh[encoding-loss]ng faction n[encoding-loss]o v[encoding-loss][encoding-loss]t ng[encoding-loss][encoding-loss]ng [encoding-loss]n [encoding-loss]nh.
+- `n đnh`: top influence e 35 v chnh lch top/second e 15%.
+- `Tranh chp`: top-two cng hin din v chnh lch < 15%.
+- `Bin gii`: khng faction no vt ngng n đnh.
 
-UI khu v[encoding-loss]c hi[encoding-loss]n t[encoding-loss]i ph[encoding-loss]i hi[encoding-loss]n th[encoding-loss] gradient m[encoding-loss]u, kh[encoding-loss]ng ch[encoding-loss] m[encoding-loss]t nh[encoding-loss]n owner. Khi fog < 2 ch[encoding-loss] hi[encoding-loss]n th[encoding-loss] [encoding-loss]nh h[encoding-loss][encoding-loss]ng ch[encoding-loss]a r[encoding-loss].
+UI khu vc hin ti phi hin th gradient mu, khng ch mt nhn owner. Khi fog < 2 ch hin th nh hng cha r.
 
-## 6. Fog of war b[encoding-loss]n c[encoding-loss]p
+## 6. Fog of war bn cp
 
-| C[encoding-loss]p | T[encoding-loss]n | Hi[encoding-loss]n th[encoding-loss] |
+| Cp | Tn | Hin th |
 |---|---|---|
-| 0 | Ch[encoding-loss]a bi[encoding-loss]t | Kh[encoding-loss]ng hi[encoding-loss]n node tr[encoding-loss]n b[encoding-loss]n [encoding-loss] khu v[encoding-loss]c |
-| 1 | Nghe [encoding-loss]n | T[encoding-loss]n m[encoding-loss], h[encoding-loss][encoding-loss]ng t[encoding-loss][encoding-loss]ng [encoding-loss]i, kh[encoding-loss]ng hi[encoding-loss]n tuy[encoding-loss]n chi ti[encoding-loss]t |
-| 2 | [encoding-loss] kh[encoding-loss]m ph[encoding-loss] | Hi[encoding-loss]n node, tuy[encoding-loss]n h[encoding-loss]p l[encoding-loss], nguy c[encoding-loss] c[encoding-loss] b[encoding-loss]n |
-| 3 | Th[encoding-loss]ng thu[encoding-loss]c | Hi[encoding-loss]n sub-location, heatmap chi ti[encoding-loss]t, c[encoding-loss]ng tr[encoding-loss]nh, b[encoding-loss]ng tin v[encoding-loss] tu[encoding-loss]n tra |
+| 0 | Cha bit | Khng hin node trn bn đ khu vc |
+| 1 | Nghe đn | Tn m, hng tng đi, khng hin tuyn chi tit |
+| 2 | Đ khm ph | Hin node, tuyn hp l, nguy c c bn |
+| 3 | Thng thuc | Hin sub-location, heatmap chi tit, cng trnh, bng tin v tun tra |
 
-M[encoding-loss]i n[encoding-loss]ng c[encoding-loss]p fog ph[encoding-loss]i qua discovery event idempotent, kh[encoding-loss]ng spoil sub-location khi ch[encoding-loss] m[encoding-loss]i [encoding-loss]t c[encoding-loss]p 1.
+Mi nng cp fog phi qua discovery event idempotent, khng spoil sub-location khi ch mi đt cp 1.
 
-## 7. Thi[encoding-loss]t k[encoding-loss] UI Khu v[encoding-loss]c hi[encoding-loss]n t[encoding-loss]i
+## 7. Thit k UI Khu vc hin ti
 
-### 7.1. Thanh th[encoding-loss]ng tin c[encoding-loss] [encoding-loss]nh
+### 7.1. Thanh thng tin c đnh
 
-[encoding-loss] [encoding-loss]u panel hi[encoding-loss]n th[encoding-loss]:
+ đu panel hin th:
 
-- t[encoding-loss]n node v[encoding-loss] v[encoding-loss]ng;
-- lo[encoding-loss]i [encoding-loss]a i[encoding-loss]m;
-- c[encoding-loss]p kh[encoding-loss]m ph[encoding-loss];
-- tr[encoding-loss]ng th[encoding-loss]i [encoding-loss]a b[encoding-loss]n: [encoding-loss]n [encoding-loss]nh / Tranh ch[encoding-loss]p / Bi[encoding-loss]n gi[encoding-loss]i;
-- [encoding-loss]nh h[encoding-loss][encoding-loss]ng n[encoding-loss]i b[encoding-loss]t;
-- nguy c[encoding-loss] t[encoding-loss]ng h[encoding-loss]p;
-- tr[encoding-loss]ng th[encoding-loss]i h[encoding-loss]nh tr[encoding-loss]nh hi[encoding-loss]n t[encoding-loss]i n[encoding-loss]u ang di chuy[encoding-loss]n.
+- tn node v vng;
+- loi đa đim;
+- cp khm ph;
+- trng thi đa bn: n đnh / Tranh chp / Bin gii;
+- nh hng ni bt;
+- nguy c tng hp;
+- trng thi hnh trnh hin ti nu đang di chuyn.
 
-### 7.2. B[encoding-loss]n [encoding-loss] h[encoding-loss]nh [encoding-loss]nh
+### 7.2. Bn đ hnh nh
 
-- D[encoding-loss]ng n[encoding-loss]n minh h[encoding-loss]a b[encoding-loss]n [encoding-loss] c[encoding-loss] l[encoding-loss]p texture theo v[encoding-loss]ng; kh[encoding-loss]ng d[encoding-loss]ng n[encoding-loss]n ph[encoding-loss]ng v[encoding-loss]i c[encoding-loss]c ch[encoding-loss]m r[encoding-loss]i r[encoding-loss]c.
-- Node hi[encoding-loss]n t[encoding-loss]i c[encoding-loss] v[encoding-loss]ng s[encoding-loss]ng v[encoding-loss] nh[encoding-loss]n lu[encoding-loss]n [encoding-loss]c [encoding-loss][encoding-loss]c.
-- Node [encoding-loss] bi[encoding-loss]t d[encoding-loss]ng bi[encoding-loss]u t[encoding-loss][encoding-loss]ng theo `nodeType`.
-- Node c[encoding-loss]p 1 d[encoding-loss]ng silhouette/m[encoding-loss]; node c[encoding-loss]p 0 kh[encoding-loss]ng render.
-- Tuy[encoding-loss]n c[encoding-loss] m[encoding-loss]u theo tr[encoding-loss]ng th[encoding-loss]i: xanh th[encoding-loss]ng su[encoding-loss]t, v[encoding-loss]ng h[encoding-loss]n ch[encoding-loss], [encoding-loss] nguy hi[encoding-loss]m, t[encoding-loss]m phong t[encoding-loss]a, x[encoding-loss]m ch[encoding-loss]a r[encoding-loss].
-- Patrol edge d[encoding-loss]ng icon khi[encoding-loss]n/tu[encoding-loss]n tra chuy[encoding-loss]n [encoding-loss]ng nh[encoding-loss]; kh[encoding-loss]ng t[encoding-loss]o node gi[encoding-loss].
-- Outpost/structure d[encoding-loss]ng icon ri[encoding-loss]ng, tooltip ti[encoding-loss]ng Vi[encoding-loss]t.
-- B[encoding-loss]n [encoding-loss] ph[encoding-loss]i c[encoding-loss] zoom, pan, reset, ch[encoding-loss] gi[encoding-loss]i v[encoding-loss] h[encoding-loss] tr[encoding-loss] b[encoding-loss]n ph[encoding-loss]m.
-- M[encoding-loss]i icon c[encoding-loss] `aria-label`, kh[encoding-loss]ng truy[encoding-loss]n [encoding-loss]t th[encoding-loss]ng tin ch[encoding-loss] b[encoding-loss]ng m[encoding-loss]u.
+- Dng nn minh ha bn đ c lp texture theo vng; khng dng nn phng vi cc chm ri rc.
+- Node hin ti c vng sng v nhn lun đc đc.
+- Node đ bit dng biu tng theo `nodeType`.
+- Node cp 1 dng silhouette/m; node cp 0 khng render.
+- Tuyn c mu theo trng thi: xanh thng sut, vng hn ch, đ nguy him, tm phong ta, xm cha r.
+- Patrol edge dng icon khin/tun tra chuyn đng nh; khng to node gi.
+- Outpost/structure dng icon ring, tooltip ting Vit.
+- Bn đ phi c zoom, pan, reset, ch gii v h tr bn phm.
+- Mi icon c `aria-label`, khng truyn đt thng tin ch bng mu.
 
-### 7.3. Chi ti[encoding-loss]t node
+### 7.3. Chi tit node
 
-Khi b[encoding-loss]m node, m[encoding-loss] th[encoding-loss] chi ti[encoding-loss]t g[encoding-loss]m:
+Khi bm node, m th chi tit gm:
 
-- [encoding-loss]nh minh h[encoding-loss]a theo `visualTag`;
-- m[encoding-loss] t[encoding-loss] ng[encoding-loss]n v[encoding-loss] tr[encoding-loss]ng th[encoding-loss]i th[encoding-loss]i ti[encoding-loss]t;
+- nh minh ha theo `visualTag`;
+- m t ngn v trng thi thi tit;
 - influence gradient/heatmap;
-- danh s[encoding-loss]ch sub-location d[encoding-loss]ng th[encoding-loss];
-- NPC hi[encoding-loss]n di[encoding-loss]n t[encoding-loss]i [encoding-loss]ng sub-location;
-- c[encoding-loss]u tr[encoding-loss]c/tr[encoding-loss]m v[encoding-loss] [encoding-loss] b[encoding-loss]n;
-- b[encoding-loss]ng tin faction [encoding-loss] l[encoding-loss]c theo fog v[encoding-loss] th[encoding-loss]i h[encoding-loss]n;
-- n[encoding-loss]t L[encoding-loss]p Tr[encoding-loss]m, X[encoding-loss]y Th[encoding-loss]p canh, X[encoding-loss]y Tr[encoding-loss]m giao th[encoding-loss][encoding-loss]ng ch[encoding-loss] khi [encoding-loss] i[encoding-loss]u ki[encoding-loss]n.
+- danh sch sub-location dng th;
+- NPC hin din ti đng sub-location;
+- cu trc/trm v đ bn;
+- bng tin faction đ lc theo fog v thi hn;
+- nt Lp Trm, Xy Thp canh, Xy Trm giao thng ch khi đ điu kin.
 
-### 7.4. Tr[encoding-loss]ng th[encoding-loss]i r[encoding-loss]ng v[encoding-loss] l[encoding-loss]i
+### 7.4. Trng thi rng v li
 
-- Kh[encoding-loss]ng c[encoding-loss] tuy[encoding-loss]n: Ch[encoding-loss]a c[encoding-loss] tuy[encoding-loss]n [encoding-loss][encoding-loss]ng h[encoding-loss]p l[encoding-loss] t[encoding-loss] [encoding-loss]y.
-- Ch[encoding-loss]a [encoding-loss] fog: C[encoding-loss]n th[encoding-loss]m manh m[encoding-loss]i [encoding-loss] nh[encoding-loss]n r[encoding-loss] khu v[encoding-loss]c n[encoding-loss]y.
-- Phong t[encoding-loss]a: hi[encoding-loss]n th[encoding-loss] faction, l[encoding-loss] do, th[encoding-loss]i h[encoding-loss]n d[encoding-loss] ki[encoding-loss]n v[encoding-loss] l[encoding-loss]a ch[encoding-loss]n h[encoding-loss] t[encoding-loss]ng/[encoding-loss][encoding-loss]ng v[encoding-loss]ng.
-- Thi[encoding-loss]u t[encoding-loss]i nguy[encoding-loss]n: hi[encoding-loss]n s[encoding-loss] ang c[encoding-loss]/s[encoding-loss] c[encoding-loss]n, kh[encoding-loss]ng ch[encoding-loss] hi[encoding-loss]n m[encoding-loss] l[encoding-loss]i.
-- H[encoding-loss]nh tr[encoding-loss]nh b[encoding-loss] gi[encoding-loss]n o[encoding-loss]n: gi[encoding-loss] log, cho ph[encoding-loss]p ti[encoding-loss]p t[encoding-loss]c, [encoding-loss]i tuy[encoding-loss]n ho[encoding-loss]c h[encoding-loss]y.
+- Khng c tuyn: Cha c tuyn đng hp l t đy.
+- Cha đ fog: Cn thm manh mi đ nhn r khu vc ny.
+- Phong ta: hin th faction, l do, thi hn d kin v la chn h tng/đng vng.
+- Thiu ti nguyn: hin s đang c/s cn, khng ch hin m li.
+- Hnh trnh b gin đon: gi log, cho php tip tc, đi tuyn hoc hy.
 
-## 8. H[encoding-loss] th[encoding-loss]ng tr[encoding-loss]ng th[encoding-loss]i di chuy[encoding-loss]n
+## 8. H thng trng thi di chuyn
 
-### 8.1. Tr[encoding-loss]ng th[encoding-loss]i runtime
+### 8.1. Trng thi runtime
 
-`planned [encoding-loss] active [encoding-loss] completed`  
-`active [encoding-loss] interrupted [encoding-loss] active`  
-`planned/active/interrupted [encoding-loss] cancelled`  
-`active [encoding-loss] failed` ch[encoding-loss] khi route b[encoding-loss] h[encoding-loss]y b[encoding-loss]i th[encoding-loss] gi[encoding-loss]i v[encoding-loss] kh[encoding-loss]ng th[encoding-loss] ti[encoding-loss]p t[encoding-loss]c.
+`planned  active  completed`
+`active  interrupted  active`
+`planned/active/interrupted  cancelled`
+`active  failed` ch khi route b hy bi th gii v khng th tip tc.
 
-### 8.2. Nguy[encoding-loss]n nh[encoding-loss]n gi[encoding-loss]n o[encoding-loss]n
+### 8.2. Nguyn nhn gin đon
 
-- g[encoding-loss]p qu[encoding-loss]i/mai ph[encoding-loss]c;
-- b[encoding-loss]o, li, s[encoding-loss]t l[encoding-loss];
-- patrol ki[encoding-loss]m tra;
-- faction phong t[encoding-loss]a;
-- ph[encoding-loss][encoding-loss]ng ti[encoding-loss]n h[encoding-loss]ng;
-- thi[encoding-loss]u ph[encoding-loss] duy tr[encoding-loss] caravan/escort;
-- node [encoding-loss]ch [encoding-loss]i tr[encoding-loss]ng th[encoding-loss]i th[encoding-loss]nh kh[encoding-loss]ng th[encoding-loss] ti[encoding-loss]p c[encoding-loss]n.
+- gp qui/mai phc;
+- bo, li, st l;
+- patrol kim tra;
+- faction phong ta;
+- phng tin hng;
+- thiu ph duy tr caravan/escort;
+- node đch đi trng thi thnh khng th tip cn.
 
 ### 8.3. Travel mode
 
-| Ph[encoding-loss][encoding-loss]ng th[encoding-loss]c | i[encoding-loss]u ki[encoding-loss]n | T[encoding-loss]c [encoding-loss] | [encoding-loss]c t[encoding-loss]nh |
+| Phng thc | Điu kin | Tc đ | Đc tnh |
 |---|---|---:|---|
-| i b[encoding-loss] | lu[encoding-loss]n c[encoding-loss] n[encoding-loss]u tuy[encoding-loss]n m[encoding-loss] | 1.0x | r[encoding-loss], nhi[encoding-loss]u c[encoding-loss] h[encoding-loss]i d[encoding-loss]c [encoding-loss][encoding-loss]ng |
-| Ng[encoding-loss] kh[encoding-loss] | c[encoding-loss] c[encoding-loss]ng ph[encoding-loss]p ph[encoding-loss] h[encoding-loss]p | 3.0x | nhanh, t[encoding-loss]n Linh Th[encoding-loss]ch, kh[encoding-loss]ng d[encoding-loss]ng [encoding-loss] tuy[encoding-loss]n c[encoding-loss]m |
-| Th[encoding-loss] c[encoding-loss][encoding-loss]i | c[encoding-loss] th[encoding-loss] c[encoding-loss][encoding-loss]i/[encoding-loss]ng h[encoding-loss]nh h[encoding-loss]p l[encoding-loss] | 2.0x | gi[encoding-loss]m r[encoding-loss]i ro [encoding-loss][encoding-loss]ng b[encoding-loss] |
-| Thuy[encoding-loss]n | c[encoding-loss] hai [encoding-loss]u l[encoding-loss] b[encoding-loss]n/n[encoding-loss][encoding-loss]c | 2.0x | ch[encoding-loss]u b[encoding-loss]o, kh[encoding-loss]ng i tuy[encoding-loss]n n[encoding-loss]i |
-| o[encoding-loss]n xe | c[encoding-loss] caravan v[encoding-loss] tuy[encoding-loss]n [encoding-loss][encoding-loss]ng | 1.5x | gi[encoding-loss]m r[encoding-loss]i ro, t[encoding-loss]n ph[encoding-loss] duy tr[encoding-loss] |
-| o[encoding-loss]n th[encoding-loss][encoding-loss]ng nh[encoding-loss]n | hub th[encoding-loss][encoding-loss]ng m[encoding-loss]i [encoding-loss] m[encoding-loss] | 1.25x | gi[encoding-loss]m gi[encoding-loss]/nh[encoding-loss]n tin, d[encoding-loss] b[encoding-loss] ph[encoding-loss]c k[encoding-loss]ch |
-| Truy[encoding-loss]n t[encoding-loss]ng tr[encoding-loss]n | m[encoding-loss] fast travel [encoding-loss] c[encoding-loss] hai [encoding-loss]u | t[encoding-loss]c th[encoding-loss]i | kh[encoding-loss]ng roll road event, t[encoding-loss]n Linh Th[encoding-loss]ch |
+| Đi b | lun c nu tuyn m | 1.0x | r, nhiu c hi dc đng |
+| Ng kh | c cng php ph hp | 3.0x | nhanh, tn Linh Thch, khng dng  tuyn cm |
+| Th ci | c th ci/đng hnh hp l | 2.0x | gim ri ro đng b |
+| Thuyn | c hai đu l bn/nc | 2.0x | chu bo, khng đi tuyn ni |
+| Đon xe | c caravan v tuyn đng | 1.5x | gim ri ro, tn ph duy tr |
+| Đon thng nhn | hub thng mi đ m | 1.25x | gim gi/nhn tin, d b phc kch |
+| Truyn tng trn | m fast travel  c hai đu | tc thi | khng roll road event, tn Linh Thch |
 
 ### 8.4. Travel task snapshot
 
@@ -329,93 +336,93 @@ TravelTask {
 }
 ```
 
-M[encoding-loss]i ng[encoding-loss]y ch[encoding-loss] resolve m[encoding-loss]t l[encoding-loss]n theo `taskId + dayIndex`; retry ph[encoding-loss]i idempotent.
+Mi ngy ch resolve mt ln theo `taskId + dayIndex`; retry phi idempotent.
 
-## 9. Action Bar  lu[encoding-loss]t [encoding-loss]a action v[encoding-loss]o [encoding-loss]ng th[encoding-loss]i i[encoding-loss]m
+## 9. Action Bar · lut đa action vo đng thi đim
 
-- Action di chuy[encoding-loss]n ch[encoding-loss] hi[encoding-loss]n cho c[encoding-loss]nh [encoding-loss] resolve, [encoding-loss] fog v[encoding-loss] kh[encoding-loss]ng b[encoding-loss] kh[encoding-loss]a ho[encoding-loss]n to[encoding-loss]n.
-- Action ph[encoding-loss][encoding-loss]ng ti[encoding-loss]n ch[encoding-loss] hi[encoding-loss]n khi `travelPreview()` tr[encoding-loss] `success=true`; n[encoding-loss]u kh[encoding-loss]ng [encoding-loss] i[encoding-loss]u ki[encoding-loss]n th[encoding-loss] hi[encoding-loss]n th[encoding-loss] trong ph[encoding-loss]n Ph[encoding-loss][encoding-loss]ng th[encoding-loss]c kh[encoding-loss]c [encoding-loss] tr[encoding-loss]ng th[encoding-loss]i disabled k[encoding-loss]m l[encoding-loss] do, kh[encoding-loss]ng [encoding-loss]a v[encoding-loss]o Action Bar ch[encoding-loss]nh.
-- L[encoding-loss]p Tr[encoding-loss]m Ti[encoding-loss]n Ti[encoding-loss]u ch[encoding-loss] hi[encoding-loss]n t[encoding-loss]i node bi[encoding-loss]n/tranh ch[encoding-loss]p ch[encoding-loss]a c[encoding-loss] outpost, kh[encoding-loss]ng giao chi[encoding-loss]n v[encoding-loss] [encoding-loss] chi ph[encoding-loss].
-- Action x[encoding-loss]y c[encoding-loss]ng tr[encoding-loss]nh ch[encoding-loss] hi[encoding-loss]n t[encoding-loss]i node hi[encoding-loss]n t[encoding-loss]i, kh[encoding-loss]ng giao chi[encoding-loss]n, [encoding-loss] chi ph[encoding-loss] v[encoding-loss] c[encoding-loss] outpost ng[encoding-loss][encoding-loss]i ch[encoding-loss]i ho[encoding-loss]c node bi[encoding-loss]n [encoding-loss][encoding-loss]c ph[encoding-loss]p khai ph[encoding-loss].
-- Truy[encoding-loss]n t[encoding-loss]ng tr[encoding-loss]n ch[encoding-loss] hi[encoding-loss]n khi c[encoding-loss] hai [encoding-loss]u [encoding-loss] m[encoding-loss] fast travel.
-- H[encoding-loss]y h[encoding-loss]nh tr[encoding-loss]nh ch[encoding-loss] hi[encoding-loss]n khi task [encoding-loss] `planned`, `active` ho[encoding-loss]c `interrupted`.
-- Ti[encoding-loss]p t[encoding-loss]c h[encoding-loss]nh tr[encoding-loss]nh ch[encoding-loss] hi[encoding-loss]n khi interruption [encoding-loss] c[encoding-loss] ph[encoding-loss][encoding-loss]ng [encoding-loss]n x[encoding-loss] l[encoding-loss].
-- Action c[encoding-loss]a sub-location ch[encoding-loss] hi[encoding-loss]n sau khi ng[encoding-loss][encoding-loss]i ch[encoding-loss]i th[encoding-loss]c s[encoding-loss] v[encoding-loss]o sub-location [encoding-loss].
+- Action di chuyn ch hin cho cnh đ resolve, đ fog v khng b kha hon ton.
+- Action phng tin ch hin khi `travelPreview()` tr `success=true`; nu khng đ điu kin th hin th trong phn Phng thc khc  trng thi disabled km l do, khng đa vo Action Bar chnh.
+- Lp Trm Tin Tiu ch hin ti node bin/tranh chp cha c outpost, khng giao chin v đ chi ph.
+- Action xy cng trnh ch hin ti node hin ti, khng giao chin, đ chi ph v c outpost ngi chi hoc node bin đc php khai ph.
+- Truyn tng trn ch hin khi c hai đu đ m fast travel.
+- Hy hnh trnh ch hin khi task  `planned`, `active` hoc `interrupted`.
+- Tip tc hnh trnh ch hin khi interruption đ c phng n x l.
+- Action ca sub-location ch hin sau khi ngi chi thc s vo sub-location đ.
 
-## 10. Transaction v[encoding-loss] rollback
+## 10. Transaction v rollback
 
-M[encoding-loss]i mutation map d[encoding-loss]ng `resolveMapTransaction` v[encoding-loss]i:
+Mi mutation map dng `resolveMapTransaction` vi:
 
 - `actionId`, `actorId`, `expectedVersion`;
-- ki[encoding-loss]m tra topology, fog, quy[encoding-loss]n, chi ph[encoding-loss], combat v[encoding-loss] blockade;
-- snapshot tr[encoding-loss][encoding-loss]c mutation;
+- kim tra topology, fog, quyn, chi ph, combat v blockade;
+- snapshot trc mutation;
 - journal idempotency;
-- rollback [encoding-loss]y [encoding-loss] n[encoding-loss]u tr[encoding-loss] t[encoding-loss]i nguy[encoding-loss]n th[encoding-loss]nh c[encoding-loss]ng nh[encoding-loss]ng t[encoding-loss]o task/node th[encoding-loss]t b[encoding-loss]i.
+- rollback đy đ nu tr ti nguyn thnh cng nhng to task/node tht bi.
 
-## 11. K[encoding-loss] ho[encoding-loss]ch tri[encoding-loss]n khai
+## 11. K hoch trin khai
 
-### Pha 1  Kh[encoding-loss]a topology
+### Pha 1 · Kha topology
 
-- T[encoding-loss]o static/runtime namespace.
-- Vi[encoding-loss]t `resolveMapTopology()` v[encoding-loss] lo[encoding-loss]i fallback sinh node trong `move()`.
-- Di tr[encoding-loss] runtime node ci sang `state.openWorld.nodes`.
-- Th[encoding-loss]m test h[encoding-loss]i quy S[encoding-loss]n m[encoding-loss]n Thi[encoding-loss]n Huy[encoding-loss]n Th[encoding-loss]ng.
+- To static/runtime namespace.
+- Vit `resolveMapTopology()` v loi fallback sinh node trong `move()`.
+- Di tr runtime node ci sang `state.openWorld.nodes`.
+- Thm test hi quy Sn mn Thin Huyn Thng.
 
-### Pha 2  Travel state machine
+### Pha 2 · Travel state machine
 
-- Chu[encoding-loss]n h[encoding-loss]a `TravelTask` v[encoding-loss] c[encoding-loss]c transition.
-- [encoding-loss]p d[encoding-loss]ng travel mode, blockade, escort, ph[encoding-loss][encoding-loss]ng ti[encoding-loss]n v[encoding-loss] chi ph[encoding-loss].
-- Hi[encoding-loss]n th[encoding-loss] ETA/risk/interruption trong UI.
+- Chun ha `TravelTask` v cc transition.
+- p dng travel mode, blockade, escort, phng tin v chi ph.
+- Hin th ETA/risk/interruption trong UI.
 
-### Pha 3  Khu v[encoding-loss]c hi[encoding-loss]n t[encoding-loss]i v[encoding-loss] h[encoding-loss]nh [encoding-loss]nh
+### Pha 3 · Khu vc hin ti v hnh nh
 
-- X[encoding-loss]y l[encoding-loss]i `renderLocalMap()` theo layout b[encoding-loss]n [encoding-loss] h[encoding-loss]nh [encoding-loss]nh.
-- Th[encoding-loss]m l[encoding-loss]p tuy[encoding-loss]n, icon node, heatmap, patrol, outpost v[encoding-loss] ch[encoding-loss] gi[encoding-loss]i.
-- Th[encoding-loss]m responsive bottom sheet, keyboard navigation, aria-label.
+- Xy li `renderLocalMap()` theo layout bn đ hnh nh.
+- Thm lp tuyn, icon node, heatmap, patrol, outpost v ch gii.
+- Thm responsive bottom sheet, keyboard navigation, aria-label.
 
-### Pha 4  Node detail v[encoding-loss] action context
+### Pha 4 · Node detail v action context
 
 - Sub-location, NPC placement, bulletin, structure detail.
-- Action Bar theo context v[encoding-loss] preview i[encoding-loss]u ki[encoding-loss]n.
+- Action Bar theo context v preview điu kin.
 
-### Pha 5  QA v[encoding-loss] c[encoding-loss]n b[encoding-loss]ng
+### Pha 5 · QA v cn bng
 
-- Stress test topology 1.000 l[encoding-loss][encoding-loss]t di chuy[encoding-loss]n.
-- Ki[encoding-loss]m th[encoding-loss] deterministic travel retry.
-- Ki[encoding-loss]m th[encoding-loss] fog/privacy, blockade, escort, fast travel v[encoding-loss] rollback.
-- So s[encoding-loss]nh screenshot desktop/mobile tr[encoding-loss][encoding-loss]c khi ph[encoding-loss]t h[encoding-loss]nh.
+- Stress test topology 1.000 lt di chuyn.
+- Kim th deterministic travel retry.
+- Kim th fog/privacy, blockade, escort, fast travel v rollback.
+- So snh screenshot desktop/mobile trc khi pht hnh.
 
 ## 12. Acceptance criteria
 
-1. T[encoding-loss] S[encoding-loss]n m[encoding-loss]n Thi[encoding-loss]n Huy[encoding-loss]n Th[encoding-loss]ng kh[encoding-loss]ng th[encoding-loss] i t[encoding-loss]i node kh[encoding-loss]ng c[encoding-loss] c[encoding-loss]nh/gate [encoding-loss][encoding-loss]c khai b[encoding-loss]o.
-2. Kh[encoding-loss]ng m[encoding-loss]t thao t[encoding-loss]c di chuy[encoding-loss]n n[encoding-loss]o s[encoding-loss]a catalog static.
-3. Runtime node lu[encoding-loss]n c[encoding-loss] namespace, parent, region v[encoding-loss] journal.
-4. Khu v[encoding-loss]c hi[encoding-loss]n t[encoding-loss]i hi[encoding-loss]n th[encoding-loss] [encoding-loss][encoding-loss]c node, tuy[encoding-loss]n, heatmap, fog v[encoding-loss] tr[encoding-loss]ng th[encoding-loss]i tu[encoding-loss]n tra.
-5. Ng[encoding-loss][encoding-loss]i ch[encoding-loss]i th[encoding-loss]y r[encoding-loss] ETA, chi ph[encoding-loss], nguy c[encoding-loss] v[encoding-loss] l[encoding-loss] do kh[encoding-loss]ng th[encoding-loss] d[encoding-loss]ng ph[encoding-loss][encoding-loss]ng ti[encoding-loss]n.
-6. Travel task kh[encoding-loss]i ph[encoding-loss]c [encoding-loss]ng sau reload, retry kh[encoding-loss]ng nh[encoding-loss]n [encoding-loss]i chi ph[encoding-loss]/s[encoding-loss] ki[encoding-loss]n.
-7. C[encoding-loss]c tr[encoding-loss]ng th[encoding-loss]i `planned/active/interrupted/completed/cancelled/failed` [encoding-loss]u c[encoding-loss] UI v[encoding-loss] transition h[encoding-loss]p l[encoding-loss].
-8. Action Bar kh[encoding-loss]ng hi[encoding-loss]n th[encoding-loss] action ngo[encoding-loss]i i[encoding-loss]u ki[encoding-loss]n; action tr[encoding-loss]c ti[encoding-loss]p qua API v[encoding-loss]n b[encoding-loss] ch[encoding-loss]n [encoding-loss]ng.
-9. Kh[encoding-loss]ng c[encoding-loss]n nh[encoding-loss]n k[encoding-loss] thu[encoding-loss]t nh[encoding-loss] `watchtower`, `trading_post`, `stable`, `contested`, `frontier` hi[encoding-loss]n th[encoding-loss] cho ng[encoding-loss][encoding-loss]i ch[encoding-loss]i.
-10. B[encoding-loss] x[encoding-loss]c minh game, stress test topology v[encoding-loss] ki[encoding-loss]m tra giao di[encoding-loss]n desktop/mobile [encoding-loss]u [encoding-loss]t.
-## 13. R[encoding-loss] so[encoding-loss]t kho[encoding-loss]ng tr[encoding-loss]ng v[encoding-loss] c[encoding-loss]i ti[encoding-loss]n b[encoding-loss]t bu[encoding-loss]c
+1. T Sn mn Thin Huyn Thng khng th đi ti node khng c cnh/gate đc khai bo.
+2. Khng mt thao tc di chuyn no sa catalog static.
+3. Runtime node lun c namespace, parent, region v journal.
+4. Khu vc hin ti hin th đc node, tuyn, heatmap, fog v trng thi tun tra.
+5. Ngi chi thy r ETA, chi ph, nguy c v l do khng th dng phng tin.
+6. Travel task khi phc đng sau reload, retry khng nhn đi chi ph/s kin.
+7. Cc trng thi `planned/active/interrupted/completed/cancelled/failed` đu c UI v transition hp l.
+8. Action Bar khng hin th action ngoi điu kin; action trc tip qua API vn b chn đng.
+9. Khng cn nhn k thut nh `watchtower`, `trading_post`, `stable`, `contested`, `frontier` hin th cho ngi chi.
+10. B xc minh game, stress test topology v kim tra giao din desktop/mobile đu đt.
+## 13. R sot khong trng v ci tin bt buc
 
-### 13.1. Bi[encoding-loss]n Khu v[encoding-loss]c hi[encoding-loss]n t[encoding-loss]i th[encoding-loss]nh m[encoding-loss]n h[encoding-loss]nh ch[encoding-loss]i [encoding-loss][encoding-loss]c
+### 13.1. Bin Khu vc hin ti thnh mn hnh chi đc
 
-Khu v[encoding-loss]c hi[encoding-loss]n t[encoding-loss]i kh[encoding-loss]ng ch[encoding-loss] l[encoding-loss] m[encoding-loss]n h[encoding-loss]nh tra c[encoding-loss]u. M[encoding-loss]i node ph[encoding-loss]i c[encoding-loss] `localState` rebuild [encoding-loss][encoding-loss]c, g[encoding-loss]m d[encoding-loss]n c[encoding-loss], ph[encoding-loss]n vinh, an ninh, khan hi[encoding-loss]m t[encoding-loss]i nguy[encoding-loss]n, th[encoding-loss]i ti[encoding-loss]t, gi[encoding-loss] m[encoding-loss] c[encoding-loss]a v[encoding-loss] s[encoding-loss] ki[encoding-loss]n ang di[encoding-loss]n ra. C[encoding-loss]c gi[encoding-loss] tr[encoding-loss] n[encoding-loss]y t[encoding-loss]c [encoding-loss]ng tr[encoding-loss]c ti[encoding-loss]p t[encoding-loss]i gi[encoding-loss] ch[encoding-loss], NPC, nhi[encoding-loss]m v[encoding-loss] v[encoding-loss] r[encoding-loss]i ro di chuy[encoding-loss]n.
+Khu vc hin ti khng ch l mn hnh tra cu. Mi node phi c `localState` rebuild đc, gm dn c, phn vinh, an ninh, khan him ti nguyn, thi tit, gi m ca v s kin đang din ra. Cc gi tr ny tc đng trc tip ti gi ch, NPC, nhim v v ri ro di chuyn.
 
-### 13.2. B[encoding-loss] ho[encoding-loss]t [encoding-loss]ng t[encoding-loss]i ch[encoding-loss]
+### 13.2. B hot đng ti ch
 
-M[encoding-loss]i node c[encoding-loss]n 38 ho[encoding-loss]t [encoding-loss]ng theo lo[encoding-loss]i node v[encoding-loss] sub-location: quan s[encoding-loss]t, t[encoding-loss]m ki[encoding-loss]m, giao d[encoding-loss]ch, ngh[encoding-loss] tr[encoding-loss], s[encoding-loss]a ph[encoding-loss][encoding-loss]ng ti[encoding-loss]n, thu[encoding-loss] h[encoding-loss] t[encoding-loss]ng, nh[encoding-loss]n tin, do th[encoding-loss]m tu[encoding-loss]n tra, h[encoding-loss] tr[encoding-loss] d[encoding-loss]n c[encoding-loss], m[encoding-loss] [encoding-loss][encoding-loss]ng t[encoding-loss]t v[encoding-loss] [encoding-loss]t m[encoding-loss]c c[encoding-loss] nh[encoding-loss]n. M[encoding-loss]i ho[encoding-loss]t [encoding-loss]ng khai b[encoding-loss]o `requirements`, `duration`, `cost`, `risk`, `effects`, `cooldown`, `sourceSubLocationId`. Action Resolver kh[encoding-loss]ng [encoding-loss][encoding-loss]c [encoding-loss]a ho[encoding-loss]t [encoding-loss]ng h[encoding-loss]t gi[encoding-loss], h[encoding-loss]t cooldown ho[encoding-loss]c thi[encoding-loss]u i[encoding-loss]u ki[encoding-loss]n v[encoding-loss]o Action Bar ch[encoding-loss]nh.
+Mi node cn 38 hot đng theo loi node v sub-location: quan st, tm kim, giao dch, ngh tr, sa phng tin, thu h tng, nhn tin, do thm tun tra, h tr dn c, m đng tt v đt mc c nhn. Mi hot đng khai bo `requirements`, `duration`, `cost`, `risk`, `effects`, `cooldown`, `sourceSubLocationId`. Action Resolver khng đc đa hot đng ht gi, ht cooldown hoc thiu điu kin vo Action Bar chnh.
 
-### 13.3. S[encoding-loss] ki[encoding-loss]n [encoding-loss]ng c[encoding-loss]p khu v[encoding-loss]c
+### 13.3. S kin đng cp khu vc
 
-Th[encoding-loss]m `LocalIncident` v[encoding-loss]i v[encoding-loss]ng [encoding-loss]i `rumor [encoding-loss] emerging [encoding-loss] active [encoding-loss] resolved/expired`. V[encoding-loss] d[encoding-loss]: ch[encoding-loss] ch[encoding-loss]y, c[encoding-loss]u s[encoding-loss]p, th[encoding-loss] tri[encoding-loss]u, ki[encoding-loss]m tra c[encoding-loss]ng, th[encoding-loss][encoding-loss]ng o[encoding-loss]n [encoding-loss]n, d[encoding-loss]ch b[encoding-loss]nh, tranh ch[encoding-loss]p [encoding-loss]t ho[encoding-loss]c h[encoding-loss]i ch[encoding-loss]. Incident ph[encoding-loss]i t[encoding-loss]c [encoding-loss]ng t[encoding-loss]i node/edge, c[encoding-loss] y[encoding-loss]u c[encoding-loss]u fog, th[encoding-loss]i h[encoding-loss]n, [encoding-loss]t nh[encoding-loss]t hai l[encoding-loss]a ch[encoding-loss]n c[encoding-loss] [encoding-loss]nh [encoding-loss]i, ghi log v[encoding-loss] kh[encoding-loss]ng nh[encoding-loss]n [encoding-loss]i sau reload/retry.
+Thm `LocalIncident` vi vng đi `rumor  emerging  active  resolved/expired`. V d: ch chy, cu sp, th triu, kim tra cng, thng đon đn, dch bnh, tranh chp đt hoc hi ch. Incident phi tc đng ti node/edge, c yu cu fog, thi hn, t nht hai la chn c đnh đi, ghi log v khng nhn đi sau reload/retry.
 
-### 13.4. L[encoding-loss]p tuy[encoding-loss]n nhi[encoding-loss]u ti[encoding-loss]u ch[encoding-loss]
+### 13.4. Lp tuyn nhiu tiu ch
 
-Th[encoding-loss]m ch[encoding-loss] [encoding-loss] **L[encoding-loss]p tuy[encoding-loss]n**: ch[encoding-loss]n node [encoding-loss]ch, hi[encoding-loss]n th[encoding-loss] 13 tuy[encoding-loss]n t[encoding-loss]t nh[encoding-loss]t theo nhanh nh[encoding-loss]t/an to[encoding-loss]n nh[encoding-loss]t/r[encoding-loss] nh[encoding-loss]t/k[encoding-loss]n [encoding-loss]o nh[encoding-loss]t, so s[encoding-loss]nh ETA, chi ph[encoding-loss], blockade, patrol, th[encoding-loss]i ti[encoding-loss]t v[encoding-loss] c[encoding-loss] h[encoding-loss]i d[encoding-loss]c [encoding-loss][encoding-loss]ng. Cho ph[encoding-loss]p waypoint v[encoding-loss] [encoding-loss]i ph[encoding-loss][encoding-loss]ng ti[encoding-loss]n theo t[encoding-loss]ng ch[encoding-loss]ng; ch[encoding-loss] t[encoding-loss]o `travelTask` sau khi x[encoding-loss]c nh[encoding-loss]n.
+Thm ch đ **Lp tuyn**: chn node đch, hin th 13 tuyn tt nht theo nhanh nht/an ton nht/r nht/kn đo nht, so snh ETA, chi ph, blockade, patrol, thi tit v c hi dc đng. Cho php waypoint v đi phng tin theo tng chng; ch to `travelTask` sau khi xc nhn.
 
-### 13.5. Tr[encoding-loss]ng th[encoding-loss]i c[encoding-loss]nh chi ti[encoding-loss]t
+### 13.5. Trng thi cnh chi tit
 
 ```ts
 EdgeState {
@@ -429,59 +436,59 @@ EdgeState {
 }
 ```
 
-Edge b[encoding-loss] phong t[encoding-loss]a kh[encoding-loss]ng [encoding-loss][encoding-loss]c x[encoding-loss]a kh[encoding-loss]i graph; ch[encoding-loss] [encoding-loss]i tr[encoding-loss]ng th[encoding-loss]i [encoding-loss] gi[encoding-loss] l[encoding-loss]ch s[encoding-loss], [encoding-loss][encoding-loss]ng v[encoding-loss]ng v[encoding-loss] kh[encoding-loss] nng m[encoding-loss] l[encoding-loss]i.
+Edge b phong ta khng đc xa khi graph; ch đi trng thi đ gi lch s, đng vng v kh nng m li.
 
-### 13.6. T[encoding-loss][encoding-loss]ng t[encoding-loss]c th[encoding-loss] l[encoding-loss]c t[encoding-loss]i node
+### 13.6. Tng tc th lc ti node
 
-Ng[encoding-loss][encoding-loss]i ch[encoding-loss]i c[encoding-loss] th[encoding-loss] xin gi[encoding-loss]y th[encoding-loss]ng h[encoding-loss]nh, n[encoding-loss]p ph[encoding-loss], nh[encoding-loss]n nhi[encoding-loss]m v[encoding-loss] b[encoding-loss]ng tin, th[encoding-loss][encoding-loss]ng l[encoding-loss][encoding-loss]ng gi[encoding-loss]m phong t[encoding-loss]a, do th[encoding-loss]m ho[encoding-loss]c ph[encoding-loss] tu[encoding-loss]n tra, xin h[encoding-loss] t[encoding-loss]ng, hi[encoding-loss]n outpost v[encoding-loss] x[encoding-loss] l[encoding-loss] incident. M[encoding-loss]i faction c[encoding-loss]n profile ri[encoding-loss]ng cho ki[encoding-loss]n tr[encoding-loss]c, lu[encoding-loss]t [encoding-loss]a ph[encoding-loss][encoding-loss]ng, patrol, thu[encoding-loss], i[encoding-loss]u ki[encoding-loss]n v[encoding-loss]o v[encoding-loss] ph[encoding-loss]n [encoding-loss]ng danh ti[encoding-loss]ng; kh[encoding-loss]ng d[encoding-loss]ng m[encoding-loss] t[encoding-loss] chung cho m[encoding-loss]i t[encoding-loss] ch[encoding-loss]c.
+Ngi chi c th xin giy thng hnh, np ph, nhn nhim v bng tin, thng lng gim phong ta, do thm hoc ph tun tra, xin h tng, hin outpost v x l incident. Mi faction cn profile ring cho kin trc, lut đa phng, patrol, thu, điu kin vo v phn ng danh ting; khng dng m t chung cho mi t chc.
 
-### 13.7. NPC s[encoding-loss]ng trong khu v[encoding-loss]c
+### 13.7. NPC sng trong khu vc
 
-Scheduler ph[encoding-loss]i c[encoding-loss]p nh[encoding-loss]t `currentNodeId`, `currentSubLocationId`, `scheduleStatus`, `availabilityReason`. UI hi[encoding-loss]n th[encoding-loss] NPC ang [encoding-loss] [encoding-loss]u, gi[encoding-loss] c[encoding-loss] th[encoding-loss] g[encoding-loss]p, ang di chuy[encoding-loss]n/b[encoding-loss]n/v[encoding-loss]ng m[encoding-loss]t v[encoding-loss] th[encoding-loss]i i[encoding-loss]m quay l[encoding-loss]i. Kh[encoding-loss]ng hi[encoding-loss]n th[encoding-loss] NPC [encoding-loss]o ch[encoding-loss] v[encoding-loss] t[encoding-loss]n t[encoding-loss]i trong catalog.
+Scheduler phi cp nht `currentNodeId`, `currentSubLocationId`, `scheduleStatus`, `availabilityReason`. UI hin th NPC đang  đu, gi c th gp, đang di chuyn/bn/vng mt v thi đim quay li. Khng hin th NPC o ch v tn ti trong catalog.
 
-### 13.8. Kinh t[encoding-loss] [encoding-loss]a ph[encoding-loss][encoding-loss]ng
+### 13.8. Kinh t đa phng
 
-Gi[encoding-loss] market/trading post t[encoding-loss]nh t[encoding-loss] ph[encoding-loss]n vinh, khan hi[encoding-loss]m, thu[encoding-loss] faction, th[encoding-loss]i ti[encoding-loss]t, incident v[encoding-loss] ngu[encoding-loss]n cung di chuy[encoding-loss]n. Bi[encoding-loss]n [encoding-loss]ng c[encoding-loss] gi[encoding-loss]i h[encoding-loss]n m[encoding-loss]i ng[encoding-loss]y, deterministic theo world tick. Trading post ch[encoding-loss] tng yield khi node c[encoding-loss] market sub-location v[encoding-loss] c[encoding-loss]ng tr[encoding-loss]nh c[encoding-loss]n integrity.
+Gi market/trading post tnh t phn vinh, khan him, thu faction, thi tit, incident v ngun cung di chuyn. Bin đng c gii hn mi ngy, deterministic theo world tick. Trading post ch tng yield khi node c market sub-location v cng trnh cn integrity.
 
-### 13.9. Ghi ch[encoding-loss] v[encoding-loss] d[encoding-loss]u v[encoding-loss]t c[encoding-loss] nh[encoding-loss]n
+### 13.9. Ghi ch v du vt c nhn
 
-Cho ph[encoding-loss]p ghim node, ghi ch[encoding-loss] t[encoding-loss]i a 200 k[encoding-loss] t[encoding-loss], [encoding-loss]nh d[encoding-loss]u nguy hi[encoding-loss]m/c[encoding-loss] h[encoding-loss]i/quay l[encoding-loss]i sau v[encoding-loss] l[encoding-loss]u route y[encoding-loss]u th[encoding-loss]ch. Ghi ch[encoding-loss] kh[encoding-loss]ng [encoding-loss][encoding-loss]c thay [encoding-loss]i topology ho[encoding-loss]c l[encoding-loss]m l[encoding-loss] fog.
+Cho php ghim node, ghi ch ti đa 200 k t, đnh du nguy him/c hi/quay li sau v lu route yu thch. Ghi ch khng đc thay đi topology hoc lm l fog.
 
-## 14. Lu[encoding-loss]ng UX b[encoding-loss]t bu[encoding-loss]c
+## 14. Lung UX bt buc
 
 ```text
-M[encoding-loss] Khu v[encoding-loss]c hi[encoding-loss]n t[encoding-loss]i
-  [encoding-loss] [encoding-loss]c t[encoding-loss]m t[encoding-loss]t node
-  [encoding-loss] xem tuy[encoding-loss]n/incident/[encoding-loss]nh h[encoding-loss][encoding-loss]ng
-  [encoding-loss] ch[encoding-loss]n node ho[encoding-loss]c sub-location
-  [encoding-loss] ch[encoding-loss]n ho[encoding-loss]t [encoding-loss]ng ho[encoding-loss]c L[encoding-loss]p tuy[encoding-loss]n
-  [encoding-loss] xem preview chi ph[encoding-loss]/r[encoding-loss]i ro
-  [encoding-loss] x[encoding-loss]c nh[encoding-loss]n
-  [encoding-loss] theo d[encoding-loss]i task v[encoding-loss] nh[encoding-loss]t k[encoding-loss]
+M Khu vc hin ti
+   đc tm tt node
+   xem tuyn/incident/nh hng
+   chn node hoc sub-location
+   chn hot đng hoc Lp tuyn
+   xem preview chi ph/ri ro
+   xc nhn
+   theo di task v nht k
 ```
 
-M[encoding-loss]i h[encoding-loss]nh [encoding-loss]ng l[encoding-loss]m m[encoding-loss]t ng[encoding-loss]y, t[encoding-loss]i nguy[encoding-loss]n, [encoding-loss] b[encoding-loss]n, danh ti[encoding-loss]ng ho[encoding-loss]c tng r[encoding-loss]i ro [encoding-loss]u ph[encoding-loss]i c[encoding-loss] preview tr[encoding-loss][encoding-loss]c/sau, th[encoding-loss]i gian, d[encoding-loss]i r[encoding-loss]i ro, t[encoding-loss]c [encoding-loss]ng faction, i[encoding-loss]u ki[encoding-loss]n th[encoding-loss]t b[encoding-loss]i v[encoding-loss] n[encoding-loss]t quay l[encoding-loss]i.
+Mi hnh đng lm mt ngy, ti nguyn, đ bn, danh ting hoc tng ri ro đu phi c preview trc/sau, thi gian, di ri ro, tc đng faction, điu kin tht bi v nt quay li.
 
-### 14.1. Nh[encoding-loss]t k[encoding-loss] b[encoding-loss]n [encoding-loss]
+### 14.1. Nht k bn đ
 
-Timeline l[encoding-loss]c theo di chuy[encoding-loss]n, kh[encoding-loss]m ph[encoding-loss], th[encoding-loss] l[encoding-loss]c, incident, giao d[encoding-loss]ch, tu[encoding-loss]n tra v[encoding-loss] c[encoding-loss]ng tr[encoding-loss]nh. M[encoding-loss]i b[encoding-loss]n ghi c[encoding-loss] node, sub-location, ng[encoding-loss]y game, k[encoding-loss]t qu[encoding-loss] v[encoding-loss] source action [encoding-loss] gi[encoding-loss]i th[encoding-loss]ch v[encoding-loss] sao tuy[encoding-loss]n [encoding-loss]i tr[encoding-loss]ng th[encoding-loss]i.
+Timeline lc theo di chuyn, khm ph, th lc, incident, giao dch, tun tra v cng trnh. Mi bn ghi c node, sub-location, ngy game, kt qu v source action đ gii thch v sao tuyn đi trng thi.
 
-### 14.2. Responsive v[encoding-loss] ti[encoding-loss]p c[encoding-loss]n
+### 14.2. Responsive v tip cn
 
-Desktop d[encoding-loss]ng b[encoding-loss]n [encoding-loss] tr[encoding-loss]i/detail ph[encoding-loss]i; tablet b[encoding-loss]n [encoding-loss] tr[encoding-loss]n/detail d[encoding-loss][encoding-loss]i; mobile d[encoding-loss]ng bottom sheet. H[encoding-loss] tr[encoding-loss] Tab/Enter/Escape, focus trap, reduced motion, t[encoding-loss][encoding-loss]ng ph[encoding-loss]n WCAG AA v[encoding-loss] aria-label cho m[encoding-loss]i icon.
+Desktop dng bn đ tri/detail phi; tablet bn đ trn/detail di; mobile dng bottom sheet. H tr Tab/Enter/Escape, focus trap, reduced motion, tng phn WCAG AA v aria-label cho mi icon.
 
-## 15. H[encoding-loss] th[encoding-loss]ng h[encoding-loss]nh [encoding-loss]nh b[encoding-loss]n [encoding-loss]
+## 15. H thng hnh nh bn đ
 
-M[encoding-loss]i v[encoding-loss]ng c[encoding-loss] n[encoding-loss]n b[encoding-loss]n [encoding-loss] t[encoding-loss] l[encoding-loss] 2x, texture [encoding-loss]a h[encoding-loss]nh, icon node 24/32/48 px, icon edge, ph[encoding-loss][encoding-loss]ng ti[encoding-loss]n, incident, patrol, faction v[encoding-loss] [encoding-loss]nh node detail. Asset l[encoding-loss]i ph[encoding-loss]i c[encoding-loss] fallback SVG/CSS.
+Mi vng c nn bn đ t l 2x, texture đa hnh, icon node 24/32/48 px, icon edge, phng tin, incident, patrol, faction v nh node detail. Asset li phi c fallback SVG/CSS.
 
-- Node l[encoding-loss]n d[encoding-loss]ng landmark ri[encoding-loss]ng, kh[encoding-loss]ng d[encoding-loss]ng c[encoding-loss]ng icon v[encoding-loss]i tr[encoding-loss]m nh[encoding-loss].
-- Influence d[encoding-loss]ng gradient m[encoding-loss]m ph[encoding-loss]a sau nh[encoding-loss]n.
-- Edge nguy hi[encoding-loss]m d[encoding-loss]ng n[encoding-loss]t [encoding-loss]t; phong t[encoding-loss]a d[encoding-loss]ng g[encoding-loss]ch ch[encoding-loss]o; tu[encoding-loss]n tra d[encoding-loss]ng chuy[encoding-loss]n [encoding-loss]ng nh[encoding-loss].
-- T[encoding-loss] gi[encoding-loss]m m[encoding-loss]t [encoding-loss] icon khi zoom out; tooltip v[encoding-loss]n [encoding-loss]y [encoding-loss].
-- Ch[encoding-loss] render node trong viewport v[encoding-loss] node [encoding-loss] bi[encoding-loss]t; cache sprite theo v[encoding-loss]ng; kh[encoding-loss]ng ch[encoding-loss]y BFS m[encoding-loss]i frame.
-- M[encoding-loss]c ti[encoding-loss]u m[encoding-loss] panel <300 ms desktop v[encoding-loss] <800 ms thi[encoding-loss]t b[encoding-loss] t[encoding-loss]m trung.
+- Node ln dng landmark ring, khng dng cng icon vi trm nh.
+- Influence dng gradient mm pha sau nhn.
+- Edge nguy him dng nt đt; phong ta dng gch cho; tun tra dng chuyn đng nh.
+- T gim mt đ icon khi zoom out; tooltip vn đy đ.
+- Ch render node trong viewport v node đ bit; cache sprite theo vng; khng chy BFS mi frame.
+- Mc tiu m panel <300 ms desktop v <800 ms thit b tm trung.
 
-## 16. API b[encoding-loss] sung
+## 16. API b sung
 
 ```js
 resolveMapTopology(state, nodeId)
@@ -500,96 +507,96 @@ resolveMapIncident(state, incidentId, choiceId)
 setMapNote(state, nodeId, note)
 ```
 
-M[encoding-loss]i mutation tr[encoding-loss] `{ success, reason, data, transactionId, stateVersion }`. M[encoding-loss] l[encoding-loss]i k[encoding-loss] thu[encoding-loss]t ph[encoding-loss]i [encoding-loss][encoding-loss]c d[encoding-loss]ch sang ti[encoding-loss]ng Vi[encoding-loss]t [encoding-loss] UI.
+Mi mutation tr `{ success, reason, data, transactionId, stateVersion }`. M li k thut phi đc dch sang ting Vit  UI.
 
-## 17. Ki[encoding-loss]m th[encoding-loss] m[encoding-loss] r[encoding-loss]ng
+## 17. Kim th m rng
 
 ### Topology
 
-- Snapshot catalog tr[encoding-loss][encoding-loss]c/sau 10.000 l[encoding-loss][encoding-loss]t di chuy[encoding-loss]n kh[encoding-loss]ng [encoding-loss]i.
-- S[encoding-loss]n m[encoding-loss]n Thi[encoding-loss]n Huy[encoding-loss]n Th[encoding-loss]ng ch[encoding-loss] c[encoding-loss] [encoding-loss]ng c[encoding-loss]nh/gate [encoding-loss][encoding-loss]c khai b[encoding-loss]o.
-- Runtime gate v[encoding-loss][encoding-loss]t `maxChildren` b[encoding-loss] t[encoding-loss] ch[encoding-loss]i.
-- C[encoding-loss]nh m[encoding-loss]t chi[encoding-loss]u/chi[encoding-loss]u ng[encoding-loss][encoding-loss]c kh[encoding-loss]ng h[encoding-loss]p l[encoding-loss] b[encoding-loss] ph[encoding-loss]t hi[encoding-loss]n khi build data.
+- Snapshot catalog trc/sau 10.000 lt di chuyn khng đi.
+- Sn mn Thin Huyn Thng ch c đng cnh/gate đc khai bo.
+- Runtime gate vt `maxChildren` b t chi.
+- Cnh mt chiu/chiu ngc khng hp l b pht hin khi build data.
 
 ### Travel
 
-- M[encoding-loss]i transition tr[encoding-loss]ng th[encoding-loss]i h[encoding-loss]p l[encoding-loss]; transition sai b[encoding-loss] ch[encoding-loss]n.
-- Reload gi[encoding-loss]a `active/interrupted` kh[encoding-loss]i ph[encoding-loss]c [encoding-loss]ng ETA/risk seed.
-- Retry kh[encoding-loss]ng tr[encoding-loss] ti[encoding-loss]n, roll event ho[encoding-loss]c t[encoding-loss]o log l[encoding-loss]n hai.
-- Phong t[encoding-loss]a c[encoding-loss] [encoding-loss][encoding-loss]ng v[encoding-loss]ng; h[encoding-loss] t[encoding-loss]ng, thuy[encoding-loss]n, th[encoding-loss] c[encoding-loss][encoding-loss]i, caravan v[encoding-loss] truy[encoding-loss]n t[encoding-loss]ng c[encoding-loss] i[encoding-loss]u ki[encoding-loss]n ri[encoding-loss]ng.
+- Mi transition trng thi hp l; transition sai b chn.
+- Reload gia `active/interrupted` khi phc đng ETA/risk seed.
+- Retry khng tr tin, roll event hoc to log ln hai.
+- Phong ta c đng vng; h tng, thuyn, th ci, caravan v truyn tng c điu kin ring.
 
 ### Local interaction
 
-- Activity h[encoding-loss]t gi[encoding-loss]/cooldown kh[encoding-loss]ng v[encoding-loss]o Action Bar.
-- NPC v[encoding-loss]ng m[encoding-loss]t kh[encoding-loss]ng th[encoding-loss] t[encoding-loss][encoding-loss]ng t[encoding-loss]c.
-- Incident h[encoding-loss]t h[encoding-loss]n kh[encoding-loss]ng c[encoding-loss]n n[encoding-loss]t x[encoding-loss] l[encoding-loss].
-- Gi[encoding-loss] th[encoding-loss] tr[encoding-loss][encoding-loss]ng deterministic theo world tick.
-- Ghi ch[encoding-loss] kh[encoding-loss]ng l[encoding-loss]m l[encoding-loss] fog ho[encoding-loss]c s[encoding-loss]a graph.
+- Activity ht gi/cooldown khng vo Action Bar.
+- NPC vng mt khng th tng tc.
+- Incident ht hn khng cn nt x l.
+- Gi th trng deterministic theo world tick.
+- Ghi ch khng lm l fog hoc sa graph.
 
 ### Visual regression
 
 - Screenshot desktop 1440 px, tablet 1024 px, mobile 390 px.
-- Kh[encoding-loss]ng tr[encoding-loss]n ch[encoding-loss] ti[encoding-loss]ng Vi[encoding-loss]t, ch[encoding-loss]ng tooltip ho[encoding-loss]c m[encoding-loss]t focus.
-- Asset l[encoding-loss]i v[encoding-loss]n thao t[encoding-loss]c [encoding-loss][encoding-loss]c nh[encoding-loss] fallback.
+- Khng trn ch ting Vit, chng tooltip hoc mt focus.
+- Asset li vn thao tc đc nh fallback.
 
 ## 18. Definition of Done
 
-Feature ch[encoding-loss] ho[encoding-loss]n th[encoding-loss]nh khi topology static/runtime b[encoding-loss] kh[encoding-loss]a; Khu v[encoding-loss]c hi[encoding-loss]n t[encoding-loss]i c[encoding-loss] view model duy nh[encoding-loss]t; c[encoding-loss] node detail, sub-location, local activity, incident, faction interaction, NPC presence, route planner, edge state, travel state machine, preview, heatmap, patrol, outpost, fallback asset, save/load, rollback, idempotency v[encoding-loss] to[encoding-loss]n b[encoding-loss] nh[encoding-loss]n ti[encoding-loss]ng Vi[encoding-loss]t. Kh[encoding-loss]ng c[encoding-loss]n [encoding-loss][encoding-loss]ng n[encoding-loss]i ng[encoding-loss]m t[encoding-loss] S[encoding-loss]n m[encoding-loss]n Thi[encoding-loss]n Huy[encoding-loss]n Th[encoding-loss]ng ho[encoding-loss]c b[encoding-loss]t k[encoding-loss] node static n[encoding-loss]o.
-## 19. Logic Gap Closure  b[encoding-loss] sung b[encoding-loss]t bu[encoding-loss]c sau r[encoding-loss] so[encoding-loss]t
+Feature ch hon thnh khi topology static/runtime b kha; Khu vc hin ti c view model duy nht; c node detail, sub-location, local activity, incident, faction interaction, NPC presence, route planner, edge state, travel state machine, preview, heatmap, patrol, outpost, fallback asset, save/load, rollback, idempotency v ton b nhn ting Vit. Khng cn đng ni ngm t Sn mn Thin Huyn Thng hoc bt k node static no.
+## 19. Logic Gap Closure · b sung bt buc sau r sot
 
-### 19.1. Th[encoding-loss] t[encoding-loss] x[encoding-loss] l[encoding-loss] world tick
+### 19.1. Th t x l world tick
 
-World tick ph[encoding-loss]i ch[encoding-loss]y theo th[encoding-loss] t[encoding-loss] nguy[encoding-loss]n t[encoding-loss] sau, kh[encoding-loss]ng [encoding-loss][encoding-loss]c [encoding-loss]o th[encoding-loss] t[encoding-loss]:
+World tick phi chy theo th t nguyn t sau, khng đc đo th t:
 
 ```text
-1. Ch[encoding-loss]t gameDay/worldTick m[encoding-loss]i
-2. C[encoding-loss]p nh[encoding-loss]t th[encoding-loss]i ti[encoding-loss]t v[encoding-loss]ng v[encoding-loss] incident
-3. C[encoding-loss]p nh[encoding-loss]t topology runtime/edge state
-4. C[encoding-loss]p nh[encoding-loss]t NPC route, patrol v[encoding-loss] traffic
-5. C[encoding-loss]p nh[encoding-loss]t influence/heatmap t[encoding-loss] snapshot m[encoding-loss]i
-6. T[encoding-loss]nh maintenance outpost/structure
-7. Resolve travel task c[encoding-loss]a player
-8. Ph[encoding-loss]t sinh bulletin v[encoding-loss] invalidate view model
-9. Ghi snapshot/journal v[encoding-loss] ph[encoding-loss]t event UI
+1. Cht gameDay/worldTick mi
+2. Cp nht thi tit vng v incident
+3. Cp nht topology runtime/edge state
+4. Cp nht NPC route, patrol v traffic
+5. Cp nht influence/heatmap t snapshot mi
+6. Tnh maintenance outpost/structure
+7. Resolve travel task ca player
+8. Pht sinh bulletin v invalidate view model
+9. Ghi snapshot/journal v pht event UI
 ```
 
-M[encoding-loss]i resolver [encoding-loss]c c[encoding-loss]ng `tickSnapshot`; kh[encoding-loss]ng resolver n[encoding-loss]o [encoding-loss]c tr[encoding-loss]ng th[encoding-loss]i n[encoding-loss]a ci n[encoding-loss]a m[encoding-loss]i.
+Mi resolver đc cng `tickSnapshot`; khng resolver no đc trng thi na ci na mi.
 
-### 19.2. Quy t[encoding-loss]c xung [encoding-loss]t [encoding-loss]ng th[encoding-loss]i
+### 19.2. Quy tc xung đt đng thi
 
-M[encoding-loss]i node, edge v[encoding-loss] travel task c[encoding-loss] `stateVersion`. Mutation y[encoding-loss]u c[encoding-loss]u `expectedVersion`; n[encoding-loss]u l[encoding-loss]ch phi[encoding-loss]n b[encoding-loss]n tr[encoding-loss] `MAP_VERSION_CONFLICT`, kh[encoding-loss]ng t[encoding-loss] ghi [encoding-loss]. Khi nhi[encoding-loss]u incident c[encoding-loss]ng t[encoding-loss]c [encoding-loss]ng m[encoding-loss]t edge, [encoding-loss]u ti[encoding-loss]n `blocked > restricted > open`; khi nhi[encoding-loss]u weather modifier c[encoding-loss]ng lo[encoding-loss]i, d[encoding-loss]ng modifier c[encoding-loss] severity cao nh[encoding-loss]t.
+Mi node, edge v travel task c `stateVersion`. Mutation yu cu `expectedVersion`; nu lch phin bn tr `MAP_VERSION_CONFLICT`, khng t ghi đ. Khi nhiu incident cng tc đng mt edge, u tin `blocked > restricted > open`; khi nhiu weather modifier cng loi, dng modifier c severity cao nht.
 
 ### 19.3. Route invalidation
 
-N[encoding-loss]u edge trong `routeSnapshot` chuy[encoding-loss]n sang `blocked`, task ang `active` chuy[encoding-loss]n `interrupted` v[encoding-loss]i `reason`, kh[encoding-loss]ng teleport player. H[encoding-loss] th[encoding-loss]ng t[encoding-loss]o t[encoding-loss]i a ba ph[encoding-loss][encoding-loss]ng [encoding-loss]n: ch[encoding-loss] m[encoding-loss] l[encoding-loss]i, [encoding-loss][encoding-loss]ng v[encoding-loss]ng an to[encoding-loss]n, [encoding-loss]i ph[encoding-loss][encoding-loss]ng ti[encoding-loss]n/h[encoding-loss] t[encoding-loss]ng. N[encoding-loss]u kh[encoding-loss]ng c[encoding-loss] ph[encoding-loss][encoding-loss]ng [encoding-loss]n, chuy[encoding-loss]n `failed` v[encoding-loss] ho[encoding-loss]n tr[encoding-loss] ph[encoding-loss]n chi ph[encoding-loss] ch[encoding-loss]a s[encoding-loss] d[encoding-loss]ng theo policy.
+Nu edge trong `routeSnapshot` chuyn sang `blocked`, task đang `active` chuyn `interrupted` vi `reason`, khng teleport player. H thng to ti đa ba phng n: ch m li, đng vng an ton, đi phng tin/h tng. Nu khng c phng n, chuyn `failed` v hon tr phn chi ph cha s dng theo policy.
 
-### 19.4. M[encoding-loss] h[encoding-loss]nh risk minh b[encoding-loss]ch
+### 19.4. M hnh risk minh bch
 
 ```text
 edgeRisk = clamp(baseRisk + terrainRisk + weatherRisk + patrolRisk
                  + incidentRisk + factionRisk - escortReduction
                  - structureReduction, 0, 0.95)
-taskRisk = 1 - product(1 - edgeRisk_i)  // tr[encoding-loss]n to[encoding-loss]n b[encoding-loss] ch[encoding-loss]ng
+taskRisk = 1 - product(1 - edgeRisk_i)  // trn ton b chng
 ```
 
-UI hi[encoding-loss]n th[encoding-loss] d[encoding-loss]i `th[encoding-loss]p/v[encoding-loss]a/cao/c[encoding-loss]c cao`, c[encoding-loss]n log l[encoding-loss]u gi[encoding-loss] tr[encoding-loss] s[encoding-loss] v[encoding-loss] seed. Kh[encoding-loss]ng reroll risk khi ch[encoding-loss] m[encoding-loss] l[encoding-loss]i preview.
+UI hin th di `thp/va/cao/cc cao`, cn log lu gi tr s v seed. Khng reroll risk khi ch m li preview.
 
-### 19.5. Quy t[encoding-loss]c fog v[encoding-loss] ri[encoding-loss]ng t[encoding-loss]
+### 19.5. Quy tc fog v ring t
 
-- Fog 0 kh[encoding-loss]ng tr[encoding-loss] t[encoding-loss]n, t[encoding-loss]a [encoding-loss], faction, NPC, edge ho[encoding-loss]c risk c[encoding-loss] th[encoding-loss].
-- Fog 1 ch[encoding-loss] tr[encoding-loss] rumor [encoding-loss] [encoding-loss][encoding-loss]c ph[encoding-loss]t hi[encoding-loss]n; kh[encoding-loss]ng [encoding-loss][encoding-loss]c suy ng[encoding-loss][encoding-loss]c t[encoding-loss] danh s[encoding-loss]ch route.
-- API server/runtime ph[encoding-loss]i filter tr[encoding-loss][encoding-loss]c khi t[encoding-loss]o view model, kh[encoding-loss]ng ch[encoding-loss] [encoding-loss]n b[encoding-loss]ng CSS.
-- Cache view model theo `playerId + nodeId + fogVersion`; kh[encoding-loss]ng d[encoding-loss]ng chung gi[encoding-loss]a ng[encoding-loss][encoding-loss]i ch[encoding-loss]i.
+- Fog 0 khng tr tn, ta đ, faction, NPC, edge hoc risk c th.
+- Fog 1 ch tr rumor đ đc pht hin; khng đc suy ngc t danh sch route.
+- API server/runtime phi filter trc khi to view model, khng ch n bng CSS.
+- Cache view model theo `playerId + nodeId + fogVersion`; khng dng chung gia ngi chi.
 
-### 19.6. V[encoding-loss]ng [encoding-loss]i node runtime
+### 19.6. Vng đi node runtime
 
-Runtime node c[encoding-loss] `createdDay`, `expiresDay?`, `parentNodeId`, `gateId`, `generationSeed`, `status`. Khi h[encoding-loss]t h[encoding-loss]n, node chuy[encoding-loss]n `archived`, kh[encoding-loss]ng x[encoding-loss]a c[encoding-loss]ng n[encoding-loss]u c[encoding-loss]n log/quest. M[encoding-loss]i c[encoding-loss]nh tr[encoding-loss] t[encoding-loss]i node archived tr[encoding-loss] th[encoding-loss]nh `blocked/unknown`, kh[encoding-loss]ng t[encoding-loss] tr[encoding-loss] sang node kh[encoding-loss]c.
+Runtime node c `createdDay`, `expiresDay?`, `parentNodeId`, `gateId`, `generationSeed`, `status`. Khi ht hn, node chuyn `archived`, khng xa cng nu cn log/quest. Mi cnh tr ti node archived tr thnh `blocked/unknown`, khng t tr sang node khc.
 
-### 19.7. [encoding-loss]ng b[encoding-loss] travel v[encoding-loss]i v[encoding-loss] tr[encoding-loss] player
+### 19.7. Đng b travel vi v tr player
 
-Khi task `active`, `state.locationId` v[encoding-loss]n l[encoding-loss] node xu[encoding-loss]t ph[encoding-loss]t v[encoding-loss] `state.mapState.travelTask` l[encoding-loss] ngu[encoding-loss]n s[encoding-loss] th[encoding-loss]t duy nh[encoding-loss]t. Kh[encoding-loss]ng cho combat, giao d[encoding-loss]ch node [encoding-loss]ch ho[encoding-loss]c NPC interaction [encoding-loss]ch tr[encoding-loss][encoding-loss]c khi task completed. UI ph[encoding-loss]i hi[encoding-loss]n th[encoding-loss] ang tr[encoding-loss]n [encoding-loss][encoding-loss]ng v[encoding-loss] kh[encoding-loss]a action xung [encoding-loss]t.
+Khi task `active`, `state.locationId` vn l node xut pht v `state.mapState.travelTask` l ngun s tht duy nht. Khng cho combat, giao dch node đch hoc NPC interaction đch trc khi task completed. UI phi hin th đang trn đng v kha action xung đt.
 
-### 19.8. View model chu[encoding-loss]n cho UI
+### 19.8. View model chun cho UI
 
 ```ts
 CurrentRegionViewModel {
@@ -608,24 +615,24 @@ CurrentRegionViewModel {
 }
 ```
 
-UI ch[encoding-loss] render view model n[encoding-loss]y; kh[encoding-loss]ng g[encoding-loss]i tr[encoding-loss]c ti[encoding-loss]p catalog ho[encoding-loss]c t[encoding-loss] suy lu[encoding-loss]n i[encoding-loss]u ki[encoding-loss]n action.
+UI ch render view model ny; khng gi trc tip catalog hoc t suy lun điu kin action.
 
-### 19.9. B[encoding-loss]o v[encoding-loss] d[encoding-loss] li[encoding-loss]u v[encoding-loss] ch[encoding-loss]ng exploit
+### 19.9. Bo v d liu v chng exploit
 
-- Kh[encoding-loss]ng ho[encoding-loss]n ti[encoding-loss]n hai l[encoding-loss]n khi cancel/interruption.
-- Kh[encoding-loss]ng nh[encoding-loss]n reward n[encoding-loss]u task ch[encoding-loss]a completed.
-- Kh[encoding-loss]ng d[encoding-loss]ng fast travel [encoding-loss] b[encoding-loss] qua quest lock, combat lock ho[encoding-loss]c incident b[encoding-loss]t bu[encoding-loss]c.
-- Kh[encoding-loss]ng cho client t[encoding-loss] g[encoding-loss]i `risk`, `days`, `distance`, `owner` ho[encoding-loss]c `fogState`; server/runtime t[encoding-loss]nh l[encoding-loss]i.
-- Journal ph[encoding-loss]i l[encoding-loss]u before/after hash [encoding-loss] ph[encoding-loss]t hi[encoding-loss]n save b[encoding-loss] ch[encoding-loss]nh s[encoding-loss]a.
+- Khng hon tin hai ln khi cancel/interruption.
+- Khng nhn reward nu task cha completed.
+- Khng dng fast travel đ b qua quest lock, combat lock hoc incident bt buc.
+- Khng cho client t gi `risk`, `days`, `distance`, `owner` hoc `fogState`; server/runtime tnh li.
+- Journal phi lu before/after hash đ pht hin save b chnh sa.
 
-### 19.10. Acceptance b[encoding-loss] sung
+### 19.10. Acceptance b sung
 
-1. Hai mutation c[encoding-loss]ng `stateVersion` kh[encoding-loss]ng th[encoding-loss] c[encoding-loss]ng commit.
-2. Route b[encoding-loss] phong t[encoding-loss]a gi[encoding-loss]a ch[encoding-loss]ng lu[encoding-loss]n chuy[encoding-loss]n interruption, kh[encoding-loss]ng [encoding-loss]i `locationId` sai.
-3. Fog 0 kh[encoding-loss]ng r[encoding-loss] r[encoding-loss] metadata qua API, tooltip, DOM ho[encoding-loss]c cache.
-4. Runtime node h[encoding-loss]t h[encoding-loss]n kh[encoding-loss]ng l[encoding-loss]m m[encoding-loss]t log, quest ho[encoding-loss]c reference ci.
-5. CurrentRegionViewModel t[encoding-loss]i t[encoding-loss]o deterministic t[encoding-loss] c[encoding-loss]ng snapshot.
-6. Kh[encoding-loss]ng c[encoding-loss] action map n[encoding-loss]o commit m[encoding-loss] thi[encoding-loss]u preview t[encoding-loss][encoding-loss]ng [encoding-loss]ng.
+1. Hai mutation cng `stateVersion` khng th cng commit.
+2. Route b phong ta gia chng lun chuyn interruption, khng đi `locationId` sai.
+3. Fog 0 khng r r metadata qua API, tooltip, DOM hoc cache.
+4. Runtime node ht hn khng lm mt log, quest hoc reference ci.
+5. CurrentRegionViewModel ti to deterministic t cng snapshot.
+6. Khng c action map no commit m thiu preview tng ng.
 
 
 ### Source: `archive-requirements\logic-history\03-world\MAP_INFLUENCE_STRUCTURE_CANONICAL_2026-09-16.md`
@@ -699,78 +706,78 @@ Truyền Tống Trận dùng `type: "waystation"`, Hộ Giới Đại Trận dù
 
 # MAP OXY COORDINATE ARCHITECTURE REQUIREMENT
 
-## 1. M[encoding-loss]c ti[encoding-loss]u
+## 1. Mc tiu
 
-Map V2 chuy[encoding-loss]n sang m[encoding-loss] h[encoding-loss]nh kh[encoding-loss]ng gian Oxy l[encoding-loss]m ngu[encoding-loss]n s[encoding-loss] th[encoding-loss]t duy nh[encoding-loss]t cho to[encoding-loss]n b[encoding-loss] th[encoding-loss] gi[encoding-loss]i. M[encoding-loss]i node c[encoding-loss] m[encoding-loss]t t[encoding-loss]a [encoding-loss] nguy[encoding-loss]n `(x, y)`. T[encoding-loss] t[encoding-loss]a [encoding-loss] n[encoding-loss]y, engine x[encoding-loss]c [encoding-loss]nh b[encoding-loss]n h[encoding-loss][encoding-loss]ng B[encoding-loss]c, Nam, [encoding-loss]ng, T[encoding-loss]y v[encoding-loss] sinh node c[encoding-loss]n thi[encoding-loss]u m[encoding-loss]t c[encoding-loss]ch nh[encoding-loss]t qu[encoding-loss]n.
+Map V2 chuyn sang m hnh khng gian Oxy lm ngun s tht duy nht cho ton b th gii. Mi node c mt ta đ nguyn `(x, y)`. T ta đ ny, engine xc đnh bn hng Bc, Nam, Đng, Ty v sinh node cn thiu mt cch nht qun.
 
-Ki[encoding-loss]n tr[encoding-loss]c n[encoding-loss]y thay th[encoding-loss] vi[encoding-loss]c ph[encoding-loss] thu[encoding-loss]c v[encoding-loss]o `exits` th[encoding-loss] c[encoding-loss]ng, t[encoding-loss]a [encoding-loss] ph[encoding-loss]n trm UI ho[encoding-loss]c t[encoding-loss]n node ch[encoding-loss]a t[encoding-loss]a [encoding-loss] k[encoding-loss] thu[encoding-loss]t.
+Kin trc ny thay th vic ph thuc vo `exits` th cng, ta đ phn trm UI hoc tn node cha ta đ k thut.
 
-## 2. Nguy[encoding-loss]n t[encoding-loss]c b[encoding-loss]t bu[encoding-loss]c
+## 2. Nguyn tc bt buc
 
-### 2.1. Ph[encoding-loss]m vi kh[encoding-loss]ng gian 100 [encoding-loss] 100
+### 2.1. Phm vi khng gian 100  100
 
-- Th[encoding-loss] gi[encoding-loss]i d[encoding-loss]ng mi[encoding-loss]n t[encoding-loss]a [encoding-loss] `x  [-50,49]`, `y  [-50,49]`, t[encoding-loss]ng c[encoding-loss]ng 10.000 [encoding-loss] logic.
-- `(0,0)` l[encoding-loss] Thi[encoding-loss]n Nguy[encoding-loss]n S[encoding-loss]n t[encoding-loss]i Trung V[encoding-loss]c.
-- 150 t[encoding-loss] ch[encoding-loss]c [encoding-loss][encoding-loss]c [encoding-loss]t b[encoding-loss]ng random c[encoding-loss] seed, kh[encoding-loss]ng [encoding-loss]t th[encoding-loss] c[encoding-loss]ng s[encoding-loss]t nhau.
-- Kho[encoding-loss]ng c[encoding-loss]ch t[encoding-loss]i thi[encoding-loss]u gi[encoding-loss]a t[encoding-loss] ch[encoding-loss]c ph[encoding-loss] thu[encoding-loss]c `pyramid_tier`: Tier 1: 12 [encoding-loss], Tier 2: 8 [encoding-loss], Tier 3: 5 [encoding-loss], Tier 45: 3 [encoding-loss].
-- Random placement ph[encoding-loss]i deterministic theo world seed; reload ho[encoding-loss]c n[encoding-loss]ng phi[encoding-loss]n b[encoding-loss]n kh[encoding-loss]ng [encoding-loss][encoding-loss]c [encoding-loss]i t[encoding-loss]a [encoding-loss] [encoding-loss] l[encoding-loss]u.
-- Node hoang d[encoding-loss] v[encoding-loss] node ph[encoding-loss] [encoding-loss][encoding-loss]c sinh lazy; kh[encoding-loss]ng kh[encoding-loss]i t[encoding-loss]o 10.000 node khi load game.
-- UI chi[encoding-loss]u Oxy sang viewport ph[encoding-loss]n trm b[encoding-loss]ng min/max c[encoding-loss]a v[encoding-loss]ng ang xem, kh[encoding-loss]ng d[encoding-loss]ng ph[encoding-loss]n trm l[encoding-loss]m t[encoding-loss]a [encoding-loss] gameplay.
+- Th gii dng min ta đ `x  [-50,49]`, `y  [-50,49]`, tng cng 10.000  logic.
+- `(0,0)` l Thin Nguyn Sn ti Trung Vc.
+- 150 t chc đc đt bng random c seed, khng đt th cng st nhau.
+- Khong cch ti thiu gia t chc ph thuc `pyramid_tier`: Tier 1: 12 , Tier 2: 8 , Tier 3: 5 , Tier 45: 3 .
+- Random placement phi deterministic theo world seed; reload hoc nng phin bn khng đc đi ta đ đ lu.
+- Node hoang d v node ph đc sinh lazy; khng khi to 10.000 node khi load game.
+- UI chiu Oxy sang viewport phn trm bng min/max ca vng đang xem, khng dng phn trm lm ta đ gameplay.
 
-- `(0, 0)` l[encoding-loss] m[encoding-loss]c kh[encoding-loss]ng gian c[encoding-loss]a Trung V[encoding-loss]c, m[encoding-loss]c [encoding-loss]nh l[encoding-loss] Thi[encoding-loss]n Nguy[encoding-loss]n S[encoding-loss]n/Thi[encoding-loss]n Nguy[encoding-loss]n S[encoding-loss]n M[encoding-loss]n.
-- T[encoding-loss]a [encoding-loss] gameplay lu[encoding-loss]n l[encoding-loss] s[encoding-loss] nguy[encoding-loss]n c[encoding-loss] d[encoding-loss]u, [encoding-loss]c l[encoding-loss]p v[encoding-loss]i k[encoding-loss]ch th[encoding-loss][encoding-loss]c m[encoding-loss]n h[encoding-loss]nh.
-- M[encoding-loss]t c[encoding-loss]p t[encoding-loss]a [encoding-loss] ch[encoding-loss] [encoding-loss][encoding-loss]c ph[encoding-loss]p c[encoding-loss] m[encoding-loss]t node duy nh[encoding-loss]t.
-- Node t[encoding-loss] ch[encoding-loss]c, th[encoding-loss]nh tr[encoding-loss]n, ph[encoding-loss][encoding-loss]ng th[encoding-loss], th[encoding-loss]n, b[encoding-loss]n t[encoding-loss]u, tr[encoding-loss]m d[encoding-loss]ch, hoang d[encoding-loss] v[encoding-loss] runtime [encoding-loss]u d[encoding-loss]ng c[encoding-loss]ng h[encoding-loss] Oxy.
-- `exits` l[encoding-loss] cache d[encoding-loss]n [encoding-loss][encoding-loss]ng [encoding-loss][encoding-loss]c sinh t[encoding-loss] t[encoding-loss]a [encoding-loss], kh[encoding-loss]ng ph[encoding-loss]i ngu[encoding-loss]n s[encoding-loss] th[encoding-loss]t ch[encoding-loss]nh.
-- M[encoding-loss]i node h[encoding-loss]p l[encoding-loss] c[encoding-loss] t[encoding-loss]i a b[encoding-loss]n h[encoding-loss]ng x[encoding-loss]m tr[encoding-loss]c ti[encoding-loss]p theo Manhattan grid.
-- Kh[encoding-loss]ng d[encoding-loss]ng t[encoding-loss]n nh[encoding-loss] `Bng Nguy[encoding-loss]n -1` ho[encoding-loss]c `open_4_-7` [encoding-loss] hi[encoding-loss]n th[encoding-loss] cho ng[encoding-loss][encoding-loss]i ch[encoding-loss]i.
-- ID k[encoding-loss] thu[encoding-loss]t c[encoding-loss] th[encoding-loss] ch[encoding-loss]a t[encoding-loss]a [encoding-loss]; t[encoding-loss]n hi[encoding-loss]n th[encoding-loss] ph[encoding-loss]i l[encoding-loss]y t[encoding-loss] name pool theo v[encoding-loss]ng, [encoding-loss]a h[encoding-loss]nh v[encoding-loss] lo[encoding-loss]i node.
-- Quy[encoding-loss]n di chuy[encoding-loss]n t[encoding-loss]i node [encoding-loss]c l[encoding-loss]p v[encoding-loss]i quy[encoding-loss]n gia nh[encoding-loss]p t[encoding-loss] ch[encoding-loss]c.
+- `(0, 0)` l mc khng gian ca Trung Vc, mc đnh l Thin Nguyn Sn/Thin Nguyn Sn Mn.
+- Ta đ gameplay lun l s nguyn c du, đc lp vi kch thc mn hnh.
+- Mt cp ta đ ch đc php c mt node duy nht.
+- Node t chc, thnh trn, phng th, thn, bn tu, trm dch, hoang d v runtime đu dng cng h Oxy.
+- `exits` l cache dn đng đc sinh t ta đ, khng phi ngun s tht chnh.
+- Mi node hp l c ti đa bn hng xm trc tip theo Manhattan grid.
+- Khng dng tn nh `Bng Nguyn -1` hoc `open_4_-7` đ hin th cho ngi chi.
+- ID k thut c th cha ta đ; tn hin th phi ly t name pool theo vng, đa hnh v loi node.
+- Quyn di chuyn ti node đc lp vi quyn gia nhp t chc.
 
-## 3. H[encoding-loss] t[encoding-loss]a [encoding-loss]
+## 3. H ta đ
 
-### 3.3. Canonical h[encoding-loss]a node authored
+### 3.3. Canonical ha node authored
 
-- M[encoding-loss]i node authored hi[encoding-loss]n h[encoding-loss]u ph[encoding-loss]i [encoding-loss][encoding-loss]c g[encoding-loss]n `coordinate` tr[encoding-loss][encoding-loss]c khi gameplay b[encoding-loss]t [encoding-loss]u.
-- Khi node c[encoding-loss] `coordinate`, engine b[encoding-loss] qua `exits` legacy v[encoding-loss] sinh h[encoding-loss]ng x[encoding-loss]m theo Oxy.
-- `exits` legacy ch[encoding-loss] [encoding-loss][encoding-loss]c d[encoding-loss]ng trong migration ho[encoding-loss]c khi node ch[encoding-loss]a c[encoding-loss] t[encoding-loss]a [encoding-loss].
-- Node kh[encoding-loss]i [encoding-loss]u Trung V[encoding-loss]c l[encoding-loss] `trung_vuc_khoi_diem` t[encoding-loss]i `(0,0)`; kh[encoding-loss]ng kh[encoding-loss]i [encoding-loss]u t[encoding-loss]i c[encoding-loss]a t[encoding-loss]ng m[encoding-loss]n.
+- Mi node authored hin hu phi đc gn `coordinate` trc khi gameplay bt đu.
+- Khi node c `coordinate`, engine b qua `exits` legacy v sinh hng xm theo Oxy.
+- `exits` legacy ch đc dng trong migration hoc khi node cha c ta đ.
+- Node khi đu Trung Vc l `trung_vuc_khoi_diem` ti `(0,0)`; khng khi đu ti ca tng mn.
 
-### 3.1. Quy [encoding-loss][encoding-loss]c tr[encoding-loss]c
+### 3.1. Quy c trc
 
 ```text
-          B[encoding-loss]c (y + 1)
-               [encoding-loss]
-T[encoding-loss]y (x - 1) [encoding-loss] (x,y) [encoding-loss] [encoding-loss]ng (x + 1)
-               [encoding-loss]
+          Bc (y + 1)
+
+Ty (x - 1)  (x,y)  Đng (x + 1)
+
           Nam (y - 1)
 ```
 
-Kho[encoding-loss]ng c[encoding-loss]ch [encoding-loss]a h[encoding-loss]nh c[encoding-loss] b[encoding-loss]n d[encoding-loss]ng Manhattan distance:
+Khong cch đa hnh c bn dng Manhattan distance:
 
 ```js
 distance = Math.abs(ax - bx) + Math.abs(ay - by)
 ```
 
-Kho[encoding-loss]ng c[encoding-loss]ch hi[encoding-loss]n th[encoding-loss] c[encoding-loss] th[encoding-loss] d[encoding-loss]ng Euclidean, nh[encoding-loss]ng kh[encoding-loss]ng [encoding-loss][encoding-loss]c d[encoding-loss]ng Euclidean [encoding-loss] thay th[encoding-loss] lu[encoding-loss]t h[encoding-loss]ng x[encoding-loss]m gameplay.
+Khong cch hin th c th dng Euclidean, nhng khng đc dng Euclidean đ thay th lut hng xm gameplay.
 
-### 3.2. M[encoding-loss]c th[encoding-loss] gi[encoding-loss]i
+### 3.2. Mc th gii
 
 ```text
-(0, 0)  Thi[encoding-loss]n Nguy[encoding-loss]n S[encoding-loss]n  Trung V[encoding-loss]c
-(-1, 10) Thi[encoding-loss]n Ki[encoding-loss]m M[encoding-loss]n
-(4, -3)  Ph[encoding-loss][encoding-loss]ng th[encoding-loss] Thanh Kh[encoding-loss]
-(8, 6)   B[encoding-loss]n t[encoding-loss]u Tinh C[encoding-loss]ng
+(0, 0)  Thin Nguyn Sn · Trung Vc
+(-1, 10) Thin Kim Mn
+(4, -3)  Phng th Thanh Kh
+(8, 6)   Bn tu Tinh Cng
 ```
 
-C[encoding-loss]c t[encoding-loss]a [encoding-loss] n[encoding-loss]y l[encoding-loss] v[encoding-loss] d[encoding-loss] authoring; catalog ch[encoding-loss]nh th[encoding-loss]c ph[encoding-loss]i khai b[encoding-loss]o r[encoding-loss] `coordinate`.
+Cc ta đ ny l v d authoring; catalog chnh thc phi khai bo r `coordinate`.
 
-## 4. Schema node chu[encoding-loss]n
+## 4. Schema node chun
 
 ```js
 {
   id: "org_node_thien_kiem_mon",
-  name: "Thi[encoding-loss]n Ki[encoding-loss]m M[encoding-loss]n [encoding-loss] T[encoding-loss]ng [encoding-loss]n",
+  name: "Thin Kim Mn  Tng đn",
   coordinate: { x: -1, y: 10 },
   regionId: "trung_vuc",
   mapNodeType: "organization",
@@ -793,17 +800,17 @@ C[encoding-loss]c t[encoding-loss]a [encoding-loss] n[encoding-loss]y l[encodin
 }
 ```
 
-Quy t[encoding-loss]c:
+Quy tc:
 
-- `coordinate` b[encoding-loss]t bu[encoding-loss]c v[encoding-loss]i node authored v[encoding-loss] node runtime.
-- `regionId` x[encoding-loss]c [encoding-loss]nh v[encoding-loss]ng kh[encoding-loss] h[encoding-loss]u, th[encoding-loss]i ti[encoding-loss]t, influence v[encoding-loss] bulletin.
-- `mapNodeType` chu[encoding-loss]n h[encoding-loss]a: `origin`, `organization`, `market`, `town`, `village`, `harbor`, `waystation`, `wilderness`, `landmark`, `hidden_realm`.
-- `organizationId` ch[encoding-loss] c[encoding-loss] [encoding-loss] node t[encoding-loss] ch[encoding-loss]c ho[encoding-loss]c node b[encoding-loss] t[encoding-loss] ch[encoding-loss]c chi ph[encoding-loss]i; kh[encoding-loss]ng [encoding-loss]i di[encoding-loss]n cho t[encoding-loss] c[encoding-loss]ch th[encoding-loss]nh vi[encoding-loss]n c[encoding-loss]a nh[encoding-loss]n v[encoding-loss]t.
-- `npcs` v[encoding-loss] `enemies` l[encoding-loss] pool spawn ban [encoding-loss]u; runtime presence l[encoding-loss]u ri[encoding-loss]ng trong `npcState`/combat state.
+- `coordinate` bt buc vi node authored v node runtime.
+- `regionId` xc đnh vng kh hu, thi tit, influence v bulletin.
+- `mapNodeType` chun ha: `origin`, `organization`, `market`, `town`, `village`, `harbor`, `waystation`, `wilderness`, `landmark`, `hidden_realm`.
+- `organizationId` ch c  node t chc hoc node b t chc chi phi; khng đi din cho t cch thnh vin ca nhn vt.
+- `npcs` v `enemies` l pool spawn ban đu; runtime presence lu ring trong `npcState`/combat state.
 
-## 5. Node registry h[encoding-loss]p nh[encoding-loss]t
+## 5. Node registry hp nht
 
-`WORLD_MAP.nodePool` l[encoding-loss] registry [encoding-loss]c chung c[encoding-loss]a map, NPC, qu[encoding-loss]i, t[encoding-loss] ch[encoding-loss]c, th[encoding-loss]i ti[encoding-loss]t, th[encoding-loss]m hi[encoding-loss]m v[encoding-loss] incident.
+`WORLD_MAP.nodePool` l registry đc chung ca map, NPC, qui, t chc, thi tit, thm him v incident.
 
 ```js
 WORLD_MAP.nodePool[nodeId] = {
@@ -821,25 +828,25 @@ WORLD_MAP.nodePool[nodeId] = {
 };
 ```
 
-M[encoding-loss]i node ph[encoding-loss]i [encoding-loss]ng b[encoding-loss] v[encoding-loss]o:
+Mi node phi đng b vo:
 
-1. `GameData.LOCATIONS`  t[encoding-loss][encoding-loss]ng th[encoding-loss]ch h[encoding-loss] th[encoding-loss]ng ci.
-2. `state.openWorld.nodes`  runtime save.
-3. `state.openWorld.coordinates`  index t[encoding-loss]a [encoding-loss].
-4. `WORLD_MAP.locations`  projection UI.
-5. `WORLD_MAP.nodePool`  registry h[encoding-loss]p nh[encoding-loss]t.
+1. `GameData.LOCATIONS` · tng thch h thng ci.
+2. `state.openWorld.nodes` · runtime save.
+3. `state.openWorld.coordinates` · index ta đ.
+4. `WORLD_MAP.locations` · projection UI.
+5. `WORLD_MAP.nodePool` · registry hp nht.
 
-Kh[encoding-loss]ng subsystem n[encoding-loss]o [encoding-loss][encoding-loss]c t[encoding-loss] t[encoding-loss]o b[encoding-loss]n sao node ngo[encoding-loss]i registry.
+Khng subsystem no đc t to bn sao node ngoi registry.
 
-## 6. Index t[encoding-loss]a [encoding-loss] v[encoding-loss] ch[encoding-loss]ng tr[encoding-loss]ng
+## 6. Index ta đ v chng trng
 
-Engine ph[encoding-loss]i duy tr[encoding-loss] index:
+Engine phi duy tr index:
 
 ```js
 state.openWorld.coordinateIndex["x,y"] = nodeId;
 ```
 
-API b[encoding-loss]t bu[encoding-loss]c:
+API bt buc:
 
 ```js
 getNodeAtCoordinate(state, x, y)
@@ -849,11 +856,11 @@ neighborCoordinate(x, y, direction)
 validateCoordinateUniqueness(state)
 ```
 
-N[encoding-loss]u t[encoding-loss]a [encoding-loss] [encoding-loss] t[encoding-loss]n t[encoding-loss]i, `ensureNodeAtCoordinate()` tr[encoding-loss] node hi[encoding-loss]n t[encoding-loss]i v[encoding-loss] kh[encoding-loss]ng t[encoding-loss]o b[encoding-loss]n sao.
+Nu ta đ đ tn ti, `ensureNodeAtCoordinate()` tr node hin ti v khng to bn sao.
 
-## 7. Sinh node theo h[encoding-loss][encoding-loss]ng
+## 7. Sinh node theo hng
 
-### 7.1. Thu[encoding-loss]t to[encoding-loss]n
+### 7.1. Thut ton
 
 ```js
 function resolveDirectionalNode(state, fromId, direction) {
@@ -866,14 +873,14 @@ function resolveDirectionalNode(state, fromId, direction) {
 }
 ```
 
-### 7.2. Li[encoding-loss]n k[encoding-loss]t hai chi[encoding-loss]u
+### 7.2. Lin kt hai chiu
 
 ```text
-A --[encoding-loss]ng--> B
-B --T[encoding-loss]y--> A
+A --Đng--> B
+B --Ty--> A
 ```
 
-Kh[encoding-loss]ng [encoding-loss][encoding-loss]c ghi m[encoding-loss]t chi[encoding-loss]u. Sau m[encoding-loss]i mutation ph[encoding-loss]i ch[encoding-loss]y invariant:
+Khng đc ghi mt chiu. Sau mi mutation phi chy invariant:
 
 ```js
 assert(getExit(B, "tay") === A)
@@ -881,54 +888,54 @@ assert(getExit(B, "tay") === A)
 
 ### 7.3. Sinh pool
 
-Pool node [encoding-loss][encoding-loss]c ch[encoding-loss]n theo:
+Pool node đc chn theo:
 
-- V[encoding-loss]ng (`regionId`).
-- [encoding-loss]a h[encoding-loss]nh (`terrain`).
-- Kho[encoding-loss]ng c[encoding-loss]ch t[encoding-loss] m[encoding-loss]c `(0,0)`.
-- Th[encoding-loss]i ti[encoding-loss]t hi[encoding-loss]n t[encoding-loss]i.
-- Influence t[encoding-loss] ch[encoding-loss]c.
-- B[encoding-loss]ng t[encoding-loss] l[encoding-loss] NPC/qu[encoding-loss]i.
-- Tr[encoding-loss]ng th[encoding-loss]i incident ho[encoding-loss]c chi[encoding-loss]n tranh.
+- Vng (`regionId`).
+- Đa hnh (`terrain`).
+- Khong cch t mc `(0,0)`.
+- Thi tit hin ti.
+- Influence t chc.
+- Bng t l NPC/qui.
+- Trng thi incident hoc chin tranh.
 
-T[encoding-loss]n hi[encoding-loss]n th[encoding-loss] l[encoding-loss]y t[encoding-loss] pool t[encoding-loss] nhi[encoding-loss]n:
+Tn hin th ly t pool t nhin:
 
 ```js
 {
   regionId: "bac_nguyen",
   terrain: "ice_valley",
-  names: ["H[encoding-loss]n Nguy[encoding-loss]t C[encoding-loss]c", "Tuy[encoding-loss]t T[encoding-loss]m L[encoding-loss]", "Lam Bng [encoding-loss]i"]
+  names: ["Hn Nguyt Cc", "Tuyt Tm L", "Lam Bng Đi"]
 }
 ```
 
-Kh[encoding-loss]ng n[encoding-loss]i t[encoding-loss]a [encoding-loss] s[encoding-loss] v[encoding-loss]o `name` hi[encoding-loss]n th[encoding-loss].
+Khng ni ta đ s vo `name` hin th.
 
-## 8. Node authored v[encoding-loss] node runtime
+## 8. Node authored v node runtime
 
 ### Authored node
 
-L[encoding-loss] node thi[encoding-loss]t k[encoding-loss] s[encoding-loss]n cho c[encoding-loss]c [encoding-loss]a i[encoding-loss]m quan tr[encoding-loss]ng:
+L node thit k sn cho cc đa đim quan trng:
 
-- Thi[encoding-loss]n Nguy[encoding-loss]n S[encoding-loss]n.
-- T[encoding-loss]ng [encoding-loss]n t[encoding-loss] ch[encoding-loss]c.
-- 150 t[encoding-loss] ch[encoding-loss]c.
-- Th[encoding-loss]nh tr[encoding-loss]n, ph[encoding-loss][encoding-loss]ng th[encoding-loss], th[encoding-loss]n, b[encoding-loss]n t[encoding-loss]u, tr[encoding-loss]m d[encoding-loss]ch.
-- C[encoding-loss]m [encoding-loss]a, b[encoding-loss] c[encoding-loss]nh, h[encoding-loss]i c[encoding-loss]ng v[encoding-loss] landmark.
+- Thin Nguyn Sn.
+- Tng đn t chc.
+- 150 t chc.
+- Thnh trn, phng th, thn, bn tu, trm dch.
+- Cm đa, b cnh, hi cng v landmark.
 
 ### Runtime node
 
-[encoding-loss][encoding-loss]c sinh khi ng[encoding-loss][encoding-loss]i ch[encoding-loss]i ho[encoding-loss]c NPC m[encoding-loss] r[encoding-loss]ng th[encoding-loss] gi[encoding-loss]i. Runtime node ph[encoding-loss]i:
+Đc sinh khi ngi chi hoc NPC m rng th gii. Runtime node phi:
 
-- C[encoding-loss] t[encoding-loss]a [encoding-loss] h[encoding-loss]p l[encoding-loss].
-- C[encoding-loss] t[encoding-loss]n pool.
-- C[encoding-loss] region/terrain.
-- C[encoding-loss] NPC/qu[encoding-loss]i theo b[encoding-loss]ng spawn.
-- C[encoding-loss] li[encoding-loss]n k[encoding-loss]t ng[encoding-loss][encoding-loss]c.
-- [encoding-loss][encoding-loss]c l[encoding-loss]u v[encoding-loss]o registry h[encoding-loss]p nh[encoding-loss]t.
+- C ta đ hp l.
+- C tn pool.
+- C region/terrain.
+- C NPC/qui theo bng spawn.
+- C lin kt ngc.
+- Đc lu vo registry hp nht.
 
-## 9. T[encoding-loss] ch[encoding-loss]c v[encoding-loss] v[encoding-loss]ng [encoding-loss]nh h[encoding-loss][encoding-loss]ng
+## 9. T chc v vng nh hng
 
-M[encoding-loss]i t[encoding-loss] ch[encoding-loss]c c[encoding-loss] node t[encoding-loss]ng [encoding-loss]n ri[encoding-loss]ng:
+Mi t chc c node tng đn ring:
 
 ```js
 {
@@ -938,185 +945,185 @@ M[encoding-loss]i t[encoding-loss] ch[encoding-loss]c c[encoding-loss] node t[en
 }
 ```
 
-Di chuy[encoding-loss]n t[encoding-loss]i node t[encoding-loss] ch[encoding-loss]c kh[encoding-loss]ng y[encoding-loss]u c[encoding-loss]u gia nh[encoding-loss]p. Gia nh[encoding-loss]p ch[encoding-loss] [encoding-loss][encoding-loss]c ki[encoding-loss]m tra b[encoding-loss]i `guildEligibility()`/`joinGuild()`.
+Di chuyn ti node t chc khng yu cu gia nhp. Gia nhp ch đc kim tra bi `guildEligibility()`/`joinGuild()`.
 
-[encoding-loss]nh h[encoding-loss][encoding-loss]ng t[encoding-loss] ch[encoding-loss]c tr[encoding-loss]n node [encoding-loss][encoding-loss]c t[encoding-loss]nh [encoding-loss]c l[encoding-loss]p:
+nh hng t chc trn node đc tnh đc lp:
 
 ```js
 organizationCoverageSnapshot(state, nodeId)
 ```
 
-Coverage d[encoding-loss]a tr[encoding-loss]n:
+Coverage da trn:
 
-- Kho[encoding-loss]ng c[encoding-loss]ch Oxy t[encoding-loss]i t[encoding-loss]ng [encoding-loss]n.
-- C[encoding-loss]p t[encoding-loss] ch[encoding-loss]c.
-- T[encoding-loss]i nguy[encoding-loss]n v[encoding-loss] s[encoding-loss]c m[encoding-loss]nh.
-- Outpost/structure t[encoding-loss]i node.
-- Quan h[encoding-loss] ngo[encoding-loss]i giao.
-- Chi[encoding-loss]n tranh ho[encoding-loss]c phong t[encoding-loss]a.
+- Khong cch Oxy ti tng đn.
+- Cp t chc.
+- Ti nguyn v sc mnh.
+- Outpost/structure ti node.
+- Quan h ngoi giao.
+- Chin tranh hoc phong ta.
 
-Coverage kh[encoding-loss]ng l[encoding-loss]m m[encoding-loss]t li[encoding-loss]n k[encoding-loss]t di chuy[encoding-loss]n. Phong t[encoding-loss]a ch[encoding-loss] thay [encoding-loss]i risk, cost, encounter ho[encoding-loss]c ph[encoding-loss][encoding-loss]ng th[encoding-loss]c i.
+Coverage khng lm mt lin kt di chuyn. Phong ta ch thay đi risk, cost, encounter hoc phng thc đi.
 
-## 10. NPC v[encoding-loss] qu[encoding-loss]i v[encoding-loss]t
+## 10. NPC v qui vt
 
-NPC ph[encoding-loss]i d[encoding-loss]ng `currentNodeId` v[encoding-loss] t[encoding-loss]y ch[encoding-loss]n `currentSubLocationId`. Qu[encoding-loss]i ph[encoding-loss]i d[encoding-loss]ng `spawnNodeId`/`currentNodeId`.
+NPC phi dng `currentNodeId` v ty chn `currentSubLocationId`. Qui phi dng `spawnNodeId`/`currentNodeId`.
 
-Khi node [encoding-loss][encoding-loss]c sinh:
+Khi node đc sinh:
 
-1. Ch[encoding-loss]n NPC pool theo v[encoding-loss]ng v[encoding-loss] lo[encoding-loss]i node.
-2. Ch[encoding-loss]n qu[encoding-loss]i pool theo [encoding-loss]a h[encoding-loss]nh, danger v[encoding-loss] th[encoding-loss]i ti[encoding-loss]t.
-3. Ghi spawn record g[encoding-loss]n v[encoding-loss]i node ID.
-4. Cho NPC pathfinding tr[encoding-loss]n t[encoding-loss]a [encoding-loss] Oxy.
-5. Khi c[encoding-loss]nh b[encoding-loss] phong t[encoding-loss]a, t[encoding-loss]m [encoding-loss][encoding-loss]ng v[encoding-loss]ng b[encoding-loss]ng BFS/A* tr[encoding-loss]n node [encoding-loss] bi[encoding-loss]t.
+1. Chn NPC pool theo vng v loi node.
+2. Chn qui pool theo đa hnh, danger v thi tit.
+3. Ghi spawn record gn vi node ID.
+4. Cho NPC pathfinding trn ta đ Oxy.
+5. Khi cnh b phong ta, tm đng vng bng BFS/A* trn node đ bit.
 
-NPC kh[encoding-loss]ng [encoding-loss][encoding-loss]c xu[encoding-loss]t hi[encoding-loss]n t[encoding-loss]i node ch[encoding-loss]a c[encoding-loss] trong registry. Combat encounter ph[encoding-loss]i tham chi[encoding-loss]u node hi[encoding-loss]n t[encoding-loss]i, kh[encoding-loss]ng ch[encoding-loss] tham chi[encoding-loss]u region.
+NPC khng đc xut hin ti node cha c trong registry. Combat encounter phi tham chiu node hin ti, khng ch tham chiu region.
 
-## 11. Th[encoding-loss]i ti[encoding-loss]t v[encoding-loss] t[encoding-loss]a [encoding-loss]
+## 11. Thi tit v ta đ
 
-Th[encoding-loss]i ti[encoding-loss]t [encoding-loss][encoding-loss]c x[encoding-loss]c [encoding-loss]nh theo `regionId` c[encoding-loss]a node hi[encoding-loss]n t[encoding-loss]i. Khi node n[encoding-loss]m tr[encoding-loss]n ranh gi[encoding-loss]i, d[encoding-loss]ng climate zone c[encoding-loss]a node v[encoding-loss] gradient l[encoding-loss]n c[encoding-loss]n.
+Thi tit đc xc đnh theo `regionId` ca node hin ti. Khi node nm trn ranh gii, dng climate zone ca node v gradient ln cn.
 
-T[encoding-loss]a [encoding-loss] [encoding-loss]nh h[encoding-loss][encoding-loss]ng:
+Ta đ nh hng:
 
-- Th[encoding-loss]i gian i.
-- R[encoding-loss]i ro th[encoding-loss]i ti[encoding-loss]t.
-- T[encoding-loss] l[encoding-loss] NPC tr[encoding-loss] [encoding-loss]n.
-- T[encoding-loss] l[encoding-loss] qu[encoding-loss]i xu[encoding-loss]t hi[encoding-loss]n.
-- Kh[encoding-loss] nng th[encoding-loss]m hi[encoding-loss]m t[encoding-loss]i nguy[encoding-loss]n.
-- Kh[encoding-loss] nng m[encoding-loss] [encoding-loss][encoding-loss]ng bi[encoding-loss]n, n[encoding-loss]i ho[encoding-loss]c bng.
+- Thi gian đi.
+- Ri ro thi tit.
+- T l NPC tr n.
+- T l qui xut hin.
+- Kh nng thm him ti nguyn.
+- Kh nng m đng bin, ni hoc bng.
 
-Weather kh[encoding-loss]ng [encoding-loss][encoding-loss]c d[encoding-loss]ng [encoding-loss] x[encoding-loss]a node ho[encoding-loss]c x[encoding-loss]a li[encoding-loss]n k[encoding-loss]t; ch[encoding-loss] [encoding-loss]p d[encoding-loss]ng modifier v[encoding-loss] incident.
+Weather khng đc dng đ xa node hoc xa lin kt; ch p dng modifier v incident.
 
 ## 12. Movement contract
 
-`startTravel(fromId, toId, mode)` ph[encoding-loss]i:
+`startTravel(fromId, toId, mode)` phi:
 
-- X[encoding-loss]c nh[encoding-loss]n c[encoding-loss] hai node t[encoding-loss]n t[encoding-loss]i trong registry.
-- T[encoding-loss]nh Manhattan distance t[encoding-loss] coordinate.
-- T[encoding-loss]nh mode speed, weather modifier v[encoding-loss] terrain modifier.
-- Ki[encoding-loss]m tra combat/travel task ang ho[encoding-loss]t [encoding-loss]ng.
-- Ki[encoding-loss]m tra cost.
-- Kh[encoding-loss]ng ki[encoding-loss]m tra i[encoding-loss]u ki[encoding-loss]n gia nh[encoding-loss]p t[encoding-loss] ch[encoding-loss]c.
-- Ghi `fromCoordinate`, `toCoordinate`, `distance`, `mode`, `weather`, `risk` v[encoding-loss]o travel task.
+- Xc nhn c hai node tn ti trong registry.
+- Tnh Manhattan distance t coordinate.
+- Tnh mode speed, weather modifier v terrain modifier.
+- Kim tra combat/travel task đang hot đng.
+- Kim tra cost.
+- Khng kim tra điu kin gia nhp t chc.
+- Ghi `fromCoordinate`, `toCoordinate`, `distance`, `mode`, `weather`, `risk` vo travel task.
 
-N[encoding-loss]u ng[encoding-loss][encoding-loss]i ch[encoding-loss]i ch[encoding-loss]n action h[encoding-loss][encoding-loss]ng:
+Nu ngi chi chn action hng:
 
 ```text
-i B[encoding-loss]c / i Nam / i [encoding-loss]ng / i T[encoding-loss]y
+Đi Bc / Đi Nam / Đi Đng / Đi Ty
 ```
 
-engine ph[encoding-loss]i resolve node theo t[encoding-loss]a [encoding-loss] tr[encoding-loss][encoding-loss]c, sau [encoding-loss] g[encoding-loss]i c[encoding-loss]ng m[encoding-loss]t `startTravel()` canonical. Kh[encoding-loss]ng [encoding-loss][encoding-loss]c c[encoding-loss] m[encoding-loss]t logic ri[encoding-loss]ng ch[encoding-loss] [encoding-loss]c `LOCATIONS.exits` ci.
+engine phi resolve node theo ta đ trc, sau đ gi cng mt `startTravel()` canonical. Khng đc c mt logic ring ch đc `LOCATIONS.exits` ci.
 
 ## 13. UI projection
 
-Gameplay d[encoding-loss]ng t[encoding-loss]a [encoding-loss] Oxy; UI ch[encoding-loss] chi[encoding-loss]u sang ph[encoding-loss]n trm:
+Gameplay dng ta đ Oxy; UI ch chiu sang phn trm:
 
 ```js
 screenX = ((x - minX) / (maxX - minX)) * 100;
 screenY = 100 - ((y - minY) / (maxY - minY)) * 100;
 ```
 
-UI kh[encoding-loss]ng [encoding-loss][encoding-loss]c s[encoding-loss]a t[encoding-loss]a [encoding-loss] gameplay khi zoom/pan.
+UI khng đc sa ta đ gameplay khi zoom/pan.
 
-Hi[encoding-loss]n th[encoding-loss]:
+Hin th:
 
-- Node hi[encoding-loss]n t[encoding-loss]i: v[encoding-loss]ng duy nh[encoding-loss]t.
-- Ch[encoding-loss]nh [encoding-loss]o: xanh lam.
-- Ma [encoding-loss]o/T[encoding-loss] [encoding-loss]o/H[encoding-loss]c [encoding-loss]o: [encoding-loss] t[encoding-loss]m ho[encoding-loss]c [encoding-loss] s[encoding-loss]m.
-- Trung l[encoding-loss]p: t[encoding-loss]m x[encoding-loss]m.
-- Ph[encoding-loss][encoding-loss]ng th[encoding-loss]: v[encoding-loss]ng cam.
-- Th[encoding-loss]nh tr[encoding-loss]n: xanh lam nh[encoding-loss]t.
-- Th[encoding-loss]n: xanh l[encoding-loss]c.
-- B[encoding-loss]n t[encoding-loss]u: xanh ng[encoding-loss]c.
-- Tr[encoding-loss]m d[encoding-loss]ch: t[encoding-loss]m s[encoding-loss]ng.
-- [encoding-loss] th[encoding-loss]m hi[encoding-loss]m: hi[encoding-loss]n th[encoding-loss] t[encoding-loss]n v[encoding-loss] marker.
-- Ch[encoding-loss]a th[encoding-loss]m hi[encoding-loss]m: ch[encoding-loss] hi[encoding-loss]n th[encoding-loss] tr[encoding-loss]ng th[encoding-loss]i, kh[encoding-loss]ng l[encoding-loss] NPC/qu[encoding-loss]i/c[encoding-loss] duy[encoding-loss]n.
+- Node hin ti: vng duy nht.
+- Chnh đo: xanh lam.
+- Ma đo/T đo/Hc đo: đ tm hoc đ sm.
+- Trung lp: tm xm.
+- Phng th: vng cam.
+- Thnh trn: xanh lam nht.
+- Thn: xanh lc.
+- Bn tu: xanh ngc.
+- Trm dch: tm sng.
+- Đ thm him: hin th tn v marker.
+- Cha thm him: ch hin th trng thi, khng l NPC/qui/c duyn.
 
-Zoom/pan/reset ch[encoding-loss] t[encoding-loss]c [encoding-loss]ng l[encoding-loss]p projection node, kh[encoding-loss]ng thay [encoding-loss]i registry.
+Zoom/pan/reset ch tc đng lp projection node, khng thay đi registry.
 
-## 14. Migration t[encoding-loss] h[encoding-loss] th[encoding-loss]ng hi[encoding-loss]n t[encoding-loss]i
+## 14. Migration t h thng hin ti
 
-### B[encoding-loss][encoding-loss]c 1  Chu[encoding-loss]n h[encoding-loss]a catalog
+### Bc 1 · Chun ha catalog
 
-- G[encoding-loss]n t[encoding-loss]a [encoding-loss] Oxy cho to[encoding-loss]n b[encoding-loss] node static.
-- Chuy[encoding-loss]n t[encoding-loss]a [encoding-loss] t[encoding-loss] ch[encoding-loss]c ph[encoding-loss]n trm th[encoding-loss]nh t[encoding-loss]a [encoding-loss] Oxy authoring.
-- G[encoding-loss]n `mapNodeType` v[encoding-loss] `terrain`.
-- T[encoding-loss]o `coordinateIndex` v[encoding-loss] ph[encoding-loss]t hi[encoding-loss]n tr[encoding-loss]ng.
+- Gn ta đ Oxy cho ton b node static.
+- Chuyn ta đ t chc phn trm thnh ta đ Oxy authoring.
+- Gn `mapNodeType` v `terrain`.
+- To `coordinateIndex` v pht hin trng.
 
-### B[encoding-loss][encoding-loss]c 2  [encoding-loss]ng b[encoding-loss] save ci
+### Bc 2 · Đng b save ci
 
-- Save c[encoding-loss] `openWorld.coordinates` gi[encoding-loss] nguy[encoding-loss]n n[encoding-loss]u h[encoding-loss]p l[encoding-loss].
-- Save thi[encoding-loss]u t[encoding-loss]a [encoding-loss] static [encoding-loss][encoding-loss]c map t[encoding-loss] b[encoding-loss]ng migration c[encoding-loss] [encoding-loss]nh.
-- Save c[encoding-loss] node t[encoding-loss]n t[encoding-loss]a [encoding-loss] ci [encoding-loss][encoding-loss]c [encoding-loss]i t[encoding-loss]n hi[encoding-loss]n th[encoding-loss] nh[encoding-loss]ng gi[encoding-loss] nguy[encoding-loss]n ID.
-- Kh[encoding-loss]ng t[encoding-loss] [encoding-loss]ng x[encoding-loss]a node ho[encoding-loss]c reset `visitedLocations`.
+- Save c `openWorld.coordinates` gi nguyn nu hp l.
+- Save thiu ta đ static đc map t bng migration c đnh.
+- Save c node tn ta đ ci đc đi tn hin th nhng gi nguyn ID.
+- Khng t đng xa node hoc reset `visitedLocations`.
 
-### B[encoding-loss][encoding-loss]c 3  Canonical movement
+### Bc 3 · Canonical movement
 
-- H[encoding-loss][encoding-loss]ng ci g[encoding-loss]i `resolveDirectionalNode()`.
-- Click node g[encoding-loss]i `startTravel()`.
-- X[encoding-loss]a c[encoding-loss]c nh[encoding-loss]nh movement t[encoding-loss] [encoding-loss]c `exits` m[encoding-loss] kh[encoding-loss]ng qua coordinate resolver.
+- Hng ci gi `resolveDirectionalNode()`.
+- Click node gi `startTravel()`.
+- Xa cc nhnh movement t đc `exits` m khng qua coordinate resolver.
 
-### B[encoding-loss][encoding-loss]c 4  [encoding-loss]ng b[encoding-loss] NPC/qu[encoding-loss]i
+### Bc 4 · Đng b NPC/qui
 
-- Chuy[encoding-loss]n m[encoding-loss]i `currentNodeId` v[encoding-loss] node registry.
-- B[encoding-loss] sung fallback cho NPC save ci.
-- Ch[encoding-loss]y repair reciprocal links sau load.
+- Chuyn mi `currentNodeId` v node registry.
+- B sung fallback cho NPC save ci.
+- Chy repair reciprocal links sau load.
 
-## 15. Invariants v[encoding-loss] ki[encoding-loss]m th[encoding-loss]
+## 15. Invariants v kim th
 
-B[encoding-loss]t bu[encoding-loss]c c[encoding-loss] test:
+Bt buc c test:
 
-1. M[encoding-loss]i node c[encoding-loss] t[encoding-loss]a [encoding-loss] h[encoding-loss]p l[encoding-loss].
-2. Kh[encoding-loss]ng c[encoding-loss] t[encoding-loss]a [encoding-loss] tr[encoding-loss]ng.
-3. B[encoding-loss]c/Nam v[encoding-loss] [encoding-loss]ng/T[encoding-loss]y [encoding-loss]i x[encoding-loss]ng.
-4. T[encoding-loss] `(0,0)` i b[encoding-loss]n h[encoding-loss][encoding-loss]ng t[encoding-loss]o [encoding-loss]ng b[encoding-loss]n t[encoding-loss]a [encoding-loss].
-5. Node runtime kh[encoding-loss]ng c[encoding-loss] t[encoding-loss]n t[encoding-loss]a [encoding-loss] k[encoding-loss] thu[encoding-loss]t.
-6. 150 node t[encoding-loss] ch[encoding-loss]c [encoding-loss]u c[encoding-loss] t[encoding-loss]a [encoding-loss] v[encoding-loss] node ri[encoding-loss]ng.
-7. M[encoding-loss]i node th[encoding-loss]nh tr[encoding-loss]n/ph[encoding-loss][encoding-loss]ng th[encoding-loss]/th[encoding-loss]n/b[encoding-loss]n t[encoding-loss]u/tr[encoding-loss]m d[encoding-loss]ch c[encoding-loss] `mapNodeType` [encoding-loss]ng.
-8. Node ch[encoding-loss]a kh[encoding-loss]m ph[encoding-loss] kh[encoding-loss]ng l[encoding-loss] NPC/qu[encoding-loss]i/c[encoding-loss] duy[encoding-loss]n.
-9. NPC v[encoding-loss] qu[encoding-loss]i lu[encoding-loss]n tham chi[encoding-loss]u node t[encoding-loss]n t[encoding-loss]i.
-10. Phong t[encoding-loss]a kh[encoding-loss]ng x[encoding-loss]a li[encoding-loss]n k[encoding-loss]t, ch[encoding-loss] t[encoding-loss]o modifier.
-11. Di chuy[encoding-loss]n t[encoding-loss]i node t[encoding-loss] ch[encoding-loss]c kh[encoding-loss]ng y[encoding-loss]u c[encoding-loss]u membership.
-12. Gia nh[encoding-loss]p t[encoding-loss] ch[encoding-loss]c v[encoding-loss]n ki[encoding-loss]m tra eligibility ri[encoding-loss]ng.
-13. Zoom/pan kh[encoding-loss]ng thay [encoding-loss]i coordinate.
-14. Save/load gi[encoding-loss] nguy[encoding-loss]n t[encoding-loss]a [encoding-loss] v[encoding-loss] visited state.
-15. T[encoding-loss] m[encoding-loss]i node test c[encoding-loss] th[encoding-loss] resolve B[encoding-loss]c/Nam/[encoding-loss]ng/T[encoding-loss]y.
+1. Mi node c ta đ hp l.
+2. Khng c ta đ trng.
+3. Bc/Nam v Đng/Ty đi xng.
+4. T `(0,0)` đi bn hng to đng bn ta đ.
+5. Node runtime khng c tn ta đ k thut.
+6. 150 node t chc đu c ta đ v node ring.
+7. Mi node thnh trn/phng th/thn/bn tu/trm dch c `mapNodeType` đng.
+8. Node cha khm ph khng l NPC/qui/c duyn.
+9. NPC v qui lun tham chiu node tn ti.
+10. Phong ta khng xa lin kt, ch to modifier.
+11. Di chuyn ti node t chc khng yu cu membership.
+12. Gia nhp t chc vn kim tra eligibility ring.
+13. Zoom/pan khng thay đi coordinate.
+14. Save/load gi nguyn ta đ v visited state.
+15. T mi node test c th resolve Bc/Nam/Đng/Ty.
 
-## 16. Ti[encoding-loss]u ch[encoding-loss] ho[encoding-loss]n th[encoding-loss]nh
+## 16. Tiu ch hon thnh
 
-## 16.1. Bi[encoding-loss]n v[encoding-loss]c v[encoding-loss] node r[encoding-loss]a
+## 16.1. Bin vc v node ra
 
-## 16.3. M[encoding-loss] h[encoding-loss]nh hi[encoding-loss]n th[encoding-loss] k[encoding-loss]t h[encoding-loss]p
+## 16.3. M hnh hin th kt hp
 
-- Gameplay gi[encoding-loss] h[encoding-loss] Oxy 100[encoding-loss]100; UI kh[encoding-loss]ng thay [encoding-loss]i t[encoding-loss]a [encoding-loss] gameplay khi zoom ho[encoding-loss]c pan.
-- V[encoding-loss]n Gi[encoding-loss]i L[encoding-loss] d[encoding-loss]ng canvas viewport l[encoding-loss]n (t[encoding-loss]i thi[encoding-loss]u 620px, t[encoding-loss]i a theo chi[encoding-loss]u cao m[encoding-loss]n h[encoding-loss]nh) thay v[encoding-loss] nh[encoding-loss]i to[encoding-loss]n b[encoding-loss] node v[encoding-loss]o khung nh[encoding-loss].
-- C[encoding-loss] b[encoding-loss]n m[encoding-loss]c zoom: To[encoding-loss]n c[encoding-loss]nh, V[encoding-loss]ng, Khu v[encoding-loss]c, Node. Zoom ch[encoding-loss] thay [encoding-loss]i projection v[encoding-loss] m[encoding-loss]t [encoding-loss] hi[encoding-loss]n th[encoding-loss].
-- Zoom xa ch[encoding-loss] hi[encoding-loss]n region, t[encoding-loss] ch[encoding-loss]c c[encoding-loss]p cao v[encoding-loss] node l[encoding-loss]n; zoom g[encoding-loss]n m[encoding-loss]i hi[encoding-loss]n t[encoding-loss] ch[encoding-loss]c c[encoding-loss]p th[encoding-loss]p, node d[encoding-loss]n c[encoding-loss], NPC, qu[encoding-loss]i v[encoding-loss] c[encoding-loss] duy[encoding-loss]n.
-- Node ngo[encoding-loss]i viewport ph[encoding-loss]i [encoding-loss][encoding-loss]c culling kh[encoding-loss]i DOM; node g[encoding-loss]n nhau [encoding-loss][encoding-loss]c gom cluster v[encoding-loss] t[encoding-loss]ch ra khi zoom v[encoding-loss]o.
-- Layer UI cho ph[encoding-loss]p b[encoding-loss]t/t[encoding-loss]t t[encoding-loss] ch[encoding-loss]c, node d[encoding-loss]n c[encoding-loss], NPC, qu[encoding-loss]i, c[encoding-loss] duy[encoding-loss]n, influence v[encoding-loss] tuy[encoding-loss]n th[encoding-loss][encoding-loss]ng m[encoding-loss]i.
-- Nh[encoding-loss]n t[encoding-loss] ch[encoding-loss]c c[encoding-loss]p th[encoding-loss]p ch[encoding-loss] hi[encoding-loss]n khi hover; nh[encoding-loss]n c[encoding-loss]p cao c[encoding-loss] th[encoding-loss] hi[encoding-loss]n th[encoding-loss] m[encoding-loss] [encoding-loss] zoom V[encoding-loss]ng.
+- Gameplay gi h Oxy 100100; UI khng thay đi ta đ gameplay khi zoom hoc pan.
+- Vn Gii L dng canvas viewport ln (ti thiu 620px, ti đa theo chiu cao mn hnh) thay v nhi ton b node vo khung nh.
+- C bn mc zoom: Ton cnh, Vng, Khu vc, Node. Zoom ch thay đi projection v mt đ hin th.
+- Zoom xa ch hin region, t chc cp cao v node ln; zoom gn mi hin t chc cp thp, node dn c, NPC, qui v c duyn.
+- Node ngoi viewport phi đc culling khi DOM; node gn nhau đc gom cluster v tch ra khi zoom vo.
+- Layer UI cho php bt/tt t chc, node dn c, NPC, qui, c duyn, influence v tuyn thng mi.
+- Nhn t chc cp thp ch hin khi hover; nhn cp cao c th hin th m  zoom Vng.
 
-- Node c[encoding-loss] `max(abs(x), abs(y)) >= 45` [encoding-loss][encoding-loss]c [encoding-loss]nh d[encoding-loss]u `isEdge`.
-- Khu v[encoding-loss]c r[encoding-loss]a kh[encoding-loss]ng ph[encoding-loss]i t[encoding-loss][encoding-loss]ng ch[encoding-loss]n; [encoding-loss]y l[encoding-loss] v[encoding-loss]ng m[encoding-loss] r[encoding-loss]ng c[encoding-loss]a th[encoding-loss] gi[encoding-loss]i.
-- UI ph[encoding-loss]i hi[encoding-loss]n th[encoding-loss] th[encoding-loss]ng b[encoding-loss]o bi[encoding-loss]n v[encoding-loss]c v[encoding-loss] b[encoding-loss]n action: Th[encoding-loss]m hi[encoding-loss]m bi[encoding-loss]n v[encoding-loss]c, D[encoding-loss]ng tr[encoding-loss]m ti[encoding-loss]n ti[encoding-loss]u, Xin h[encoding-loss] t[encoding-loss]ng qua bi[encoding-loss]n, M[encoding-loss] tuy[encoding-loss]n th[encoding-loss][encoding-loss]ng m[encoding-loss]i.
-- Action r[encoding-loss]a d[encoding-loss]ng transaction contract, c[encoding-loss] cost/risk/incident ri[encoding-loss]ng v[encoding-loss] kh[encoding-loss]ng x[encoding-loss]a li[encoding-loss]n k[encoding-loss]t b[encoding-loss]n h[encoding-loss][encoding-loss]ng.
+- Node c `max(abs(x), abs(y)) >= 45` đc đnh du `isEdge`.
+- Khu vc ra khng phi tng chn; đy l vng m rng ca th gii.
+- UI phi hin th thng bo bin vc v bn action: Thm him bin vc, Dng trm tin tiu, Xin h tng qua bin, M tuyn thng mi.
+- Action ra dng transaction contract, c cost/risk/incident ring v khng xa lin kt bn hng.
 
-## 16.2. Pool d[encoding-loss] li[encoding-loss]u b[encoding-loss]n [encoding-loss]
+## 16.2. Pool d liu bn đ
 
-- `WORLD_MAP.nodePools` ch[encoding-loss]a pool t[encoding-loss]n, terrain v[encoding-loss] lo[encoding-loss]i node.
-- `WORLD_MAP.coordinateSystem` khai b[encoding-loss]o mi[encoding-loss]n `[-50,49]` v[encoding-loss] origin.
-- `WORLD_MAP.edgeActions` khai b[encoding-loss]o action [encoding-loss][encoding-loss]c ph[encoding-loss]p [encoding-loss] node r[encoding-loss]a.
-- Pool [encoding-loss][encoding-loss]c d[encoding-loss]ng chung b[encoding-loss]i authored node, runtime node, NPC, qu[encoding-loss]i, t[encoding-loss] ch[encoding-loss]c, weather v[encoding-loss] exploration.
+- `WORLD_MAP.nodePools` cha pool tn, terrain v loi node.
+- `WORLD_MAP.coordinateSystem` khai bo min `[-50,49]` v origin.
+- `WORLD_MAP.edgeActions` khai bo action đc php  node ra.
+- Pool đc dng chung bi authored node, runtime node, NPC, qui, t chc, weather v exploration.
 
-Feature [encoding-loss]t 100% khi:
+Feature đt 100% khi:
 
-- T[encoding-loss]t c[encoding-loss] node static v[encoding-loss] runtime d[encoding-loss]ng Oxy.
-- `exits` ch[encoding-loss] l[encoding-loss] cache [encoding-loss][encoding-loss]c sinh t[encoding-loss] [encoding-loss]ng.
-- Kh[encoding-loss]ng c[encoding-loss]n node b[encoding-loss] k[encoding-loss]t ch[encoding-loss] v[encoding-loss] thi[encoding-loss]u m[encoding-loss]t h[encoding-loss][encoding-loss]ng trong catalog.
-- Kh[encoding-loss]ng c[encoding-loss]n t[encoding-loss]n node hi[encoding-loss]n th[encoding-loss] d[encoding-loss]ng t[encoding-loss]a [encoding-loss] s[encoding-loss].
-- 150 t[encoding-loss] ch[encoding-loss]c, th[encoding-loss]nh tr[encoding-loss]n v[encoding-loss] c[encoding-loss]c node ph[encoding-loss] n[encoding-loss]m trong c[encoding-loss]ng node pool.
-- NPC, qu[encoding-loss]i, th[encoding-loss]i ti[encoding-loss]t, t[encoding-loss] ch[encoding-loss]c, th[encoding-loss]m hi[encoding-loss]m v[encoding-loss] incident [encoding-loss]c c[encoding-loss]ng node registry.
-- Movement action, click node v[encoding-loss] NPC pathfinding d[encoding-loss]ng c[encoding-loss]ng resolver.
-- Save migration v[encoding-loss] invariant tests [encoding-loss]u pass.
+- Tt c node static v runtime dng Oxy.
+- `exits` ch l cache đc sinh t đng.
+- Khng cn node b kt ch v thiu mt hng trong catalog.
+- Khng cn tn node hin th dng ta đ s.
+- 150 t chc, thnh trn v cc node ph nm trong cng node pool.
+- NPC, qui, thi tit, t chc, thm him v incident đc cng node registry.
+- Movement action, click node v NPC pathfinding dng cng resolver.
+- Save migration v invariant tests đu pass.
 
 
 ### Source: `archive-requirements\logic-history\03-world\MAP_STAR_TOPOLOGY_AND_REGIONAL_SPAWN_2026-09-17.md`
@@ -1494,34 +1501,34 @@ Engine hiện vận hành bản đồ như một đồ thị mở vô hạn thay
 
 ### Source: `archive-requirements\logic-history\03-world\MAP_SYSTEM_V2_COMPLETE.md`
 
-# MAP SYSTEM V2  THI[encoding-loss]T K[encoding-loss] TO[encoding-loss]N DI[encoding-loss]N CHO OPEN WORLD TH[encoding-loss]C S[encoding-loss]
-> Thay th[encoding-loss]/h[encoding-loss]p nh[encoding-loss]t `MAP_SYSTEM.md` + ph[encoding-loss]n b[encoding-loss]n [encoding-loss] trong `WORLD_INTERCONNECTION_SYSTEM.md` m[encoding-loss]c 1-4.
-> V[encoding-loss]n [encoding-loss] c[encoding-loss]t l[encoding-loss]i c[encoding-loss]n s[encoding-loss]a: b[encoding-loss]n [encoding-loss] hi[encoding-loss]n t[encoding-loss]i v[encoding-loss]n l[encoding-loss] "node-graph c[encoding-loss] sinh procedural" nh[encoding-loss]ng C[encoding-loss]M GI[encoding-loss]C nh[encoding-loss]
-> danh s[encoding-loss]ch h[encoding-loss]p n[encoding-loss]i nhau, kh[encoding-loss]ng ph[encoding-loss]i th[encoding-loss] gi[encoding-loss]i s[encoding-loss]ng  th[encoding-loss] l[encoding-loss]c kh[encoding-loss]ng th[encoding-loss]t s[encoding-loss] "chi[encoding-loss]m kh[encoding-loss]ng gian", ng[encoding-loss][encoding-loss]i
-> ch[encoding-loss]i kh[encoding-loss]ng c[encoding-loss] c[encoding-loss]ng c[encoding-loss] [encoding-loss]nh h[encoding-loss]nh b[encoding-loss]n [encoding-loss], di chuy[encoding-loss]n kh[encoding-loss]ng c[encoding-loss] tr[encoding-loss]ng l[encoding-loss][encoding-loss]ng.
+# MAP SYSTEM V2 · THIT K TON DIN CHO OPEN WORLD THC S
+> Thay th/hp nht `MAP_SYSTEM.md` + phn bn đ trong `WORLD_INTERCONNECTION_SYSTEM.md` mc 1-4.
+> Vn đ ct li cn sa: bn đ hin ti vn l "node-graph c sinh procedural" nhng CM GIC nh
+> danh sch hp ni nhau, khng phi th gii sng · th lc khng tht s "chim khng gian", ngi
+> chi khng c cng c đnh hnh bn đ, di chuyn khng c trng lng.
 
 ---
 
-## 1. KI[encoding-loss]N TR[encoding-loss]C 4 L[encoding-loss]P B[encoding-loss]N [encoding-loss] (thay v[encoding-loss] 1 l[encoding-loss]p node-graph ph[encoding-loss]ng)
+## 1. KIN TRC 4 LP BN Đ (thay v 1 lp node-graph phng)
 
 ```
-L[encoding-loss]p 1  TH[encoding-loss] GI[encoding-loss]I (World Map):     t[encoding-loss]ng quan to[encoding-loss]n v[encoding-loss]ng, hi[encoding-loss]n v[encoding-loss]ng [encoding-loss]nh h[encoding-loss][encoding-loss]ng Faction d[encoding-loss]ng heatmap,
-                                    d[encoding-loss]ng [encoding-loss] l[encoding-loss]n k[encoding-loss] ho[encoding-loss]ch di chuy[encoding-loss]n xa, KH[encoding-loss]NG hi[encoding-loss]n chi ti[encoding-loss]t t[encoding-loss]ng node
-L[encoding-loss]p 2  V[encoding-loss]NG (Regional Map):       ch[encoding-loss]nh l[encoding-loss] node-graph hi[encoding-loss]n c[encoding-loss] (grid t[encoding-loss]a [encoding-loss] x,y t[encoding-loss] MAP_SYSTEM.md 6),
-                                    [encoding-loss]y l[encoding-loss] l[encoding-loss]p ch[encoding-loss]i ch[encoding-loss]nh h[encoding-loss]ng ng[encoding-loss]y
-L[encoding-loss]p 3  [encoding-loss]A I[encoding-loss]M (Node Detail):    M[encoding-loss]I  b[encoding-loss]m v[encoding-loss]o 1 node [encoding-loss] kh[encoding-loss]m ph[encoding-loss], m[encoding-loss] ra sub-map c[encoding-loss]c i[encoding-loss]m nh[encoding-loss] B[encoding-loss]N
-                                    TRONG node [encoding-loss] (ch[encoding-loss]/s[encoding-loss]nh ch[encoding-loss]nh/h[encoding-loss]m sau/kho...), NPC [encoding-loss]ng [encoding-loss] [encoding-loss]NG
-                                    i[encoding-loss]m nh[encoding-loss] c[encoding-loss] th[encoding-loss], kh[encoding-loss]ng c[encoding-loss]n "c[encoding-loss] node l[encoding-loss] 1 h[encoding-loss]p m[encoding-loss]"
-L[encoding-loss]p 4  INSTANCE (B[encoding-loss] C[encoding-loss]nh/M[encoding-loss]ng C[encoding-loss]nh/N[encoding-loss]i th[encoding-loss]t [encoding-loss]ng Ph[encoding-loss]): t[encoding-loss]ch bi[encoding-loss]t ho[encoding-loss]n to[encoding-loss]n kh[encoding-loss]i l[encoding-loss][encoding-loss]i ch[encoding-loss]nh, [encoding-loss] c[encoding-loss]
-                                    khung [encoding-loss] c[encoding-loss]c t[encoding-loss]i li[encoding-loss]u tr[encoding-loss][encoding-loss]c, gi[encoding-loss] nguy[encoding-loss]n
+Lp 1 · TH GII (World Map):     tng quan ton vng, hin vng nh hng Faction dng heatmap,
+                                    dng đ ln k hoch di chuyn xa, KHNG hin chi tit tng node
+Lp 2 · VNG (Regional Map):       chnh l node-graph hin c (grid ta đ x,y t MAP_SYSTEM.md 6),
+                                    đy l lp chi chnh hng ngy
+Lp 3 · ĐA ĐIM (Node Detail):    MI · bm vo 1 node đ khm ph, m ra sub-map cc đim nh BN
+                                    TRONG node đ (ch/snh chnh/hm sau/kho...), NPC đng  ĐNG
+                                    đim nh c th, khng cn "c node l 1 hp m"
+Lp 4 · INSTANCE (B Cnh/Mng Cnh/Ni tht Đng Ph): tch bit hon ton khi li chnh, đ c
+                                    khung  cc ti liu trc, gi nguyn
 ```
-[encoding-loss]y l[encoding-loss] thay [encoding-loss]i N[encoding-loss]N T[encoding-loss]NG quan tr[encoding-loss]ng nh[encoding-loss]t  gi[encoding-loss]i quy[encoding-loss]t tr[encoding-loss]c ti[encoding-loss]p c[encoding-loss]m gi[encoding-loss]c "ch[encoding-loss]a ph[encoding-loss]i open world th[encoding-loss]t"
-v[encoding-loss] tr[encoding-loss][encoding-loss]c gi[encoding-loss] ch[encoding-loss] c[encoding-loss] L[encoding-loss]p 2, khi[encoding-loss]n m[encoding-loss]i node d[encoding-loss] to (V[encoding-loss][encoding-loss]ng Kinh) hay nh[encoding-loss] (tr[encoding-loss]m g[encoding-loss]c) [encoding-loss]u c[encoding-loss]m gi[encoding-loss]c nh[encoding-loss]
-nhau (1 h[encoding-loss]p b[encoding-loss]m v[encoding-loss]o l[encoding-loss] xong).
+Đy l thay đi NN TNG quan trng nht · gii quyt trc tip cm gic "cha phi open world tht"
+v trc gi ch c Lp 2, khin mi node d to (Vng Kinh) hay nh (trm gc) đu cm gic nh
+nhau (1 hp bm vo l xong).
 
 ---
 
-## 2. L[encoding-loss]P 3 CHI TI[encoding-loss]T  NODE DETAIL VIEW (gi[encoding-loss]i quy[encoding-loss]t "node l[encoding-loss] h[encoding-loss]p r[encoding-loss]ng")
+## 2. LP 3 CHI TIT · NODE DETAIL VIEW (gii quyt "node l hp rng")
 
 ```
 NodeDetailLayout {
@@ -1532,193 +1539,193 @@ NodeDetailLayout {
   ]
 }
 ```
-- S[encoding-loss] l[encoding-loss][encoding-loss]ng `subLocations` t[encoding-loss]y quy m[encoding-loss] node: Tr[encoding-loss]m g[encoding-loss]c nh[encoding-loss] = 1-2 i[encoding-loss]m; T[encoding-loss]ng M[encoding-loss]n/V[encoding-loss][encoding-loss]ng Kinh l[encoding-loss]n = 5-8
-  i[encoding-loss]m kh[encoding-loss]c nhau.
-- NPC gi[encoding-loss] g[encoding-loss]n v[encoding-loss]o [encoding-loss]NG 1 `subLocation` c[encoding-loss] th[encoding-loss] (kh[encoding-loss]ng c[encoding-loss]n "NPC [encoding-loss] node" m[encoding-loss] h[encoding-loss])  Tr[encoding-loss][encoding-loss]ng L[encoding-loss]o [encoding-loss] "S[encoding-loss]nh
-  Ch[encoding-loss]nh", Th[encoding-loss][encoding-loss]ng Nh[encoding-loss]n [encoding-loss] "Ch[encoding-loss]", gi[encoding-loss]n i[encoding-loss]p/Ma [encoding-loss]u th[encoding-loss][encoding-loss]ng xu[encoding-loss]t hi[encoding-loss]n [encoding-loss] "H[encoding-loss]m Sau" (d[encoding-loss]ng [encoding-loss]ng [encoding-loss] t[encoding-loss][encoding-loss]ng M[encoding-loss]t
-  H[encoding-loss]i [encoding-loss] thi[encoding-loss]t k[encoding-loss], gi[encoding-loss] c[encoding-loss] V[encoding-loss] TR[encoding-loss] C[encoding-loss] TH[encoding-loss] [encoding-loss] player ph[encoding-loss]i ch[encoding-loss] [encoding-loss]ng t[encoding-loss]i [encoding-loss]ng ch[encoding-loss] m[encoding-loss]i b[encoding-loss]t g[encoding-loss]p).
-- Action Bar t[encoding-loss]i L[encoding-loss]p 3 ch[encoding-loss] hi[encoding-loss]n action li[encoding-loss]n quan t[encoding-loss]i `subLocation` ang [encoding-loss]ng (VD "Ch[encoding-loss]" m[encoding-loss]i c[encoding-loss] Giao
-  D[encoding-loss]ch, "H[encoding-loss]m Sau" m[encoding-loss]i c[encoding-loss] i[encoding-loss]u Tra M[encoding-loss]t H[encoding-loss]i)  bi[encoding-loss]n vi[encoding-loss]c di chuy[encoding-loss]n TRONG 1 node cing c[encoding-loss] [encoding-loss] ngh)a ch[encoding-loss]n
-  l[encoding-loss]a, kh[encoding-loss]ng ch[encoding-loss] di chuy[encoding-loss]n GI[encoding-loss]A c[encoding-loss]c node.
+- S lng `subLocations` ty quy m node: Trm gc nh = 1-2 đim; Tng Mn/Vng Kinh ln = 5-8
+  đim khc nhau.
+- NPC gi gn vo ĐNG 1 `subLocation` c th (khng cn "NPC  node" m h) · Trng Lo  "Snh
+  Chnh", Thng Nhn  "Ch", gin đip/Ma Đu thng xut hin  "Hm Sau" (dng đng  tng Mt
+  Hi đ thit k, gi c V TR C TH đ player phi ch đng ti đng ch mi bt gp).
+- Action Bar ti Lp 3 ch hin action lin quan ti `subLocation` đang đng (VD "Ch" mi c Giao
+  Dch, "Hm Sau" mi c Điu Tra Mt Hi) · bin vic di chuyn TRONG 1 node cing c  ngh)a chn
+  la, khng ch di chuyn GIA cc node.
 
 ---
 
-## 3. L[encoding-loss]NH TH[encoding-loss] THEO GRADIENT (KH[encoding-loss]NG C[encoding-loss]N NH[encoding-loss] PH[encoding-loss]N S[encoding-loss] H[encoding-loss]U/KH[encoding-loss]NG S[encoding-loss] H[encoding-loss]U)
+## 3. LNH TH THEO GRADIENT (KHNG CN NH PHN S HU/KHNG S HU)
 
-### 3.1. V[encoding-loss]ng [encoding-loss]nh H[encoding-loss][encoding-loss]ng (Influence Radius) thay v[encoding-loss] `ownerFactionId` c[encoding-loss]ng
+### 3.1. Vng nh Hng (Influence Radius) thay v `ownerFactionId` cng
 ```
-M[encoding-loss]i Faction node (T[encoding-loss]ng M[encoding-loss]n/Th[encoding-loss] Gia ch[encoding-loss]nh) ph[encoding-loss]t ra "s[encoding-loss]c [encoding-loss]nh h[encoding-loss][encoding-loss]ng" gi[encoding-loss]m d[encoding-loss]n theo kho[encoding-loss]ng c[encoding-loss]ch:
-  influenceAt(node, faction) = faction.power [encoding-loss] decayFactor^(distance(node, faction.homeNode))
-  // decayFactor v[encoding-loss] d[encoding-loss] 0.7  m[encoding-loss]i [encoding-loss] xa th[encoding-loss]m, [encoding-loss]nh h[encoding-loss][encoding-loss]ng c[encoding-loss]n 70% [encoding-loss] tr[encoding-loss][encoding-loss]c
+Mi Faction node (Tng Mn/Th Gia chnh) pht ra "sc nh hng" gim dn theo khong cch:
+  influenceAt(node, faction) = faction.power  decayFactor^(distance(node, faction.homeNode))
+  // decayFactor v d 0.7 · mi  xa thm, nh hng cn 70%  trc
 
-M[encoding-loss]i node TH[encoding-loss][encoding-loss]NG (kh[encoding-loss]ng ph[encoding-loss]i Faction ch[encoding-loss]nh) c[encoding-loss] `influenceMap: { factionId: number }`  T[encoding-loss]NH L[encoding-loss]I m[encoding-loss]i
-worldTick, kh[encoding-loss]ng c[encoding-loss] [encoding-loss]nh. `ownerFactionId` ci gi[encoding-loss] SUY RA t[encoding-loss] influenceMap (Faction c[encoding-loss] influence cao
-nh[encoding-loss]t t[encoding-loss]i node [encoding-loss] > ng[encoding-loss][encoding-loss]ng n[encoding-loss]o [encoding-loss] m[encoding-loss]i [encoding-loss][encoding-loss]c coi l[encoding-loss] "ch[encoding-loss]", n[encoding-loss]u kh[encoding-loss]ng ai v[encoding-loss][encoding-loss]t ng[encoding-loss][encoding-loss]ng -> node "v[encoding-loss] ch[encoding-loss]
-th[encoding-loss]c s[encoding-loss]", kh[encoding-loss]ng ph[encoding-loss]i m[encoding-loss]c [encoding-loss]nh thu[encoding-loss]c v[encoding-loss] Faction g[encoding-loss]n nh[encoding-loss]t).
-```
-
-### 3.2. V[encoding-loss]ng Tranh Ch[encoding-loss]p (Contested Zone)  h[encoding-loss] qu[encoding-loss] tr[encoding-loss]c ti[encoding-loss]p c[encoding-loss]a gradient
-```
-Node c[encoding-loss] 2+ Faction c[encoding-loss]ng influence g[encoding-loss]n b[encoding-loss]ng nhau (ch[encoding-loss]nh l[encoding-loss]ch < 15%) -> [encoding-loss]nh d[encoding-loss]u "Tranh Ch[encoding-loss]p":
-  - `eventPoolTag` [encoding-loss]i th[encoding-loss]nh h[encoding-loss]n h[encoding-loss]p (tr[encoding-loss]n tr[encoding-loss]ng s[encoding-loss] s[encoding-loss] ki[encoding-loss]n c[encoding-loss]a C[encoding-loss] 2 Faction li[encoding-loss]n quan)
-  - C[encoding-loss] 2 Faction [encoding-loss]u c[encoding-loss] th[encoding-loss] giao nhi[encoding-loss]m v[encoding-loss] T[encoding-loss]I node n[encoding-loss]y (d[encoding-loss] kh[encoding-loss]ng "s[encoding-loss] h[encoding-loss]u" ch[encoding-loss]nh th[encoding-loss]c)
-  - Player ho[encoding-loss]n th[encoding-loss]nh quest cho 1 b[encoding-loss]n t[encoding-loss]i [encoding-loss]y s[encoding-loss] [encoding-loss]y influence b[encoding-loss]n [encoding-loss] l[encoding-loss]n  GI[encoding-loss]P NG[encoding-loss][encoding-loss]I CH[encoding-loss]I TH[encoding-loss]C S[encoding-loss]
-    [encoding-loss]NH H[encoding-loss]NH B[encoding-loss]N [encoding-loss] b[encoding-loss]ng h[encoding-loss]nh [encoding-loss]ng, kh[encoding-loss]ng ch[encoding-loss] [encoding-loss]ng xem th[encoding-loss] l[encoding-loss]c t[encoding-loss] chi[encoding-loss]n tranh ([encoding-loss] c[encoding-loss] [encoding-loss]
-    WORLD_INTERCONNECTION_SYSTEM.md m[encoding-loss]c 2.2, gi[encoding-loss] c[encoding-loss] th[encoding-loss]m 1 con [encoding-loss][encoding-loss]ng [encoding-loss]NH H[encoding-loss][encoding-loss]NG M[encoding-loss]M song song
-    chi[encoding-loss]n tranh tr[encoding-loss]c di[encoding-loss]n)
+Mi node THNG (khng phi Faction chnh) c `influenceMap: { factionId: number }` · TNH LI mi
+worldTick, khng c đnh. `ownerFactionId` ci gi SUY RA t influenceMap (Faction c influence cao
+nht ti node đ > ngng no đ mi đc coi l "ch", nu khng ai vt ngng -> node "v ch
+thc s", khng phi mc đnh thuc v Faction gn nht).
 ```
 
-### 3.3. B[encoding-loss]n [encoding-loss] Heatmap [encoding-loss] L[encoding-loss]p 1 (World Map)
-Hi[encoding-loss]n m[encoding-loss]u ch[encoding-loss]ng l[encoding-loss]p theo `influenceMap` t[encoding-loss]ng h[encoding-loss]p to[encoding-loss]n v[encoding-loss]ng  ng[encoding-loss][encoding-loss]i ch[encoding-loss]i nh[encoding-loss]n L[encoding-loss]p 1 th[encoding-loss]y NGAY "v[encoding-loss]ng
-n[encoding-loss]y ang l[encoding-loss] c[encoding-loss]a ai, v[encoding-loss]ng n[encoding-loss]o ang tranh ch[encoding-loss]p n[encoding-loss]ng" m[encoding-loss] kh[encoding-loss]ng c[encoding-loss]n b[encoding-loss]m t[encoding-loss]ng node [encoding-loss] L[encoding-loss]p 2.
+### 3.2. Vng Tranh Chp (Contested Zone) · h qu trc tip ca gradient
+```
+Node c 2+ Faction cng influence gn bng nhau (chnh lch < 15%) -> đnh du "Tranh Chp":
+  - `eventPoolTag` đi thnh hn hp (trn trng s s kin ca C 2 Faction lin quan)
+  - C 2 Faction đu c th giao nhim v TI node ny (d khng "s hu" chnh thc)
+  - Player hon thnh quest cho 1 bn ti đy s đy influence bn đ ln · GIP NGI CHI THC S
+    ĐNH HNH BN Đ bng hnh đng, khng ch đng xem th lc t chin tranh (đ c
+    WORLD_INTERCONNECTION_SYSTEM.md mc 2.2, gi c thm 1 con đng NH HNG MM song song
+    chin tranh trc din)
+```
+
+### 3.3. Bn đ Heatmap  Lp 1 (World Map)
+Hin mu chng lp theo `influenceMap` tng hp ton vng · ngi chi nhn Lp 1 thy NGAY "vng
+ny đang l ca ai, vng no đang tranh chp nng" m khng cn bm tng node  Lp 2.
 
 ---
 
-## 4. NG[encoding-loss][encoding-loss]I CH[encoding-loss]I [encoding-loss]NH H[encoding-loss]NH B[encoding-loss]N [encoding-loss] (MAP AGENCY  hi[encoding-loss]n ho[encoding-loss]n to[encoding-loss]n th[encoding-loss] [encoding-loss]ng)
+## 4. NGI CHI ĐNH HNH BN Đ (MAP AGENCY · hin hon ton th đng)
 
-### 4.1. C[encoding-loss]m C[encoding-loss]/L[encoding-loss]p Tr[encoding-loss]m (Claim Outpost)
+### 4.1. Cm C/Lp Trm (Claim Outpost)
 ```
-T[encoding-loss]i 1 node V[encoding-loss] CH[encoding-loss] TH[encoding-loss]C S[encoding-loss] (kh[encoding-loss]ng Faction n[encoding-loss]o v[encoding-loss][encoding-loss]t ng[encoding-loss][encoding-loss]ng influence, m[encoding-loss]c 3.1), player c[encoding-loss] action m[encoding-loss]i
-"L[encoding-loss]p Tr[encoding-loss]m"  c[encoding-loss]n Linh Th[encoding-loss]ch + th[encoding-loss]i gian (v[encoding-loss]i ng[encoding-loss]y GameClock), sau [encoding-loss]:
-  - Node [encoding-loss] c[encoding-loss] `ownerFactionId = "player_outpost_" + characterId` (player CH[encoding-loss]NH TH[encoding-loss]C l[encoding-loss] 1 th[encoding-loss]c th[encoding-loss]
-    c[encoding-loss] l[encoding-loss]nh th[encoding-loss] tr[encoding-loss]n b[encoding-loss]n [encoding-loss], kh[encoding-loss]ng ch[encoding-loss] c[encoding-loss] [encoding-loss]ng Ph[encoding-loss] [encoding-loss]n l[encoding-loss])
-  - T[encoding-loss] ph[encoding-loss]t ra influence NH[encoding-loss] quanh n[encoding-loss] (d[encoding-loss]ng c[encoding-loss]ng th[encoding-loss]c m[encoding-loss]c 3.1, `power` th[encoding-loss]p h[encoding-loss]n Faction th[encoding-loss]t nhi[encoding-loss]u)
-  - C[encoding-loss] th[encoding-loss] b[encoding-loss] Faction kh[encoding-loss]c "l[encoding-loss]n" n[encoding-loss]u kh[encoding-loss]ng c[encoding-loss]ng c[encoding-loss] ([encoding-loss]ng c[encoding-loss] ch[encoding-loss] gradient, kh[encoding-loss]ng ph[encoding-loss]i b[encoding-loss]t t[encoding-loss])
+Ti 1 node V CH THC S (khng Faction no vt ngng influence, mc 3.1), player c action mi
+"Lp Trm" · cn Linh Thch + thi gian (vi ngy GameClock), sau đ:
+  - Node đ c `ownerFactionId = "player_outpost_" + characterId` (player CHNH THC l 1 thc th
+    c lnh th trn bn đ, khng ch c Đng Ph đn l)
+  - T pht ra influence NH quanh n (dng cng thc mc 3.1, `power` thp hn Faction tht nhiu)
+  - C th b Faction khc "ln" nu khng cng c (đng c ch gradient, khng phi bt t)
 ```
 
-### 4.2. X[encoding-loss]y D[encoding-loss]ng T[encoding-loss]i Tr[encoding-loss]m/[encoding-loss]ng Ph[encoding-loss] (Structure Building)
-| C[encoding-loss]ng tr[encoding-loss]nh | Hi[encoding-loss]u [encoding-loss]ng l[encoding-loss]n b[encoding-loss]n [encoding-loss] |
+### 4.2. Xy Dng Ti Trm/Đng Ph (Structure Building)
+| Cng trnh | Hiu ng ln bn đ |
 |---|---|
-| V[encoding-loss]ng G[encoding-loss]c (Watchtower) | Tng b[encoding-loss]n k[encoding-loss]nh `revealAdjacentNodes` (MAP_SYSTEM.md m[encoding-loss]c 2) quanh tr[encoding-loss]m  nh[encoding-loss]n xa h[encoding-loss]n m[encoding-loss] kh[encoding-loss]ng c[encoding-loss]n t[encoding-loss] i |
-| Tr[encoding-loss]m D[encoding-loss]ch (Waystation) | Th[encoding-loss]m 1 i[encoding-loss]m Fast Travel (m[encoding-loss]c 5) mi[encoding-loss]n ph[encoding-loss] t[encoding-loss]i [encoding-loss]y |
-| Th[encoding-loss] T[encoding-loss]p Nh[encoding-loss] (Trading Post) | NPC Th[encoding-loss][encoding-loss]ng Nh[encoding-loss]n t[encoding-loss] [encoding-loss]ng gh[encoding-loss] qua theo l[encoding-loss]ch (d[encoding-loss]ng `scheduleType: itinerant` [encoding-loss] c[encoding-loss]), kh[encoding-loss]ng c[encoding-loss]n player ch[encoding-loss] [encoding-loss]ng t[encoding-loss]m |
-| Tr[encoding-loss]n Ph[encoding-loss]p Ph[encoding-loss]ng Th[encoding-loss] | Tng "power" ph[encoding-loss]t influence c[encoding-loss]a tr[encoding-loss]m ([encoding-loss] n[encoding-loss]i [encoding-loss] `PHAC_THAO_TU_VI_CON_DUONG_V3.md`  Tr[encoding-loss]n Ph[encoding-loss]p S[encoding-loss] ngh[encoding-loss] m[encoding-loss]i) |
+| Vng Gc (Watchtower) | Tng bn knh `revealAdjacentNodes` (MAP_SYSTEM.md mc 2) quanh trm · nhn xa hn m khng cn t đi |
+| Trm Dch (Waystation) | Thm 1 đim Fast Travel (mc 5) min ph ti đy |
+| Th Tp Nh (Trading Post) | NPC Thng Nhn t đng gh qua theo lch (dng `scheduleType: itinerant` đ c), khng cn player ch đng tm |
+| Trn Php Phng Th | Tng "power" pht influence ca trm (đ ni  `PHAC_THAO_TU_VI_CON_DUONG_V3.md` · Trn Php S ngh mi) |
 
-### 4.3. Tuy[encoding-loss]n B[encoding-loss] Ch[encoding-loss] Quy[encoding-loss]n L[encoding-loss]n Faction Th[encoding-loss]t (Territory Petition)
-N[encoding-loss]u player ang ph[encoding-loss]c v[encoding-loss] 1 Faction ([encoding-loss] gia nh[encoding-loss]p), c[encoding-loss] th[encoding-loss] "hi[encoding-loss]n" 1 Tr[encoding-loss]m c[encoding-loss]a m[encoding-loss]nh cho Faction [encoding-loss] 
-Tr[encoding-loss]m tr[encoding-loss] th[encoding-loss]nh l[encoding-loss]nh th[encoding-loss] ch[encoding-loss]nh th[encoding-loss]c c[encoding-loss]a Faction (tng `power` g[encoding-loss]c c[encoding-loss]a Faction [encoding-loss] l[encoding-loss]u d[encoding-loss]i), [encoding-loss]i l[encoding-loss]i
-C[encoding-loss]ng Hi[encoding-loss]n/factionReputation tng v[encoding-loss]t  bi[encoding-loss]n vi[encoding-loss]c m[encoding-loss] r[encoding-loss]ng b[encoding-loss]n [encoding-loss] c[encoding-loss] nh[encoding-loss]n th[encoding-loss]nh [encoding-loss]NG G[encoding-loss]P th[encoding-loss]c s[encoding-loss] cho
-t[encoding-loss] ch[encoding-loss]c m[encoding-loss]nh ch[encoding-loss]n, kh[encoding-loss]ng ph[encoding-loss]i 2 h[encoding-loss] th[encoding-loss]ng t[encoding-loss]ch r[encoding-loss]i.
+### 4.3. Tuyn B Ch Quyn Ln Faction Tht (Territory Petition)
+Nu player đang phc v 1 Faction (đ gia nhp), c th "hin" 1 Trm ca mnh cho Faction đ ·
+Trm tr thnh lnh th chnh thc ca Faction (tng `power` gc ca Faction đ lu di), đi li
+Cng Hin/factionReputation tng vt · bin vic m rng bn đ c nhn thnh ĐNG GP thc s cho
+t chc mnh chn, khng phi 2 h thng tch ri.
 
 ---
 
-## 5. DI CHUY[encoding-loss]N C[encoding-loss] TR[encoding-loss]NG L[encoding-loss][encoding-loss]NG (TRAVEL AS MEANINGFUL MECHANIC)
+## 5. DI CHUYN C TRNG LNG (TRAVEL AS MEANINGFUL MECHANIC)
 
-### 5.1. Chi ph[encoding-loss] di chuy[encoding-loss]n th[encoding-loss]t (kh[encoding-loss]ng c[encoding-loss]n t[encoding-loss]c th[encoding-loss]i v[encoding-loss] h[encoding-loss]n)
+### 5.1. Chi ph di chuyn tht (khng cn tc thi v hn)
 ```
 travelTimeGameDays = distance(from, to) / travelSpeed(travelType)
-  travelType "walk" (m[encoding-loss]c [encoding-loss]nh): speed chu[encoding-loss]n
-  travelType "ng[encoding-loss]_kh[encoding-loss]" (c[encoding-loss]n C[encoding-loss]ng Ph[encoding-loss]p/Th[encoding-loss]n Ph[encoding-loss]p ph[encoding-loss] h[encoding-loss]p): speed [encoding-loss]3
-  travelType "truy[encoding-loss]n_t[encoding-loss]ng_tr[encoding-loss]n": t[encoding-loss]c th[encoding-loss]i NH[encoding-loss]NG c[encoding-loss]n [encoding-loss] c[encoding-loss] Tr[encoding-loss]m D[encoding-loss]ch/Fast Travel [encoding-loss] C[encoding-loss] 2 [encoding-loss]u (m[encoding-loss]c 4.2)
+  travelType "walk" (mc đnh): speed chun
+  travelType "ng_kh" (cn Cng Php/Thn Php ph hp): speed 3
+  travelType "truyn_tng_trn": tc thi NHNG cn đ c Trm Dch/Fast Travel  C 2 đu (mc 4.2)
 
-Trong l[encoding-loss]c di chuy[encoding-loss]n nhi[encoding-loss]u ng[encoding-loss]y: roll s[encoding-loss] ki[encoding-loss]n d[encoding-loss]c [encoding-loss][encoding-loss]ng theo [encoding-loss]NG c[encoding-loss] ch[encoding-loss] [encoding-loss] c[encoding-loss]
-(RANDOM_EVENT_SYSTEM.md m[encoding-loss]c 1, trigger "moving_through"), nh[encoding-loss]ng gi[encoding-loss] S[encoding-loss] L[encoding-loss]N ROLL t[encoding-loss] l[encoding-loss] v[encoding-loss]i s[encoding-loss] ng[encoding-loss]y
-di chuy[encoding-loss]n th[encoding-loss]c (i c[encoding-loss]ng xa c[encoding-loss]ng nhi[encoding-loss]u c[encoding-loss] h[encoding-loss]i/r[encoding-loss]i ro d[encoding-loss]c [encoding-loss][encoding-loss]ng, kh[encoding-loss]ng ph[encoding-loss]i 1 l[encoding-loss]n duy nh[encoding-loss]t b[encoding-loss]t k[encoding-loss] xa
-g[encoding-loss]n nh[encoding-loss] hi[encoding-loss]n t[encoding-loss]i).
+Trong lc di chuyn nhiu ngy: roll s kin dc đng theo ĐNG c ch đ c
+(RANDOM_EVENT_SYSTEM.md mc 1, trigger "moving_through"), nhng gi S LN ROLL t l vi s ngy
+di chuyn thc (đi cng xa cng nhiu c hi/ri ro dc đng, khng phi 1 ln duy nht bt k xa
+gn nh hin ti).
 ```
 
-### 5.2. Fast Travel  m[encoding-loss] d[encoding-loss]n, kh[encoding-loss]ng c[encoding-loss] s[encoding-loss]n t[encoding-loss] [encoding-loss]u
+### 5.2. Fast Travel · m dn, khng c sn t đu
 ```
-i[encoding-loss]m Fast Travel CH[encoding-loss] t[encoding-loss]n t[encoding-loss]i t[encoding-loss]i: node c[encoding-loss]t truy[encoding-loss]n [encoding-loss] kh[encoding-loss]m ph[encoding-loss] L[encoding-loss]N [encoding-loss]U (t[encoding-loss] [encoding-loss]ng unlock), ho[encoding-loss]c Tr[encoding-loss]m
-D[encoding-loss]ch do player/Faction x[encoding-loss]y (m[encoding-loss]c 4.2). Di chuy[encoding-loss]n b[encoding-loss]ng Fast Travel gi[encoding-loss]a 2 i[encoding-loss]m [encoding-loss] unlock: t[encoding-loss]n Linh
-Th[encoding-loss]ch (kh[encoding-loss]ng t[encoding-loss]n ng[encoding-loss]y GameClock), KH[encoding-loss]NG roll s[encoding-loss] ki[encoding-loss]n d[encoding-loss]c [encoding-loss][encoding-loss]ng (an to[encoding-loss]n tuy[encoding-loss]t [encoding-loss]i, [encoding-loss] l[encoding-loss] c[encoding-loss]i gi[encoding-loss]
-Linh Th[encoding-loss]ch ph[encoding-loss]i tr[encoding-loss])  t[encoding-loss]o l[encoding-loss]a ch[encoding-loss]n r[encoding-loss] r[encoding-loss]ng: i b[encoding-loss] (r[encoding-loss], ch[encoding-loss]m, r[encoding-loss]i ro/c[encoding-loss] h[encoding-loss]i) vs Fast Travel ([encoding-loss]t,
-nhanh, an to[encoding-loss]n).
+Đim Fast Travel CH tn ti ti: node ct truyn đ khm ph LN ĐU (t đng unlock), hoc Trm
+Dch do player/Faction xy (mc 4.2). Di chuyn bng Fast Travel gia 2 đim đ unlock: tn Linh
+Thch (khng tn ngy GameClock), KHNG roll s kin dc đng (an ton tuyt đi, đ l ci gi
+Linh Thch phi tr) · to la chn r rng: đi b (r, chm, ri ro/c hi) vs Fast Travel (đt,
+nhanh, an ton).
 ```
 
-### 5.3. o[encoding-loss]n [encoding-loss]ng H[encoding-loss]nh Gi[encoding-loss]m R[encoding-loss]i Ro
-N[encoding-loss]u c[encoding-loss] NPC "h[encoding-loss] t[encoding-loss]ng" (thu[encoding-loss] t[encoding-loss]i Ph[encoding-loss][encoding-loss]ng Th[encoding-loss] ho[encoding-loss]c Faction c[encoding-loss] theo n[encoding-loss]u C[encoding-loss]ng Hi[encoding-loss]n [encoding-loss] cao) i c[encoding-loss]ng trong
-chuy[encoding-loss]n di chuy[encoding-loss]n d[encoding-loss]i, gi[encoding-loss]m % s[encoding-loss] ki[encoding-loss]n Qu[encoding-loss]i V[encoding-loss]t/H[encoding-loss]c [encoding-loss]o d[encoding-loss]c [encoding-loss][encoding-loss]ng  chi ph[encoding-loss] thu[encoding-loss] t[encoding-loss] l[encoding-loss] v[encoding-loss]i [encoding-loss] d[encoding-loss]i
-qu[encoding-loss]ng [encoding-loss][encoding-loss]ng, t[encoding-loss]o l[encoding-loss]a ch[encoding-loss]n kinh t[encoding-loss] th[encoding-loss]t (t[encoding-loss] i r[encoding-loss] nh[encoding-loss]ng r[encoding-loss]i ro, thu[encoding-loss] h[encoding-loss] t[encoding-loss]ng [encoding-loss]t nh[encoding-loss]ng an to[encoding-loss]n h[encoding-loss]n).
+### 5.3. Đon Đng Hnh Gim Ri Ro
+Nu c NPC "h tng" (thu ti Phng Th hoc Faction c theo nu Cng Hin đ cao) đi cng trong
+chuyn di chuyn di, gim % s kin Qui Vt/Hc Đo dc đng · chi ph thu t l vi đ di
+qung đng, to la chn kinh t tht (t đi r nhng ri ro, thu h tng đt nhng an ton hn).
 
 ---
 
-## 6. TH[encoding-loss] L[encoding-loss]C HI[encoding-loss]N DI[encoding-loss]N TH[encoding-loss]T TR[encoding-loss]N B[encoding-loss]N [encoding-loss] (kh[encoding-loss]ng ch[encoding-loss] l[encoding-loss] con s[encoding-loss] [encoding-loss]n)
+## 6. TH LC HIN DIN THT TRN BN Đ (khng ch l con s n)
 
-### 6.1. [encoding-loss]i Tu[encoding-loss]n Tra Di [encoding-loss]ng (Patrol Icons)
-NPC l[encoding-loss]nh/[encoding-loss] t[encoding-loss] tu[encoding-loss]n tra ([encoding-loss] c[encoding-loss] `scheduleType: patrol`) gi[encoding-loss] hi[encoding-loss]n th[encoding-loss] NGAY TR[encoding-loss]N B[encoding-loss]N [encoding-loss] L[encoding-loss]P 2 d[encoding-loss][encoding-loss]i d[encoding-loss]ng
-1 icon nh[encoding-loss] DI CHUY[encoding-loss]N D[encoding-loss]C EDGE gi[encoding-loss]a c[encoding-loss]c node theo l[encoding-loss]ch tr[encoding-loss]nh th[encoding-loss]t (kh[encoding-loss]ng ph[encoding-loss]i ch[encoding-loss] xu[encoding-loss]t hi[encoding-loss]n khi
-player t[encoding-loss]nh c[encoding-loss] [encoding-loss] c[encoding-loss]ng node)  ng[encoding-loss][encoding-loss]i ch[encoding-loss]i nh[encoding-loss]n b[encoding-loss]n [encoding-loss] th[encoding-loss]y [encoding-loss][encoding-loss]c "v[encoding-loss]ng n[encoding-loss]y ang c[encoding-loss] bao nhi[encoding-loss]u l[encoding-loss]nh
-tu[encoding-loss]n tra qua l[encoding-loss]i", t[encoding-loss]o c[encoding-loss]m gi[encoding-loss]c l[encoding-loss]nh th[encoding-loss] [encoding-loss][encoding-loss]c B[encoding-loss]O V[encoding-loss] TH[encoding-loss]T ch[encoding-loss] kh[encoding-loss]ng ph[encoding-loss]i nh[encoding-loss]n d[encoding-loss]n.
+### 6.1. Đi Tun Tra Di Đng (Patrol Icons)
+NPC lnh/đ t tun tra (đ c `scheduleType: patrol`) gi hin th NGAY TRN BN Đ LP 2 di dng
+1 icon nh DI CHUYN DC EDGE gia cc node theo lch trnh tht (khng phi ch xut hin khi
+player tnh c  cng node) · ngi chi nhn bn đ thy đc "vng ny đang c bao nhiu lnh
+tun tra qua li", to cm gic lnh th đc BO V THT ch khng phi nhn dn.
 
-### 6.2. Ki[encoding-loss]n Tr[encoding-loss]c Node [encoding-loss]i Theo Ch[encoding-loss] S[encoding-loss] H[encoding-loss]u
-Node do Faction Ch[encoding-loss]nh [encoding-loss]o s[encoding-loss] h[encoding-loss]u vs H[encoding-loss]c [encoding-loss]o vs v[encoding-loss] ch[encoding-loss] c[encoding-loss] visualTag kh[encoding-loss]c nhau (kh[encoding-loss]ng c[encoding-loss]n chi ti[encoding-loss]t [encoding-loss]
-h[encoding-loss]a, ch[encoding-loss] c[encoding-loss]n field m[encoding-loss] t[encoding-loss] [encoding-loss]i: "C[encoding-loss]ng T[encoding-loss]ng M[encoding-loss]n uy nghi[encoding-loss]m" vs "Tr[encoding-loss]i l[encoding-loss]n xi[encoding-loss]u v[encoding-loss]o c[encoding-loss]a s[encoding-loss]n t[encoding-loss]c" vs "T[encoding-loss]n
-t[encoding-loss]ch hoang ph[encoding-loss] kh[encoding-loss]ng ng[encoding-loss][encoding-loss]i canh gi[encoding-loss]")  [encoding-loss]c m[encoding-loss] t[encoding-loss] node l[encoding-loss] bi[encoding-loss]t ngay t[encoding-loss]nh ch[encoding-loss]t khu v[encoding-loss]c.
+### 6.2. Kin Trc Node Đi Theo Ch S Hu
+Node do Faction Chnh Đo s hu vs Hc Đo vs v ch c visualTag khc nhau (khng cn chi tit đ
+ha, ch cn field m t đi: "Cng Tng Mn uy nghim" vs "Tri ln xiu vo ca sn tc" vs "Tn
+tch hoang ph khng ngi canh gi") · đc m t node l bit ngay tnh cht khu vc.
 
-### 6.3. B[encoding-loss]ng Tin Faction (Bulletin Board) t[encoding-loss]i node Faction s[encoding-loss] h[encoding-loss]u
-Hi[encoding-loss]n danh s[encoding-loss]ch `faction_daily` quest hi[encoding-loss]n t[encoding-loss]i C[encoding-loss]A FACTION [encoding-loss] ngay khi player v[encoding-loss]o node (kh[encoding-loss]ng c[encoding-loss]n
-t[encoding-loss]m NPC c[encoding-loss] th[encoding-loss] m[encoding-loss]i th[encoding-loss]y quest)  [encoding-loss]ng th[encoding-loss]i hi[encoding-loss]n "Tin T[encoding-loss]c V[encoding-loss]ng" (world event g[encoding-loss]n [encoding-loss]y li[encoding-loss]n quan
-Faction n[encoding-loss]y: th[encoding-loss]ng/thua tr[encoding-loss]n n[encoding-loss]o, B[encoding-loss] C[encoding-loss]nh n[encoding-loss]o s[encoding-loss]p m[encoding-loss])  bi[encoding-loss]n node Faction th[encoding-loss]nh i[encoding-loss]m TH[encoding-loss]NG TIN
-trung t[encoding-loss]m, kh[encoding-loss]ng ch[encoding-loss] i[encoding-loss]m giao d[encoding-loss]ch/nhi[encoding-loss]m v[encoding-loss].
+### 6.3. Bng Tin Faction (Bulletin Board) ti node Faction s hu
+Hin danh sch `faction_daily` quest hin ti CA FACTION Đ ngay khi player vo node (khng cn
+tm NPC c th mi thy quest) · đng thi hin "Tin Tc Vng" (world event gn đy lin quan
+Faction ny: thng/thua trn no, B Cnh no sp m) · bin node Faction thnh đim THNG TIN
+trung tm, khng ch đim giao dch/nhim v.
 
 ---
 
-## 7. S[encoding-loss][encoding-loss]NG M[encoding-loss] CHI[encoding-loss]N TRANH  4 C[encoding-loss]P [encoding-loss] (thay v[encoding-loss] ch[encoding-loss] discovered=true/false)
+## 7. SNG M CHIN TRANH · 4 CP Đ (thay v ch discovered=true/false)
 
-| C[encoding-loss]p | T[encoding-loss]n | i[encoding-loss]u ki[encoding-loss]n | Hi[encoding-loss]n th[encoding-loss] |
+| Cp | Tn | Điu kin | Hin th |
 |---|---|---|---|
-| 0 | Ch[encoding-loss]a Bi[encoding-loss]t | Ch[encoding-loss]a t[encoding-loss]ng nghe n[encoding-loss]i | "Ch[encoding-loss]a kh[encoding-loss]m ph[encoding-loss]" (nh[encoding-loss] hi[encoding-loss]n t[encoding-loss]i) |
-| 1 | Nghe [encoding-loss]n | NPC t[encoding-loss]i node l[encoding-loss]n c[encoding-loss]n nh[encoding-loss]c t[encoding-loss]i (qua h[encoding-loss]i tho[encoding-loss]i/B[encoding-loss]ng Tin m[encoding-loss]c 6.3) NH[encoding-loss]NG ch[encoding-loss]a t[encoding-loss]i | Hi[encoding-loss]n T[encoding-loss]N node (kh[encoding-loss]ng c[encoding-loss]n [encoding-loss]n ho[encoding-loss]n to[encoding-loss]n) + m[encoding-loss] t[encoding-loss] m[encoding-loss] h[encoding-loss] 1 c[encoding-loss]u, v[encoding-loss] tr[encoding-loss] g[encoding-loss]n [encoding-loss]ng tr[encoding-loss]n L[encoding-loss]p 1 nh[encoding-loss]ng KH[encoding-loss]NG hi[encoding-loss]n tr[encoding-loss]n L[encoding-loss]p 2 grid ch[encoding-loss]nh x[encoding-loss]c |
-| 2 | [encoding-loss] Kh[encoding-loss]m Ph[encoding-loss] | [encoding-loss] t[encoding-loss]ng t[encoding-loss]i | [encoding-loss]y [encoding-loss] nh[encoding-loss] thi[encoding-loss]t k[encoding-loss] g[encoding-loss]c |
-| 3 | Th[encoding-loss]ng Thu[encoding-loss]c | T[encoding-loss]i >= 5 l[encoding-loss]n HO[encoding-loss]C c[encoding-loss] Tr[encoding-loss]m/[encoding-loss]ng Ph[encoding-loss] t[encoding-loss]i [encoding-loss]y | M[encoding-loss] th[encoding-loss]m: nh[encoding-loss]n th[encoding-loss]y `subLocations` (L[encoding-loss]p 3) NGAY T[encoding-loss] L[encoding-loss]p 2 kh[encoding-loss]ng c[encoding-loss]n b[encoding-loss]m v[encoding-loss]o, v[encoding-loss] th[encoding-loss]y `influenceMap` chi ti[encoding-loss]t (kh[encoding-loss]ng ch[encoding-loss] ch[encoding-loss] s[encoding-loss] h[encoding-loss]u ch[encoding-loss]nh) |
+| 0 | Cha Bit | Cha tng nghe ni | "Cha khm ph" (nh hin ti) |
+| 1 | Nghe Đn | NPC ti node ln cn nhc ti (qua hi thoi/Bng Tin mc 6.3) NHNG cha ti | Hin TN node (khng cn n hon ton) + m t m h 1 cu, v tr gn đng trn Lp 1 nhng KHNG hin trn Lp 2 grid chnh xc |
+| 2 | Đ Khm Ph | Đ tng ti | Đy đ nh thit k gc |
+| 3 | Thng Thuc | Ti >= 5 ln HOC c Trm/Đng Ph ti đy | M thm: nhn thy `subLocations` (Lp 3) NGAY T Lp 2 khng cn bm vo, v thy `influenceMap` chi tit (khng ch ch s hu chnh) |
 
-C[encoding-loss]p 1 "Nghe [encoding-loss]n" l[encoding-loss] b[encoding-loss] sung M[encoding-loss]I quan tr[encoding-loss]ng  gi[encoding-loss]i quy[encoding-loss]t c[encoding-loss]m gi[encoding-loss]c th[encoding-loss] gi[encoding-loss]i m[encoding-loss] hi[encoding-loss]n t[encoding-loss]i "ho[encoding-loss]c bi[encoding-loss]t 100%
-ho[encoding-loss]c kh[encoding-loss]ng bi[encoding-loss]t g[encoding-loss]" kh[encoding-loss] c[encoding-loss]ng, gi[encoding-loss] c[encoding-loss] tr[encoding-loss]ng th[encoding-loss]i trung gian t[encoding-loss]o [encoding-loss]ng l[encoding-loss]c TH[encoding-loss]T S[encoding-loss] mu[encoding-loss]n i t[encoding-loss]i ([encoding-loss]
-nghe t[encoding-loss]n, t[encoding-loss] m[encoding-loss] mu[encoding-loss]n x[encoding-loss]c nh[encoding-loss]n) thay v[encoding-loss] random ho[encoding-loss]n to[encoding-loss]n m[encoding-loss] m[encoding-loss].
+Cp 1 "Nghe Đn" l b sung MI quan trng · gii quyt cm gic th gii m hin ti "hoc bit 100%
+hoc khng bit g" kh cng, gi c trng thi trung gian to đng lc THT S mun đi ti (đ
+nghe tn, t m mun xc nhn) thay v random hon ton m m.
 
 ---
 
-## 8. SCHEMA T[encoding-loss]NG H[encoding-loss]P (c[encoding-loss]p nh[encoding-loss]t `MapNode` [encoding-loss] c[encoding-loss] [encoding-loss] `MAP_SYSTEM.md` m[encoding-loss]c 1 v[encoding-loss] 6.7)
+## 8. SCHEMA TNG HP (cp nht `MapNode` đ c  `MAP_SYSTEM.md` mc 1 v 6.7)
 
 ```
-### 8.1. Contract th[encoding-loss]c thi b[encoding-loss] sung
+### 8.1. Contract thc thi b sung
 
-**L3 node detail:** m[encoding-loss]i `subLocation` c[encoding-loss] `id`, `type`, `displayName`, `actions`, `capacity`, `visibilityFog`. NPC schedule tr[encoding-loss] `currentSubLocationId`; i[encoding-loss]m [encoding-loss]y ho[encoding-loss]c b[encoding-loss] kh[encoding-loss]a th[encoding-loss] NPC fallback v[encoding-loss] `main`. State machine l[encoding-loss] `outside_node -> entering_node -> inside_sub_location -> leaving_node`. Chuy[encoding-loss]n i[encoding-loss]m trong c[encoding-loss]ng node kh[encoding-loss]ng roll encounter; action lu[encoding-loss]n g[encoding-loss]i `nodeId + subLocationId` nh[encoding-loss]ng save gi[encoding-loss] hai field t[encoding-loss]ch bi[encoding-loss]t.
+**L3 node detail:** mi `subLocation` c `id`, `type`, `displayName`, `actions`, `capacity`, `visibilityFog`. NPC schedule tr `currentSubLocationId`; đim đy hoc b kha th NPC fallback v `main`. State machine l `outside_node -> entering_node -> inside_sub_location -> leaving_node`. Chuyn đim trong cng node khng roll encounter; action lun gi `nodeId + subLocationId` nhng save gi hai field tch bit.
 
-**Influence/heatmap:** influence l[encoding-loss] derived state, cache theo `worldTick + factionVersion + structureVersion + eventVersion` v[encoding-loss] ph[encoding-loss]i rebuild deterministic. BFS t[encoding-loss] faction home nodes, c[encoding-loss]ng th[encoding-loss]c `power * 0.70^distance * (1 + structureBonus + eventBonus + outpostBonus)`, clamp `[0,100]`. `stable` khi top >=35 v[encoding-loss] margin >=15%; `contested` khi top-two margin <15%; c[encoding-loss]n l[encoding-loss]i `frontier`. Heatmap kh[encoding-loss]ng [encoding-loss][encoding-loss]c suy lu[encoding-loss]n owner [encoding-loss] fog 0.
+**Influence/heatmap:** influence l derived state, cache theo `worldTick + factionVersion + structureVersion + eventVersion` v phi rebuild deterministic. BFS t faction home nodes, cng thc `power * 0.70^distance * (1 + structureBonus + eventBonus + outpostBonus)`, clamp `[0,100]`. `stable` khi top >=35 v margin >=15%; `contested` khi top-two margin <15%; cn li `frontier`. Heatmap khng đc suy lun owner  fog 0.
 
-**Fog 03:** discovery event chu[encoding-loss]n `{ nodeId, level, source, actorId, tick }`; reducer [encoding-loss]p d[encoding-loss]ng max level v[encoding-loss] idempotent journal. Rumor=1, visit=2, survey/outpost/waystation=3. `revealAdjacentNodes` ch[encoding-loss] n[encoding-loss]ng t[encoding-loss]i a m[encoding-loss]t c[encoding-loss]p, kh[encoding-loss]ng spoil sub-location.
+**Fog 03:** discovery event chun `{ nodeId, level, source, actorId, tick }`; reducer p dng max level v idempotent journal. Rumor=1, visit=2, survey/outpost/waystation=3. `revealAdjacentNodes` ch nng ti đa mt cp, khng spoil sub-location.
 
-**Outpost/structures:** claim theo `preview -> establish -> maintain`. Preview kh[encoding-loss]ng mutate; establish tr[encoding-loss] cost m[encoding-loss]t l[encoding-loss]n v[encoding-loss] t[encoding-loss]o `outpostId`; maintain tr[encoding-loss] upkeep m[encoding-loss]i world tick, integrity v[encoding-loss] 0 th[encoding-loss] v[encoding-loss] hi[encoding-loss]u h[encoding-loss]a ch[encoding-loss] kh[encoding-loss]ng x[encoding-loss]a l[encoding-loss]ch s[encoding-loss]. Structure c[encoding-loss] `level`, `integrity`, `upkeep`, `effects`, `builtBy`; kh[encoding-loss]ng tr[encoding-loss]ng type trong node, t[encoding-loss]i a ba structure.
+**Outpost/structures:** claim theo `preview -> establish -> maintain`. Preview khng mutate; establish tr cost mt ln v to `outpostId`; maintain tr upkeep mi world tick, integrity v 0 th v hiu ha ch khng xa lch s. Structure c `level`, `integrity`, `upkeep`, `effects`, `builtBy`; khng trng type trong node, ti đa ba structure.
 
-**Weighted travel:** task c[encoding-loss] tr[encoding-loss]ng th[encoding-loss]i `planned | active | interrupted | completed | cancelled`, snapshot kh[encoding-loss]a route, distance, ETA, risk seed, escort v[encoding-loss] cost. M[encoding-loss]i ng[encoding-loss]y roll b[encoding-loss]ng `taskId + dayIndex` [encoding-loss] retry idempotent. Escort c[encoding-loss] `riskReduction`, `dailyCost`, `canFlee`. Fast travel c[encoding-loss]n unlock hai [encoding-loss]u, kh[encoding-loss]ng combat/instance, kh[encoding-loss]ng road event nh[encoding-loss]ng v[encoding-loss]n ghi travel log.
+**Weighted travel:** task c trng thi `planned | active | interrupted | completed | cancelled`, snapshot kha route, distance, ETA, risk seed, escort v cost. Mi ngy roll bng `taskId + dayIndex` đ retry idempotent. Escort c `riskReduction`, `dailyCost`, `canFlee`. Fast travel cn unlock hai đu, khng combat/instance, khng road event nhng vn ghi travel log.
 
-**Patrol/bulletin:** patrol l[encoding-loss] projection tr[encoding-loss]n edge `{ patrolCount, factionId, threat, nextTransitionTick }`, kh[encoding-loss]ng t[encoding-loss]o node m[encoding-loss]i. Bulletin t[encoding-loss]i a ba tin, c[encoding-loss] `requiredFog`, `expiresAt`, `actionId`; filter tr[encoding-loss][encoding-loss]c khi render.
+**Patrol/bulletin:** patrol l projection trn edge `{ patrolCount, factionId, threat, nextTransitionTick }`, khng to node mi. Bulletin ti đa ba tin, c `requiredFog`, `expiresAt`, `actionId`; filter trc khi render.
 
-**Transaction resolver:** m[encoding-loss]i map mutation ch[encoding-loss]y qua `resolveMapTransaction({ actionId, actorId, expectedVersion, validate, apply, rollback })` v[encoding-loss] tr[encoding-loss] `{ success, reason, data, transactionId, stateVersion }`. Version check, cost/permission/fog check, journal v[encoding-loss] rollback l[encoding-loss] b[encoding-loss]t bu[encoding-loss]c. Idempotency key g[encoding-loss]m `actionId + actorId + inputHash`.
+**Transaction resolver:** mi map mutation chy qua `resolveMapTransaction({ actionId, actorId, expectedVersion, validate, apply, rollback })` v tr `{ success, reason, data, transactionId, stateVersion }`. Version check, cost/permission/fog check, journal v rollback l bt buc. Idempotency key gm `actionId + actorId + inputHash`.
 
-**Acceptance tests:** L3 [encoding-loss]ng NPC/action; influence BFS v[encoding-loss] contested threshold; fog migration/privacy; outpost thi[encoding-loss]u cost/maintenance; travel retry/interruption/fast travel; patrol edge v[encoding-loss] bulletin expiry; rollback khi mutation gi[encoding-loss]a ch[encoding-loss]ng.
+**Acceptance tests:** L3 đng NPC/action; influence BFS v contested threshold; fog migration/privacy; outpost thiu cost/maintenance; travel retry/interruption/fast travel; patrol edge v bulletin expiry; rollback khi mutation gia chng.
 
 MapNode {
-  ...(gi[encoding-loss] nguy[encoding-loss]n to[encoding-loss]n b[encoding-loss] field ci: id, nodeType, regionTag, x, y, isProcedural, dangerLevel,
+  ...(gi nguyn ton b field ci: id, nodeType, regionTag, x, y, isProcedural, dangerLevel,
       linhKhiDensity, eventPoolTag, cooldownUntil, claimedByPlayerId)...
 
-  fogState: 0-3,                          // thay th[encoding-loss] `discovered: boolean` ci (m[encoding-loss]c 7)
-  influenceMap: { factionId: number },     // thay th[encoding-loss] `ownerFactionId` t)nh (m[encoding-loss]c 3.1)  ownerFactionId
-                                            // gi[encoding-loss] l[encoding-loss] GETTER t[encoding-loss]nh t[encoding-loss] influenceMap, kh[encoding-loss]ng l[encoding-loss]u tr[encoding-loss]c ti[encoding-loss]p
-  subLocations: NodeDetailLayout | null,    // null n[encoding-loss]u node qu[encoding-loss] nh[encoding-loss] [encoding-loss] c[encoding-loss]n L[encoding-loss]p 3 (m[encoding-loss]c 2)
-  patrolSchedule: [{ npcId, fromNode, toNode, cycleHours }],  // m[encoding-loss]c 6.1
-  playerStructures: [{ type, builtByCharacterId, builtAt }],   // m[encoding-loss]c 4.2
-  fastTravelUnlocked: boolean,              // m[encoding-loss]c 5.2
+  fogState: 0-3,                          // thay th `discovered: boolean` ci (mc 7)
+  influenceMap: { factionId: number },     // thay th `ownerFactionId` t)nh (mc 3.1) · ownerFactionId
+                                            // gi l GETTER tnh t influenceMap, khng lu trc tip
+  subLocations: NodeDetailLayout | null,    // null nu node qu nh đ cn Lp 3 (mc 2)
+  patrolSchedule: [{ npcId, fromNode, toNode, cycleHours }],  // mc 6.1
+  playerStructures: [{ type, builtByCharacterId, builtAt }],   // mc 4.2
+  fastTravelUnlocked: boolean,              // mc 5.2
 }
 ```
 
 ---
 
-## 9. VI[encoding-loss]C C[encoding-loss]N L[encoding-loss]M TI[encoding-loss]P ([encoding-loss]u ti[encoding-loss]n  [encoding-loss]y l[encoding-loss] redesign l[encoding-loss]n, KH[encoding-loss]NG l[encoding-loss]m h[encoding-loss]t c[encoding-loss]ng l[encoding-loss]c)
-1. **L[encoding-loss]m tr[encoding-loss][encoding-loss]c ti[encoding-loss]n:** m[encoding-loss]c 3.1 (influence gradient thay `ownerFactionId` t)nh)  m[encoding-loss]i m[encoding-loss]c kh[encoding-loss]c (3.2,
-   4, 6) [encoding-loss]u ph[encoding-loss] thu[encoding-loss]c d[encoding-loss] li[encoding-loss]u n[encoding-loss]y t[encoding-loss]n t[encoding-loss]i tr[encoding-loss][encoding-loss]c.
-2. **L[encoding-loss]m th[encoding-loss] hai:** m[encoding-loss]c 7 (4 c[encoding-loss]p s[encoding-loss][encoding-loss]ng m[encoding-loss])  [encoding-loss]c l[encoding-loss]p t[encoding-loss][encoding-loss]ng [encoding-loss]i, c[encoding-loss]i thi[encoding-loss]n c[encoding-loss]m gi[encoding-loss]c kh[encoding-loss]m ph[encoding-loss] ngay l[encoding-loss]p
-   t[encoding-loss]c m[encoding-loss] kh[encoding-loss]ng c[encoding-loss]n ch[encoding-loss] m[encoding-loss]c 1 xong.
-3. **L[encoding-loss]m th[encoding-loss] ba:** m[encoding-loss]c 2 (L[encoding-loss]p 3 Node Detail)  c[encoding-loss]n nhi[encoding-loss]u n[encoding-loss]i dung th[encoding-loss] c[encoding-loss]ng h[encoding-loss]n ([encoding-loss]t NPC v[encoding-loss]o [encoding-loss]ng
-   subLocation), n[encoding-loss]n l[encoding-loss]m sau khi khung d[encoding-loss] li[encoding-loss]u (m[encoding-loss]c 8) [encoding-loss] [encoding-loss]n [encoding-loss]nh.
-4. **L[encoding-loss]m sau c[encoding-loss]ng:** m[encoding-loss]c 4 (Player Map Agency  L[encoding-loss]p Tr[encoding-loss]m/X[encoding-loss]y D[encoding-loss]ng) v[encoding-loss] m[encoding-loss]c 5.2-5.3 (Fast Travel/o[encoding-loss]n
-   H[encoding-loss] T[encoding-loss]ng)  [encoding-loss]y l[encoding-loss] t[encoding-loss]nh nng CH[encoding-loss] [encoding-loss]NG ph[encoding-loss]c t[encoding-loss]p nh[encoding-loss]t, c[encoding-loss]n n[encoding-loss]n t[encoding-loss]ng gradient + fog 4 c[encoding-loss]p [encoding-loss]n [encoding-loss]nh
-   tr[encoding-loss][encoding-loss]c [encoding-loss] kh[encoding-loss]ng ph[encoding-loss]i s[encoding-loss]a l[encoding-loss]i logic 2 l[encoding-loss]n.
-5. Quy[encoding-loss]t [encoding-loss]nh l[encoding-loss]i c[encoding-loss]u h[encoding-loss]i multiplayer c[encoding-loss]n treo ([encoding-loss] nh[encoding-loss]c [encoding-loss] nhi[encoding-loss]u t[encoding-loss]i li[encoding-loss]u tr[encoding-loss][encoding-loss]c)  m[encoding-loss]c 4.1 "L[encoding-loss]p Tr[encoding-loss]m"
-   [encoding-loss]c bi[encoding-loss]t c[encoding-loss]n c[encoding-loss]u tr[encoding-loss] l[encoding-loss]i r[encoding-loss] TR[encoding-loss][encoding-loss]C khi code, v[encoding-loss] [encoding-loss] ngh)a "tr[encoding-loss]m c[encoding-loss]a player" kh[encoding-loss]c h[encoding-loss]n n[encoding-loss]u server-wide
-   (ng[encoding-loss][encoding-loss]i kh[encoding-loss]c th[encoding-loss]y [encoding-loss][encoding-loss]c/c[encoding-loss] th[encoding-loss] ph[encoding-loss]) vs single-player (ch[encoding-loss] [encoding-loss]nh h[encoding-loss][encoding-loss]ng th[encoding-loss] gi[encoding-loss]i ri[encoding-loss]ng).
+## 9. VIC CN LM TIP (u tin · đy l redesign ln, KHNG lm ht cng lc)
+1. **Lm trc tin:** mc 3.1 (influence gradient thay `ownerFactionId` t)nh) · mi mc khc (3.2,
+   4, 6) đu ph thuc d liu ny tn ti trc.
+2. **Lm th hai:** mc 7 (4 cp sng m) · đc lp tng đi, ci thin cm gic khm ph ngay lp
+   tc m khng cn ch mc 1 xong.
+3. **Lm th ba:** mc 2 (Lp 3 Node Detail) · cn nhiu ni dung th cng hn (đt NPC vo đng
+   subLocation), nn lm sau khi khung d liu (mc 8) đ n đnh.
+4. **Lm sau cng:** mc 4 (Player Map Agency · Lp Trm/Xy Dng) v mc 5.2-5.3 (Fast Travel/Đon
+   H Tng) · đy l tnh nng CH ĐNG phc tp nht, cn nn tng gradient + fog 4 cp n đnh
+   trc đ khng phi sa li logic 2 ln.
+5. Quyt đnh li cu hi multiplayer cn treo (đ nhc  nhiu ti liu trc) · mc 4.1 "Lp Trm"
+   đc bit cn cu tr li r TRC khi code, v  ngh)a "trm ca player" khc hn nu server-wide
+   (ngi khc thy đc/c th ph) vs single-player (ch nh hng th gii ring).
 ---
 
 ## AMENDMENT 2026-09-16 — MAP V2/INTERACTION VÀ CÔNG TRÌNH
@@ -1730,214 +1737,214 @@ Tab Thế giới sở hữu feature **Công Trình Bản Đồ**. Hai loại cô
 
 ### Source: `archive-requirements\logic-history\03-world\MAP_WEATHER_INTEGRATION_TRACE.md`
 
-# Map V2  Weather Integration Trace
+# Map V2 · Weather Integration Trace
 
-## Ph[encoding-loss]m vi
+## Phm vi
 
-T[encoding-loss]i li[encoding-loss]u n[encoding-loss]y truy v[encoding-loss]t ph[encoding-loss]n th[encoding-loss]i ti[encoding-loss]t [encoding-loss][encoding-loss]c tri[encoding-loss]n khai t[encoding-loss] m[encoding-loss]c 10 c[encoding-loss]a `MAP_SYSTEM_V2_COMPLETE.md`.
+Ti liu ny truy vt phn thi tit đc trin khai t mc 10 ca `MAP_SYSTEM_V2_COMPLETE.md`.
 
-## Contract [encoding-loss] tri[encoding-loss]n khai
+## Contract đ trin khai
 
-- B[encoding-loss]y tr[encoding-loss]ng th[encoding-loss]i th[encoding-loss]i ti[encoding-loss]t: `quang`, `mua`, `suong`, `loi_vu`, `linh_phong`, `tuyet`, `am_vu`.
-- Weather lan truy[encoding-loss]n theo tuy[encoding-loss]n v[encoding-loss]ng l[encoding-loss]n c[encoding-loss]n, c[encoding-loss] bias t[encoding-loss] th[encoding-loss]i ti[encoding-loss]t nghi[encoding-loss]m tr[encoding-loss]ng c[encoding-loss]a v[encoding-loss]ng k[encoding-loss] b[encoding-loss]n.
-- Th[encoding-loss]i ti[encoding-loss]t gi[encoding-loss] [encoding-loss]n [encoding-loss]nh theo `weatherUntilDay`, kh[encoding-loss]ng reroll m[encoding-loss]i frame.
-- M[encoding-loss]a tng nguy c[encoding-loss] v[encoding-loss] gi[encoding-loss]m t[encoding-loss]c [encoding-loss]; tuy[encoding-loss]t gi[encoding-loss]m t[encoding-loss]c [encoding-loss] m[encoding-loss]nh; l[encoding-loss]i vi ch[encoding-loss]n ng[encoding-loss] kh[encoding-loss]; [encoding-loss]m vi tng hao t[encoding-loss]n v[encoding-loss] nguy c[encoding-loss].
-- Th[encoding-loss]i ti[encoding-loss]t [encoding-loss][encoding-loss]c [encoding-loss]a v[encoding-loss]o travel preview, world modifier, NPC reaction v[encoding-loss] structured game log.
-- Khi th[encoding-loss]i ti[encoding-loss]t v[encoding-loss]ng hi[encoding-loss]n t[encoding-loss]i [encoding-loss]i, log ghi l[encoding-loss]i tr[encoding-loss]ng th[encoding-loss]i tr[encoding-loss][encoding-loss]c/sau v[encoding-loss] metadata node, v[encoding-loss]ng, NPC, fog.
+- By trng thi thi tit: `quang`, `mua`, `suong`, `loi_vu`, `linh_phong`, `tuyet`, `am_vu`.
+- Weather lan truyn theo tuyn vng ln cn, c bias t thi tit nghim trng ca vng k bn.
+- Thi tit gi n đnh theo `weatherUntilDay`, khng reroll mi frame.
+- Ma tng nguy c v gim tc đ; tuyt gim tc đ mnh; li vi chn ng kh; m vi tng hao tn v nguy c.
+- Thi tit đc đa vo travel preview, world modifier, NPC reaction v structured game log.
+- Khi thi tit vng hin ti đi, log ghi li trng thi trc/sau v metadata node, vng, NPC, fog.
 
 ## API trace
 
-| API | Vai tr[encoding-loss] |
+| API | Vai tr |
 |---|---|
-| `setWeather` | [encoding-loss]p th[encoding-loss]i ti[encoding-loss]t c[encoding-loss] th[encoding-loss]i h[encoding-loss]n |
-| `updateWeather` | Sinh th[encoding-loss]i ti[encoding-loss]t deterministic theo v[encoding-loss]ng v[encoding-loss] l[encoding-loss]ng gi[encoding-loss]ng |
-| `worldModifierPreview` | Tr[encoding-loss] modifier chi[encoding-loss]n [encoding-loss]u/di chuy[encoding-loss]n/t[encoding-loss]m c[encoding-loss]nh |
-| `travelPreview` | T[encoding-loss]nh t[encoding-loss]c [encoding-loss], s[encoding-loss] ng[encoding-loss]y, risk theo th[encoding-loss]i ti[encoding-loss]t |
-| `npcWeatherPreview` | D[encoding-loss] b[encoding-loss]o ph[encoding-loss]n [encoding-loss]ng NPC |
-| `resolveNpcWeatherReaction` | Commit tr[encoding-loss] [encoding-loss]n/l[encoding-loss]ch tr[encoding-loss]nh/mood |
-| `getCurrentRegionViewModel` | Cung c[encoding-loss]p weather cho UI Map |
-| `pushHistory/createGameEvent` | Ghi weather, node, NPC, fog v[encoding-loss]o log |
+| `setWeather` | p thi tit c thi hn |
+| `updateWeather` | Sinh thi tit deterministic theo vng v lng ging |
+| `worldModifierPreview` | Tr modifier chin đu/di chuyn/tm cnh |
+| `travelPreview` | Tnh tc đ, s ngy, risk theo thi tit |
+| `npcWeatherPreview` | D bo phn ng NPC |
+| `resolveNpcWeatherReaction` | Commit tr n/lch trnh/mood |
+| `getCurrentRegionViewModel` | Cung cp weather cho UI Map |
+| `pushHistory/createGameEvent` | Ghi weather, node, NPC, fog vo log |
 
 ## Acceptance
 
-1. C[encoding-loss]ng seed, c[encoding-loss]ng ng[encoding-loss]y v[encoding-loss] topology cho c[encoding-loss]ng th[encoding-loss]i ti[encoding-loss]t.
-2. V[encoding-loss]ng k[encoding-loss] B[encoding-loss]o Linh Kh[encoding-loss]/[encoding-loss]m Vi c[encoding-loss] x[encoding-loss]c su[encoding-loss]t nh[encoding-loss]n weather t[encoding-loss][encoding-loss]ng [encoding-loss]ng cao h[encoding-loss]n.
-3. Ng[encoding-loss] kh[encoding-loss] b[encoding-loss] t[encoding-loss] ch[encoding-loss]i khi c[encoding-loss] B[encoding-loss]o Linh Kh[encoding-loss].
-4. Tuy[encoding-loss]t v[encoding-loss] M[encoding-loss]a l[encoding-loss]m thay [encoding-loss]i travel days/risk.
-5. Weather transition t[encoding-loss]i node ng[encoding-loss][encoding-loss]i ch[encoding-loss]i t[encoding-loss]o log structured, kh[encoding-loss]ng t[encoding-loss]o log l[encoding-loss]p trong c[encoding-loss]ng tick.
-6. UI kh[encoding-loss]ng hi[encoding-loss]n th[encoding-loss] `undefined` khi region thi[encoding-loss]u `description`; d[encoding-loss]ng `desc` ho[encoding-loss]c t[encoding-loss]n v[encoding-loss]ng.
+1. Cng seed, cng ngy v topology cho cng thi tit.
+2. Vng k Bo Linh Kh/m Vi c xc sut nhn weather tng ng cao hn.
+3. Ng kh b t chi khi c Bo Linh Kh.
+4. Tuyt v Ma lm thay đi travel days/risk.
+5. Weather transition ti node ngi chi to log structured, khng to log lp trong cng tick.
+6. UI khng hin th `undefined` khi region thiu `description`; dng `desc` hoc tn vng.
 
 
 ### Source: `archive-requirements\logic-history\03-world\OPEN_WORLD_COSMIC_CONSTELLATION_MAP_REQUIREMENT.md`
 
 # Open-World Cosmic Constellation Map
 
-## B[encoding-loss]n [encoding-loss] V[encoding-loss]n Gi[encoding-loss]i  ph[encoding-loss]n l[encoding-loss]p hi[encoding-loss]n th[encoding-loss] chu[encoding-loss]n
+## Bn đ Vn Gii · phn lp hin th chun
 
-## C[encoding-loss]nh gi[encoding-loss]i t[encoding-loss] ch[encoding-loss]c theo Con [encoding-loss][encoding-loss]ng
+## Cnh gii t chc theo Con Đng
 
-- H[encoding-loss] s[encoding-loss] t[encoding-loss] ch[encoding-loss]c kh[encoding-loss]ng [encoding-loss][encoding-loss]c hi[encoding-loss]n th[encoding-loss] c[encoding-loss]nh gi[encoding-loss]i legacy nh[encoding-loss] Luy[encoding-loss]n Kh[encoding-loss], Tr[encoding-loss]c C[encoding-loss], Kim an.
-- `guild.highest_realm` ch[encoding-loss] d[encoding-loss]ng l[encoding-loss]m kh[encoding-loss]a t[encoding-loss][encoding-loss]ng th[encoding-loss]ch; UI ph[encoding-loss]i [encoding-loss]nh x[encoding-loss] sang `GameData.REALMS` r[encoding-loss]i d[encoding-loss]ng `PATH_FATE_RELATIONS.path_titles[pathId]`.
-- Khi nh[encoding-loss]n v[encoding-loss]t ch[encoding-loss]a ch[encoding-loss]n Con [encoding-loss][encoding-loss]ng, hi[encoding-loss]n th[encoding-loss] Con [encoding-loss][encoding-loss]ng b[encoding-loss]c N thay v[encoding-loss] b[encoding-loss]a t[encoding-loss]n c[encoding-loss]nh gi[encoding-loss]i.
-- i[encoding-loss]u ki[encoding-loss]n gia nh[encoding-loss]p ph[encoding-loss]i di[encoding-loss]n gi[encoding-loss]i b[encoding-loss]ng t[encoding-loss]n c[encoding-loss]nh gi[encoding-loss]i Con [encoding-loss][encoding-loss]ng t[encoding-loss][encoding-loss]ng [encoding-loss]ng v[encoding-loss]i `minRealm`, kh[encoding-loss]ng hi[encoding-loss]n th[encoding-loss] d[encoding-loss]ng s[encoding-loss] tr[encoding-loss] khi d[encoding-loss]ng trong tooltip k[encoding-loss] thu[encoding-loss]t.
+- H s t chc khng đc hin th cnh gii legacy nh Luyn Kh, Trc C, Kim Đan.
+- `guild.highest_realm` ch dng lm kha tng thch; UI phi nh x sang `GameData.REALMS` ri dng `PATH_FATE_RELATIONS.path_titles[pathId]`.
+- Khi nhn vt cha chn Con Đng, hin th Con Đng bc N thay v ba tn cnh gii.
+- Điu kin gia nhp phi din gii bng tn cnh gii Con Đng tng ng vi `minRealm`, khng hin th dng s tr khi dng trong tooltip k thut.
 
-## Complete node links v[encoding-loss] sinh node [encoding-loss]nh h[encoding-loss][encoding-loss]ng
+## Complete node links v sinh node đnh hng
 
-## Node pool h[encoding-loss]p nh[encoding-loss]t
+## Node pool hp nht
 
-- `WORLD_MAP.nodePool` l[encoding-loss] registry duy nh[encoding-loss]t cho [encoding-loss]a danh, t[encoding-loss] ch[encoding-loss]c, ph[encoding-loss][encoding-loss]ng th[encoding-loss], th[encoding-loss]nh tr[encoding-loss]n, th[encoding-loss]n, b[encoding-loss]n t[encoding-loss]u, tr[encoding-loss]m d[encoding-loss]ch v[encoding-loss] v[encoding-loss]ng hoang d[encoding-loss] runtime.
-- Node runtime kh[encoding-loss]ng d[encoding-loss]ng t[encoding-loss]n t[encoding-loss]a [encoding-loss] d[encoding-loss]ng `Bng Nguy[encoding-loss]n -1`; t[encoding-loss]n ph[encoding-loss]i l[encoding-loss]y t[encoding-loss] pool c[encoding-loss]nh quan theo v[encoding-loss]ng v[encoding-loss] lo[encoding-loss]i [encoding-loss]a h[encoding-loss]nh.
-- M[encoding-loss]i node l[encoding-loss]u k[encoding-loss]m `npcs`, `enemies`, `organizationId` v[encoding-loss] `mapNodeType` [encoding-loss] NPC/qu[encoding-loss]i, t[encoding-loss] ch[encoding-loss]c v[encoding-loss] th[encoding-loss]m hi[encoding-loss]m c[encoding-loss]ng [encoding-loss]c m[encoding-loss]t ngu[encoding-loss]n d[encoding-loss] li[encoding-loss]u.
-- Khi sinh node m[encoding-loss]i, engine ghi node v[encoding-loss]o c[encoding-loss] `LOCATIONS`, `openWorld.nodes` v[encoding-loss] `WORLD_MAP.nodePool`.
+- `WORLD_MAP.nodePool` l registry duy nht cho đa danh, t chc, phng th, thnh trn, thn, bn tu, trm dch v vng hoang d runtime.
+- Node runtime khng dng tn ta đ dng `Bng Nguyn -1`; tn phi ly t pool cnh quan theo vng v loi đa hnh.
+- Mi node lu km `npcs`, `enemies`, `organizationId` v `mapNodeType` đ NPC/qui, t chc v thm him cng đc mt ngun d liu.
+- Khi sinh node mi, engine ghi node vo c `LOCATIONS`, `openWorld.nodes` v `WORLD_MAP.nodePool`.
 
-- M[encoding-loss]i node khi [encoding-loss][encoding-loss]c n[encoding-loss]p ph[encoding-loss]i c[encoding-loss] [encoding-loss] b[encoding-loss]n h[encoding-loss][encoding-loss]ng B[encoding-loss]c/Nam/[encoding-loss]ng/T[encoding-loss]y.
-- N[encoding-loss]u catalog thi[encoding-loss]u h[encoding-loss][encoding-loss]ng, engine sinh node runtime k[encoding-loss] c[encoding-loss]n ngay t[encoding-loss]i th[encoding-loss]i i[encoding-loss]m resolve topology v[encoding-loss] ghi reciprocal link.
-- Node runtime m[encoding-loss]i lu[encoding-loss]n gi[encoding-loss] li[encoding-loss]n k[encoding-loss]t quay v[encoding-loss] node sinh ra; c[encoding-loss]c h[encoding-loss][encoding-loss]ng c[encoding-loss]n thi[encoding-loss]u ti[encoding-loss]p t[encoding-loss]c [encoding-loss][encoding-loss]c sinh lazy khi ng[encoding-loss][encoding-loss]i ch[encoding-loss]i ch[encoding-loss]n h[encoding-loss][encoding-loss]ng.
-- `mapNeighbors()` v[encoding-loss] `mapDistance()` v[encoding-loss]n coi to[encoding-loss]n b[encoding-loss] node l[encoding-loss] complete graph [encoding-loss] travel t[encoding-loss] do gi[encoding-loss]a m[encoding-loss]i node h[encoding-loss]p l[encoding-loss].
+- Mi node khi đc np phi c đ bn hng Bc/Nam/Đng/Ty.
+- Nu catalog thiu hng, engine sinh node runtime k cn ngay ti thi đim resolve topology v ghi reciprocal link.
+- Node runtime mi lun gi lin kt quay v node sinh ra; cc hng cn thiu tip tc đc sinh lazy khi ngi chi chn hng.
+- `mapNeighbors()` v `mapDistance()` vn coi ton b node l complete graph đ travel t do gia mi node hp l.
 
-- M[encoding-loss]u v[encoding-loss]ng ch[encoding-loss] d[encoding-loss]nh cho node v[encoding-loss]ng ch[encoding-loss]a nh[encoding-loss]n v[encoding-loss]t (`currentRegionId`); kh[encoding-loss]ng d[encoding-loss]ng cho ghim t[encoding-loss] ch[encoding-loss]c ho[encoding-loss]c node sao t[encoding-loss] ch[encoding-loss]c.
-- Ghim t[encoding-loss] ch[encoding-loss]c ph[encoding-loss]i ph[encoding-loss]n m[encoding-loss]u theo alignment/allegiance v[encoding-loss] gi[encoding-loss] k[encoding-loss]ch th[encoding-loss][encoding-loss]c theo `pyramid_tier`.
-- Nh[encoding-loss]n t[encoding-loss] ch[encoding-loss]c d[encoding-loss]ng c[encoding-loss]ng m[encoding-loss]u alignment, kh[encoding-loss]ng d[encoding-loss]ng m[encoding-loss]u v[encoding-loss]ng m[encoding-loss]c [encoding-loss]nh.
-- Sao t[encoding-loss] ch[encoding-loss]c ph[encoding-loss] ch[encoding-loss] l[encoding-loss] l[encoding-loss]p d[encoding-loss]n [encoding-loss][encoding-loss]ng m[encoding-loss], kh[encoding-loss]ng [encoding-loss][encoding-loss]c che ho[encoding-loss]c bi[encoding-loss]n th[encoding-loss]nh tr[encoding-loss]ng th[encoding-loss]i V[encoding-loss]ng hi[encoding-loss]n t[encoding-loss]i.
-- Tr[encoding-loss]ng th[encoding-loss]i kh[encoding-loss]m ph[encoding-loss] v[encoding-loss] quy[encoding-loss]n di chuy[encoding-loss]n l[encoding-loss] hai l[encoding-loss]p [encoding-loss]c l[encoding-loss]p: node ch[encoding-loss]a kh[encoding-loss]m ph[encoding-loss] v[encoding-loss]n i [encoding-loss][encoding-loss]c [encoding-loss] backend nh[encoding-loss]ng UI ch[encoding-loss] hi[encoding-loss]n th[encoding-loss] Ch[encoding-loss]a th[encoding-loss]m hi[encoding-loss]m.
+- Mu vng ch dnh cho node vng cha nhn vt (`currentRegionId`); khng dng cho ghim t chc hoc node sao t chc.
+- Ghim t chc phi phn mu theo alignment/allegiance v gi kch thc theo `pyramid_tier`.
+- Nhn t chc dng cng mu alignment, khng dng mu vng mc đnh.
+- Sao t chc ph ch l lp dn đng m, khng đc che hoc bin thnh trng thi Vng hin ti.
+- Trng thi khm ph v quyn di chuyn l hai lp đc lp: node cha khm ph vn đi đc  backend nhng UI ch hin th Cha thm him.
 
-## Quy t[encoding-loss]c hi[encoding-loss]n th[encoding-loss] V[encoding-loss]n Gi[encoding-loss]i L[encoding-loss] (b[encoding-loss] sung)
+## Quy tc hin th Vn Gii L (b sung)
 
-- M[encoding-loss]u v[encoding-loss]ng ch[encoding-loss] d[encoding-loss]nh cho [encoding-loss]ng v[encoding-loss]ng ch[encoding-loss]a `state.locationId`; kh[encoding-loss]ng [encoding-loss][encoding-loss]c [encoding-loss]p d[encoding-loss]ng cho to[encoding-loss]n b[encoding-loss] node.
-- Node t[encoding-loss] ch[encoding-loss]c d[encoding-loss]ng m[encoding-loss]u theo `alignment/allegiance`: Ch[encoding-loss]nh [encoding-loss]o xanh lam, Ma/T[encoding-loss] [encoding-loss]o [encoding-loss] t[encoding-loss]m, Trung l[encoding-loss]p t[encoding-loss]m x[encoding-loss]m.
-- K[encoding-loss]ch th[encoding-loss][encoding-loss]c ghim t[encoding-loss] ch[encoding-loss]c t[encoding-loss] l[encoding-loss] ngh[encoding-loss]ch v[encoding-loss]i `pyramid_tier` (Tier 1 l[encoding-loss]n nh[encoding-loss]t).
-- C[encoding-loss] th[encoding-loss] i l[encoding-loss] quy[encoding-loss]n backend, kh[encoding-loss]ng ph[encoding-loss]i m[encoding-loss]u giao di[encoding-loss]n; frontend ch[encoding-loss] hi[encoding-loss]n th[encoding-loss] ang [encoding-loss] [encoding-loss]y, [encoding-loss] th[encoding-loss]m hi[encoding-loss]m, Ch[encoding-loss]a th[encoding-loss]m hi[encoding-loss]m v[encoding-loss] marker [encoding-loss]n sau Fog.
-- Marker Nguy hi[encoding-loss]m, NPC v[encoding-loss] C[encoding-loss] duy[encoding-loss]n ch[encoding-loss] [encoding-loss][encoding-loss]c render khi node [encoding-loss] th[encoding-loss]m hi[encoding-loss]m.
-- Zoom, thu nh[encoding-loss], reset v[encoding-loss] pan ph[encoding-loss]i t[encoding-loss]c [encoding-loss]ng l[encoding-loss]n l[encoding-loss]p node hi[encoding-loss]n th[encoding-loss], kh[encoding-loss]ng ch[encoding-loss] SVG [encoding-loss][encoding-loss]ng n[encoding-loss]i.
+- Mu vng ch dnh cho đng vng cha `state.locationId`; khng đc p dng cho ton b node.
+- Node t chc dng mu theo `alignment/allegiance`: Chnh đo xanh lam, Ma/T đo đ tm, Trung lp tm xm.
+- Kch thc ghim t chc t l nghch vi `pyramid_tier` (Tier 1 ln nht).
+- C th đi l quyn backend, khng phi mu giao din; frontend ch hin th Đang  đy, Đ thm him, Cha thm him v marker n sau Fog.
+- Marker Nguy him, NPC v C duyn ch đc render khi node đ thm him.
+- Zoom, thu nh, reset v pan phi tc đng ln lp node hin th, khng ch SVG đng ni.
 
-## M[encoding-loss]c ti[encoding-loss]u
+## Mc tiu
 
-L[encoding-loss]p tr[encoding-loss]nh b[encoding-loss]y b[encoding-loss]n [encoding-loss] chuy[encoding-loss]n t[encoding-loss] s[encoding-loss] [encoding-loss] node/edge sang **Thi[encoding-loss]n [encoding-loss] Ch[encoding-loss]m Sao**. D[encoding-loss] li[encoding-loss]u n[encoding-loss]n kh[encoding-loss]ng thay [encoding-loss]i: gi[encoding-loss] nguy[encoding-loss]n ID [encoding-loss]a i[encoding-loss]m, v[encoding-loss]ng, route, fog, visited, locked, v[encoding-loss] tr[encoding-loss] nh[encoding-loss]n v[encoding-loss]t, travel v[encoding-loss] action.
+Lp trnh by bn đ chuyn t s đ node/edge sang **Thin Đ Chm Sao**. D liu nn khng thay đi: gi nguyn ID đa đim, vng, route, fog, visited, locked, v tr nhn vt, travel v action.
 
-## [encoding-loss]u ti[encoding-loss]n tri[encoding-loss]n khai: Khu v[encoding-loss]c hi[encoding-loss]n t[encoding-loss]i
+## u tin trin khai: Khu vc hin ti
 
-`Khu v[encoding-loss]c hi[encoding-loss]n t[encoding-loss]i` l[encoding-loss] m[encoding-loss]n h[encoding-loss]nh m[encoding-loss]c [encoding-loss]nh [encoding-loss] ng[encoding-loss][encoding-loss]i ch[encoding-loss]i ra quy[encoding-loss]t [encoding-loss]nh. M[encoding-loss]i thay [encoding-loss]i v[encoding-loss] map ph[encoding-loss]i [encoding-loss][encoding-loss]c [encoding-loss]p d[encoding-loss]ng [encoding-loss] [encoding-loss]y tr[encoding-loss][encoding-loss]c khi m[encoding-loss] r[encoding-loss]ng sang V[encoding-loss]n Gi[encoding-loss]i L[encoding-loss]. Local map ph[encoding-loss]i d[encoding-loss]ng c[encoding-loss]ng ng[encoding-loss]n ng[encoding-loss] ch[encoding-loss]m sao nh[encoding-loss]ng m[encoding-loss]t [encoding-loss] th[encoding-loss]ng tin cao h[encoding-loss]n World Map:
+`Khu vc hin ti` l mn hnh mc đnh đ ngi chi ra quyt đnh. Mi thay đi v map phi đc p dng  đy trc khi m rng sang Vn Gii L. Local map phi dng cng ngn ng chm sao nhng mt đ thng tin cao hn World Map:
 
-- Sao hi[encoding-loss]n t[encoding-loss]i, sao l[encoding-loss]n c[encoding-loss]n v[encoding-loss] c[encoding-loss]c route c[encoding-loss] th[encoding-loss] i.
-- Sub-location, NPC hi[encoding-loss]n di[encoding-loss]n, patrol edge, weather, influence v[encoding-loss] incident t[encoding-loss]i node.
-- Fog/visited/locked [encoding-loss]p d[encoding-loss]ng tr[encoding-loss][encoding-loss]c khi t[encoding-loss]o label ho[encoding-loss]c action.
-- Travel active/restricted/blocked hi[encoding-loss]n th[encoding-loss] ngay c[encoding-loss]nh route.
-- Th[encoding-loss]m Hi[encoding-loss]m, bulletin, c[encoding-loss]ng tr[encoding-loss]nh v[encoding-loss] thao t[encoding-loss]c NPC ph[encoding-loss]i m[encoding-loss] t[encoding-loss] local map m[encoding-loss] kh[encoding-loss]ng c[encoding-loss]n chuy[encoding-loss]n tab.
-- World Map ch[encoding-loss] cung c[encoding-loss]p b[encoding-loss]i c[encoding-loss]nh v) m[encoding-loss]; kh[encoding-loss]ng [encoding-loss][encoding-loss]c ghi [encoding-loss] node/region/weather ang hi[encoding-loss]n th[encoding-loss] [encoding-loss] local map.
+- Sao hin ti, sao ln cn v cc route c th đi.
+- Sub-location, NPC hin din, patrol edge, weather, influence v incident ti node.
+- Fog/visited/locked p dng trc khi to label hoc action.
+- Travel active/restricted/blocked hin th ngay cnh route.
+- Thm Him, bulletin, cng trnh v thao tc NPC phi m t local map m khng cn chuyn tab.
+- World Map ch cung cp bi cnh v) m; khng đc ghi đ node/region/weather đang hin th  local map.
 
-## Kh[encoding-loss]ng gian hi[encoding-loss]n th[encoding-loss]
+## Khng gian hin th
 
-- Canvas l[encoding-loss]n h[encoding-loss]n viewport, c[encoding-loss] kho[encoding-loss]ng tr[encoding-loss]ng c[encoding-loss] ch[encoding-loss] [encoding-loss]ch v[encoding-loss] c[encoding-loss]m gi[encoding-loss]c th[encoding-loss] gi[encoding-loss]i v[encoding-loss] t[encoding-loss]n.
-- B[encoding-loss]n [encoding-loss] d[encoding-loss]ng n[encoding-loss]n tinh v[encoding-loss]n xanh en, [encoding-loss]nh sao xanh/tr[encoding-loss]ng, i[encoding-loss]m v[encoding-loss]ng cho [encoding-loss]a danh quan tr[encoding-loss]ng, t[encoding-loss]m/[encoding-loss] cho v[encoding-loss]ng nguy hi[encoding-loss]m.
-- V[encoding-loss]ng ch[encoding-loss] l[encoding-loss] kh[encoding-loss] quy[encoding-loss]n/tinh v[encoding-loss]n v[encoding-loss] c[encoding-loss]m sao, kh[encoding-loss]ng ph[encoding-loss]i khung ch[encoding-loss] nh[encoding-loss]t hay panel.
-- V[encoding-loss] tr[encoding-loss] [encoding-loss][encoding-loss]c bi[encoding-loss]u di[encoding-loss]n b[encoding-loss]ng sao; ng[encoding-loss][encoding-loss]i ch[encoding-loss]i l[encoding-loss] sao s[encoding-loss]ng nh[encoding-loss]t c[encoding-loss] qu[encoding-loss]ng xung [encoding-loss]ng.
+- Canvas ln hn viewport, c khong trng c ch đch v cm gic th gii v tn.
+- Bn đ dng nn tinh vn xanh đen, nh sao xanh/trng, đim vng cho đa danh quan trng, tm/đ cho vng nguy him.
+- Vng ch l kh quyn/tinh vn v cm sao, khng phi khung ch nht hay panel.
+- V tr đc biu din bng sao; ngi chi l sao sng nht c qung xung đng.
 
-## Ch[encoding-loss]m sao v[encoding-loss] m[encoding-loss]c chi ti[encoding-loss]t
+## Chm sao v mc chi tit
 
-- Cosmic view: ch[encoding-loss] hi[encoding-loss]n v[encoding-loss]ng l[encoding-loss]n v[encoding-loss] sao quan tr[encoding-loss]ng.
-- Region view: hi[encoding-loss]n c[encoding-loss]m sao, th[encoding-loss]nh tr[encoding-loss], t[encoding-loss]ng m[encoding-loss]n v[encoding-loss] route [encoding-loss] kh[encoding-loss]m ph[encoding-loss].
-- Local view: hi[encoding-loss]n node, NPC, dungeon v[encoding-loss] [encoding-loss][encoding-loss]ng g[encoding-loss]n.
-- Close view: hi[encoding-loss]n nh[encoding-loss]n, sub-location, NPC v[encoding-loss] t[encoding-loss][encoding-loss]ng t[encoding-loss]c chi ti[encoding-loss]t.
-- Nh[encoding-loss]n ch[encoding-loss] hi[encoding-loss]n khi hover, selected, current, nearby ho[encoding-loss]c important.
-- Route l[encoding-loss] [encoding-loss][encoding-loss]ng m[encoding-loss]nh, m[encoding-loss], kh[encoding-loss]ng mii t[encoding-loss]n; gi[encoding-loss]m [encoding-loss] [encoding-loss]u ti[encoding-loss]n so v[encoding-loss]i sao.
+- Cosmic view: ch hin vng ln v sao quan trng.
+- Region view: hin cm sao, thnh tr, tng mn v route đ khm ph.
+- Local view: hin node, NPC, dungeon v đng gn.
+- Close view: hin nhn, sub-location, NPC v tng tc chi tit.
+- Nhn ch hin khi hover, selected, current, nearby hoc important.
+- Route l đng mnh, m, khng mii tn; gim đ u tin so vi sao.
 
 ## Discovery/Fog
 
-- Unexplored: sao m[encoding-loss], kh[encoding-loss]ng nh[encoding-loss]n, route [encoding-loss]n.
-- Discovered: sao s[encoding-loss]ng h[encoding-loss]n, route l[encoding-loss]n c[encoding-loss]n hi[encoding-loss]n.
-- Visited: marker b[encoding-loss]n v[encoding-loss]ng v[encoding-loss] glow m[encoding-loss]nh h[encoding-loss]n.
-- Locked: sao t[encoding-loss]i, route r[encoding-loss]t m[encoding-loss] v[encoding-loss] bi[encoding-loss]u t[encoding-loss][encoding-loss]ng kh[encoding-loss]a t[encoding-loss]y ng[encoding-loss] c[encoding-loss]nh.
-- Discovery ph[encoding-loss]i t[encoding-loss]o c[encoding-loss]m gi[encoding-loss]c t[encoding-loss]ng m[encoding-loss]nh ch[encoding-loss]m sao [encoding-loss][encoding-loss]c n[encoding-loss]i l[encoding-loss]i, kh[encoding-loss]ng ph[encoding-loss]i m[encoding-loss] m[encoding-loss]t [encoding-loss] l[encoding-loss][encoding-loss]i.
+- Unexplored: sao m, khng nhn, route n.
+- Discovered: sao sng hn, route ln cn hin.
+- Visited: marker bn vng v glow mnh hn.
+- Locked: sao ti, route rt m v biu tng kha ty ng cnh.
+- Discovery phi to cm gic tng mnh chm sao đc ni li, khng phi m mt  li.
 
-## Camera v[encoding-loss] i[encoding-loss]u h[encoding-loss][encoding-loss]ng
+## Camera v điu hng
 
-- Zoom in/out, center-on-player, drag-to-pan v[encoding-loss] focus m[encoding-loss]m tr[encoding-loss]n sao [encoding-loss][encoding-loss]c ch[encoding-loss]n.
-- Kh[encoding-loss]ng t[encoding-loss] [encoding-loss]ng fit to[encoding-loss]n b[encoding-loss] th[encoding-loss] gi[encoding-loss]i v[encoding-loss]o viewport.
-- Zoom ph[encoding-loss]i c[encoding-loss] level-of-detail: xa [encoding-loss]n nh[encoding-loss]n/route, g[encoding-loss]n hi[encoding-loss]n chi ti[encoding-loss]t.
-- Travel v[encoding-loss]n d[encoding-loss]ng route v[encoding-loss] transaction resolver hi[encoding-loss]n t[encoding-loss]i; giao di[encoding-loss]n m[encoding-loss]i ch[encoding-loss] thay visualization.
+- Zoom in/out, center-on-player, drag-to-pan v focus mm trn sao đc chn.
+- Khng t đng fit ton b th gii vo viewport.
+- Zoom phi c level-of-detail: xa n nhn/route, gn hin chi tit.
+- Travel vn dng route v transaction resolver hin ti; giao din mi ch thay visualization.
 
-## Phenomena v[encoding-loss] t[encoding-loss][encoding-loss]ng t[encoding-loss]c
+## Phenomena v tng tc
 
-- Weather, influence, faction blockade, patrol, incident v[encoding-loss] NPC presence [encoding-loss][encoding-loss]c th[encoding-loss] hi[encoding-loss]n b[encoding-loss]ng m[encoding-loss]u/glow/icon ph[encoding-loss].
-- V[encoding-loss]ng Linh Phong, [encoding-loss]m Vi, c[encoding-loss]m [encoding-loss]a v[encoding-loss] di t[encoding-loss]ch c[encoding-loss] c[encoding-loss] bi[encoding-loss]n th[encoding-loss] tinh v[encoding-loss]n/[encoding-loss][encoding-loss]ng [encoding-loss]t nh[encoding-loss].
-- Ch[encoding-loss]n sao m[encoding-loss] Current Region View Model, bulletin, weather, NPC, sub-location v[encoding-loss] action h[encoding-loss]p l[encoding-loss].
+- Weather, influence, faction blockade, patrol, incident v NPC presence đc th hin bng mu/glow/icon ph.
+- Vng Linh Phong, m Vi, cm đa v di tch c c bin th tinh vn/đng đt nh.
+- Chn sao m Current Region View Model, bulletin, weather, NPC, sub-location v action hp l.
 
-## Hi[encoding-loss]u nng
+## Hiu nng
 
-- [encoding-loss]u ti[encoding-loss]n SVG t[encoding-loss]i [encoding-loss]u ho[encoding-loss]c Canvas; decorative stars t[encoding-loss]ch kh[encoding-loss]i gameplay stars.
-- Kh[encoding-loss]ng t[encoding-loss]o panel DOM n[encoding-loss]ng cho m[encoding-loss]i [encoding-loss]a i[encoding-loss]m.
-- Ch[encoding-loss] render label v[encoding-loss] connection theo zoom/fog.
+- u tin SVG ti u hoc Canvas; decorative stars tch khi gameplay stars.
+- Khng to panel DOM nng cho mi đa đim.
+- Ch render label v connection theo zoom/fog.
 
-## Ti[encoding-loss]u ch[encoding-loss] nghi[encoding-loss]m thu
+## Tiu ch nghim thu
 
-- Kh[encoding-loss]ng c[encoding-loss]n c[encoding-loss]m gi[encoding-loss]c flowchart ho[encoding-loss]c b[encoding-loss]ng node-card.
-- V[encoding-loss]ng hi[encoding-loss]n t[encoding-loss]i, weather, NPC v[encoding-loss] travel kh[encoding-loss]p c[encoding-loss]ng m[encoding-loss]t node/region source.
-- Zoom/center ho[encoding-loss]t [encoding-loss]ng, kh[encoding-loss]ng l[encoding-loss]m m[encoding-loss]t click v[encoding-loss]o sao ho[encoding-loss]c faction.
-- Save ci load nguy[encoding-loss]n tr[encoding-loss]ng v[encoding-loss] t[encoding-loss]t c[encoding-loss] action/travel ci v[encoding-loss]n ch[encoding-loss]y.
+- Khng cn cm gic flowchart hoc bng node-card.
+- Vng hin ti, weather, NPC v travel khp cng mt node/region source.
+- Zoom/center hot đng, khng lm mt click vo sao hoc faction.
+- Save ci load nguyn trng v tt c action/travel ci vn chy.
 
-## UX chi ti[encoding-loss]t
+## UX chi tit
 
-### Thanh c[encoding-loss]ng c[encoding-loss] b[encoding-loss]n [encoding-loss]
+### Thanh cng c bn đ
 
-- N[encoding-loss]t `>` [encoding-loss]a camera v[encoding-loss] sao c[encoding-loss]a nh[encoding-loss]n v[encoding-loss]t, reset zoom v[encoding-loss] pan.
-- N[encoding-loss]t `/` thay [encoding-loss]i zoom theo b[encoding-loss][encoding-loss]c 0.2, gi[encoding-loss]i h[encoding-loss]n 0.72.4 [encoding-loss] kh[encoding-loss]ng m[encoding-loss]t kh[encoding-loss] nng [encoding-loss]nh h[encoding-loss][encoding-loss]ng.
-- K[encoding-loss]o n[encoding-loss]n b[encoding-loss]ng chu[encoding-loss]t/touch [encoding-loss] pan; k[encoding-loss]o kh[encoding-loss]ng [encoding-loss][encoding-loss]c k[encoding-loss]ch ho[encoding-loss]t khi b[encoding-loss]t [encoding-loss]u tr[encoding-loss]n n[encoding-loss]t, faction pin ho[encoding-loss]c star.
-- Hi[encoding-loss]n th[encoding-loss] tr[encoding-loss]ng th[encoding-loss]i zoom v[encoding-loss] t[encoding-loss]a [encoding-loss] v[encoding-loss]ng trong tooltip h[encoding-loss] tr[encoding-loss] ng[encoding-loss][encoding-loss]i ch[encoding-loss]i ki[encoding-loss]m so[encoding-loss]t camera.
-- N[encoding-loss]t c[encoding-loss] `aria-label`, focus-visible v[encoding-loss] t[encoding-loss][encoding-loss]ng ph[encoding-loss]n [encoding-loss] cho n[encoding-loss]n t[encoding-loss]i.
+- Nt `>` đa camera v sao ca nhn vt, reset zoom v pan.
+- Nt `/` thay đi zoom theo bc 0.2, gii hn 0.72.4 đ khng mt kh nng đnh hng.
+- Ko nn bng chut/touch đ pan; ko khng đc kch hot khi bt đu trn nt, faction pin hoc star.
+- Hin th trng thi zoom v ta đ vng trong tooltip h tr ngi chi kim sot camera.
+- Nt c `aria-label`, focus-visible v tng phn đ cho nn ti.
 
-### Ph[encoding-loss]n h[encoding-loss]i khi ch[encoding-loss]n sao
+### Phn hi khi chn sao
 
-- Hover: tng glow, hi[encoding-loss]n t[encoding-loss]n v[encoding-loss] lo[encoding-loss]i sao.
-- Focus/keyboard: h[encoding-loss]nh vi gi[encoding-loss]ng hover, Enter m[encoding-loss] h[encoding-loss] s[encoding-loss] v[encoding-loss]ng.
-- Current star: halo nh[encoding-loss]p ch[encoding-loss]m, kh[encoding-loss]ng nh[encoding-loss]p nh[encoding-loss]y qu[encoding-loss] nhanh g[encoding-loss]y m[encoding-loss]i m[encoding-loss]t.
-- Event/war/patrol: d[encoding-loss]ng badge nh[encoding-loss] ho[encoding-loss]c m[encoding-loss]u ph[encoding-loss], kh[encoding-loss]ng thay [encoding-loss]i h[encoding-loss]nh d[encoding-loss]ng sao qu[encoding-loss] m[encoding-loss]nh.
-- Faction pin v[encoding-loss] guild pin m[encoding-loss] h[encoding-loss] s[encoding-loss] ri[encoding-loss]ng, kh[encoding-loss]ng di chuy[encoding-loss]n camera ngo[encoding-loss]i [encoding-loss] mu[encoding-loss]n.
+- Hover: tng glow, hin tn v loi sao.
+- Focus/keyboard: hnh vi ging hover, Enter m h s vng.
+- Current star: halo nhp chm, khng nhp nhy qu nhanh gy mi mt.
+- Event/war/patrol: dng badge nh hoc mu ph, khng thay đi hnh dng sao qu mnh.
+- Faction pin v guild pin m h s ring, khng di chuyn camera ngoi  mun.
 
 ### Level of detail theo zoom
 
-| M[encoding-loss]c | Hi[encoding-loss]n th[encoding-loss] | [encoding-loss]n |
+| Mc | Hin th | n |
 |---|---|---|
-| 0.71.0 Cosmic | v[encoding-loss]ng l[encoding-loss]n, sao quan tr[encoding-loss]ng, tinh v[encoding-loss]n | nh[encoding-loss]n th[encoding-loss][encoding-loss]ng, route xa |
-| 1.01.5 Region | c[encoding-loss]m ch[encoding-loss]m sao, route trong v[encoding-loss]ng, faction | chi ti[encoding-loss]t sub-location |
-| 1.52.0 Local | location [encoding-loss] kh[encoding-loss]m ph[encoding-loss], NPC/patrol, weather | d[encoding-loss] li[encoding-loss]u fog ch[encoding-loss]a [encoding-loss] |
-| 2.02.4 Close | nh[encoding-loss]n g[encoding-loss]n, bulletin, sub-location, action | decorative star kh[encoding-loss]ng t[encoding-loss][encoding-loss]ng t[encoding-loss]c |
+| 0.71.0 Cosmic | vng ln, sao quan trng, tinh vn | nhn thng, route xa |
+| 1.01.5 Region | cm chm sao, route trong vng, faction | chi tit sub-location |
+| 1.52.0 Local | location đ khm ph, NPC/patrol, weather | d liu fog cha đ |
+| 2.02.4 Close | nhn gn, bulletin, sub-location, action | decorative star khng tng tc |
 
-### Tr[encoding-loss]ng th[encoding-loss]i travel
+### Trng thi travel
 
-- Sao [encoding-loss]ch [encoding-loss][encoding-loss]c [encoding-loss]nh d[encoding-loss]u `selected`, route ang i c[encoding-loss] glow m[encoding-loss]nh v[encoding-loss] progress.
-- Khi travel active, c[encoding-loss]c n[encoding-loss]t travel kh[encoding-loss]c b[encoding-loss] disable v[encoding-loss]i l[encoding-loss] do r[encoding-loss] r[encoding-loss]ng.
-- Khi b[encoding-loss] blockade/restricted/weather hazard, route d[encoding-loss]ng m[encoding-loss]u c[encoding-loss]nh b[encoding-loss]o v[encoding-loss] tooltip gi[encoding-loss]i th[encoding-loss]ch nguy[encoding-loss]n nh[encoding-loss]n.
-- Khi [encoding-loss]n n[encoding-loss]i, camera focus m[encoding-loss]m v[encoding-loss]o sao m[encoding-loss]i, fog tng theo contract v[encoding-loss] log ghi node/region/weather.
+- Sao đch đc đnh du `selected`, route đang đi c glow mnh v progress.
+- Khi travel active, cc nt travel khc b disable vi l do r rng.
+- Khi b blockade/restricted/weather hazard, route dng mu cnh bo v tooltip gii thch nguyn nhn.
+- Khi đn ni, camera focus mm vo sao mi, fog tng theo contract v log ghi node/region/weather.
 
-### T[encoding-loss][encoding-loss]ng t[encoding-loss]c v[encoding-loss]i NPC
+### Tng tc vi NPC
 
-- Sao location c[encoding-loss] NPC hi[encoding-loss]n di[encoding-loss]n d[encoding-loss]ng halo nh[encoding-loss]; s[encoding-loss] NPC kh[encoding-loss]ng thay th[encoding-loss] t[encoding-loss]n location.
-- Hover/close view hi[encoding-loss]n th[encoding-loss] NPC ang [encoding-loss] node/sub-location, schedule, faction v[encoding-loss] ph[encoding-loss]n [encoding-loss]ng weather.
-- NPC patrol hi[encoding-loss]n th[encoding-loss] icon tr[encoding-loss]n constellation edge; NPC d[encoding-loss]n [encoding-loss][encoding-loss]ng m[encoding-loss] nhanh action Th[encoding-loss]m Hi[encoding-loss]m.
-- Encounter/incident t[encoding-loss]o pulse m[encoding-loss]u cam/[encoding-loss] trong th[encoding-loss]i gian h[encoding-loss]u h[encoding-loss]n; click m[encoding-loss] l[encoding-loss]a ch[encoding-loss]n, kh[encoding-loss]ng t[encoding-loss] th[encoding-loss]c hi[encoding-loss]n action.
+- Sao location c NPC hin din dng halo nh; s NPC khng thay th tn location.
+- Hover/close view hin th NPC đang  node/sub-location, schedule, faction v phn ng weather.
+- NPC patrol hin th icon trn constellation edge; NPC dn đng m nhanh action Thm Him.
+- Encounter/incident to pulse mu cam/đ trong thi gian hu hn; click m la chn, khng t thc hin action.
 
-### Kh[encoding-loss] nng [encoding-loss]c v[encoding-loss] hi[encoding-loss]u nng
+### Kh nng đc v hiu nng
 
-- Kh[encoding-loss]ng d[encoding-loss]ng m[encoding-loss]u l[encoding-loss] t[encoding-loss]n hi[encoding-loss]u duy nh[encoding-loss]t: lu[encoding-loss]n k[encoding-loss]t h[encoding-loss]p glow, icon, nh[encoding-loss]n ho[encoding-loss]c tooltip.
-- Decorative star ph[encoding-loss]i n[encoding-loss]m l[encoding-loss]p ri[encoding-loss]ng v[encoding-loss]i gameplay star [encoding-loss] kh[encoding-loss]ng ch[encoding-loss]n click.
-- Khi h[encoding-loss]n 500 location, ch[encoding-loss] render star trong viewport c[encoding-loss]ng v[encoding-loss]ng [encoding-loss]m; route xa chuy[encoding-loss]n sang batch SVG/Canvas.
-- Debounce camera update v[encoding-loss] kh[encoding-loss]ng render l[encoding-loss]i to[encoding-loss]n b[encoding-loss] panel khi ch[encoding-loss] thay [encoding-loss]i pan.
-- B[encoding-loss]n [encoding-loss] ph[encoding-loss]i ho[encoding-loss]t [encoding-loss]ng [encoding-loss] m[encoding-loss]n h[encoding-loss]nh nh[encoding-loss]: controls c[encoding-loss] [encoding-loss]nh g[encoding-loss]c, star label kh[encoding-loss]ng tr[encoding-loss]n viewport.
+- Khng dng mu l tn hiu duy nht: lun kt hp glow, icon, nhn hoc tooltip.
+- Decorative star phi nm lp ring vi gameplay star đ khng chn click.
+- Khi hn 500 location, ch render star trong viewport cng vng đm; route xa chuyn sang batch SVG/Canvas.
+- Debounce camera update v khng render li ton b panel khi ch thay đi pan.
+- Bn đ phi hot đng  mn hnh nh: controls c đnh gc, star label khng trn viewport.
 
-## Marker b[encoding-loss]t bu[encoding-loss]c tr[encoding-loss]n Khu v[encoding-loss]c hi[encoding-loss]n t[encoding-loss]i
+## Marker bt buc trn Khu vc hin ti
 
-- `_ NPC`: t[encoding-loss]ng h[encoding-loss]p NPC static v[encoding-loss] NPC runtime ang s[encoding-loss]ng t[encoding-loss]i node, ch[encoding-loss] hi[encoding-loss]n t[encoding-loss] Fog 2.
-- `  Qu[encoding-loss]i`: qu[encoding-loss]i/[encoding-loss]ch [encoding-loss][encoding-loss]c [encoding-loss]nh ngh)a t[encoding-loss]i node v[encoding-loss] combat ang di[encoding-loss]n ra [encoding-loss] node hi[encoding-loss]n t[encoding-loss]i.
-- `& C[encoding-loss] duy[encoding-loss]n`: pending contested opportunity t[encoding-loss]i [encoding-loss]ng node, c[encoding-loss] glow t[encoding-loss]m v[encoding-loss] kh[encoding-loss]ng hi[encoding-loss]n th[encoding-loss] sang node kh[encoding-loss]c.
-- `=[encoding-loss] Tu[encoding-loss]n tra`: marker n[encoding-loss]m tr[encoding-loss]n edge m[encoding-loss] patrol NPC th[encoding-loss]c s[encoding-loss] ang di chuy[encoding-loss]n.
-- Marker l[encoding-loss] l[encoding-loss]p ph[encoding-loss], kh[encoding-loss]ng che sao; tooltip ph[encoding-loss]i ghi s[encoding-loss] l[encoding-loss][encoding-loss]ng v[encoding-loss] tr[encoding-loss]ng th[encoding-loss]i.
-- Khi [encoding-loss]i node, marker ph[encoding-loss]i t[encoding-loss]nh l[encoding-loss]i t[encoding-loss] `state.locationId`, `npcState`, `pendingContestedOpportunity` v[encoding-loss] fog m[encoding-loss]i; kh[encoding-loss]ng d[encoding-loss]ng cache UI ci.
-## Ch[encoding-loss]nh s[encoding-loss]ch b[encoding-loss]n [encoding-loss] m[encoding-loss] (Open Node Graph)
+- `_ NPC`: tng hp NPC static v NPC runtime đang sng ti node, ch hin t Fog 2.
+- `  Qui`: qui/đch đc đnh ngh)a ti node v combat đang din ra  node hin ti.
+- `& C duyn`: pending contested opportunity ti đng node, c glow tm v khng hin th sang node khc.
+- `= Tun tra`: marker nm trn edge m patrol NPC thc s đang di chuyn.
+- Marker l lp ph, khng che sao; tooltip phi ghi s lng v trng thi.
+- Khi đi node, marker phi tnh li t `state.locationId`, `npcState`, `pendingContestedOpportunity` v fog mi; khng dng cache UI ci.
+## Chnh sch bn đ m (Open Node Graph)
 
-- Kh[encoding-loss]ng render [encoding-loss][encoding-loss]ng n[encoding-loss]i gi[encoding-loss]a c[encoding-loss]c node; m[encoding-loss]i node h[encoding-loss]p l[encoding-loss] l[encoding-loss] i[encoding-loss]m [encoding-loss]n tr[encoding-loss]c ti[encoding-loss]p.
-- Kh[encoding-loss]ng hi[encoding-loss]n th[encoding-loss] Ch[encoding-loss]a th[encoding-loss]m hi[encoding-loss]m ho[encoding-loss]c m[encoding-loss]u [encoding-loss] Nguy hi[encoding-loss]m; d[encoding-loss]ng marker NPC, qu[encoding-loss]i v[encoding-loss] c[encoding-loss] duy[encoding-loss]n.
-- Node sao t[encoding-loss] ch[encoding-loss]c lu[encoding-loss]n enabled, c[encoding-loss] sao ti[encoding-loss]p c[encoding-loss]n ph[encoding-loss].
-- Node v[encoding-loss]a kh[encoding-loss]m ph[encoding-loss] [encoding-loss][encoding-loss]c ghi v[encoding-loss]o `visitedLocations` v[encoding-loss] hi[encoding-loss]n th[encoding-loss] tr[encoding-loss]n V[encoding-loss]n Gi[encoding-loss]i.
+- Khng render đng ni gia cc node; mi node hp l l đim đn trc tip.
+- Khng hin th Cha thm him hoc mu đ Nguy him; dng marker NPC, qui v c duyn.
+- Node sao t chc lun enabled, c sao tip cn ph.
+- Node va khm ph đc ghi vo `visitedLocations` v hin th trn Vn Gii.
 
 
 ### Source: `archive-requirements\logic-history\03-world\Xianxin_map.md`
@@ -2086,50 +2093,50 @@ Character {
 
 ### Source: `archive-requirements\logic-history\04-interaction\NPC_SYSTEM_V2_MAP_WEATHER_REQUIREMENT.md`
 
-# H[encoding-loss] TH[encoding-loss]NG NPC V2  D[encoding-loss]N C[encoding-loss] S[encoding-loss]NG, B[encoding-loss]N [encoding-loss] [encoding-loss]NG V[encoding-loss] TH[encoding-loss]I TI[encoding-loss]T
+# H THNG NPC V2 · DN C SNG, BN Đ ĐNG V THI TIT
 
-**Phi[encoding-loss]n b[encoding-loss]n:** 1.1  
-**Ph[encoding-loss]m vi:** m[encoding-loss] r[encoding-loss]ng `NPC_MONSTER_SYSTEM.md`, `RELATIONSHIP_SYSTEM.md`, `MAP_CURRENT_REGION_UX_REQUIREMENT.md` v[encoding-loss] World Simulation.  
-**Ng[encoding-loss]n ng[encoding-loss] hi[encoding-loss]n th[encoding-loss]:** ti[encoding-loss]ng Vi[encoding-loss]t; ID k[encoding-loss] thu[encoding-loss]t ch[encoding-loss] d[encoding-loss]ng n[encoding-loss]i b[encoding-loss].
+**Phin bn:** 1.1
+**Phm vi:** m rng `NPC_MONSTER_SYSTEM.md`, `RELATIONSHIP_SYSTEM.md`, `MAP_CURRENT_REGION_UX_REQUIREMENT.md` v World Simulation.
+**Ngn ng hin th:** ting Vit; ID k thut ch dng ni b.
 
-## 1. T[encoding-loss]m nh[encoding-loss]n
+## 1. Tm nhn
 
-NPC kh[encoding-loss]ng c[encoding-loss]n l[encoding-loss] danh s[encoding-loss]ch [encoding-loss]ng y[encoding-loss]n t[encoding-loss]i node [encoding-loss] ng[encoding-loss][encoding-loss]i ch[encoding-loss]i b[encoding-loss]m N[encoding-loss]i chuy[encoding-loss]n. M[encoding-loss]i NPC l[encoding-loss] m[encoding-loss]t t[encoding-loss]c nh[encoding-loss]n c[encoding-loss] n[encoding-loss]i [encoding-loss], l[encoding-loss]ch tr[encoding-loss]nh, c[encoding-loss]ng vi[encoding-loss]c, m[encoding-loss]c ti[encoding-loss]u, quan h[encoding-loss], nhu c[encoding-loss]u, ph[encoding-loss]n [encoding-loss]ng th[encoding-loss]i ti[encoding-loss]t, ph[encoding-loss]n [encoding-loss]ng c[encoding-loss]nh quan v[encoding-loss] k[encoding-loss] [encoding-loss]c. Node b[encoding-loss]n [encoding-loss] l[encoding-loss] m[encoding-loss]i tr[encoding-loss][encoding-loss]ng s[encoding-loss]ng c[encoding-loss]a m[encoding-loss]t qu[encoding-loss]n th[encoding-loss] NPC; ng[encoding-loss][encoding-loss]i ch[encoding-loss]i c[encoding-loss] th[encoding-loss] th[encoding-loss]y nhi[encoding-loss]u NPC c[encoding-loss]ng t[encoding-loss]n t[encoding-loss]i, NPC t[encoding-loss] t[encoding-loss][encoding-loss]ng t[encoding-loss]c v[encoding-loss]i nhau v[encoding-loss] th[encoding-loss] gi[encoding-loss]i thay [encoding-loss]i ngay c[encoding-loss] khi ng[encoding-loss][encoding-loss]i ch[encoding-loss]i kh[encoding-loss]ng [encoding-loss]ng c[encoding-loss]nh.
+NPC khng cn l danh sch đng yn ti node đ ngi chi bm Ni chuyn. Mi NPC l mt tc nhn c ni , lch trnh, cng vic, mc tiu, quan h, nhu cu, phn ng thi tit, phn ng cnh quan v k c. Node bn đ l mi trng sng ca mt qun th NPC; ngi chi c th thy nhiu NPC cng tn ti, NPC t tng tc vi nhau v th gii thay đi ngay c khi ngi chi khng đng cnh.
 
-H[encoding-loss] th[encoding-loss]ng ph[encoding-loss]i m[encoding-loss] r[encoding-loss]ng s[encoding-loss] l[encoding-loss][encoding-loss]ng NPC m[encoding-loss] kh[encoding-loss]ng bi[encoding-loss]n node th[encoding-loss]nh danh s[encoding-loss]ch h[encoding-loss]n lo[encoding-loss]n. Runtime d[encoding-loss]ng ph[encoding-loss]n l[encoding-loss]p **danh t[encoding-loss]nh b[encoding-loss]n v[encoding-loss]ng**, **qu[encoding-loss]n th[encoding-loss] n[encoding-loss]n**, **[encoding-loss]m [encoding-loss]ng t[encoding-loss]m th[encoding-loss]i**, **ng[encoding-loss][encoding-loss]i qua [encoding-loss][encoding-loss]ng theo h[encoding-loss]nh tr[encoding-loss]nh** v[encoding-loss] **NPC s[encoding-loss] ki[encoding-loss]n**.
+H thng phi m rng s lng NPC m khng bin node thnh danh sch hn lon. Runtime dng phn lp **danh tnh bn vng**, **qun th nn**, **đm đng tm thi**, **ngi qua đng theo hnh trnh** v **NPC s kin**.
 
-## 2. Nguy[encoding-loss]n t[encoding-loss]c thi[encoding-loss]t k[encoding-loss]
+## 2. Nguyn tc thit k
 
-1. NPC c[encoding-loss] danh t[encoding-loss]nh v[encoding-loss] tr[encoding-loss]ng th[encoding-loss]i r[encoding-loss] r[encoding-loss]ng; kh[encoding-loss]ng g[encoding-loss]p m[encoding-loss]i ng[encoding-loss][encoding-loss]i ng[encoding-loss]u nhi[encoding-loss]n th[encoding-loss]nh m[encoding-loss]t ID.
-2. NPC ch[encoding-loss] xu[encoding-loss]t hi[encoding-loss]n t[encoding-loss]i node/sub-location khi scheduler x[encoding-loss]c nh[encoding-loss]n hi[encoding-loss]n di[encoding-loss]n.
-3. M[encoding-loss]t [encoding-loss] NPC c[encoding-loss] th[encoding-loss] cao; UI ph[encoding-loss]n trang/l[encoding-loss]c, engine d[encoding-loss]ng spatial index v[encoding-loss] kh[encoding-loss]ng gi[encoding-loss]i h[encoding-loss]n c[encoding-loss]ng v[encoding-loss]i NPC m[encoding-loss]i node.
-4. Th[encoding-loss]i ti[encoding-loss]t t[encoding-loss]c [encoding-loss]ng t[encoding-loss]i h[encoding-loss]nh vi, l[encoding-loss]ch, gi[encoding-loss] c[encoding-loss], di chuy[encoding-loss]n, t[encoding-loss]m tr[encoding-loss]ng v[encoding-loss] chi[encoding-loss]n [encoding-loss]u.
-5. T[encoding-loss][encoding-loss]ng t[encoding-loss]c NPCNPC v[encoding-loss] NPCc[encoding-loss]nh quan ph[encoding-loss]i t[encoding-loss]o ra h[encoding-loss]u qu[encoding-loss] quan s[encoding-loss]t [encoding-loss][encoding-loss]c.
-6. T[encoding-loss]t c[encoding-loss] mutation qua transaction/idempotency; save ci v[encoding-loss]n t[encoding-loss]i [encoding-loss][encoding-loss]c.
-7. Kh[encoding-loss]ng [encoding-loss] NPC s[encoding-loss]a topology static. NPC ch[encoding-loss] m[encoding-loss]/[encoding-loss]ng edge runtime [encoding-loss] [encoding-loss][encoding-loss]c c[encoding-loss]p ph[encoding-loss]p.
+1. NPC c danh tnh v trng thi r rng; khng gp mi ngi ngu nhin thnh mt ID.
+2. NPC ch xut hin ti node/sub-location khi scheduler xc nhn hin din.
+3. Mt đ NPC c th cao; UI phn trang/lc, engine dng spatial index v khng gii hn cng vi NPC mi node.
+4. Thi tit tc đng ti hnh vi, lch, gi c, di chuyn, tm trng v chin đu.
+5. Tng tc NPCNPC v NPCcnh quan phi to ra hu qu quan st đc.
+6. Tt c mutation qua transaction/idempotency; save ci vn ti đc.
+7. Khng đ NPC sa topology static. NPC ch m/đng edge runtime đ đc cp php.
 
-## 3. Ph[encoding-loss]n lo[encoding-loss]i NPC v[encoding-loss] m[encoding-loss]t [encoding-loss]
+## 3. Phn loi NPC v mt đ
 
-### 3.1. C[encoding-loss]c l[encoding-loss]p NPC
+### 3.1. Cc lp NPC
 
-| L[encoding-loss]p | V[encoding-loss] d[encoding-loss] | Danh t[encoding-loss]nh | C[encoding-loss] quan h[encoding-loss] b[encoding-loss]n v[encoding-loss]ng |
+| Lp | V d | Danh tnh | C quan h bn vng |
 |---|---|---|---|
-| `persistent_named` | Ch[encoding-loss][encoding-loss]ng m[encoding-loss]n, s[encoding-loss] ph[encoding-loss], th[encoding-loss][encoding-loss]ng nh[encoding-loss]n ch[encoding-loss]nh | ID c[encoding-loss] [encoding-loss]nh | C[encoding-loss] |
-| `persistent_role` | tr[encoding-loss][encoding-loss]ng tr[encoding-loss]m, y s[encoding-loss], [encoding-loss]i tr[encoding-loss][encoding-loss]ng tu[encoding-loss]n tra | ID c[encoding-loss] [encoding-loss]nh theo node | C[encoding-loss] |
-| `population_citizen` | d[encoding-loss]n c[encoding-loss], [encoding-loss] t[encoding-loss], phu khu[encoding-loss]n v[encoding-loss]c | instance [encoding-loss]n [encoding-loss]nh theo node | C[encoding-loss] h[encoding-loss]n ch[encoding-loss] |
-| `traveler` | l[encoding-loss] kh[encoding-loss]ch, h[encoding-loss]c s), th[encoding-loss][encoding-loss]ng o[encoding-loss]n | instance theo h[encoding-loss]nh tr[encoding-loss]nh | C[encoding-loss] n[encoding-loss]u ghi nh[encoding-loss] |
-| `crowd_ephemeral` | [encoding-loss]m [encoding-loss]ng h[encoding-loss]i ch[encoding-loss], n[encoding-loss]n d[encoding-loss]n | pool t[encoding-loss]i s[encoding-loss] d[encoding-loss]ng | Kh[encoding-loss]ng |
-| `event_actor` | s[encoding-loss] gi[encoding-loss], k[encoding-loss] g[encoding-loss]y lo[encoding-loss]n, nh[encoding-loss]n ch[encoding-loss]ng | ID theo incident | C[encoding-loss] trong incident |
+| `persistent_named` | Chng mn, s ph, thng nhn chnh | ID c đnh | C |
+| `persistent_role` | trng trm, y s, đi trng tun tra | ID c đnh theo node | C |
+| `population_citizen` | dn c, đ t, phu khun vc | instance n đnh theo node | C hn ch |
+| `traveler` | l khch, hc s), thng đon | instance theo hnh trnh | C nu ghi nh |
+| `crowd_ephemeral` | đm đng hi ch, nn dn | pool ti s dng | Khng |
+| `event_actor` | s gi, k gy lon, nhn chng | ID theo incident | C trong incident |
 
-### 3.2. Quy m[encoding-loss] node
+### 3.2. Quy m node
 
-- Node nh[encoding-loss]: 530 NPC runtime.
-- L[encoding-loss]ng: 30150.
-- Th[encoding-loss]nh th[encoding-loss]: 1501.000.
-- S[encoding-loss]n m[encoding-loss]n/v[encoding-loss][encoding-loss]ng kinh: 5005.000.
-- S[encoding-loss] ki[encoding-loss]n l[encoding-loss]n c[encoding-loss] th[encoding-loss] t[encoding-loss]o th[encoding-loss]m crowd pool nh[encoding-loss]ng ph[encoding-loss]i c[encoding-loss] quota theo node, kh[encoding-loss]ng gi[encoding-loss]i h[encoding-loss]n to[encoding-loss]n c[encoding-loss]c m[encoding-loss]t c[encoding-loss]ch t[encoding-loss]y ti[encoding-loss]n.
+- Node nh: 530 NPC runtime.
+- Lng: 30150.
+- Thnh th: 1501.000.
+- Sn mn/vng kinh: 5005.000.
+- S kin ln c th to thm crowd pool nhng phi c quota theo node, khng gii hn ton cc mt cch ty tin.
 
-Engine kh[encoding-loss]ng instantiate to[encoding-loss]n b[encoding-loss] NPC m[encoding-loss]i frame. D[encoding-loss]ng `populationSeed`, `activeActors`, `backgroundCount` v[encoding-loss] materialize c[encoding-loss] th[encoding-loss] khi ng[encoding-loss][encoding-loss]i ch[encoding-loss]i quan s[encoding-loss]t/t[encoding-loss][encoding-loss]ng t[encoding-loss]c.
+Engine khng instantiate ton b NPC mi frame. Dng `populationSeed`, `activeActors`, `backgroundCount` v materialize c th khi ngi chi quan st/tng tc.
 
 ## 4. Schema NPC V2
 
@@ -2163,11 +2170,11 @@ NpcRuntime {
 }
 ```
 
-`instanceId` b[encoding-loss]t bu[encoding-loss]c v[encoding-loss]i NPC kh[encoding-loss]ng c[encoding-loss] [encoding-loss]nh; kh[encoding-loss]ng [encoding-loss][encoding-loss]c d[encoding-loss]ng t[encoding-loss]n hi[encoding-loss]n th[encoding-loss] l[encoding-loss]m kh[encoding-loss]a quan h[encoding-loss].
+`instanceId` bt buc vi NPC khng c đnh; khng đc dng tn hin th lm kha quan h.
 
 ## 5. Authoring Node Detail cho NPC
 
-M[encoding-loss]i node khai b[encoding-loss]o **NPC ecology profile** ri[encoding-loss]ng, kh[encoding-loss]ng copy m[encoding-loss]t c[encoding-loss]u h[encoding-loss]nh chung:
+Mi node khai bo **NPC ecology profile** ring, khng copy mt cu hnh chung:
 
 ```ts
 NpcEcologyProfile {
@@ -2183,53 +2190,53 @@ NpcEcologyProfile {
 }
 ```
 
-V[encoding-loss] d[encoding-loss]: S[encoding-loss]n m[encoding-loss]n c[encoding-loss] [encoding-loss] t[encoding-loss] [encoding-loss] s[encoding-loss]n luy[encoding-loss]n, tr[encoding-loss][encoding-loss]ng l[encoding-loss]o [encoding-loss] ch[encoding-loss]nh i[encoding-loss]n, t[encoding-loss]p d[encoding-loss]ch [encoding-loss] kho, kh[encoding-loss]ch [encoding-loss] c[encoding-loss]ng; th[encoding-loss]nh c[encoding-loss]ng c[encoding-loss] th[encoding-loss]y th[encoding-loss] [encoding-loss] b[encoding-loss]n, th[encoding-loss][encoding-loss]ng nh[encoding-loss]n [encoding-loss] ch[encoding-loss], ng[encoding-loss][encoding-loss]i [encoding-loss]a tin [encoding-loss] tr[encoding-loss]m d[encoding-loss]ch. Kh[encoding-loss]ng cho ph[encoding-loss]p m[encoding-loss]i node m[encoding-loss]c [encoding-loss]nh c[encoding-loss]ng m[encoding-loss]t danh s[encoding-loss]ch `market/hall/alley` m[encoding-loss] kh[encoding-loss]ng c[encoding-loss] profile.
+V d: Sn mn c đ t  sn luyn, trng lo  chnh đin, tp dch  kho, khch  cng; thnh cng c thy th  bn, thng nhn  ch, ngi đa tin  trm dch. Khng cho php mi node mc đnh cng mt danh sch `market/hall/alley` m khng c profile.
 
-## 6. Scheduler v[encoding-loss] quy[encoding-loss]t [encoding-loss]nh NPC
+## 6. Scheduler v quyt đnh NPC
 
-### 6.1. V[encoding-loss]ng l[encoding-loss]p theo tick
+### 6.1. Vng lp theo tick
 
-M[encoding-loss]i world tick:
+Mi world tick:
 
-1. C[encoding-loss]p nh[encoding-loss]t th[encoding-loss]i ti[encoding-loss]t v[encoding-loss] c[encoding-loss]nh b[encoding-loss]o m[encoding-loss]i tr[encoding-loss][encoding-loss]ng.
-2. Ki[encoding-loss]m tra l[encoding-loss]ch l[encoding-loss]m vi[encoding-loss]c/gi[encoding-loss] m[encoding-loss] c[encoding-loss]a.
-3. [encoding-loss]nh gi[encoding-loss] nhu c[encoding-loss]u, m[encoding-loss]c ti[encoding-loss]u v[encoding-loss] nguy c[encoding-loss].
-4. Ch[encoding-loss]n h[encoding-loss]nh [encoding-loss]ng b[encoding-loss]ng utility score deterministic.
-5. Di chuy[encoding-loss]n theo route h[encoding-loss]p l[encoding-loss] ho[encoding-loss]c t[encoding-loss]m shelter.
-6. Resolve t[encoding-loss][encoding-loss]ng t[encoding-loss]c NPCNPC, NPCc[encoding-loss]nh quan v[encoding-loss] NPCng[encoding-loss][encoding-loss]i ch[encoding-loss]i.
-7. Ghi s[encoding-loss] ki[encoding-loss]n v[encoding-loss] invalidate view model node b[encoding-loss] [encoding-loss]nh h[encoding-loss][encoding-loss]ng.
+1. Cp nht thi tit v cnh bo mi trng.
+2. Kim tra lch lm vic/gi m ca.
+3. Đnh gi nhu cu, mc tiu v nguy c.
+4. Chn hnh đng bng utility score deterministic.
+5. Di chuyn theo route hp l hoc tm shelter.
+6. Resolve tng tc NPCNPC, NPCcnh quan v NPCngi chi.
+7. Ghi s kin v invalidate view model node b nh hng.
 
 ```text
 utility(action) = goalWeight + needUrgency + weatherFit + relationshipBias
                   + factionOrder - dangerCost - travelCost
 ```
 
-Random ch[encoding-loss] d[encoding-loss]ng seed `worldSeed + npcInstanceId + day + decisionIndex`; reload kh[encoding-loss]ng [encoding-loss]i quy[encoding-loss]t [encoding-loss]nh.
+Random ch dng seed `worldSeed + npcInstanceId + day + decisionIndex`; reload khng đi quyt đnh.
 
-### 6.2. L[encoding-loss]ch v[encoding-loss] [encoding-loss]u ti[encoding-loss]n
+### 6.2. Lch v u tin
 
-- L[encoding-loss]ch c[encoding-loss] [encoding-loss]nh c[encoding-loss] th[encoding-loss] b[encoding-loss] ghi [encoding-loss] b[encoding-loss]i incident, th[encoding-loss]i ti[encoding-loss]t c[encoding-loss]c oan, chi[encoding-loss]n tranh, th[encoding-loss][encoding-loss]ng v[encoding-loss] ho[encoding-loss]c ng[encoding-loss][encoding-loss]i ch[encoding-loss]i.
-- [encoding-loss]u ti[encoding-loss]n: s[encoding-loss]ng s[encoding-loss]t > ho[encoding-loss]n th[encoding-loss]nh nhi[encoding-loss]m v[encoding-loss] kh[encoding-loss]n > b[encoding-loss]o v[encoding-loss] faction > nhu c[encoding-loss]u c[encoding-loss] nh[encoding-loss]n > x[encoding-loss] h[encoding-loss]i > i lang thang.
-- NPC ang shelter kh[encoding-loss]ng nh[encoding-loss]n giao d[encoding-loss]ch th[encoding-loss]ng th[encoding-loss][encoding-loss]ng n[encoding-loss]u sub-location [encoding-loss]ng c[encoding-loss]a.
-- NPC b[encoding-loss] th[encoding-loss][encoding-loss]ng t[encoding-loss] t[encoding-loss]m y s[encoding-loss]; NPC th[encoding-loss]t nghi[encoding-loss]p t[encoding-loss]m vi[encoding-loss]c t[encoding-loss]i ch[encoding-loss]/tr[encoding-loss]m.
+- Lch c đnh c th b ghi đ bi incident, thi tit cc đoan, chin tranh, thng v hoc ngi chi.
+- u tin: sng st > hon thnh nhim v khn > bo v faction > nhu cu c nhn > x hi > đi lang thang.
+- NPC đang shelter khng nhn giao dch thng thng nu sub-location đng ca.
+- NPC b thng t tm y s; NPC tht nghip tm vic ti ch/trm.
 
-## 7. NPC v[encoding-loss] th[encoding-loss]i ti[encoding-loss]t
+## 7. NPC v thi tit
 
-### 7.1. Ph[encoding-loss]n [encoding-loss]ng theo lo[encoding-loss]i th[encoding-loss]i ti[encoding-loss]t
+### 7.1. Phn ng theo loi thi tit
 
-| Th[encoding-loss]i ti[encoding-loss]t | H[encoding-loss]nh vi NPC | T[encoding-loss]c [encoding-loss]ng b[encoding-loss]n [encoding-loss] |
+| Thi tit | Hnh vi NPC | Tc đng bn đ |
 |---|---|---|
-| Quang | l[encoding-loss]ch b[encoding-loss]nh th[encoding-loss][encoding-loss]ng | edge m[encoding-loss], traffic chu[encoding-loss]n |
-| M[encoding-loss]a | t[encoding-loss]m m[encoding-loss]i, gi[encoding-loss]m giao d[encoding-loss]ch ngo[encoding-loss]i tr[encoding-loss]i | [encoding-loss][encoding-loss]ng [encoding-loss]t tng nguy c[encoding-loss] |
-| B[encoding-loss]o | tr[encoding-loss] [encoding-loss]n, h[encoding-loss]y h[encoding-loss]nh tr[encoding-loss]nh | [encoding-loss][encoding-loss]ng bi[encoding-loss]n c[encoding-loss] th[encoding-loss] phong t[encoding-loss]a |
-| S[encoding-loss][encoding-loss]ng m[encoding-loss] | i theo ng[encoding-loss][encoding-loss]i d[encoding-loss]n [encoding-loss][encoding-loss]ng, gi[encoding-loss]m t[encoding-loss]m nh[encoding-loss]n | patrol/i l[encoding-loss]c tng |
-| Tuy[encoding-loss]t | ti[encoding-loss]u hao th[encoding-loss] l[encoding-loss]c, [encoding-loss]u ti[encoding-loss]n l[encoding-loss]a | [encoding-loss]o c[encoding-loss] th[encoding-loss] h[encoding-loss]n ch[encoding-loss] |
-| N[encoding-loss]ng g[encoding-loss]t | ngh[encoding-loss] gi[encoding-loss]a tr[encoding-loss]a, tng nhu c[encoding-loss]u n[encoding-loss][encoding-loss]c | caravan ch[encoding-loss]m |
-| D[encoding-loss] t[encoding-loss][encoding-loss]ng | ho[encoding-loss]ng lo[encoding-loss]n, cu[encoding-loss]ng t[encoding-loss]n ho[encoding-loss]c l[encoding-loss]i d[encoding-loss]ng | incident/influence bi[encoding-loss]n [encoding-loss]ng |
+| Quang | lch bnh thng | edge m, traffic chun |
+| Ma | tm mi, gim giao dch ngoi tri | đng đt tng nguy c |
+| Bo | tr n, hy hnh trnh | đng bin c th phong ta |
+| Sng m | đi theo ngi dn đng, gim tm nhn | patrol/đi lc tng |
+| Tuyt | tiu hao th lc, u tin la | đo c th hn ch |
+| Nng gt | ngh gia tra, tng nhu cu nc | caravan chm |
+| D tng | hong lon, cung tn hoc li dng | incident/influence bin đng |
 
 ### 7.2. Weather shelter
 
-M[encoding-loss]i node khai b[encoding-loss]o shelter c[encoding-loss] s[encoding-loss]c ch[encoding-loss]a, lo[encoding-loss]i NPC [encoding-loss][encoding-loss]c ph[encoding-loss]p v[encoding-loss]o, ph[encoding-loss] v[encoding-loss] [encoding-loss] an to[encoding-loss]n. Khi s[encoding-loss]c ch[encoding-loss]a [encoding-loss]y, NPC ph[encoding-loss]i x[encoding-loss]p h[encoding-loss]ng, t[encoding-loss]m sub-location ph[encoding-loss] ho[encoding-loss]c r[encoding-loss]i node. UI hi[encoding-loss]n th[encoding-loss] N[encoding-loss]i tr[encoding-loss] [encoding-loss] [encoding-loss]y thay v[encoding-loss] l[encoding-loss]i chung.
+Mi node khai bo shelter c sc cha, loi NPC đc php vo, ph v đ an ton. Khi sc cha đy, NPC phi xp hng, tm sub-location ph hoc ri node. UI hin th Ni tr đ đy thay v li chung.
 
 ### 7.3. Weather interaction API
 
@@ -2239,20 +2246,20 @@ resolveNpcWeatherReaction(state, npcId, weather)
 listNodeShelters(state, nodeId)
 ```
 
-## 8. T[encoding-loss][encoding-loss]ng t[encoding-loss]c NPCNPC
+## 8. Tng tc NPCNPC
 
-### 8.1. Lo[encoding-loss]i t[encoding-loss][encoding-loss]ng t[encoding-loss]c
+### 8.1. Loi tng tc
 
-- giao d[encoding-loss]ch, m[encoding-loss]c c[encoding-loss], v[encoding-loss]n chuy[encoding-loss]n;
-- ch[encoding-loss]o h[encoding-loss]i, k[encoding-loss]t b[encoding-loss]n, tranh lu[encoding-loss]n;
-- d[encoding-loss]y h[encoding-loss]c, t[encoding-loss] th[encoding-loss], tuy[encoding-loss]n m[encoding-loss];
-- tu[encoding-loss]n tra v[encoding-loss] ki[encoding-loss]m tra gi[encoding-loss]y t[encoding-loss];
-- b[encoding-loss]o v[encoding-loss], c[encoding-loss]u th[encoding-loss][encoding-loss]ng, chm s[encoding-loss]c;
-- gi[encoding-loss]n i[encoding-loss]p, t[encoding-loss] gi[encoding-loss]c, e d[encoding-loss]a;
-- y[encoding-loss]u [encoding-loss][encoding-loss]ng, h[encoding-loss]n [encoding-loss][encoding-loss]c, th[encoding-loss] h[encoding-loss]n;
-- tranh ch[encoding-loss]p t[encoding-loss]i nguy[encoding-loss]n ho[encoding-loss]c [encoding-loss]a v[encoding-loss];
-- m[encoding-loss]t h[encoding-loss]i v[encoding-loss] trao [encoding-loss]i tin;
-- c[encoding-loss]ng x[encoding-loss] l[encoding-loss] c[encoding-loss]nh quan nguy hi[encoding-loss]m.
+- giao dch, mc c, vn chuyn;
+- cho hi, kt bn, tranh lun;
+- dy hc, t th, tuyn m;
+- tun tra v kim tra giy t;
+- bo v, cu thng, chm sc;
+- gin đip, t gic, đe da;
+- yu đng, hn c, th hn;
+- tranh chp ti nguyn hoc đa v;
+- mt hi v trao đi tin;
+- cng x l cnh quan nguy him.
 
 ### 8.2. Encounter resolver
 
@@ -2261,58 +2268,58 @@ previewNpcEncounter(state, actorA, actorB, context)
 resolveNpcEncounter(state, encounterId, choice)
 ```
 
-Resolver ph[encoding-loss]i ki[encoding-loss]m tra faction, quan h[encoding-loss], th[encoding-loss]i ti[encoding-loss]t, sub-location, witness count, m[encoding-loss]c ti[encoding-loss]u v[encoding-loss] cooldown. K[encoding-loss]t qu[encoding-loss] c[encoding-loss] th[encoding-loss] thay [encoding-loss]i trust/respect/fear/suspicion, inventory, route, faction reputation, incident v[encoding-loss] bulletin.
+Resolver phi kim tra faction, quan h, thi tit, sub-location, witness count, mc tiu v cooldown. Kt qu c th thay đi trust/respect/fear/suspicion, inventory, route, faction reputation, incident v bulletin.
 
-### 8.3. M[encoding-loss]t h[encoding-loss]i v[encoding-loss] ri[encoding-loss]ng t[encoding-loss]
+### 8.3. Mt hi v ring t
 
-Encounter b[encoding-loss] m[encoding-loss]t y[encoding-loss]u c[encoding-loss]u sub-location k[encoding-loss]n, fog [encoding-loss] v[encoding-loss] kh[encoding-loss]ng c[encoding-loss] witness. N[encoding-loss]u b[encoding-loss] ph[encoding-loss]t hi[encoding-loss]n, t[encoding-loss]o `suspicion`/incident thay v[encoding-loss] [encoding-loss]m th[encoding-loss]m b[encoding-loss] qua.
+Encounter b mt yu cu sub-location kn, fog đ v khng c witness. Nu b pht hin, to `suspicion`/incident thay v m thm b qua.
 
-## 9. NPCc[encoding-loss]nh quan v[encoding-loss] node
+## 9. NPCcnh quan v node
 
-NPC ph[encoding-loss]i nh[encoding-loss]n bi[encoding-loss]t:
+NPC phi nhn bit:
 
-- c[encoding-loss]ng [encoding-loss]ng/m[encoding-loss];
-- ch[encoding-loss], kho, b[encoding-loss]n, l[encoding-loss]a tr[encoding-loss]i, mi[encoding-loss]u, tr[encoding-loss]n ph[encoding-loss]p;
-- c[encoding-loss]u s[encoding-loss]p, [encoding-loss][encoding-loss]ng ng[encoding-loss]p, tuy[encoding-loss]t l[encoding-loss], v[encoding-loss]ng nhi[encoding-loss]m t[encoding-loss];
-- outpost, watchtower, trading post v[encoding-loss] waystation;
-- m[encoding-loss]t [encoding-loss] ng[encoding-loss][encoding-loss]i, ti[encoding-loss]ng [encoding-loss]ng, an ninh v[encoding-loss] t[encoding-loss]i nguy[encoding-loss]n.
+- cng đng/m;
+- ch, kho, bn, la tri, miu, trn php;
+- cu sp, đng ngp, tuyt l, vng nhim t;
+- outpost, watchtower, trading post v waystation;
+- mt đ ngi, ting đng, an ninh v ti nguyn.
 
-V[encoding-loss] d[encoding-loss]: th[encoding-loss][encoding-loss]ng nh[encoding-loss]n tr[encoding-loss]nh edge c[encoding-loss] b[encoding-loss]o; patrol [encoding-loss]i route khi c[encoding-loss]u s[encoding-loss]p; d[encoding-loss]n ch[encoding-loss]y n[encoding-loss]n t[encoding-loss]p trung v[encoding-loss]o shelter; y s[encoding-loss] di chuy[encoding-loss]n t[encoding-loss]i node c[encoding-loss] nhi[encoding-loss]u ng[encoding-loss][encoding-loss]i b[encoding-loss] th[encoding-loss][encoding-loss]ng; NPC c[encoding-loss] th[encoding-loss] s[encoding-loss]a m[encoding-loss]t c[encoding-loss]ng tr[encoding-loss]nh n[encoding-loss]u [encoding-loss] ngh[encoding-loss] v[encoding-loss] v[encoding-loss]t t[encoding-loss].
+V d: thng nhn trnh edge c bo; patrol đi route khi cu sp; dn chy nn tp trung vo shelter; y s di chuyn ti node c nhiu ngi b thng; NPC c th sa mt cng trnh nu đ ngh v vt t.
 
-## 10. Ng[encoding-loss][encoding-loss]i ch[encoding-loss]i t[encoding-loss][encoding-loss]ng t[encoding-loss]c NPC trong node [encoding-loss]ng
+## 10. Ngi chi tng tc NPC trong node đng
 
-UI Khu v[encoding-loss]c hi[encoding-loss]n t[encoding-loss]i ph[encoding-loss]i c[encoding-loss]:
+UI Khu vc hin ti phi c:
 
-- b[encoding-loss] l[encoding-loss]c vai tr[encoding-loss]/faction/tr[encoding-loss]ng th[encoding-loss]i;
-- t[encoding-loss]m ki[encoding-loss]m t[encoding-loss]n ho[encoding-loss]c ngh[encoding-loss];
-- nh[encoding-loss]m NPC theo sub-location;
-- ph[encoding-loss]n trang/virtual list;
-- badge ang di chuy[encoding-loss]n, ang tr[encoding-loss], c[encoding-loss] nhi[encoding-loss]m v[encoding-loss], ang giao d[encoding-loss]ch;
-- xem l[encoding-loss] do NPC kh[encoding-loss]ng th[encoding-loss] t[encoding-loss][encoding-loss]ng t[encoding-loss]c;
-- n[encoding-loss]t theo d[encoding-loss]i NPC v[encoding-loss] [encoding-loss]t l[encoding-loss]ch g[encoding-loss]p;
-- b[encoding-loss]n [encoding-loss] nhi[encoding-loss]t m[encoding-loss]t [encoding-loss] d[encoding-loss]n c[encoding-loss], kh[encoding-loss]ng render h[encoding-loss]ng ngh[encoding-loss]n n[encoding-loss]t ri[encoding-loss]ng l[encoding-loss].
+- b lc vai tr/faction/trng thi;
+- tm kim tn hoc ngh;
+- nhm NPC theo sub-location;
+- phn trang/virtual list;
+- badge đang di chuyn, đang tr, c nhim v, đang giao dch;
+- xem l do NPC khng th tng tc;
+- nt theo di NPC v đt lch gp;
+- bn đ nhit mt đ dn c, khng render hng nghn nt ring l.
 
-Action Bar ch[encoding-loss] [encoding-loss]a 36 NPC quan tr[encoding-loss]ng nh[encoding-loss]t theo ng[encoding-loss] c[encoding-loss]nh; ph[encoding-loss]n Danh s[encoding-loss]ch c[encoding-loss] d[encoding-loss]n cho ph[encoding-loss]p m[encoding-loss] r[encoding-loss]ng to[encoding-loss]n b[encoding-loss].
+Action Bar ch đa 36 NPC quan trng nht theo ng cnh; phn Danh sch c dn cho php m rng ton b.
 
-## 11. T[encoding-loss][encoding-loss]ng t[encoding-loss]c v[encoding-loss]i h[encoding-loss] th[encoding-loss]ng kh[encoding-loss]c
+## 11. Tng tc vi h thng khc
 
-- **Map:** NPC t[encoding-loss]o traffic, patrol edge, route block, rumor v[encoding-loss] m[encoding-loss] [encoding-loss][encoding-loss]ng runtime [encoding-loss][encoding-loss]c c[encoding-loss]p ph[encoding-loss]p.
-- **Weather:** thay [encoding-loss]i l[encoding-loss]ch, shelter, mood, risk v[encoding-loss] h[encoding-loss]nh vi.
-- **Faction:** l[encoding-loss]nh, thu[encoding-loss], gi[encoding-loss]y th[encoding-loss]ng h[encoding-loss]nh, chi[encoding-loss]n tranh v[encoding-loss] tuy[encoding-loss]n qu[encoding-loss]n.
-- **Relationship/Neo:** ch[encoding-loss] NPC b[encoding-loss]n v[encoding-loss]ng ho[encoding-loss]c [encoding-loss][encoding-loss]c ghi nh[encoding-loss] m[encoding-loss]i tr[encoding-loss] th[encoding-loss]nh quan h[encoding-loss] d[encoding-loss]i h[encoding-loss]n.
-- **Quest:** quest c[encoding-loss] th[encoding-loss] giao cho NPC kh[encoding-loss]c sau khi NPC g[encoding-loss]c r[encoding-loss]i node; m[encoding-loss]c ti[encoding-loss]u theo `instanceId`.
-- **Combat:** NPC b[encoding-loss] th[encoding-loss][encoding-loss]ng, b[encoding-loss]t gi[encoding-loss], ch[encoding-loss]y tr[encoding-loss]n v[encoding-loss] c[encoding-loss]n c[encoding-loss]u h[encoding-loss]; kh[encoding-loss]ng h[encoding-loss]i m[encoding-loss]u mi[encoding-loss]n ph[encoding-loss] khi r[encoding-loss]i m[encoding-loss]n h[encoding-loss]nh.
-- **Economy:** cung/c[encoding-loss]u do s[encoding-loss] NPC, th[encoding-loss][encoding-loss]ng o[encoding-loss]n v[encoding-loss] th[encoding-loss]i ti[encoding-loss]t quy[encoding-loss]t [encoding-loss]nh.
-- **Cultivation:** V[encoding-loss]n [encoding-loss]o, [encoding-loss]u Ng[encoding-loss], d[encoding-loss]y c[encoding-loss]ng ph[encoding-loss]p v[encoding-loss] quan s[encoding-loss]t NPC c[encoding-loss]ng Con [encoding-loss][encoding-loss]ng.
+- **Map:** NPC to traffic, patrol edge, route block, rumor v m đng runtime đc cp php.
+- **Weather:** thay đi lch, shelter, mood, risk v hnh vi.
+- **Faction:** lnh, thu, giy thng hnh, chin tranh v tuyn qun.
+- **Relationship/Neo:** ch NPC bn vng hoc đc ghi nh mi tr thnh quan h di hn.
+- **Quest:** quest c th giao cho NPC khc sau khi NPC gc ri node; mc tiu theo `instanceId`.
+- **Combat:** NPC b thng, bt gi, chy trn v cn cu h; khng hi mu min ph khi ri mn hnh.
+- **Economy:** cung/cu do s NPC, thng đon v thi tit quyt đnh.
+- **Cultivation:** Vn Đo, Đu Ng, dy cng php v quan st NPC cng Con Đng.
 
-## 12. Hi[encoding-loss]u nng v[encoding-loss] l[encoding-loss]u tr[encoding-loss]
+## 12. Hiu nng v lu tr
 
 - Spatial index theo `regionId/nodeId/subLocationId`.
-- Kh[encoding-loss]ng scan to[encoding-loss]n b[encoding-loss] NPC cho m[encoding-loss]i node m[encoding-loss]i frame.
-- Background population x[encoding-loss] l[encoding-loss] theo th[encoding-loss]ng k[encoding-loss]; active actors materialize khi c[encoding-loss]n.
-- Ch[encoding-loss] serialize danh t[encoding-loss]nh b[encoding-loss]n v[encoding-loss]ng, actor ang c[encoding-loss] quest/quan h[encoding-loss]/incident v[encoding-loss] seed qu[encoding-loss]n th[encoding-loss].
-- Gi[encoding-loss]i h[encoding-loss]n event log theo c[encoding-loss]a s[encoding-loss]; gi[encoding-loss] snapshot [encoding-loss]nh k[encoding-loss] cho NPC quan tr[encoding-loss]ng.
-- M[encoding-loss]c ti[encoding-loss]u: 5.000 NPC trong m[encoding-loss]t node v[encoding-loss]n m[encoding-loss] detail <500 ms v[encoding-loss] tick <100 ms tr[encoding-loss]n m[encoding-loss]y t[encoding-loss]m trung.
+- Khng scan ton b NPC cho mi node mi frame.
+- Background population x l theo thng k; active actors materialize khi cn.
+- Ch serialize danh tnh bn vng, actor đang c quest/quan h/incident v seed qun th.
+- Gii hn event log theo ca s; gi snapshot đnh k cho NPC quan trng.
+- Mc tiu: 5.000 NPC trong mt node vn m detail <500 ms v tick <100 ms trn my tm trung.
 
 ## 13. API contract
 
@@ -2330,132 +2337,132 @@ resolveNpcWeatherReaction(state, npcId, weather)
 listNodeShelters(state, nodeId)
 ```
 
-Mutation ph[encoding-loss]i tr[encoding-loss] `{ success, reason, data, transactionId, stateVersion }`, c[encoding-loss] rollback v[encoding-loss] journal.
+Mutation phi tr `{ success, reason, data, transactionId, stateVersion }`, c rollback v journal.
 
-## 14. L[encoding-loss] tr[encoding-loss]nh tri[encoding-loss]n khai
+## 14. L trnh trin khai
 
 1. **Pha A:** schema/migration, NPC ecology profile, spatial index, population seed.
-2. **Pha B:** scheduler, route, sub-location presence v[encoding-loss] UI danh s[encoding-loss]ch [encoding-loss]ng.
-3. **Pha C:** th[encoding-loss]i ti[encoding-loss]t, shelter, NPCc[encoding-loss]nh quan v[encoding-loss] local incident.
-4. **Pha D:** NPCNPC encounter, faction orders, m[encoding-loss]t h[encoding-loss]i, witness v[encoding-loss] bulletin.
-5. **Pha E:** kinh t[encoding-loss] d[encoding-loss]n c[encoding-loss], quest chuy[encoding-loss]n giao, V[encoding-loss]n [encoding-loss]o/[encoding-loss]u Ng[encoding-loss], hi[encoding-loss]u nng v[encoding-loss] visual regression.
+2. **Pha B:** scheduler, route, sub-location presence v UI danh sch đng.
+3. **Pha C:** thi tit, shelter, NPCcnh quan v local incident.
+4. **Pha D:** NPCNPC encounter, faction orders, mt hi, witness v bulletin.
+5. **Pha E:** kinh t dn c, quest chuyn giao, Vn Đo/Đu Ng, hiu nng v visual regression.
 
 ## 15. Acceptance criteria
 
-1. Node th[encoding-loss]nh th[encoding-loss] c[encoding-loss] th[encoding-loss] ch[encoding-loss]a [encoding-loss]t nh[encoding-loss]t 1.000 NPC logic m[encoding-loss] kh[encoding-loss]ng tr[encoding-loss]n UI ho[encoding-loss]c scan O(N) m[encoding-loss]i frame.
-2. NPC lu[encoding-loss]n c[encoding-loss] `nodeId + subLocationId` h[encoding-loss]p l[encoding-loss] khi hi[encoding-loss]n th[encoding-loss].
-3. NPC t[encoding-loss] di chuy[encoding-loss]n theo l[encoding-loss]ch, weather, nhu c[encoding-loss]u v[encoding-loss] incident; reload v[encoding-loss]n deterministic.
-4. C[encoding-loss] [encoding-loss]t nh[encoding-loss]t 5 lo[encoding-loss]i t[encoding-loss][encoding-loss]ng t[encoding-loss]c NPCNPC t[encoding-loss]o h[encoding-loss]u qu[encoding-loss] state r[encoding-loss] r[encoding-loss]ng.
-5. Th[encoding-loss]i ti[encoding-loss]t thay [encoding-loss]i [encoding-loss][encoding-loss]c h[encoding-loss]nh vi, shelter, l[encoding-loss]ch v[encoding-loss] route c[encoding-loss]a NPC.
-6. NPC c[encoding-loss] th[encoding-loss] t[encoding-loss][encoding-loss]ng t[encoding-loss]c v[encoding-loss]i c[encoding-loss]ng tr[encoding-loss]nh, [encoding-loss]a h[encoding-loss]nh, edge v[encoding-loss] t[encoding-loss]i nguy[encoding-loss]n node.
-7. NPC [encoding-loss]ng v[encoding-loss]n l[encoding-loss]c/t[encoding-loss]m/ph[encoding-loss]n trang [encoding-loss][encoding-loss]c; Action Bar ch[encoding-loss] hi[encoding-loss]n th[encoding-loss] nh[encoding-loss]m ph[encoding-loss] h[encoding-loss]p.
-8. NPC b[encoding-loss]n v[encoding-loss]ng kh[encoding-loss]ng bi[encoding-loss]n m[encoding-loss]t [encoding-loss]m th[encoding-loss]m; NPC t[encoding-loss]m th[encoding-loss]i kh[encoding-loss]ng l[encoding-loss]m b[encoding-loss]n quan h[encoding-loss] d[encoding-loss]i h[encoding-loss]n.
-9. Kh[encoding-loss]ng c[encoding-loss] NPC n[encoding-loss]o t[encoding-loss] s[encoding-loss]a static topology.
-10. Save ci migrate [encoding-loss][encoding-loss]c; transaction retry kh[encoding-loss]ng nh[encoding-loss]n [encoding-loss]i encounter, ph[encoding-loss]n th[encoding-loss][encoding-loss]ng ho[encoding-loss]c quan h[encoding-loss].
-11. T[encoding-loss]t c[encoding-loss] nh[encoding-loss]n giao di[encoding-loss]n ti[encoding-loss]ng Vi[encoding-loss]t, m[encoding-loss] k[encoding-loss] thu[encoding-loss]t kh[encoding-loss]ng l[encoding-loss] cho ng[encoding-loss][encoding-loss]i ch[encoding-loss]i.
-12. Test hi[encoding-loss]u nng, deterministic tick, weather, map, relationship v[encoding-loss] visual [encoding-loss]u [encoding-loss]t.
-## 16. Logic Gap Closure  b[encoding-loss] sung b[encoding-loss]t bu[encoding-loss]c sau r[encoding-loss] so[encoding-loss]t
+1. Node thnh th c th cha t nht 1.000 NPC logic m khng trn UI hoc scan O(N) mi frame.
+2. NPC lun c `nodeId + subLocationId` hp l khi hin th.
+3. NPC t di chuyn theo lch, weather, nhu cu v incident; reload vn deterministic.
+4. C t nht 5 loi tng tc NPCNPC to hu qu state r rng.
+5. Thi tit thay đi đc hnh vi, shelter, lch v route ca NPC.
+6. NPC c th tng tc vi cng trnh, đa hnh, edge v ti nguyn node.
+7. NPC đng vn lc/tm/phn trang đc; Action Bar ch hin th nhm ph hp.
+8. NPC bn vng khng bin mt m thm; NPC tm thi khng lm bn quan h di hn.
+9. Khng c NPC no t sa static topology.
+10. Save ci migrate đc; transaction retry khng nhn đi encounter, phn thng hoc quan h.
+11. Tt c nhn giao din ting Vit, m k thut khng l cho ngi chi.
+12. Test hiu nng, deterministic tick, weather, map, relationship v visual đu đt.
+## 16. Logic Gap Closure · b sung bt buc sau r sot
 
-### 16.1. T[encoding-loss]ch population n[encoding-loss]n v[encoding-loss] actor c[encoding-loss] danh t[encoding-loss]nh
+### 16.1. Tch population nn v actor c danh tnh
 
-`backgroundCount` ch[encoding-loss] l[encoding-loss] th[encoding-loss]ng k[encoding-loss] d[encoding-loss]n c[encoding-loss]; actor ch[encoding-loss] [encoding-loss][encoding-loss]c materialize khi c[encoding-loss] m[encoding-loss]t trong c[encoding-loss]c i[encoding-loss]u ki[encoding-loss]n: n[encoding-loss]m trong viewport/Node Detail, c[encoding-loss] quest/quan h[encoding-loss], l[encoding-loss] witness, tham gia incident, n[encoding-loss]m tr[encoding-loss]n route player ho[encoding-loss]c [encoding-loss][encoding-loss]c faction [encoding-loss]nh d[encoding-loss]u. Materialize d[encoding-loss]ng kh[encoding-loss]a:
+`backgroundCount` ch l thng k dn c; actor ch đc materialize khi c mt trong cc điu kin: nm trong viewport/Node Detail, c quest/quan h, l witness, tham gia incident, nm trn route player hoc đc faction đnh du. Materialize dng kha:
 
 ```text
 instanceId = hash(worldSeed + nodeId + roleId + populationSlot + generation)
 ```
 
-Kh[encoding-loss]ng t[encoding-loss]o l[encoding-loss]i actor m[encoding-loss]i sau reload n[encoding-loss]u c[encoding-loss]ng kh[encoding-loss]a. Khi actor t[encoding-loss]m th[encoding-loss]i r[encoding-loss]i node, chuy[encoding-loss]n v[encoding-loss] pool ho[encoding-loss]c l[encoding-loss]u `lastKnownNodeId`; kh[encoding-loss]ng x[encoding-loss]a quan h[encoding-loss] b[encoding-loss]n v[encoding-loss]ng.
+Khng to li actor mi sau reload nu cng kha. Khi actor tm thi ri node, chuyn v pool hoc lu `lastKnownNodeId`; khng xa quan h bn vng.
 
-### 16.2. Quota, congestion v[encoding-loss] h[encoding-loss]ng [encoding-loss]i
+### 16.2. Quota, congestion v hng đi
 
-M[encoding-loss]i sub-location c[encoding-loss] `capacity`, `queuePolicy` v[encoding-loss] `priorityRoles`. N[encoding-loss]u v[encoding-loss][encoding-loss]t capacity:
+Mi sub-location c `capacity`, `queuePolicy` v `priorityRoles`. Nu vt capacity:
 
-1. actor kh[encoding-loss]n c[encoding-loss]p (b[encoding-loss] th[encoding-loss][encoding-loss]ng, tr[encoding-loss] em, h[encoding-loss] t[encoding-loss]ng) [encoding-loss][encoding-loss]c [encoding-loss]u ti[encoding-loss]n;
-2. actor kh[encoding-loss]c x[encoding-loss]p h[encoding-loss]ng ho[encoding-loss]c chuy[encoding-loss]n shelter/sub-location g[encoding-loss]n nh[encoding-loss]t;
-3. n[encoding-loss]u m[encoding-loss]i n[encoding-loss]i [encoding-loss]y, actor r[encoding-loss]i node theo edge m[encoding-loss] c[encoding-loss] chi ph[encoding-loss] th[encoding-loss]p nh[encoding-loss]t.
+1. actor khn cp (b thng, tr em, h tng) đc u tin;
+2. actor khc xp hng hoc chuyn shelter/sub-location gn nht;
+3. nu mi ni đy, actor ri node theo edge m c chi ph thp nht.
 
-Kh[encoding-loss]ng [encoding-loss][encoding-loss]c spawn v[encoding-loss] h[encoding-loss]n [encoding-loss] l[encoding-loss]p UI. `visibleCount` v[encoding-loss] `backgroundCount` ph[encoding-loss]i t[encoding-loss]ch bi[encoding-loss]t.
+Khng đc spawn v hn đ lp UI. `visibleCount` v `backgroundCount` phi tch bit.
 
 ### 16.3. State machine NPC
 
 ```text
-idle [encoding-loss] planning [encoding-loss] traveling [encoding-loss] arrived [encoding-loss] acting [encoding-loss] cooldown [encoding-loss] idle
-             [encoding-loss] sheltering [encoding-loss]
-             [encoding-loss] injured [encoding-loss] treated/recovering [encoding-loss] idle
-             [encoding-loss] missing [encoding-loss] found/retired/dead
+idle  planning  traveling  arrived  acting  cooldown  idle
+              sheltering
+              injured  treated/recovering  idle
+              missing  found/retired/dead
 ```
 
-M[encoding-loss]i transition ghi `reason`, `source`, `day`, `decisionSeed`. Transition kh[encoding-loss]ng h[encoding-loss]p l[encoding-loss] b[encoding-loss] t[encoding-loss] ch[encoding-loss]i, kh[encoding-loss]ng t[encoding-loss] s[encoding-loss]a tr[encoding-loss]ng th[encoding-loss]i b[encoding-loss]ng assignment r[encoding-loss]i r[encoding-loss]c.
+Mi transition ghi `reason`, `source`, `day`, `decisionSeed`. Transition khng hp l b t chi, khng t sa trng thi bng assignment ri rc.
 
-### 16.4. Di chuy[encoding-loss]n NPC v[encoding-loss] topology
+### 16.4. Di chuyn NPC v topology
 
-NPC d[encoding-loss]ng c[encoding-loss]ng `resolveMapTopology()`/`edgeState()` v[encoding-loss]i player. NPC kh[encoding-loss]ng [encoding-loss][encoding-loss]c i qua edge `blocked`, kh[encoding-loss]ng [encoding-loss][encoding-loss]c t[encoding-loss] m[encoding-loss] static edge. N[encoding-loss]u route h[encoding-loss]ng, NPC chuy[encoding-loss]n `rerouting`; sau ba l[encoding-loss]n kh[encoding-loss]ng t[encoding-loss]m [encoding-loss][encoding-loss]c [encoding-loss][encoding-loss]ng, chuy[encoding-loss]n `sheltering` ho[encoding-loss]c `missing` t[encoding-loss]y role. Faction patrol c[encoding-loss] quy[encoding-loss]n m[encoding-loss] edge runtime ri[encoding-loss]ng n[encoding-loss]u data khai b[encoding-loss]o `authorityAction`.
+NPC dng cng `resolveMapTopology()`/`edgeState()` vi player. NPC khng đc đi qua edge `blocked`, khng đc t m static edge. Nu route hng, NPC chuyn `rerouting`; sau ba ln khng tm đc đng, chuyn `sheltering` hoc `missing` ty role. Faction patrol c quyn m edge runtime ring nu data khai bo `authorityAction`.
 
-### 16.5. Quy[encoding-loss]t [encoding-loss]nh h[encoding-loss]nh vi theo nhu c[encoding-loss]u
+### 16.5. Quyt đnh hnh vi theo nhu cu
 
-Nhu c[encoding-loss]u chu[encoding-loss]n h[encoding-loss]a 0100; 100 l[encoding-loss] c[encoding-loss]p b[encoding-loss]ch:
+Nhu cu chun ha 0100; 100 l cp bch:
 
 ```text
 needUrgency = max(food, shelter, safety, social)
-score(action) = goalWeight [encoding-loss] 0.40
-              + needUrgency [encoding-loss] 0.30
-              + weatherFit [encoding-loss] 0.15
-              + relation/factionBias [encoding-loss] 0.10
-              - travelCost [encoding-loss] 0.05
+score(action) = goalWeight  0.40
+              + needUrgency  0.30
+              + weatherFit  0.15
+              + relation/factionBias  0.10
+              - travelCost  0.05
 ```
 
-Tie-break deterministic theo `actionId`; kh[encoding-loss]ng [encoding-loss] random l[encoding-loss]m NPC [encoding-loss]i h[encoding-loss]nh vi sau reload.
+Tie-break deterministic theo `actionId`; khng đ random lm NPC đi hnh vi sau reload.
 
-### 16.6. Weather severity v[encoding-loss] hysteresis
+### 16.6. Weather severity v hysteresis
 
-Th[encoding-loss]i ti[encoding-loss]t c[encoding-loss] `severity 03`. NPC ch[encoding-loss] [encoding-loss]i l[encoding-loss]ch khi severity v[encoding-loss][encoding-loss]t ng[encoding-loss][encoding-loss]ng v[encoding-loss]o ho[encoding-loss]c gi[encoding-loss]m d[encoding-loss][encoding-loss]i ng[encoding-loss][encoding-loss]ng ra, tr[encoding-loss]nh [encoding-loss]i shelter m[encoding-loss]i tick:
+Thi tit c `severity 03`. NPC ch đi lch khi severity vt ngng vo hoc gim di ngng ra, trnh đi shelter mi tick:
 
 ```text
-enterShelter n[encoding-loss]u severity >= enterThreshold
-leaveShelter n[encoding-loss]u severity <= leaveThreshold (leaveThreshold < enterThreshold)
+enterShelter nu severity >= enterThreshold
+leaveShelter nu severity <= leaveThreshold (leaveThreshold < enterThreshold)
 ```
 
-Th[encoding-loss]i ti[encoding-loss]t c[encoding-loss]c oan kh[encoding-loss]a ho[encoding-loss]t [encoding-loss]ng ngo[encoding-loss]i tr[encoding-loss]i, tng nhu c[encoding-loss]u shelter/n[encoding-loss][encoding-loss]c, thay [encoding-loss]i route v[encoding-loss] c[encoding-loss] th[encoding-loss] t[encoding-loss]o incident. Weather modifier ph[encoding-loss]i c[encoding-loss] `sourceRegion`, `startDay`, `endDay`, `severity`.
+Thi tit cc đoan kha hot đng ngoi tri, tng nhu cu shelter/nc, thay đi route v c th to incident. Weather modifier phi c `sourceRegion`, `startDay`, `endDay`, `severity`.
 
-### 16.7. NPCNPC encounter lifecycle
+### 16.7. NPCNPC encounter lifecycle
 
 ```text
-detected [encoding-loss] proposed [encoding-loss] accepted/rejected [encoding-loss] resolving [encoding-loss] resolved
-                                      [encoding-loss] interrupted
+detected  proposed  accepted/rejected  resolving  resolved
+                                       interrupted
 ```
 
-Encounter c[encoding-loss] `encounterId`, actor pair [encoding-loss] sort, sub-location, witness list, weather snapshot, choice history v[encoding-loss] cooldown. M[encoding-loss]t c[encoding-loss]p actor kh[encoding-loss]ng th[encoding-loss] resolve hai l[encoding-loss]n c[encoding-loss]ng tick. Witness nh[encoding-loss]n memory n[encoding-loss]u `visibility` [encoding-loss]; encounter b[encoding-loss] m[encoding-loss]t kh[encoding-loss]ng t[encoding-loss] [encoding-loss]ng b[encoding-loss] to[encoding-loss]n node bi[encoding-loss]t.
+Encounter c `encounterId`, actor pair đ sort, sub-location, witness list, weather snapshot, choice history v cooldown. Mt cp actor khng th resolve hai ln cng tick. Witness nhn memory nu `visibility` đ; encounter b mt khng t đng b ton node bit.
 
-### 16.8. Witness, rumor v[encoding-loss] lan truy[encoding-loss]n tin
+### 16.8. Witness, rumor v lan truyn tin
 
 ```text
-rumorStrength = eventImportance [encoding-loss] witnessReliability [encoding-loss] visibility
-                [encoding-loss] distanceDecay [encoding-loss] weatherVisibility
+rumorStrength = eventImportance  witnessReliability  visibility
+                 distanceDecay  weatherVisibility
 ```
 
-Tin truy[encoding-loss]n qua NPC c[encoding-loss] `knownBy`, `confidence`, `expiresDay`; m[encoding-loss]i tick ch[encoding-loss] lan t[encoding-loss]i a m[encoding-loss]t hop. Faction bulletin ch[encoding-loss] nh[encoding-loss]n tin [encoding-loss]t confidence t[encoding-loss]i thi[encoding-loss]u, kh[encoding-loss]ng l[encoding-loss]y tr[encoding-loss]c ti[encoding-loss]p to[encoding-loss]n b[encoding-loss] world state.
+Tin truyn qua NPC c `knownBy`, `confidence`, `expiresDay`; mi tick ch lan ti đa mt hop. Faction bulletin ch nhn tin đt confidence ti thiu, khng ly trc tip ton b world state.
 
-### 16.9. T[encoding-loss]c [encoding-loss]ng c[encoding-loss]nh quan c[encoding-loss] rollback
+### 16.9. Tc đng cnh quan c rollback
 
-NPC s[encoding-loss]a c[encoding-loss]u, d[encoding-loss]ng shelter, m[encoding-loss] ch[encoding-loss], d[encoding-loss]n [encoding-loss][encoding-loss]ng ho[encoding-loss]c ph[encoding-loss] v[encoding-loss]t c[encoding-loss]n ph[encoding-loss]i t[encoding-loss]o `landscapeMutation` qua Map transaction. Mutation c[encoding-loss] `ownerNpcId`, `requiredItems`, `duration`, `integrity`, `expiresDay` v[encoding-loss] undo policy. NPC kh[encoding-loss]ng [encoding-loss][encoding-loss]c s[encoding-loss]a c[encoding-loss]u h[encoding-loss]nh static; ch[encoding-loss] t[encoding-loss]o runtime overlay.
+NPC sa cu, dng shelter, m ch, dn đng hoc ph vt cn phi to `landscapeMutation` qua Map transaction. Mutation c `ownerNpcId`, `requiredItems`, `duration`, `integrity`, `expiresDay` v undo policy. NPC khng đc sa cu hnh static; ch to runtime overlay.
 
-### 16.10. Kinh t[encoding-loss] v[encoding-loss] v[encoding-loss]t t[encoding-loss] NPC
+### 16.10. Kinh t v vt t NPC
 
-Inventory background d[encoding-loss]ng aggregate, c[encoding-loss]n th[encoding-loss][encoding-loss]ng v[encoding-loss] v[encoding-loss]i actor d[encoding-loss]ng inventory instance. Kh[encoding-loss]ng t[encoding-loss]o v[encoding-loss]t ph[encoding-loss]m v[encoding-loss] h[encoding-loss]n t[encoding-loss] `backgroundCount`. M[encoding-loss]i giao d[encoding-loss]ch kh[encoding-loss]a gi[encoding-loss]/stock t[encoding-loss]i preview, commit qua transaction v[encoding-loss] ghi buyer/seller/day.
+Inventory background dng aggregate, cn thng v vi actor dng inventory instance. Khng to vt phm v hn t `backgroundCount`. Mi giao dch kha gi/stock ti preview, commit qua transaction v ghi buyer/seller/day.
 
-### 16.11. Quan h[encoding-loss] v[encoding-loss] k[encoding-loss] [encoding-loss]c
+### 16.11. Quan h v k c
 
-Quan h[encoding-loss] NPCNPC d[encoding-loss]ng b[encoding-loss]n tr[encoding-loss]c `trust/respect/fear/suspicion` 0100. M[encoding-loss]i event c[encoding-loss] `uniqueKey`; c[encoding-loss]ng event kh[encoding-loss]ng c[encoding-loss]ng hai l[encoding-loss]n. K[encoding-loss] [encoding-loss]c gi[encoding-loss]m d[encoding-loss]n theo half-life nh[encoding-loss]ng event Neo/quest/ ph[encoding-loss]n b[encoding-loss]i kh[encoding-loss]ng [encoding-loss][encoding-loss]c qu[encoding-loss]n t[encoding-loss] [encoding-loss]ng; ph[encoding-loss]i c[encoding-loss] tr[encoding-loss]ng th[encoding-loss]i `suppressed` ho[encoding-loss]c `resolved`.
+Quan h NPCNPC dng bn trc `trust/respect/fear/suspicion` 0100. Mi event c `uniqueKey`; cng event khng cng hai ln. K c gim dn theo half-life nhng event Neo/quest/ phn bi khng đc qun t đng; phi c trng thi `suppressed` hoc `resolved`.
 
-### 16.12. Player lock v[encoding-loss] t[encoding-loss][encoding-loss]ng t[encoding-loss]c c[encoding-loss]nh tranh
+### 16.12. Player lock v tng tc cnh tranh
 
-Khi player b[encoding-loss]t [encoding-loss]u n[encoding-loss]i chuy[encoding-loss]n/giao d[encoding-loss]ch/[encoding-loss]u v[encoding-loss]i NPC, actor [encoding-loss][encoding-loss]c lock t[encoding-loss]m th[encoding-loss]i. NPC kh[encoding-loss]c c[encoding-loss] th[encoding-loss] chen v[encoding-loss]o ch[encoding-loss] khi encounter cho ph[encoding-loss]p. H[encoding-loss]t timeout ph[encoding-loss]i gi[encoding-loss]i ph[encoding-loss]ng lock; reload kh[encoding-loss]ng [encoding-loss] actor b[encoding-loss] kh[encoding-loss]a v)nh vi[encoding-loss]n.
+Khi player bt đu ni chuyn/giao dch/đu vi NPC, actor đc lock tm thi. NPC khc c th chen vo ch khi encounter cho php. Ht timeout phi gii phng lock; reload khng đ actor b kha v)nh vin.
 
 ### 16.13. Offline simulation
 
-Offline tick kh[encoding-loss]ng materialize h[encoding-loss]ng ngh[encoding-loss]n actor v[encoding-loss] kh[encoding-loss]ng resolve encounter ng[encoding-loss]u nhi[encoding-loss]n kh[encoding-loss]ng quan s[encoding-loss]t [encoding-loss][encoding-loss]c. D[encoding-loss]ng aggregate transition cho population; ch[encoding-loss] resolve actor b[encoding-loss]n v[encoding-loss]ng, quest, travel, shelter, incident v[encoding-loss] quan h[encoding-loss] c[encoding-loss] t[encoding-loss]c [encoding-loss]ng. UI ph[encoding-loss]i ghi r[encoding-loss] m[encoding-loss] ph[encoding-loss]ng n[encoding-loss]n khi ng[encoding-loss][encoding-loss]i ch[encoding-loss]i quay l[encoding-loss]i.
+Offline tick khng materialize hng nghn actor v khng resolve encounter ngu nhin khng quan st đc. Dng aggregate transition cho population; ch resolve actor bn vng, quest, travel, shelter, incident v quan h c tc đng. UI phi ghi r m phng nn khi ngi chi quay li.
 
-### 16.14. View model NPC th[encoding-loss]ng nh[encoding-loss]t
+### 16.14. View model NPC thng nht
 
 ```ts
 NpcNodeView {
@@ -2473,21 +2480,21 @@ NpcNodeView {
 }
 ```
 
-UI ch[encoding-loss] nh[encoding-loss]n `NpcNodeView[]`; kh[encoding-loss]ng t[encoding-loss] [encoding-loss]c `npcState` r[encoding-loss]i t[encoding-loss] quy[encoding-loss]t [encoding-loss]nh action.
+UI ch nhn `NpcNodeView[]`; khng t đc `npcState` ri t quyt đnh action.
 
-### 16.15. Invariants b[encoding-loss]t bu[encoding-loss]c
+### 16.15. Invariants bt buc
 
-1. NPC s[encoding-loss]ng ch[encoding-loss] c[encoding-loss] m[encoding-loss]t v[encoding-loss] tr[encoding-loss] hi[encoding-loss]n t[encoding-loss]i.
-2. `currentSubLocationId` ph[encoding-loss]i thu[encoding-loss]c node hi[encoding-loss]n t[encoding-loss]i v[encoding-loss] kh[encoding-loss]ng v[encoding-loss][encoding-loss]t capacity m[encoding-loss] kh[encoding-loss]ng c[encoding-loss] queue record.
-3. NPC ang `traveling` kh[encoding-loss]ng th[encoding-loss] [encoding-loss]ng th[encoding-loss]i `acting` ho[encoding-loss]c giao d[encoding-loss]ch.
-4. NPC `dead/retired` kh[encoding-loss]ng xu[encoding-loss]t hi[encoding-loss]n trong presence list.
-5. NPC t[encoding-loss]m th[encoding-loss]i kh[encoding-loss]ng t[encoding-loss]o quan h[encoding-loss] b[encoding-loss]n v[encoding-loss]ng n[encoding-loss]u ch[encoding-loss]a [encoding-loss][encoding-loss]c ghi nh[encoding-loss].
-6. Weather reaction, encounter v[encoding-loss] landscape mutation [encoding-loss]u idempotent.
-7. Kh[encoding-loss]ng mutation NPC n[encoding-loss]o s[encoding-loss]a static map catalog.
+1. NPC sng ch c mt v tr hin ti.
+2. `currentSubLocationId` phi thuc node hin ti v khng vt capacity m khng c queue record.
+3. NPC đang `traveling` khng th đng thi `acting` hoc giao dch.
+4. NPC `dead/retired` khng xut hin trong presence list.
+5. NPC tm thi khng to quan h bn vng nu cha đc ghi nh.
+6. Weather reaction, encounter v landscape mutation đu idempotent.
+7. Khng mutation NPC no sa static map catalog.
 
-## 17. API v[encoding-loss] m[encoding-loss] l[encoding-loss]i chu[encoding-loss]n h[encoding-loss]a
+## 17. API v m li chun ha
 
-C[encoding-loss]c API ph[encoding-loss]i c[encoding-loss] preview/commit t[encoding-loss][encoding-loss]ng [encoding-loss]ng v[encoding-loss] d[encoding-loss]ng m[encoding-loss] l[encoding-loss]i d[encoding-loss]ch [encoding-loss][encoding-loss]c:
+Cc API phi c preview/commit tng ng v dng m li dch đc:
 
 ```js
 npcPopulationSnapshot(state, nodeId, filters)
@@ -2501,19 +2508,19 @@ resolveNpcWeatherReaction(state, npcId, weather)
 applyLandscapeMutation(state, mutationId)
 ```
 
-M[encoding-loss] l[encoding-loss]i t[encoding-loss]i thi[encoding-loss]u: `NPC_NOT_PRESENT`, `NPC_BUSY`, `NPC_WEATHER_SHELTER_FULL`, `NPC_ROUTE_BLOCKED`, `NPC_ENCOUNTER_EXPIRED`, `NPC_LOCK_CONFLICT`, `NPC_STATE_CONFLICT`.
+M li ti thiu: `NPC_NOT_PRESENT`, `NPC_BUSY`, `NPC_WEATHER_SHELTER_FULL`, `NPC_ROUTE_BLOCKED`, `NPC_ENCOUNTER_EXPIRED`, `NPC_LOCK_CONFLICT`, `NPC_STATE_CONFLICT`.
 
-## 18. Acceptance b[encoding-loss] sung
+## 18. Acceptance b sung
 
-1. 5.000 NPC trong m[encoding-loss]t node kh[encoding-loss]ng t[encoding-loss]o h[encoding-loss]n quota actor materialized v[encoding-loss] kh[encoding-loss]ng scan to[encoding-loss]n b[encoding-loss] m[encoding-loss]i frame.
-2. Hai client/tick c[encoding-loss]ng t[encoding-loss][encoding-loss]ng t[encoding-loss]c m[encoding-loss]t NPC ch[encoding-loss] m[encoding-loss]t mutation th[encoding-loss]nh c[encoding-loss]ng.
-3. Weather severity gi[encoding-loss] [encoding-loss]n [encoding-loss]nh shelter qua nhi[encoding-loss]u tick, kh[encoding-loss]ng rung tr[encoding-loss]ng th[encoding-loss]i.
-4. NPC route kh[encoding-loss]ng i qua edge phong t[encoding-loss]a v[encoding-loss] t[encoding-loss] t[encoding-loss]m [encoding-loss][encoding-loss]ng v[encoding-loss]ng h[encoding-loss]p l[encoding-loss].
-5. NPCNPC encounter c[encoding-loss] witness/memory/rumor [encoding-loss]ng visibility.
-6. Landscape mutation c[encoding-loss] rollback khi thi[encoding-loss]u v[encoding-loss]t t[encoding-loss] ho[encoding-loss]c b[encoding-loss] interrupt.
-7. Offline simulation kh[encoding-loss]ng sinh ph[encoding-loss]n th[encoding-loss][encoding-loss]ng/quan h[encoding-loss] tr[encoding-loss]ng l[encoding-loss]p.
-8. Save/load gi[encoding-loss] instanceId, schedule, route, memory, shelter, lock timeout v[encoding-loss] encounter journal.
-9. M[encoding-loss]i nh[encoding-loss]n NPC, weather, role v[encoding-loss] l[encoding-loss]i hi[encoding-loss]n th[encoding-loss] [encoding-loss]u b[encoding-loss]ng ti[encoding-loss]ng Vi[encoding-loss]t.
+1. 5.000 NPC trong mt node khng to hn quota actor materialized v khng scan ton b mi frame.
+2. Hai client/tick cng tng tc mt NPC ch mt mutation thnh cng.
+3. Weather severity gi n đnh shelter qua nhiu tick, khng rung trng thi.
+4. NPC route khng đi qua edge phong ta v t tm đng vng hp l.
+5. NPCNPC encounter c witness/memory/rumor đng visibility.
+6. Landscape mutation c rollback khi thiu vt t hoc b interrupt.
+7. Offline simulation khng sinh phn thng/quan h trng lp.
+8. Save/load gi instanceId, schedule, route, memory, shelter, lock timeout v encounter journal.
+9. Mi nhn NPC, weather, role v li hin th đu bng ting Vit.
 
 
 ### Source: `archive-requirements\logic-history\07-ui\UX_UI_CONSTELLATION_DESIGN_2026-09-18.md`
@@ -2664,7 +2671,7 @@ Thắng      Thua
    │         │
    ▼         ▼
 morale +   morale -, status="routed" (rút lui về node gần nhất cùng phe, mất % soldierCount)
-tiếp tục   
+tiếp tục
 sieging/
 chiếm node
 ```

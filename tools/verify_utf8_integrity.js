@@ -4,7 +4,7 @@ const path = require("path");
 const ROOT = path.resolve(__dirname, "..");
 const roots = ["js", "data", "tools", "requirement", "index.html"];
 const badPattern = /(?:\u00c3[\u0080-\u00ff]|\u00c2[\u00ba\u00bb]|\u00e1[\u00bb\u00ba]|\u00e2(?:\u20ac|\u201a|\u201e|\u2026|\u2020|\u2021)|\u00ef\u00bf\u00bd|\uFFFD)/g;
-const skipped = new Set([".git", "node_modules", ".commandcode", "fate_system_update", "webgame", "repair_mojibake.js", "repair_utf8_all.js", "verify_utf8_integrity.js", "verify_dichi_deep.js", "verify_expansion_log_matrix.js"]);
+const skipped = new Set([".git", "node_modules", ".commandcode", "fate_system_update", "webgame", "repair_mojibake.js", "repair_utf8_all.js", "repair_requirement_encoding.js", "validate_requirement_docs.js", "verify_utf8_integrity.js", "verify_dichi_deep.js", "verify_expansion_log_matrix.js"]);
 function scan(target, results) {
   const full = path.join(ROOT, target);
   if (fs.statSync(full).isFile()) { scanFile(full, results); return; }

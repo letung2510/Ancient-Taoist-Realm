@@ -20,11 +20,11 @@ Related world producers are specified in [`WORLD_SIMULATION_CANONICAL.md`](../04
 
 ### Source: `archive-requirements\logic-history\03-world\ORGANIZATION_INTERACTION_SYSTEM.md`
 
-# H[encoding-loss] th[encoding-loss]ng t[encoding-loss][encoding-loss]ng t[encoding-loss]c t[encoding-loss] ch[encoding-loss]c
+# H thng tng tc t chc
 
-## M[encoding-loss]c ti[encoding-loss]u
+## Mc tiu
 
-M[encoding-loss]i t[encoding-loss]ng m[encoding-loss]n, th[encoding-loss] gia, th[encoding-loss][encoding-loss]ng h[encoding-loss]i, v[encoding-loss][encoding-loss]ng tri[encoding-loss]u, li[encoding-loss]n minh v[encoding-loss] t[encoding-loss] ch[encoding-loss]c b[encoding-loss] m[encoding-loss]t ph[encoding-loss]i l[encoding-loss] t[encoding-loss]c nh[encoding-loss]n c[encoding-loss] quan h[encoding-loss], t[encoding-loss]i nguy[encoding-loss]n, ch[encoding-loss]nh s[encoding-loss]ch v[encoding-loss] ph[encoding-loss]n [encoding-loss]ng; kh[encoding-loss]ng ch[encoding-loss] l[encoding-loss] d[encoding-loss] li[encoding-loss]u [encoding-loss] hi[encoding-loss]n th[encoding-loss] ho[encoding-loss]c i[encoding-loss]u ki[encoding-loss]n gia nh[encoding-loss]p.
+Mi tng mn, th gia, thng hi, vng triu, lin minh v t chc b mt phi l tc nhn c quan h, ti nguyn, chnh sch v phn ng; khng ch l d liu đ hin th hoc điu kin gia nhp.
 
 ## Canonical organization model
 
@@ -47,7 +47,7 @@ organizationState: {
 }
 ```
 
-`organizationId` l[encoding-loss] ID canonical c[encoding-loss]a `GUILDS` ho[encoding-loss]c `WORLD_MAP.factions`; kh[encoding-loss]ng t[encoding-loss]o b[encoding-loss]n sao cho c[encoding-loss]ng m[encoding-loss]t t[encoding-loss] ch[encoding-loss]c. Guild membership ch[encoding-loss] l[encoding-loss] tr[encoding-loss]ng th[encoding-loss]i th[encoding-loss]nh vi[encoding-loss]n, c[encoding-loss]n relation l[encoding-loss] quan h[encoding-loss] x[encoding-loss] h[encoding-loss]i [encoding-loss]c l[encoding-loss]p.
+`organizationId` l ID canonical ca `GUILDS` hoc `WORLD_MAP.factions`; khng to bn sao cho cng mt t chc. Guild membership ch l trng thi thnh vin, cn relation l quan h x hi đc lp.
 
 ## Interaction contract
 
@@ -56,38 +56,38 @@ organizationSnapshot(state, organizationId)
 organizationInteract(state, organizationId, action, amount)
 ```
 
-Actions chu[encoding-loss]n:
+Actions chun:
 
-- `status`: xem snapshot, kh[encoding-loss]ng mutate.
-- `donate`: tr[encoding-loss] Linh Th[encoding-loss]ch, tng reputation/favor v[encoding-loss] t[encoding-loss]i nguy[encoding-loss]n t[encoding-loss] ch[encoding-loss]c.
-- `request_aid`: ti[encoding-loss]u Favor, nh[encoding-loss]n v[encoding-loss]t ph[encoding-loss]m ho[encoding-loss]c h[encoding-loss] tr[encoding-loss].
-- `commission`: t[encoding-loss]o request tr[encoding-loss] qua world tick.
-- `share_intel`: g[encoding-loss]i t[encoding-loss]nh b[encoding-loss]o [encoding-loss] x[encoding-loss]c minh, tng trust/reputation.
-- `mediate`: tng stability/power faction khi [encoding-loss] reputation.
+- `status`: xem snapshot, khng mutate.
+- `donate`: tr Linh Thch, tng reputation/favor v ti nguyn t chc.
+- `request_aid`: tiu Favor, nhn vt phm hoc h tr.
+- `commission`: to request tr qua world tick.
+- `share_intel`: gi tnh bo đ xc minh, tng trust/reputation.
+- `mediate`: tng stability/power faction khi đ reputation.
 
-M[encoding-loss]i t[encoding-loss] ch[encoding-loss]c ch[encoding-loss] nh[encoding-loss]n m[encoding-loss]t interaction mutate m[encoding-loss]i ng[encoding-loss]y, tr[encoding-loss] `request_aid`. T[encoding-loss]t c[encoding-loss] k[encoding-loss]t qu[encoding-loss] tr[encoding-loss] `{ success, reason, data }`.
+Mi t chc ch nhn mt interaction mutate mi ngy, tr `request_aid`. Tt c kt qu tr `{ success, reason, data }`.
 
 ## Cross-system effects
 
-- Reputation m[encoding-loss] kh[encoding-loss]a rumor, discount v[encoding-loss] reinforcement.
-- Favor [encoding-loss][encoding-loss]c d[encoding-loss]ng cho vi[encoding-loss]n tr[encoding-loss], escort, fast travel ho[encoding-loss]c guild project.
-- Heat cao l[encoding-loss]m t[encoding-loss] ch[encoding-loss]c hostile, tng patrol v[encoding-loss] faction blockade.
-- Donation/commission c[encoding-loss]p nh[encoding-loss]t faction resources v[encoding-loss] map influence.
-- Mediation c[encoding-loss]p nh[encoding-loss]t diplomacy/stability/war readiness.
-- Guild project, tournament, contracts v[encoding-loss] NPC reaction [encoding-loss]c c[encoding-loss]ng relation state.
-- Bulletin hi[encoding-loss]n th[encoding-loss] tin theo faction owner v[encoding-loss] reputation c[encoding-loss]a player.
+- Reputation m kha rumor, discount v reinforcement.
+- Favor đc dng cho vin tr, escort, fast travel hoc guild project.
+- Heat cao lm t chc hostile, tng patrol v faction blockade.
+- Donation/commission cp nht faction resources v map influence.
+- Mediation cp nht diplomacy/stability/war readiness.
+- Guild project, tournament, contracts v NPC reaction đc cng relation state.
+- Bulletin hin th tin theo faction owner v reputation ca player.
 
 ## Data authoring rules
 
-M[encoding-loss]i organization definition ch[encoding-loss] khai b[encoding-loss]o m[encoding-loss]t l[encoding-loss]n: identity, alignment, region, traits, services, node detail profile. Runtime ch[encoding-loss] gi[encoding-loss] reference `organizationId`; kh[encoding-loss]ng copy to[encoding-loss]n b[encoding-loss] catalog v[encoding-loss]o save.
+Mi organization definition ch khai bo mt ln: identity, alignment, region, traits, services, node detail profile. Runtime ch gi reference `organizationId`; khng copy ton b catalog vo save.
 
 ## Acceptance
 
-- T[encoding-loss]t c[encoding-loss] guild/faction [encoding-loss]u c[encoding-loss] relation record sau migration.
-- Donate, aid, commission, intel v[encoding-loss] mediation c[encoding-loss] t[encoding-loss]c [encoding-loss]ng state o [encoding-loss][encoding-loss]c.
-- Request [encoding-loss][encoding-loss]c resolve idempotent [encoding-loss] world tick.
-- Relation kh[encoding-loss]ng b[encoding-loss] m[encoding-loss]t khi r[encoding-loss]i guild ho[encoding-loss]c reload save.
-- Kh[encoding-loss]ng c[encoding-loss] organization ID tr[encoding-loss]ng canonical catalog.
+- Tt c guild/faction đu c relation record sau migration.
+- Donate, aid, commission, intel v mediation c tc đng state đo đc.
+- Request đc resolve idempotent  world tick.
+- Relation khng b mt khi ri guild hoc reload save.
+- Khng c organization ID trng canonical catalog.
 
 
 ### Source: `archive-requirements\logic-history\03-world\STRUCTURE_RUNTIME_CATALOG_SINGLE_SOURCE_2026-09-17.md`
@@ -134,44 +134,44 @@ thực nghiệm trên browser vẫn là gate riêng.
 
 # UI System Consolidated Requirements
 
-## 1. M[encoding-loss]c [encoding-loss]ch v[encoding-loss] ngu[encoding-loss]n
+## 1. Mc đch v ngun
 
-T[encoding-loss]i li[encoding-loss]u n[encoding-loss]y l[encoding-loss] b[encoding-loss]n canonical h[encoding-loss]p nh[encoding-loss]t c[encoding-loss]c y[encoding-loss]u c[encoding-loss]u trong `requirement/05-ui`, chia theo subsystem/function.
+Ti liu ny l bn canonical hp nht cc yu cu trong `requirement/05-ui`, chia theo subsystem/function.
 
-Ngu[encoding-loss]n [encoding-loss] h[encoding-loss]p nh[encoding-loss]t: `GAME_CLOCK_DUAL_TIMELINE_DESIGN.md`, `GAME_CLOCK_TIMESTAMP_AUDIT_REVIEW.md`, `ANCIENT_TAOIST_REALM_GAME_LOG_SYSTEM.md`, `ACTION_HYBRID_SYSTEM.md`, `UI_LAYOUT_AND_ACTION_TABLE_REQUIREMENTS.md`, `UI_LAYOUT_REQUIREMENT_KEEP_STRUCTURE_ADJUST_WIDTH.md`, `SPEC_FIX_HE_THONG_NGON_NGU_VA_BO_TRI_FEATURE.md`.
+Ngun đ hp nht: `GAME_CLOCK_DUAL_TIMELINE_DESIGN.md`, `GAME_CLOCK_TIMESTAMP_AUDIT_REVIEW.md`, `ANCIENT_TAOIST_REALM_GAME_LOG_SYSTEM.md`, `ACTION_HYBRID_SYSTEM.md`, `UI_LAYOUT_AND_ACTION_TABLE_REQUIREMENTS.md`, `UI_LAYOUT_REQUIREMENT_KEEP_STRUCTURE_ADJUST_WIDTH.md`, `SPEC_FIX_HE_THONG_NGON_NGU_VA_BO_TRI_FEATURE.md`.
 
-[encoding-loss]u ti[encoding-loss]n: engine/state contract > save compatibility/determinism > Player Log contract > presentation. Presentation kh[encoding-loss]ng t[encoding-loss] [encoding-loss] thay [encoding-loss]i mechanics.
+u tin: engine/state contract > save compatibility/determinism > Player Log contract > presentation. Presentation khng t  thay đi mechanics.
 
-## 2. Clock v[encoding-loss] timestamp subsystem
+## 2. Clock v timestamp subsystem
 
 ### 2.1 Contract
 
-`gameClock` l[encoding-loss] ngu[encoding-loss]n s[encoding-loss] th[encoding-loss]t duy nh[encoding-loss]t v[encoding-loss] c[encoding-loss] hai g[encoding-loss]c nh[encoding-loss]n t[encoding-loss] c[encoding-loss]ng m[encoding-loss]t engine:
+`gameClock` l ngun s tht duy nht v c hai gc nhn t cng mt engine:
 
 ```text
 advanceGameTime(state, days)
-  [encoding-loss] Player Clock ti[encoding-loss]n
-  [encoding-loss] World Clock ti[encoding-loss]n c[encoding-loss]ng s[encoding-loss] ng[encoding-loss]y
-  [encoding-loss] daily mechanics ch[encoding-loss]y m[encoding-loss]t l[encoding-loss]n cho t[encoding-loss]ng ng[encoding-loss]y ho[encoding-loss]n t[encoding-loss]t
+   Player Clock tin
+   World Clock tin cng s ngy
+   daily mechanics chy mt ln cho tng ngy hon tt
 ```
 
-Player Clock hi[encoding-loss]n t[encoding-loss]i v[encoding-loss]n l[encoding-loss] canonical trong phase compatibility:
+Player Clock hin ti vn l canonical trong phase compatibility:
 
 ```text
 gameClock.currentYear/currentMonth/currentDay/dayProgress
 gameClock.eraIndex/currentEra
 ```
 
-Quy t[encoding-loss]c:
+Quy tc:
 
-- 30 gi[encoding-loss]y th[encoding-loss]c = 1 ng[encoding-loss]y game.
-- 30 ng[encoding-loss]y = 1 th[encoding-loss]ng; 12 th[encoding-loss]ng = 1 nm; 360 ng[encoding-loss]y = 1 nm.
-- `dayProgress` gi[encoding-loss] ph[encoding-loss]n ng[encoding-loss]y l[encoding-loss].
-- `gameDayIndex = (year - 1) [encoding-loss] 360 + (month - 1) [encoding-loss] 30 + day`.
-- Player Day Index 1-based; ng[encoding-loss]y [encoding-loss]u ti[encoding-loss]n l[encoding-loss] index 1.
+- 30 giy thc = 1 ngy game.
+- 30 ngy = 1 thng; 12 thng = 1 nm; 360 ngy = 1 nm.
+- `dayProgress` gi phn ngy l.
+- `gameDayIndex = (year - 1)  360 + (month - 1)  30 + day`.
+- Player Day Index 1-based; ngy đu tin l index 1.
 - `playerElapsedWholeDays = playerDayIndex - 1`.
 
-World Clock d[encoding-loss]ng index zero-based:
+World Clock dng index zero-based:
 
 ```text
 worldDayIndex = world.startDayIndex + (playerDayIndex - 1)
@@ -180,7 +180,7 @@ worldMonth = floor((worldDayIndex % 360) / 30) + 1
 worldDay = (worldDayIndex % 30) + 1
 ```
 
-`worldDayIndex = 0` l[encoding-loss] Nm 0, Th[encoding-loss]ng 1 ng[encoding-loss]y 1 t[encoding-loss]i `world.epochDate`. V[encoding-loss] d[encoding-loss] `2,475,360` l[encoding-loss] Nm 6876, Th[encoding-loss]ng 1 ng[encoding-loss]y 1. `epochDate` l[encoding-loss] lore date, kh[encoding-loss]ng ph[encoding-loss]i `Date.now()`.
+`worldDayIndex = 0` l Nm 0, Thng 1 ngy 1 ti `world.epochDate`. V d `2,475,360` l Nm 6876, Thng 1 ngy 1. `epochDate` l lore date, khng phi `Date.now()`.
 
 ### 2.2 Data contract
 
@@ -192,186 +192,186 @@ gameClock: {
   currentDay: 1,
   dayProgress: 0,
   eraIndex: 1,
-  currentEra: "K[encoding-loss] Nguy[encoding-loss]n Linh Kh[encoding-loss] D[encoding-loss] Bi[encoding-loss]n",
+  currentEra: "K Nguyn Linh Kh D Bin",
   realTimeToGameTimeRatio: 1 / 30,
   timeScaleVersion: 3,
   lastRealTimestamp: 0,
   world: {
     epochDate: "2026-08-15",
-    epochLabel: "M[encoding-loss]c Linh kh[encoding-loss] suy ki[encoding-loss]t",
+    epochLabel: "Mc Linh kh suy kit",
     startDayIndex: 2475360,
     currentDayIndex: 2475360,
     currentYear: 6876,
     currentMonth: 1,
     currentDay: 1,
-    currentEra: "K[encoding-loss] Nguy[encoding-loss]n Linh Kh[encoding-loss] Suy Ki[encoding-loss]t",
+    currentEra: "K Nguyn Linh Kh Suy Kit",
     eraId: "linh_khi_suy_kiet"
   }
 }
 ```
 
-`world.current*` l[encoding-loss] cache; `world.startDayIndex` v[encoding-loss] Player Clock l[encoding-loss] ngu[encoding-loss]n [encoding-loss] t[encoding-loss]nh l[encoding-loss]i. Kh[encoding-loss]ng t[encoding-loss]o th[encoding-loss]m `gameClock.player.current*` trong phase [encoding-loss]u v[encoding-loss] s[encoding-loss] t[encoding-loss]o duplicate source-of-truth.
+`world.current*` l cache; `world.startDayIndex` v Player Clock l ngun đ tnh li. Khng to thm `gameClock.player.current*` trong phase đu v s to duplicate source-of-truth.
 
 ### 2.3 Function rules
 
-- `ensureGameClock(state)`: normalize/migrate, t[encoding-loss]o world clock, refresh cache; kh[encoding-loss]ng advance v[encoding-loss] kh[encoding-loss]ng h[encoding-loss]i t[encoding-loss] tu[encoding-loss]i/th[encoding-loss].
-- `gameDayIndex()`/`playerDayIndex()`: Player ordinal 1-based, gi[encoding-loss] semantics ci.
+- `ensureGameClock(state)`: normalize/migrate, to world clock, refresh cache; khng advance v khng hi t tui/th.
+- `gameDayIndex()`/`playerDayIndex()`: Player ordinal 1-based, gi semantics ci.
 - `worldDayIndex()`/`worldClockLabel()`: World ordinal/label zero-based.
-- `clockLabel()`: ti[encoding-loss]p t[encoding-loss]c tr[encoding-loss] Player Clock [encoding-loss] gi[encoding-loss] Player Log.
-- `advanceGameTime()`: c[encoding-loss]p nh[encoding-loss]t hai clock trong m[encoding-loss]t transaction; nhi[encoding-loss]u ng[encoding-loss]y ph[encoding-loss]i x[encoding-loss] l[encoding-loss] tu[encoding-loss]n t[encoding-loss].
-- `onGameYearPass()`: ch[encoding-loss] ch[encoding-loss]y khi Player Clock qua nm; tng tu[encoding-loss]i, gi[encoding-loss]m th[encoding-loss] nguy[encoding-loss]n, x[encoding-loss] l[encoding-loss] Lu[encoding-loss]n H[encoding-loss]i.
-- `applyOfflineProgress()`: d[encoding-loss]ng `lastRealTimestamp`, g[encoding-loss]i c[encoding-loss]ng advance pipeline, suppress history, kh[encoding-loss]ng t[encoding-loss]o fake event.
-- Player Clock kh[encoding-loss]ng reset khi Lu[encoding-loss]n H[encoding-loss]i. Tu[encoding-loss]i t[encoding-loss]ng [encoding-loss]i n[encoding-loss]u c[encoding-loss]n ph[encoding-loss]i d[encoding-loss]ng `lifeClock` ri[encoding-loss]ng.
+- `clockLabel()`: tip tc tr Player Clock đ gi Player Log.
+- `advanceGameTime()`: cp nht hai clock trong mt transaction; nhiu ngy phi x l tun t.
+- `onGameYearPass()`: ch chy khi Player Clock qua nm; tng tui, gim th nguyn, x l Lun Hi.
+- `applyOfflineProgress()`: dng `lastRealTimestamp`, gi cng advance pipeline, suppress history, khng to fake event.
+- Player Clock khng reset khi Lun Hi. Tui tng đi nu cn phi dng `lifeClock` ring.
 
 ### 2.4 Mechanics mapping
 
 | Function/subsystem | Ordinal/clock |
 |---|---|
-| Tu[encoding-loss]i, th[encoding-loss] nguy[encoding-loss]n, Lu[encoding-loss]n H[encoding-loss]i | Player Clock |
-| M[encoding-loss]nh S[encoding-loss] cooldown/reward | Player Day Index |
+| Tui, th nguyn, Lun Hi | Player Clock |
+| Mnh S cooldown/reward | Player Day Index |
 | Travel/weather/NPC/quest/incident | Player Day + current node |
 | Expansion `absoluteDay()` | Player Day Index 1-based |
-| World simulation hi[encoding-loss]n t[encoding-loss]i | Player Day Index 1-based |
+| World simulation hin ti | Player Day Index 1-based |
 | Lore display | World Clock |
 | Player Log | Player Clock |
 | Audit/System Log | ISO + Player/World snapshot |
 
-Kh[encoding-loss]ng [encoding-loss]i `expansion.absoluteDay()` sang World Day. N[encoding-loss]u c[encoding-loss]n, th[encoding-loss]m `absoluteWorldDay()` ri[encoding-loss]ng.
+Khng đi `expansion.absoluteDay()` sang World Day. Nu cn, thm `absoluteWorldDay()` ring.
 
-### 2.5 Offline, wrapper v[encoding-loss] determinism
+### 2.5 Offline, wrapper v determinism
 
-- `lastRealTimestamp` ch[encoding-loss] l[encoding-loss] technical timestamp.
-- New save d[encoding-loss]ng world start t[encoding-loss] lore config; save ci d[encoding-loss]ng `LEGACY_WORLD_START_DAY_INDEX` c[encoding-loss] [encoding-loss]nh.
-- Kh[encoding-loss]ng l[encoding-loss]y `createdAt`, `savedAt`, timezone ho[encoding-loss]c th[encoding-loss]i i[encoding-loss]m load l[encoding-loss]m lore date.
-- Expansion wrapper hi[encoding-loss]n g[encoding-loss]i `original.advanceGameTime()` r[encoding-loss]i `simulateWorldUntil()`; wrapper l[encoding-loss] owner world simulation. Core kh[encoding-loss]ng [encoding-loss][encoding-loss]c th[encoding-loss]m tick th[encoding-loss] hai.
-- `deserialize()` c[encoding-loss] engine offline progress v[encoding-loss] expansion simulation; ph[encoding-loss]i b[encoding-loss]o [encoding-loss]m m[encoding-loss]i l[encoding-loss]n load ch[encoding-loss] c[encoding-loss] m[encoding-loss]t offline advance v[encoding-loss] m[encoding-loss]t simulation range.
-- Seed hi[encoding-loss]n d[encoding-loss]ng Player Day; kh[encoding-loss]ng [encoding-loss]i sang World Day [encoding-loss]m th[encoding-loss]m v[encoding-loss] s[encoding-loss] ph[encoding-loss] replay.
-- C[encoding-loss]c field `lastProcessedDay`, `dueDay`, `createdDay`, `resolvedDay`, `generatedDay`, `expiresDay`, `startDay` ph[encoding-loss]i ph[encoding-loss]n lo[encoding-loss]i ri[encoding-loss]ng tr[encoding-loss][encoding-loss]c migration.
+- `lastRealTimestamp` ch l technical timestamp.
+- New save dng world start t lore config; save ci dng `LEGACY_WORLD_START_DAY_INDEX` c đnh.
+- Khng ly `createdAt`, `savedAt`, timezone hoc thi đim load lm lore date.
+- Expansion wrapper hin gi `original.advanceGameTime()` ri `simulateWorldUntil()`; wrapper l owner world simulation. Core khng đc thm tick th hai.
+- `deserialize()` c engine offline progress v expansion simulation; phi bo đm mi ln load ch c mt offline advance v mt simulation range.
+- Seed hin dng Player Day; khng đi sang World Day m thm v s ph replay.
+- Cc field `lastProcessedDay`, `dueDay`, `createdDay`, `resolvedDay`, `generatedDay`, `expiresDay`, `startDay` phi phn loi ring trc migration.
 
 ### 2.6 Timestamp/event
 
-Event snapshot g[encoding-loss]m `clock`, `worldClock`, `timestamp`, `playerDayIndex`, `worldDayIndex`, `sceneId`, location/node/weather context, result v[encoding-loss] changes.
+Event snapshot gm `clock`, `worldClock`, `timestamp`, `playerDayIndex`, `worldDayIndex`, `sceneId`, location/node/weather context, result v changes.
 
 Player Log:
 
 ```text
-[Nm 1, Th[encoding-loss]ng 1 ng[encoding-loss]y 10 [encoding-loss] K[encoding-loss] Nguy[encoding-loss]n Linh Kh[encoding-loss] D[encoding-loss] Bi[encoding-loss]n]
+[Nm 1, Thng 1 ngy 10  K Nguyn Linh Kh D Bin]
 
-N[encoding-loss]i dung scene.
+Ni dung scene.
 ```
 
-Kh[encoding-loss]ng d[encoding-loss]ng `[clock]: n[encoding-loss]i dung`. Event c[encoding-loss]ng `sceneId + clock + locationId` d[encoding-loss]ng m[encoding-loss]t heading; kh[encoding-loss]c ng[encoding-loss]y/node/weather/reason m[encoding-loss] scene m[encoding-loss]i. Command echo, debug v[encoding-loss] error kh[encoding-loss]ng v[encoding-loss]o Player Log. `renderScene()` [encoding-loss]u ti[encoding-loss]n `sceneId`.
+Khng dng `[clock]: ni dung`. Event cng `sceneId + clock + locationId` dng mt heading; khc ngy/node/weather/reason m scene mi. Command echo, debug v error khng vo Player Log. `renderScene()` u tin `sceneId`.
 
-## 3. Game Log v[encoding-loss] Narrative subsystem
+## 3. Game Log v Narrative subsystem
 
-### 3.1 Ba l[encoding-loss]p
+### 3.1 Ba lp
 
 1. System Log: debug/audit/error/command echo.
 2. Game Log: structured mechanics event.
-3. Narrative Log: prose ng[encoding-loss][encoding-loss]i ch[encoding-loss]i [encoding-loss]c.
+3. Narrative Log: prose ngi chi đc.
 
-Mechanics data kh[encoding-loss]ng tr[encoding-loss]n v[encoding-loss]o prose. Render history d[encoding-loss]ng snapshot ci, kh[encoding-loss]ng [encoding-loss]c clock hi[encoding-loss]n t[encoding-loss]i [encoding-loss] ghi [encoding-loss].
+Mechanics data khng trn vo prose. Render history dng snapshot ci, khng đc clock hin ti đ ghi đ.
 
-### 3.2 Event types v[encoding-loss] importance
+### 3.2 Event types v importance
 
-Event ch[encoding-loss]nh: `CULTIVATION`, `REST`, `BREAKTHROUGH`, `COMBAT`, `LOOT`, `EXPLORE`, `TRAVEL`, `TALK`, `WORLD_EVENT`, `SYSTEM`.
+Event chnh: `CULTIVATION`, `REST`, `BREAKTHROUGH`, `COMBAT`, `LOOT`, `EXPLORE`, `TRAVEL`, `TALK`, `WORLD_EVENT`, `SYSTEM`.
 
-Importance: `TRACE`, `NORMAL`, `IMPORTANT`, `RARE`, `LEGENDARY`, `MYTHIC`. Importance quy[encoding-loss]t [encoding-loss]nh [encoding-loss] d[encoding-loss]i/visibility narrative, kh[encoding-loss]ng [encoding-loss]i mechanics.
+Importance: `TRACE`, `NORMAL`, `IMPORTANT`, `RARE`, `LEGENDARY`, `MYTHIC`. Importance quyt đnh đ di/visibility narrative, khng đi mechanics.
 
 ### 3.3 Template/context
 
-Template ch[encoding-loss]n theo type/importance/context. Context c[encoding-loss] player, realm, cultivation, clock, world clock, location, weather, NPC, faction, combat, loot v[encoding-loss] result. Fallback ph[encoding-loss]i an to[encoding-loss]n, kh[encoding-loss]ng l[encoding-loss] raw ID/`undefined`/m[encoding-loss] l[encoding-loss]i.
+Template chn theo type/importance/context. Context c player, realm, cultivation, clock, world clock, location, weather, NPC, faction, combat, loot v result. Fallback phi an ton, khng l raw ID/`undefined`/m li.
 
-Compact d[encoding-loss]ng cho event l[encoding-loss]p; Short cho event quan tr[encoding-loss]ng; Extended cho breakthrough/world/hidden/milestone. Recent narrative ch[encoding-loss]ng l[encoding-loss]p nh[encoding-loss]ng ph[encoding-loss]i deterministic v[encoding-loss] mechanics.
+Compact dng cho event lp; Short cho event quan trng; Extended cho breakthrough/world/hidden/milestone. Recent narrative chng lp nhng phi deterministic v mechanics.
 
-Combat [encoding-loss][encoding-loss]c compression v[encoding-loss]a [encoding-loss]; exploration/NPC/world/hidden event kh[encoding-loss]ng [encoding-loss][encoding-loss]c l[encoding-loss] th[encoding-loss]ng tin ch[encoding-loss]a unlock. AI ch[encoding-loss] t[encoding-loss]o prose, kh[encoding-loss]ng quy[encoding-loss]t [encoding-loss]nh state. AI fail d[encoding-loss]ng template fallback v[encoding-loss] ghi l[encoding-loss]i System Log.
+Combat đc compression va đ; exploration/NPC/world/hidden event khng đc l thng tin cha unlock. AI ch to prose, khng quyt đnh state. AI fail dng template fallback v ghi li System Log.
 
 ### 3.4 Flow
 
 ```text
-Action [encoding-loss] mechanics [encoding-loss] structured event [encoding-loss] scene grouping [encoding-loss] template/AI [encoding-loss] Player Log/System Log
+Action  mechanics  structured event  scene grouping  template/AI  Player Log/System Log
 ```
 
 ## 4. Action subsystem
 
 ### 4.1 Contextual action
 
-Button l[encoding-loss] ph[encoding-loss][encoding-loss]ng th[encoding-loss]c ch[encoding-loss]nh; free text l[encoding-loss] b[encoding-loss] sung. Action ph[encoding-loss]i ph[encoding-loss]n [encoding-loss]nh state v[encoding-loss] kh[encoding-loss]ng hi[encoding-loss]n th[encoding-loss] h[encoding-loss]nh [encoding-loss]ng kh[encoding-loss]ng th[encoding-loss] d[encoding-loss]ng.
+Button l phng thc chnh; free text l b sung. Action phi phn nh state v khng hin th hnh đng khng th dng.
 
-DTO t[encoding-loss]i thi[encoding-loss]u:
+DTO ti thiu:
 
 ```js
 { id, label, category, priority, available, disabledReason,
   danger, requiresConfirmation, target, payload, duration, cost, preview }
 ```
 
-Priority 0/state override cho ending, eldritch intervention, combat/dialogue/travel. Context [encoding-loss]u ti[encoding-loss]n tr[encoding-loss][encoding-loss]c priority t)nh.
+Priority 0/state override cho ending, eldritch intervention, combat/dialogue/travel. Context u tin trc priority t)nh.
 
 ### 4.2 Turn flow
 
 ```text
-read state [encoding-loss] build context [encoding-loss] validate [encoding-loss] render actions
-[encoding-loss] parse/resolve m[encoding-loss]t l[encoding-loss]n [encoding-loss] update state [encoding-loss] render l[encoding-loss]i
+read state  build context  validate  render actions
+ parse/resolve mt ln  update state  render li
 ```
 
-Free-text c[encoding-loss]n normalize, alias, parse intent/target; ambiguity ph[encoding-loss]i h[encoding-loss]i l[encoding-loss]i; invalid ph[encoding-loss]i fallback d[encoding-loss] hi[encoding-loss]u. Command echo ch[encoding-loss] System/Debug.
+Free-text cn normalize, alias, parse intent/target; ambiguity phi hi li; invalid phi fallback d hiu. Command echo ch System/Debug.
 
 ### 4.3 Inventory/equipment
 
-Ph[encoding-loss]n bi[encoding-loss]t weapon/armor/artifact/spirit treasure, consumable/pill, material/quest item v[encoding-loss] Fate Inventory. Equip validate slot conflict/confirmation; Use x[encoding-loss] l[encoding-loss] quantity; m[encoding-loss]t action kh[encoding-loss]ng execute hai l[encoding-loss]n.
+Phn bit weapon/armor/artifact/spirit treasure, consumable/pill, material/quest item v Fate Inventory. Equip validate slot conflict/confirmation; Use x l quantity; mt action khng execute hai ln.
 
 ### 4.4 Duplicate execution
 
-M[encoding-loss]t click/free-text ch[encoding-loss] c[encoding-loss] m[encoding-loss]t owner execution. Transaction/expectedVersion ch[encoding-loss]ng stale action. Sau state change ph[encoding-loss]i refresh action table, inventory, panel v[encoding-loss] log.
+Mt click/free-text ch c mt owner execution. Transaction/expectedVersion chng stale action. Sau state change phi refresh action table, inventory, panel v log.
 
-## 5. Layout v[encoding-loss] responsive subsystem
+## 5. Layout v responsive subsystem
 
 ### 5.1 Structural invariants
 
-- Gi[encoding-loss] story panel b[encoding-loss]n ph[encoding-loss]i.
-- Character Summary n[encoding-loss]m trong sidebar v[encoding-loss] gi[encoding-loss] pinned structure.
-- Kh[encoding-loss]ng redesign to[encoding-loss]n app ho[encoding-loss]c [encoding-loss]i k[encoding-loss]ch th[encoding-loss][encoding-loss]c t[encoding-loss]ng th[encoding-loss] t[encoding-loss]y [encoding-loss].
-- Sidebar ch[encoding-loss] tng width khi c[encoding-loss]n [encoding-loss]c stat; kh[encoding-loss]ng b[encoding-loss]p story panel.
-- Kh[encoding-loss]ng chuy[encoding-loss]n summary v[encoding-loss]o story panel [encoding-loss] n[encoding-loss] overflow.
+- Gi story panel bn phi.
+- Character Summary nm trong sidebar v gi pinned structure.
+- Khng redesign ton app hoc đi kch thc tng th ty .
+- Sidebar ch tng width khi cn đc stat; khng bp story panel.
+- Khng chuyn summary vo story panel đ n overflow.
 
 ### 5.2 Action/clock placement
 
-Topbar hi[encoding-loss]n th[encoding-loss] r[encoding-loss]:
+Topbar hin th r:
 
 ```text
-H[encoding-loss]nh Tr[encoding-loss]nh [encoding-loss] Nm 1, Th[encoding-loss]ng 1 ng[encoding-loss]y 1
-Thi[encoding-loss]n [encoding-loss]o [encoding-loss] Nm 6876, Th[encoding-loss]ng 1 ng[encoding-loss]y 1
+Hnh Trnh  Nm 1, Thng 1 ngy 1
+Thin Đo  Nm 6876, Thng 1 ngy 1
 ```
 
-Weather/season l[encoding-loss] context ph[encoding-loss]. Action table nh[encoding-loss]m theo category/priority; button label [encoding-loss]c [encoding-loss][encoding-loss]c; More kh[encoding-loss]ng [encoding-loss][encoding-loss]c gi[encoding-loss]u to[encoding-loss]n b[encoding-loss] gameplay; free text kh[encoding-loss]ng chi[encoding-loss]m di[encoding-loss]n t[encoding-loss]ch ch[encoding-loss]nh.
+Weather/season l context ph. Action table nhm theo category/priority; button label đc đc; More khng đc giu ton b gameplay; free text khng chim din tch chnh.
 
 ### 5.3 Responsive
 
-Desktop gi[encoding-loss] sidebar/story/action table r[encoding-loss]. Mobile gi[encoding-loss] n[encoding-loss]i dung, button [encoding-loss] l[encoding-loss]n, overlay scroll [encoding-loss][encoding-loss]c, topbar clock kh[encoding-loss]ng wrap ph[encoding-loss] layout, long narrative wrap [encoding-loss]ng.
+Desktop gi sidebar/story/action table r. Mobile gi ni dung, button đ ln, overlay scroll đc, topbar clock khng wrap ph layout, long narrative wrap đng.
 
-## 6. i18n v[encoding-loss] feature placement subsystem
+## 6. i18n v feature placement subsystem
 
 ### 6.1 Formatter
 
-Kh[encoding-loss]ng hi[encoding-loss]n th[encoding-loss] raw ID c[encoding-loss]a item, quest, technique, fate, NPC, location, contract ho[encoding-loss]c action. D[encoding-loss]ng formatter trung t[encoding-loss]m nh[encoding-loss] `formatItemName`, `formatTechniqueName`, `formatFateName`, `formatQuestName`, `formatLocationName`, `formatActionLabel`, `formatHistory`, `playerClockLabel`, `worldClockLabel`.
+Khng hin th raw ID ca item, quest, technique, fate, NPC, location, contract hoc action. Dng formatter trung tm nh `formatItemName`, `formatTechniqueName`, `formatFateName`, `formatQuestName`, `formatLocationName`, `formatActionLabel`, `formatHistory`, `playerClockLabel`, `worldClockLabel`.
 
-Formatter t[encoding-loss]ch kh[encoding-loss]i gameplay, c[encoding-loss] fallback v[encoding-loss] kh[encoding-loss]ng throw khi thi[encoding-loss]u data.
+Formatter tch khi gameplay, c fallback v khng throw khi thiu data.
 
-### 6.2 DTO v[encoding-loss] feature placement
+### 6.2 DTO v feature placement
 
-UI nh[encoding-loss]n DTO c[encoding-loss] stable id, display label, description, availability, cost v[encoding-loss] disabled reason. Feature [encoding-loss]t theo mental model: profession [encoding-loss] Character; technique evolution [encoding-loss] Technique; Fate evolution [encoding-loss] Fate; guild project [encoding-loss] Guild; contested opportunity [encoding-loss] C[encoding-loss] Duy[encoding-loss]n; hidden clue [encoding-loss] D[encoding-loss] Ch[encoding-loss]; market/auction t[encoding-loss]ch r[encoding-loss]; reincarnation legacy [encoding-loss] K[encoding-loss] [encoding-loss]c; personal tribulation [encoding-loss] Character; collection/NPC rare reward [encoding-loss] D[encoding-loss] Ch[encoding-loss]/collection.
+UI nhn DTO c stable id, display label, description, availability, cost v disabled reason. Feature đt theo mental model: profession  Character; technique evolution  Technique; Fate evolution  Fate; guild project  Guild; contested opportunity  C Duyn; hidden clue  D Ch; market/auction tch r; reincarnation legacy  K c; personal tribulation  Character; collection/NPC rare reward  D Ch/collection.
 
-### 6.3 Weather v[encoding-loss] feature addendum
+### 6.3 Weather v feature addendum
 
-Weather/D[encoding-loss] Tri[encoding-loss]u c[encoding-loss] th[encoding-loss] [encoding-loss]nh h[encoding-loss][encoding-loss]ng travel, NPC, faction, local activity v[encoding-loss] atmosphere. Mechanics d[encoding-loss]ng stable key; UI d[encoding-loss]ng label/icon. Hidden profession d[encoding-loss]ng graph/rule engine. Item [encoding-loss]u ti[encoding-loss]n refer item c[encoding-loss] s[encoding-loss]n. Achievement, profession item, NPC reward v[encoding-loss] action ph[encoding-loss]i c[encoding-loss] label/migration/version.
+Weather/D Triu c th nh hng travel, NPC, faction, local activity v atmosphere. Mechanics dng stable key; UI dng label/icon. Hidden profession dng graph/rule engine. Item u tin refer item c sn. Achievement, profession item, NPC reward v action phi c label/migration/version.
 
 ## 7. Cross-system function map
 
 | Function | Owner/contract |
 |---|---|
 | `ensureGameClock` | Normalize/migrate clock |
-| `advanceGameTime` | M[encoding-loss]t c[encoding-loss]ng ti[encoding-loss]n ng[encoding-loss]y |
-| `applyOfflineProgress` | Real elapsed [encoding-loss] game days |
+| `advanceGameTime` | Mt cng tin ngy |
+| `applyOfflineProgress` | Real elapsed  game days |
 | `gameDayIndex` | Player ordinal legacy |
 | `worldDayIndex` | World ordinal |
 | `clockLabel` | Player label |
@@ -388,40 +388,40 @@ Weather/D[encoding-loss] Tri[encoding-loss]u c[encoding-loss] th[encoding-loss] 
 | `formatHistory` | Player-facing localization |
 | `updateClockDisplay` | Two clocks/weather |
 
-## 8. Migration, tests v[encoding-loss] Definition of Done
+## 8. Migration, tests v Definition of Done
 
 ### 8.1 Migration
 
-Save ci [encoding-loss]c root Player Clock, gi[encoding-loss] ratio/dayProgress/lastRealTimestamp, t[encoding-loss]o World Clock v[encoding-loss]i fixed legacy start index, t[encoding-loss]nh cache t[encoding-loss] Player Day v[encoding-loss] kh[encoding-loss]ng h[encoding-loss]i t[encoding-loss] lifespan. Offline ch[encoding-loss]y [encoding-loss]ng m[encoding-loss]t l[encoding-loss]n. Kh[encoding-loss]ng rename h[encoding-loss]ng lo[encoding-loss]t day fields.
+Save ci đc root Player Clock, gi ratio/dayProgress/lastRealTimestamp, to World Clock vi fixed legacy start index, tnh cache t Player Day v khng hi t lifespan. Offline chy đng mt ln. Khng rename hng lot day fields.
 
 ### 8.2 Required tests
 
 - Day 0/day 360/day 2,475,360 World formatter.
-- 30 gi[encoding-loss]y [encoding-loss] 1 ng[encoding-loss]y; fractional progress; overflow date.
-- Player year pass tng tu[encoding-loss]i/gi[encoding-loss]m th[encoding-loss] [encoding-loss]ng m[encoding-loss]t l[encoding-loss]n; World year pass kh[encoding-loss]ng gi[encoding-loss]m th[encoding-loss].
-- New/legacy serialize-deserialize gi[encoding-loss] mapping.
-- Offline 0/1/nhi[encoding-loss]u ng[encoding-loss]y kh[encoding-loss]ng fake log, duplicate reward/NPC/weather/travel.
-- Event scene grouping, timestamp heading ri[encoding-loss]ng, debug/error filtering.
-- Expansion `absoluteDay`, seed, task fields v[encoding-loss] `simulateWorldUntil` kh[encoding-loss]ng [encoding-loss]i semantics.
+- 30 giy  1 ngy; fractional progress; overflow date.
+- Player year pass tng tui/gim th đng mt ln; World year pass khng gim th.
+- New/legacy serialize-deserialize gi mapping.
+- Offline 0/1/nhiu ngy khng fake log, duplicate reward/NPC/weather/travel.
+- Event scene grouping, timestamp heading ring, debug/error filtering.
+- Expansion `absoluteDay`, seed, task fields v `simulateWorldUntil` khng đi semantics.
 - Button/free-text single execution; contextual priority; inventory slot/quantity.
-- Kh[encoding-loss]ng raw ID; formatter fallback; responsive/topbar/sidebar/story/action layout.
-- Full regression ph[encoding-loss]i ch[encoding-loss]y; failure ngo[encoding-loss]i scope ph[encoding-loss]i ghi r[encoding-loss], kh[encoding-loss]ng b[encoding-loss] assertion.
+- Khng raw ID; formatter fallback; responsive/topbar/sidebar/story/action layout.
+- Full regression phi chy; failure ngoi scope phi ghi r, khng b assertion.
 
 ### 8.3 Definition of Done
 
-Task ch[encoding-loss] ho[encoding-loss]n th[encoding-loss]nh khi state canonical r[encoding-loss], hai clock kh[encoding-loss]ng ch[encoding-loss]y [encoding-loss]c l[encoding-loss]p, kh[encoding-loss]ng double tick, Player Log [encoding-loss]ng contract, save ci load [encoding-loss][encoding-loss]c, deterministic mechanics [encoding-loss][encoding-loss]c gi[encoding-loss], UI kh[encoding-loss]ng ph[encoding-loss] layout v[encoding-loss] t[encoding-loss]i li[encoding-loss]u implementation status [encoding-loss][encoding-loss]c c[encoding-loss]p nh[encoding-loss]t.
+Task ch hon thnh khi state canonical r, hai clock khng chy đc lp, khng double tick, Player Log đng contract, save ci load đc, deterministic mechanics đc gi, UI khng ph layout v ti liu implementation status đc cp nht.
 
 ## 9. Implementation status
 
-[encoding-loss] tri[encoding-loss]n khai: World Clock schema/normalize, zero-based world ordinal, Player/World formatter, event snapshot, UI hai clock, legacy smoke test, offline mapping regression v[encoding-loss] chu[encoding-loss]n h[encoding-loss]a caller bare `advanceGameTime()` trong expansion.
+Đ trin khai: World Clock schema/normalize, zero-based world ordinal, Player/World formatter, event snapshot, UI hai clock, legacy smoke test, offline mapping regression v chun ha caller bare `advanceGameTime()` trong expansion.
 
-C[encoding-loss] [encoding-loss] gi[encoding-loss] nguy[encoding-loss]n: expansion `absoluteDay()` l[encoding-loss] Player Day 1-based; expansion wrapper l[encoding-loss] world simulation owner; seed/day fields ci ch[encoding-loss]a chuy[encoding-loss]n World Day; Player Clock kh[encoding-loss]ng reset khi Lu[encoding-loss]n H[encoding-loss]i.
+C  gi nguyn: expansion `absoluteDay()` l Player Day 1-based; expansion wrapper l world simulation owner; seed/day fields ci cha chuyn World Day; Player Clock khng reset khi Lun Hi.
 
-QA: dual timeline regression PASS; offline mapping PASS; legacy migration smoke PASS; JavaScript syntax PASS. Full `verify_game.js` c[encoding-loss]n failure exploration `secretLocationId`, thu[encoding-loss]c ph[encoding-loss]m vi ci ngo[encoding-loss]i clock v[encoding-loss] kh[encoding-loss]ng [encoding-loss][encoding-loss]c che b[encoding-loss]ng c[encoding-loss]ch h[encoding-loss] test.
+QA: dual timeline regression PASS; offline mapping PASS; legacy migration smoke PASS; JavaScript syntax PASS. Full `verify_game.js` cn failure exploration `secretLocationId`, thuc phm vi ci ngoi clock v khng đc che bng cch h test.
 
 ## 10. Final rule
 
-M[encoding-loss]i thay [encoding-loss]i ph[encoding-loss]i x[encoding-loss]c [encoding-loss]nh: state canonical n[encoding-loss]o, clock n[encoding-loss]o, owner ti[encoding-loss]n th[encoding-loss]i gian n[encoding-loss]o, event/scene/timestamp n[encoding-loss]o, label/fallback n[encoding-loss]o v[encoding-loss] test regression n[encoding-loss]o. N[encoding-loss]u ch[encoding-loss]a x[encoding-loss]c [encoding-loss]nh [encoding-loss], kh[encoding-loss]ng tri[encoding-loss]n khai.
+Mi thay đi phi xc đnh: state canonical no, clock no, owner tin thi gian no, event/scene/timestamp no, label/fallback no v test regression no. Nu cha xc đnh đ, khng trin khai.
 ---
 
 ## AMENDMENT 2026-09-16 — TAB THẾ GIỚI/CÔNG TRÌNH VÀ HIỂN THỊ NGHỀ
@@ -627,7 +627,7 @@ Mọi văn bản người chơi nhìn thấy — nhật ký novel, thông báo h
 
 ## Quy tắc bắt buộc
 
-- Không đưa các dấu hiệu mã hóa hỏng như `Ã`, `Â`, `Ä`, `Å`, `Æ`, `á»`, `áº`, `â `, `ðŸ` hoặc ký tự thay thế `[encoding-loss]` vào player-facing text.
+- Không đưa các chuỗi byte legacy, marker mất mã hóa hoặc ký tự thay thế vào player-facing text.
 - Chuỗi từ save cũ, payload NPC/event và dữ liệu nhập ngoài bundle phải đi qua `repairMojibakeText` trước khi vào log hoặc narrative surface.
 - Việc sửa chỉ được thực hiện một lần trên đoạn nghi ngờ; không giải mã lặp trên tiếng Việt đã hợp lệ.
 - Text kỹ thuật dành cho debug có thể tồn tại ở vùng debug, nhưng không được chảy sang log người chơi.
@@ -652,7 +652,7 @@ node tools/verify_game.js
 node tools/verify_expansion_stress.js
 ```
 
-Lệnh audit phải kết thúc với `Would update 0 files`. Nếu xuất hiện ký tự `[encoding-loss]`, phải xử lý dữ liệu nguồn thay vì che bằng CSS hoặc thay thế tại UI.
+Lệnh audit phải kết thúc với `Would update 0 files`. Nếu xuất hiện ký tự ``, phải xử lý dữ liệu nguồn thay vì che bằng CSS hoặc thay thế tại UI.
 
 
 ### Source: `archive-requirements\logic-history\07-ui\WORLD_STRUCTURE_OWNERSHIP_UI_2026-09-17.md`
