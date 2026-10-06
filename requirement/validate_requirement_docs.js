@@ -3,12 +3,16 @@ const root=process.cwd();
 function walk(dir){return fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>{const p=path.join(dir,e.name);return e.isDirectory()?walk(p):[p];});}
 const files=walk(root).filter(p=>p.endsWith('.md')&&!p.includes(`${path.sep}archive-requirements${path.sep}`));
 const broken=[], oddFences=[], encoding=[];
+// Catch UTF-8 text decoded through a legacy code page (for example `Của`),
+// not only U+FFFD. This is intentionally conservative: isolated Vietnamese
+// accents are valid, while these byte-shaped sequences are not.
+const mojibake=/\[encoding-loss\]|(?:Ãƒ.|Ã‚.|Ã¢.|Ã¡Â»|Ã¡Âº|Ã„.|Ã….|Ã†.|Ã.|â€”|Cá»|[A-Za-zÀ-ỹ](?:á»|áº)|(?:á»|áº)[^\s])/;
 for(const file of files){
   const text=fs.readFileSync(file,'utf8');
   const rel=path.relative(root,file);
   const fences=(text.match(/^\s*```/gm)||[]).length;
   if(fences%2) oddFences.push(`${rel}: ${fences} fences`);
-  if(/SYSTEM_LOGIC_CATALOG_2026-09-16/.test(text)||/[\uFFFD]/.test(text)) encoding.push(rel);
+  if(/SYSTEM_LOGIC_CATALOG_2026-09-16/.test(text)||/[\uFFFD]/.test(text)||mojibake.test(text)) encoding.push(rel);
   const re=/\[[^\]]*\]\(([^)]+)\)/g; let m;
   while((m=re.exec(text))){
     let target=m[1].trim().replace(/^<|>$/g,'');

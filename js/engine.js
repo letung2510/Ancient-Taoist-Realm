@@ -665,7 +665,7 @@ window.GameEngine = (function () {
     return { ok: errors.length === 0, actionCount: Object.keys(FATE_ADVANCED_ACTION_CATALOG).length, errors };
   }
   function canonicalHiddenProfessionId(state) {
-    return state?.professionState?.secondaryId || state?.player?.hiddenProfession || null;
+    return state?.professionState?.hiddenId || state?.professionState?.secondaryId || state?.player?.hiddenProfession || null;
   }
   function fateAdvancedEffectBreakdown(character, fateId = null) {
     const result = { allStatMult: 0, defianceUses: 0, suppressed: false, actions: {} };
@@ -2773,7 +2773,8 @@ window.GameEngine = (function () {
     state.flags.originChoicePending = false;
     state.flags.originLocked = true;
     state.flags.originSituation = { openingPlan, title: openingPlan.title, startLocationId: state.locationId, questSeed: null };
-    pushMemory(state, "Ý định hành đạo: " + openingPlan.intentId + ".");
+    const intentLabel = JOURNEY_INTENT_LABELS?.[openingPlan.intentId] || openingPlan.title || openingPlan.intentId;
+    pushMemory(state, "Ý định hành đạo: " + intentLabel + ".");
     pushHistory(state, { type: "narr", text: openingPlan.text });
     return { success: true, intentId: openingPlan.intentId, openingPlan };
   }
@@ -3919,7 +3920,16 @@ window.GameEngine = (function () {
   }
 
   /* ---------- Cultivation ---------- */
+  function weatherActivityBlock(state, activity) {
+    const snapshot = typeof window !== "undefined" ? window.GameExpansion?.weatherSnapshot?.(state) : null;
+    if (!snapshot || Number(snapshot.severity || 0) < 2) return null;
+    if (activity === "cultivate") return "Linh phong cuộn trào dữ dội, ngươi không còn cách nào khác đành phải gác lại tu luyện. Tu luyện ở thời điểm này hung hiểm vạn phần.";
+    if (activity === "search") return "Thiên tượng đảo lộn, gió linh khí xé rách dấu vết; việc tìm kiếm lúc này chỉ khiến ngươi lạc mất manh mối.";
+    return null;
+  }
   function cultivate(state, options = {}) {
+    const weatherBlock = weatherActivityBlock(state, "cultivate");
+    if (weatherBlock) { if (!options.silent) pushHistory(state, { type: "warn", text: weatherBlock }); return { success: false, reason: weatherBlock, code: "WEATHER_BLOCKED" }; }
     const stats = computeStats(state.player);
     const qiCost = Math.max(5, Math.round(30 - stats.mag * 0.4));
     if (state.player.qi < qiCost) {
@@ -4404,8 +4414,17 @@ window.GameEngine = (function () {
       for (const direction of order) {
         const next = neighborCoordinate(coordinates[0], coordinates[1], direction);
         if (!next || next.x < OPEN_WORLD_BOUNDS.min || next.x > OPEN_WORLD_BOUNDS.max || next.y < OPEN_WORLD_BOUNDS.min || next.y > OPEN_WORLD_BOUNDS.max) continue;
+        // A viewport must describe known gameplay nodes, not manufacture a
+        // four-way Manhattan lattice merely because the camera was opened.
+        // Exploration still creates a node through move()/openWorldTarget().
         let targetId = getNodeAtCoordinate(state, next.x, next.y);
-        if (!targetId) targetId = generateOpenWorldNode(state, next.x, next.y);
+        // Preserve authored/confirmed exits when their endpoint is already a
+        // known node; do not invent a shortcut or a new grid cell here.
+        const authoredTarget = world.exits[current.nodeId]?.[direction] || runtimeLocationPool(state)[current.nodeId]?.exits?.[direction];
+        if (!targetId && authoredTarget && runtimeLocationPool(state)[authoredTarget]) {
+          const authoredCoordinates = world.coordinates[authoredTarget];
+          if (Array.isArray(authoredCoordinates) && authoredCoordinates[0] === next.x && authoredCoordinates[1] === next.y) targetId = authoredTarget;
+        }
         if (!targetId) continue;
         link(current.nodeId, direction, targetId);
         const edgeId = current.nodeId + "--" + direction + "--" + targetId;
@@ -4498,6 +4517,9 @@ window.GameEngine = (function () {
     }
     const previousLocation = state.locationId;
     state.locationId = target;
+    const dialogueNpcId = state.dialogueState?.npcId;
+    const dialogueNpc = dialogueNpcId && state.worldSimulation?.npcState?.[dialogueNpcId];
+    if (dialogueNpcId && (!dialogueNpc || dialogueNpc.status !== "alive" || dialogueNpc.currentNodeId !== target || (dialogueNpc.currentSubLocationId && dialogueNpc.currentSubLocationId !== state.currentSubLocationId))) state.dialogueState = null;
     state.flags = state.flags || {};
     state.flags.lastMoveDirection = dir;
     state.flags.lastMoveFrom = previousLocation;
@@ -4529,7 +4551,10 @@ window.GameEngine = (function () {
     const lines = [];
     lines.push(loc.desc);
     const specialNpcs = presentEntities(state).map((e) => e.name);
-    if (loc.npcs && loc.npcs.length) lines.push("Nhân vật: " + loc.npcs.map((n) => D().NPCS[n].name + " (" + D().NPCS[n].title + ")").join(", "));
+    const liveNpcIds = Object.values(state.worldSimulation?.npcState || {})
+      .filter((npc) => npc.status === "alive" && npc.currentNodeId === state.locationId && (!npc.currentSubLocationId || !state.currentSubLocationId || npc.currentSubLocationId === state.currentSubLocationId))
+      .map((npc) => npc.npcId);
+    if (liveNpcIds.length) lines.push("Nhân vật: " + liveNpcIds.map((id) => { const runtime = state.worldSimulation.npcState[id], definition = D().NPCS[id] || {}; return (runtime.name || definition.name || id) + " (" + (definition.title || runtime.role || "khách hành hương") + ")"; }).join(", "));
     if (specialNpcs.length) lines.push("Nhân vật đặc biệt: " + specialNpcs.join(", "));
     if (loc.enemies && loc.enemies.length) lines.push("Nguy hiểm: " + loc.enemies.map((e) => D().ENEMIES[e].name).join(", "));
     const exits = Object.keys(locationExits(state));
@@ -4681,7 +4706,9 @@ window.GameEngine = (function () {
     const searchRoll = () => replayRandom(state, "search:" + state.locationId + ":" + Number(state.meta?.turn || 0), searchRandomIndex++);
     const loc = runtimeLocationPool(state)[state.locationId];
     const status = searchStatus(state);
+    const weatherBlock = weatherActivityBlock(state, "search");
     if (aliveEnemies(state).length) return { success: false, reason: "Không thể tìm kiếm khi đang giao chiến." };
+    if (weatherBlock) { pushHistory(state, { type: "warn", text: weatherBlock }); return { success: false, reason: weatherBlock, code: "WEATHER_BLOCKED" }; }
     if (["planned", "active"].includes(state.travelTask?.status)) return { success: false, reason: "Không thể tìm kiếm khi đang có hành trình." };
     if (normalizePendingDiscovery(state)) {
       pushHistory(state, { type: "warn", text: "× Hãy xử lý những gì vừa phát hiện trước khi tiếp tục tìm kiếm." });
@@ -5689,14 +5716,14 @@ window.GameEngine = (function () {
     if (canonicalOnlineReward) {
       const fateResult = canonicalOnlineReward.receipt?.fateResults?.[0] || { pending: false, added: true };
       const destination = fateResult.pending ? "đang chờ xử lý vì Mệnh Kho đầy" : "đã vào Mệnh Kho";
-      pushHistory(state, { type: fateResult.pending ? "warn" : "sys", text: "◇ Cơ duyên online: nhận được Mệnh Số " + fate.name + " · " + destination + "." });
+      pushHistory(state, { type: fateResult.pending ? "warn" : "narr", text: "◇ Cơ duyên online: nhận được Mệnh Số " + fate.name + " · " + destination + "." });
       state.pendingRewardSummaries = Array.isArray(state.pendingRewardSummaries) ? state.pendingRewardSummaries : [];
       state.pendingRewardSummaries.push({ type: "Mệnh Số", value: fate.name + " · " + (fate.gradeLabel || fate.grade) + " · " + destination });
       return { fate, received: fateResult, dayIndex, nextOnlineFateDay: clock.nextOnlineFateDay, canonical: true, duplicate: Boolean(canonicalOnlineReward.duplicate) };
     }
     const received = receiveFate(state, fate.id, { source: "cơ duyên online · ngày " + dayIndex, allowPending: true });
     const destination = received.pending ? "đang chờ xử lý vì Mệnh Kho đầy" : "đã vào Mệnh Kho";
-    pushHistory(state, { type: received.pending ? "warn" : "sys", text: "◇ Cơ duyên online: nhận được Mệnh Số " + fate.name + " · " + destination + "." });
+    pushHistory(state, { type: received.pending ? "warn" : "narr", text: "◇ Cơ duyên online: nhận được Mệnh Số " + fate.name + " · " + destination + "." });
     state.pendingRewardSummaries = Array.isArray(state.pendingRewardSummaries) ? state.pendingRewardSummaries : [];
     state.pendingRewardSummaries.push({ type: "Mệnh Số", value: fate.name + " · " + (fate.gradeLabel || fate.grade) + " · " + destination });
     return { fate, received, dayIndex, nextOnlineFateDay: clock.nextOnlineFateDay };
@@ -6144,7 +6171,12 @@ window.GameEngine = (function () {
   function talkActions(state) {
     const loc = runtimeLocationPool(state)[state.locationId];
     const actions = [];
-    (loc?.npcs || []).forEach((npcId) => {
+    const runtimeNpcs = state.worldSimulation?.npcState || {};
+    const liveNpcIds = Object.values(runtimeNpcs)
+      .filter((npc) => npc.status === "alive" && npc.currentNodeId === state.locationId && (!npc.currentSubLocationId || !state.currentSubLocationId || npc.currentSubLocationId === state.currentSubLocationId))
+      .map((npc) => npc.npcId);
+    const legacyNpcIds = (loc?.npcs || []).filter((npcId) => !runtimeNpcs[npcId]);
+    [...new Set([...liveNpcIds, ...legacyNpcIds])].forEach((npcId) => {
       const npc = D().NPCS[npcId];
       if (!npc) return;
       const presentation = typeof window !== "undefined" ? window.GameExpansion?.npcActionPresentation?.(state, npcId, npc.name) : null;
@@ -6153,7 +6185,7 @@ window.GameEngine = (function () {
       actions.push({ id: "act_talk_" + npcId, label: presentation?.label || "Nói chuyện với " + npcName, aliases: ["nói chuyện " + npcName, "noi chuyen " + npcName, "đánh thức " + npcName], priority: 1 });
     });
     presentEntities(state).forEach((entity) => {
-      if (loc?.npcs?.includes(entity.id)) return;
+      if (liveNpcIds.includes(entity.id) || legacyNpcIds.includes(entity.id)) return;
       const entityName = entity.name && entity.name !== entity.id ? entity.name : (typeof window !== "undefined" ? window.GameI18n?.lookup?.(state, entity.id) : null) || entity.id.replace(/_/g, " ");
       actions.push({ id: "act_talk_" + entity.id, label: "Nói chuyện với " + entityName, aliases: ["gặp " + entityName, "gap " + entityName, "nói chuyện " + entityName], priority: 1 });
     });
@@ -6259,7 +6291,11 @@ window.GameEngine = (function () {
       searchAction.searchStatus = status;
       searchAction.description = "Độ sâu dò " + status.depth + "/" + status.maxDepth + " · Tài nguyên " + status.resourcePct + "% · Rủi ro " + status.riskPct + "% · tốn 5 Thể Lực";
       if (Number(state.player.stamina || 0) < 5) searchAction.disabled_reason = "Cần ít nhất 5 Thể Lực.";
+      const searchWeatherBlock = weatherActivityBlock(state, "search");
+      if (searchWeatherBlock) { searchAction.enabled = false; searchAction.disabled_reason = searchWeatherBlock; searchAction.description += " · " + searchWeatherBlock; }
     }
+    const cultivateWeatherBlock = weatherActivityBlock(state, "cultivate");
+    if (cultivateWeatherBlock) actions.filter((action) => action.id === "act_tu_luyen" || action.id === "act_tu_luyen_tu_dong").forEach((action) => { action.enabled = false; action.disabled_reason = cultivateWeatherBlock; });
     const breakthrough = breakthroughRequirements(state);
     const safeTravel = actions.find((a) => a.id === "act_ve_noi_an_toan");
     if (safeTravel) {

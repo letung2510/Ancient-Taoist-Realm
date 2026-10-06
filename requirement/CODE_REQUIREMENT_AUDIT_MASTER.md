@@ -11,6 +11,22 @@
 
 ---
 
+## Current implementation status override — 2026-10-05
+
+The historical audit rows below are retained for traceability. Current runtime
+evidence supersedes stale “missing” claims:
+
+- P0 canonical MAP influence, structure registry/runtime/UI, hidden profession
+  schema and narrative producer coverage are implemented and gated.
+- P1 Fate Phase 3, NPC scheduler, weather hysteresis and deterministic replay
+  are implemented; `verify_review_batches.js` and the 1,000-day branch replay
+  fixture pass.
+- P2–P4 runtime surfaces have targeted passing matrices. Remaining aggregate
+  gaps are legacy fixture breadth, browser visual evidence and native file
+  chooser persistence—not missing canonical runtime APIs.
+- Three requirement documents still contain irreversible encoding-loss markers
+  and require a clean source copy for exact restoration.
+
 ## MỤC LỤC
 
 | Phần | Nội dung | Tiền tố ID |
@@ -725,6 +741,31 @@ Canonical: bậc 4 "không thể bị tháo/hi sinh/dung hợp". `storeFateToVau
 | D7.9 | **Pinned surface trong bundle offline** (xem M87) | `index.offline.html` |
 
 ---
+
+## 6.0. Current decision log — 2026-10-05
+
+The rows in section E are historical findings. The following decisions are the
+current contract and supersede the older wording when the two disagree:
+
+- **E1 — resolved as documentation drift.** Fate Phase 3 advanced actions
+  (Nghịch Mệnh, Trấn Mệnh, Thiên Cơ, Mệnh Đổi) remain roadmap/specification
+  work pending explicit product approval. The runtime reconciliation only
+  covers the namespace/effect-isolation and save markers already implemented;
+  it does not mean the four gameplay actions are production-complete.
+- **E6 — resolved in favor of `COMPANION_CANONICAL.md`.** Revive costs 3 Linh
+  Thạch and restores 25% HP. The 12/35%/`soul_scar` wording in the historical
+  audit is non-canonical and must not drive code or tests.
+- **E9 — resolved in favor of the current UI contract.** Movement directions
+  are exposed as one grouped `Di Chuyển` action outside combat; the current
+  surface test checks `act_move_group` and the engine guard. The old assertion
+  description is obsolete.
+- **E10 — resolved in favor of event-only relationship mutation.** Vault time
+  does not passively decay Fate relationship stage. Any future decay requires
+  a new approved policy with a named rate, migration, and regression fixture.
+
+The offline bundle is current when `verify_offline_bundle.js` and
+`verify_offline_parity.js` pass; historical G14/M87/A13 claims must not be
+reopened without a new failing probe.
 
 ## 6. PHẦN E — MÂU THUẪN BÊN TRONG CHÍNH TÀI LIỆU REQUIREMENT
 
@@ -3163,3 +3204,32 @@ This is the active checklist. Only rows in this table are currently open. Histor
 | Data/documentation | Catalog, asset, UTF-8, link và code fence hợp lệ; các đoạn spec lịch sử phải được đánh dấu, không âm thầm override runtime. | catalog/asset/UTF-8/docs validators | Quyết định sản phẩm chưa có fixture |
 
 Nguyên tắc kết luận: verifier headless chỉ được đóng logic producer/resolver/state; không được dùng để tuyên bố đã hoàn tất native file chooser, browser click-through, responsive pixel hoặc persistence qua reload thật. Ba hạng mục đó vẫn nằm ở OPEN-01 đến OPEN-03.
+
+## Re-audit code và tài liệu — 2026-10-02
+
+### Phạm vi và bằng chứng
+
+- Kiểm tra cấu trúc repo, README, requirement canonical map, audit governance, runtime/data source reference và các script kiểm chứng hiện hành.
+- `node tools/verify_audit_deep.js` — PASS.
+- `node tools/verify_audit_closure.js` — PASS.
+- Kiểm tra topology world hiện tại bằng `data/world_data.js`: 8 region, 9 route, không có region cô lập; phép kiểm này chưa thay thế data audit đầy đủ.
+- Các kết luận bên dưới chỉ là finding còn phù hợp với working tree ngày 2026-10-02; các bảng lịch sử cũ không được coi là trạng thái hiện hành nếu đã có status override mới hơn.
+
+### Findings còn mở
+
+| ID | Mức độ | Finding | Bằng chứng | Tác động | Đề xuất |
+|---|---|---|---|---|---|
+| AUDIT-2026-10-02-01 | **CAO — governance** | Quy ước “chỉ một audit active” chưa được đồng bộ hoàn toàn. `requirement/README.md` chỉ định `CODE_REQUIREMENT_AUDIT_MASTER.md`, nhưng workflow tại cùng file vẫn ghi bước 6 là cập nhật `AUDIT_CANONICAL.md`; `SYSTEM_LOGIC_CATALOG/00_README_AND_CROSS_SYSTEM_MAP.md` và `NPC_CANONICAL.md` cũng tiếp tục trỏ về tên cũ. Cả hai file audit đều đang tồn tại. | `requirement/README.md:17,39`; `SYSTEM_LOGIC_CATALOG/00_README_AND_CROSS_SYSTEM_MAP.md:3,13,21`; `features/05-interaction/NPC_CANONICAL.md:845` | Người review hoặc agent tiếp theo có thể ghi kết quả vào sai file, tạo hai nguồn trạng thái và làm sai completion invariant. | Chuẩn hóa mọi reference còn lại sang `CODE_REQUIREMENT_AUDIT_MASTER.md`; giữ `AUDIT_CANONICAL.md` chỉ khi được đánh dấu rõ là historical archive, hoặc chuyển nó vào archive nếu không còn cần truy cập trực tiếp. Thêm validator kiểm tra reference tới tên audit cũ ngoài vùng archive. |
+| AUDIT-2026-10-02-02 | **TRUNG BÌNH — documentation drift** | README gốc liệt kê các source file không còn tồn tại: `HE_THONG_NEN_TANG_NHAN_VAT_TU_VI_CONG_PHAP.md`, `requirement/character_creation_system.md`, `requirement/CONG_PHAP_SYSTEM.md`, `requirement/Xianxin_map.md`, `data/fate-pool.json`. `data/world_data.js` còn ghi `Xianxin_map.md` là source generated. | `README.md` mục “Cấu trúc thư mục/Nguồn dữ liệu”; `data/world_data.js` header và `FACTION_DATA.world` | Onboarding, traceability và quy trình sinh lại data bị đứt; người đọc không biết file canonical nào thay thế các source cũ. Đây chưa phải lỗi runtime vì runtime đang dùng data/generated bridge hiện tại. | Sửa README về đúng canonical paths/archive; cập nhật generator metadata/source label nếu source cũ đã được hợp nhất; thêm link tồn tại hoặc ghi rõ `historical/archived`. |
+| AUDIT-2026-10-02-03 | **TRUNG BÌNH — data audit chưa hoàn tất** | OPEN-05 vẫn chưa có kiểm chứng độc lập cho asymmetric exits/one-way metadata, fallback-realm coverage và orphan loot-table entries. Kiểm tra nhanh hiện chỉ chứng minh 8 region/9 route hợp lệ và không có node cô lập; nó không chứng minh tính đối xứng có chủ ý, fallback coverage hay loot reference closure. | `OPEN-05` trong audit tracker; topology check ngày 2026-10-02 | Có thể còn data dead-end hoặc bảng loot không được consumer; regression hiện tại chưa chứng minh được các invariant này. | Liệt kê từng data ID bị ảnh hưởng, thêm metadata cho one-way route nếu hợp lệ, kiểm tra mọi fallback realm/loot key và tạo verifier hồi quy riêng trước khi đóng OPEN-05. |
+| AUDIT-2026-10-02-04 | **THẤP — audit readability** | Audit master chứa nhiều bảng lịch sử với trạng thái nghiêm trọng (G/M/N/P0/P1) ngay trước các status override đã đóng. Quy tắc “override mới nhất thắng” có ghi, nhưng heading của các đoạn lịch sử chưa luôn làm nổi bật trạng thái historical. | `CODE_REQUIREMENT_AUDIT_MASTER.md` phần đầu và các status override 2026-09-28 đến 2026-10-01 | Dễ đọc nhầm finding lịch sử là lỗi hiện hành, làm phình backlog và khiến quyết định sửa sai phạm vi. | Thêm banner “historical evidence — superseded” cho các phần cũ, giữ nguyên lịch sử nhưng tạo một current snapshot ngắn chỉ tham chiếu các OPEN hiện tại. |
+
+### Các hạng mục không ghi nhận là lỗi runtime mới
+
+- `verify_audit_deep.js` và `verify_audit_closure.js` PASS; không tái mở các finding runtime đã có evidence đóng.
+- `OPEN-01` đến `OPEN-03` vẫn là thiếu bằng chứng browser/native connector theo audit hiện hữu, không phải bằng chứng logic runtime hỏng.
+- Topology world cơ bản không phát hiện route trỏ tới region không tồn tại hoặc region cô lập trong lần kiểm tra này; cần verifier đầy đủ để kết luận OPEN-05.
+
+### Kết luận re-audit
+
+Runtime core có bằng chứng closure tốt từ hai probe chuyên biệt. Các rủi ro còn rõ nhất hiện tại là governance/reference drift của tài liệu và data-audit coverage, không phải một regression gameplay mới được tái lập trong lần rà soát này.

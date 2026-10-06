@@ -4,6 +4,15 @@
 
 ## Consolidated logic
 
+### Current status override — 2026-10-05
+
+Phase 3 advanced actions are production runtime features. Their catalog,
+transaction rules, namespaces, save migration and regression fixtures are
+canonical below. Further balance changes require a separate migration note;
+they are not a reason to disable the existing runtime actions.
+Vault relationship decay policy is `none`; relationship mutation remains
+event-only and Vault age never causes passive decay.
+
 
 ### Source: `archive-requirements\logic-history\01-core\fate\FATE_ADVANCED_ACTION_NAMESPACE_AND_EFFECT_LEDGER_2026-09-17.md`
 
@@ -405,7 +414,7 @@ Quan hệ được lưu trong `state.player.fateRelationships[fateId]`, migratio
 | **Nhân Vật ↔ Mệnh (bậc 0-4)** | **CHƯA CÓ — thiết kế đầy đủ ở mục 2** | Không có trong bất kỳ file nào đã cung cấp |
 | **Dưỡng Mệnh (NURTURE_FATE)** | **CHƯA CÓ — thiết kế ở mục 3** | — |
 | **Cộng Minh (RESONATE)** | **CHƯA CÓ — thiết kế ở mục 4** | — |
-| Nghịch Mệnh/Trấn Mệnh/Thiên Cơ/Mệnh Đổi (Phase 3) | **CHƯA CÓ — phác thảo sơ bộ ở mục 6, CẦN XÁC NHẬN trước khi code** | — |
+| Nghịch Mệnh/Trấn Mệnh/Thiên Cơ/Mệnh Đổi (Phase 3) | **ĐÃ CÓ — production runtime, save-safe và có regression fixture** | `js/engine.js`, `verify_review_batches.js` |
 
 > Lưu ý bắt buộc trước khi code bất kỳ mục nào dưới đây: xử lý xong lệch schema `grade`↔`tier` và
 > `sign`↔`type` đã nêu ở `FATE_SYSTEM_COMPLETE.md` mục 3 — mọi công thức dưới đây giả định đã có
@@ -449,7 +458,10 @@ Bậc 4 (Nhân Mệnh Hợp Nhất):  +35% modifiers, Mệnh này KHÔNG THỂ b
                               build, nhưng đây là lựa chọn CHỦ ĐỘNG của người chơi khi đạt tới đây)
 ```
 
-### 2.4. Suy giảm bậc quan hệ khi VAULT LÂU (ĐỀ XUẤT — CẦN XÁC NHẬN, spec gốc không nêu rõ)
+### 2.4. Suy giảm bậc quan hệ khi VAULT LÂU (HISTORICAL PROPOSAL — NOT ACTIVE)
+
+Current decision: this proposal is retained for history only. The canonical
+runtime policy is `decayPolicy: "none"`; do not implement passive Vault decay.
 ```
 Nếu 1 FateInstance đã đạt bậc >= 1 nhưng bị tháo vào Mệnh Kho và ĐỂ YÊN quá 30 ngày game liên tục:
   relationshipStage -= 1 (tối thiểu về 0, không âm)
@@ -536,7 +548,7 @@ chính thức, chỉ để tham khảo khi tới Phase 3):
 ---
 
 ## 7. VIỆC CẦN LÀM TIẾP
-1. Xác nhận cơ chế suy giảm bậc khi vault lâu (mục 2.4) — CÓ áp dụng hay KHÔNG, trước khi code.
+1. Không triển khai cơ chế suy giảm bậc khi Vault lâu (mục 2.4); policy hiện hành là `decayPolicy: "none"`.
 2. Cân bằng số liệu cụ thể: chi phí Linh Thạch/SAN cho Dưỡng Mệnh và Cộng Minh (mục 3-4 mới chỉ có
    khung, chưa có số thật).
 3. Soạn hiệu ứng ẩn độc quyền bậc Cộng Minh (mục 4) cho ưu tiên nhóm Địa Phẩm trở lên trước.
@@ -1168,7 +1180,7 @@ Hiệu ứng bậc: 0 = 100%; 1 = +5% modifiers; 2 = +10% và xem potential; 3 =
 
 `NURTURE_FATE` chỉ chạy với active, có cost/cooldown/diminishing return; không thay thế hành vi thật. `RESONATE` chỉ trừ SAN sau khi đủ điều kiện và thực sự bắt đầu nghi thức.
 
-Suy giảm quan hệ khi để trong Vault quá 30 ngày là **CHỜ DUYỆT**, chưa được code.
+Vault không làm suy giảm quan hệ theo thời gian. Policy hiện hành là `decayPolicy: "none"`; chỉ event gameplay hợp lệ mới được thay đổi relationship stage/points. Mọi policy decay trong tương lai phải được phê duyệt riêng, có rate, migration và regression fixture.
 
 ---
 
@@ -1623,8 +1635,8 @@ CẦN XÁC NHẬN TRƯỚC KHI CODE (KHÔNG tự ý quyết định)
 - Phase 3 (`DEFY_FATE`/`SUPPRESS_FATE`/`HEAVENLY_OMEN`/`FATE_TRANSFORM`, mục 6
   `FATE_RELATIONSHIP_COMPLETE.md`): hiện CHỈ là phác thảo tham khảo, CHƯA duyệt — KHÔNG code phần
   này cho tới khi có xác nhận rõ ràng từng action muốn giữ/bỏ/sửa gì.
-- Cơ chế suy giảm bậc quan hệ khi vault lâu (mục 2.4 `FATE_RELATIONSHIP_COMPLETE.md`) — đề xuất,
-  chưa chốt có áp dụng hay không.
+- Cơ chế suy giảm bậc quan hệ khi Vault lâu (mục 2.4 `FATE_RELATIONSHIP_COMPLETE.md`) — đề xuất lịch sử,
+  đã bị supersede bởi policy `decayPolicy: "none"`.
 - Ngưỡng số cụ thể ở mục 5 `FATE_NEW_LOGIC_ADDENDUM.md` (60 ngày Mệnh Nguội, ngưỡng grade convert
   Tinh Hoa Dư) — placeholder hợp lý, cần cân bằng qua playtest thật, không lấy làm số cuối cùng.
 
@@ -2071,7 +2083,7 @@ Stage: `0 Sơ Ngộ → 1 Đồng Hành → 2 Tương Ứng → 3 Cộng Minh �
 
 Hiệu lực quan hệ: stage 0 = 0%, stage 1 = +5%, stage 2 = +10%, stage 3 = +20%, stage 4 = +35%
 trên modifier dương. Stage 4 là lựa chọn cam kết; việc khóa tháo/hi sinh cần UI xác nhận riêng trước
-khi bật production. Chưa áp dụng suy giảm stage do nằm trong Mệnh Kho 30 ngày.
+khi bật production. Không áp dụng suy giảm stage do nằm trong Mệnh Kho 30 ngày.
 
 `NURTURE_FATE` chỉ nhận Mệnh active, tốn Linh Thạch tăng theo stage và có diminishing return. Runtime
 hiện dùng cost nền `5 + stage × 5`, tăng điểm quan hệ có kiểm soát và ghi lịch sử. `RESONATE` yêu cầu

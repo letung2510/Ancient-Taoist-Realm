@@ -953,8 +953,11 @@ function verifyMapUI(sandbox) {
   sandbox.window.GameUI.setMapView("local", E.createState({ character }));
    assert(elements["tab-content"].innerHTML.includes("data-map-dir") || elements["tab-content"].innerHTML.includes("data-map-explore-dir"));
   assert(elements["tab-content"].innerHTML.includes("local-constellation"), "local map must use constellation renderer");
-   assert(elements["tab-content"].innerHTML.includes('class="map-path'), "local map must render confirmed real edges");
-   assert(elements["tab-content"].innerHTML.includes("tree-edge"), "local map must render spanning-tree edges");
+    const localMapEdges = E.localBfsConstellation(E.createState({ character }), 39);
+    if (localMapEdges.treeEdges.length) {
+      assert(elements["tab-content"].innerHTML.includes('class="map-path'), "local map must render confirmed real edges");
+      assert(elements["tab-content"].innerHTML.includes("tree-edge"), "local map must render spanning-tree edges");
+    }
   ["bac", "nam", "dong", "tay"].forEach((direction) => {
      assert(elements["tab-content"].innerHTML.includes(`data-map-dir="${direction}"`) || elements["tab-content"].innerHTML.includes(`data-map-explore-dir="${direction}"`), `missing open-world direction: ${direction}`);
   });

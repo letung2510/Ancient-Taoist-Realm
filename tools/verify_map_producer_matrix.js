@@ -10,6 +10,14 @@ for (const file of ['data/data.js', 'data/fate_data.js', 'data/expansion_data.js
   vm.runInContext(fs.readFileSync(root + '/' + file, 'utf8'), context, { filename: file });
 }
 const E = context.GameEngine, X = context.GameExpansion;
+const north = E.neighborCoordinate(50, 50, 'bac');
+const south = E.neighborCoordinate(50, 50, 'nam');
+const east = E.neighborCoordinate(50, 50, 'dong');
+const west = E.neighborCoordinate(50, 50, 'tay');
+assert.strictEqual(`${north.x},${north.y}`, '50,49', 'north must decrement y');
+assert.strictEqual(`${south.x},${south.y}`, '50,51', 'south must increment y');
+assert.strictEqual(`${east.x},${east.y}`, '51,50', 'east must increment x');
+assert.strictEqual(`${west.x},${west.y}`, '49,50', 'west must decrement x');
 const state = E.createState('map-producer-matrix');
 X.ensureExpansionState(state);
 const locations = E.locationPool(state);
