@@ -3893,3 +3893,8 @@ This section is the canonical home for local constellation behavior. The former 
 - Army actions are `scout`, `sabotage`, `join_battle`, and reputation-gated `command`. Daily simulation reduces morale while marching through corruption level >= 3; morale <= 20 routes the army and applies a 15% troop loss.
 - `subLocationWrongness(state, subLocationId)` derives local wrongness from player worldview wrongness plus local override/corruption. Map/UI consumers must use this helper instead of inventing a second formula.
 - Directional movement after fleeing remains available from the current node; flee must not relocate the player backward.
+## CURRENT IMPLEMENTATION STATUS
+
+The former “chua code” list is historical roadmap text. Coordinate movement,
+fog/discovery, map events, structures, and local actions are implemented;
+remaining items are UI/data expansion, balance, or independent audit evidence.

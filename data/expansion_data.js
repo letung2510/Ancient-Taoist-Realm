@@ -110,7 +110,7 @@
   const guildProjects = [
     { id: "repair_vein", name: "Tu Sửa Linh Mạch", durationDays: 12, target: 30, reward: { cultivationMult: 1.1, durationDays: 15 } },
     { id: "mountain_ward", name: "Dựng Hộ Sơn Trận", durationDays: 15, target: 40, reward: { sanDrainMult: 0.85, durationDays: 20 } },
-    { id: "lost_art", name: "Truy Tìm Bí Pháp", durationDays: 18, target: 50, reward: { techniqueTrialToken: 1 } }
+    { id: "lost_art", name: "Truy Tìm Bí Pháp", durationDays: 18, target: 50, reward: { techniqueTrialToken: 1, durationDays: 30 } }
   ];
 
   const hiddenRealms = [
