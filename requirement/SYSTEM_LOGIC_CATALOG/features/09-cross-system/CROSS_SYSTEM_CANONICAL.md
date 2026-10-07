@@ -1374,4 +1374,8 @@ Novel log tiếp tục đi qua `narrativeSafe()` và `novelLogParagraphs()`, cò
 
 Một số thông báo tĩnh trong content có thể cần biên tập văn phong riêng; boundary runtime đã được áp dụng cho alert của `main.js` và log renderer.
 
+## CURRENT IMPLEMENTATION STATUS
 
+The former “chua code” list is historical roadmap text. Runtime already owns
+map-event, reward/read-model, and cross-system producer paths; remaining items
+are explicit data, tuning, or independent evidence work.

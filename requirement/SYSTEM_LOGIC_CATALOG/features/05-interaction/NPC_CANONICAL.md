@@ -855,3 +855,8 @@ Issue only to an active organization member holding a rank with duties, at most 
 ## Organization mediation
 
 Both faction reputations must be >=60, bilateral tension >=70, no active war may exist, and a 30-day pair cooldown must have elapsed. A seeded deterministic check uses both reputations and Dao Heart. Success reduces tension by 30; failure adds 5; either outcome records the attempt and cooldown. It never averts or mutates an active war. Legacy one-time attempts migrate to a cooldown expiring at recorded day+30 (or current day+30 when no day exists).
+## CURRENT IMPLEMENTATION STATUS
+
+The former “chua code” list is historical roadmap text. Scheduler, routines,
+dialogue actions, quest state, and organization interactions are implemented;
+remaining items are catalog expansion, content, playtest, or evidence.

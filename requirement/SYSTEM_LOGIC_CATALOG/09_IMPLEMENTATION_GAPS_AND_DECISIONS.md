@@ -59,9 +59,10 @@ history and must not be read as fresh runtime findings.
   persistence evidence is not covered by headless tests.
 - `OPEN-05`: independent asymmetric-route, fallback-realm and orphan-loot
   data audit is not complete.
-- Requirement encoding cleanup is still blocked in the three canonical files
-  reported by `validate_requirement_docs.js`; the validator intentionally fails
-  until the lost source text is restored.
+- Requirement encoding cleanup is closed for the current source snapshot:
+  `validate_requirement_docs.js` reports zero invalid files and the three
+  canonical files contain zero encoding-loss markers. Any remaining
+  uncertainty is source-recovery quality, not a validator/runtime blocker.
 
 The current snapshot does not reopen runtime items already closed by the audit,
 offline parity, save-envelope validation, or UI/action contract gates.
