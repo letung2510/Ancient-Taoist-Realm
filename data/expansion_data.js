@@ -64,6 +64,20 @@
       { id: "hai_nap", name: "Hải Nạp Đan Điền", trial: "cultivation", modifiers: { cultivationMult: 1.12, qiRecoveryMult: 1.08 }, tradeoff: "Thiên về tích lũy lâu dài." },
       { id: "nghich_tuc", name: "Nghịch Tức Đan Điền", trial: "elite", modifiers: { cultivationMult: 1.18, sanDrainMult: 1.1 }, tradeoff: "Tu nhanh hơn nhưng tâm cảnh bất ổn." }
     ],
+    tu_lap_tam_phap: [
+      { id: "tu_lap_tam_phap_tu_chu", name: "Tự Chủ Đạo Cơ", trial: "cultivation", modifiers: { cultivationMult: 1.1, qiRecoveryMult: 1.08 }, tradeoff: "Tăng khả năng tự tu luyện, không nhận gia trì Tông Môn." },
+      { id: "tu_lap_tam_phap_nghich_tuc", name: "Nghịch Tức Tự Lập", trial: "elite", modifiers: { cultivationMult: 1.16, sanDrainMult: 1.08 }, tradeoff: "Tu nhanh hơn nhưng áp lực tâm cảnh tăng." }
+    ],
+    tan_tu_dan_khi_quyet: [
+      { id: "tan_tu_dan_khi_tich_nguyen", name: "Tích Nguyên Tán Tu", trial: "cultivation", modifiers: { cultivationMult: 1.12, qiRecoveryMult: 1.05 }, tradeoff: "Tích lũy bền vững." },
+      { id: "tan_tu_dan_khi_phong_mach", name: "Phong Mạch Tự Hành", trial: "elite", modifiers: { powerMult: 1.1, sanDrainMult: 1.06 }, tradeoff: "Tăng ứng biến, tiêu hao Thanh Tỉnh." }
+    ],
+    tu_lap_kiem_thuc: [
+      { id: "tu_lap_kiem_thuc_lien_tam", name: "Liên Tâm Kiếm Thế", trial: "elite", modifiers: { powerMult: 1.15, manaCostMult: 1.08 }, tradeoff: "Uy lực tăng theo nhịp giao chiến." }
+    ],
+    tu_lap_luyen_the_phap: [
+      { id: "tu_lap_luyen_the_bat_pha", name: "Bách Luyện Bất Phá", trial: "cultivation", modifiers: { powerMult: 1.08, sanDrainMult: 0.85 }, tradeoff: "Bền bỉ hơn, sát thương trực tiếp thấp hơn." }
+    ],
     cam_thuat_huyet_te: [
       { id: "huyet_no", name: "Huyết Nộ", trial: "elite", modifiers: { powerMult: 1.25, corruptionCostMult: 1.2 }, tradeoff: "Cực mạnh, phản phệ sâu." },
       { id: "huyet_an", name: "Huyết Ẩn", trial: "cultivation", modifiers: { powerMult: 1.08, corruptionCostMult: 0.75 }, tradeoff: "Giảm phản phệ, đổi lấy uy lực." }
@@ -156,6 +170,8 @@
     scout_strike: { id: "scout_strike", roles: ["scout"], powerMultiplier: 0.9, loyaltyDamagePct: 10, loyaltyCost: 1, cooldownTurns: 1, description: "Đòn đánh nhanh của trinh sát, tăng theo trung thành." }
   };
 
+  const hiddenPathDefinitions = Object.fromEntries(Object.entries(hiddenProfessions).filter(([, definition]) => definition.kind === "tu_tich"));
+  Object.keys(hiddenPathDefinitions).forEach((id) => delete hiddenProfessions[id]);
   window.EXPANSION_DATA = {
     version: 1,
     worldEvents,
@@ -169,6 +185,7 @@
     hiddenRealms,
     codexDefinitions,
     hiddenProfessions,
+    hiddenPathDefinitions,
     professionItems,
     achievementDefinitions,
     companionSkills,

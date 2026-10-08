@@ -316,7 +316,8 @@
     return { ok: errors.length === 0, errors, organizations: known.size };
   }
   const professionCatalog = () => ({ ...(X.professionItems || {}), ...(window.PROFESSION_ITEMS || {}) });
-  const professionDefinition = (id) => X.professionDefinitions?.[id] || X.hiddenProfessions?.[id] || null;
+  const isHiddenProfession = (id) => Boolean(X.hiddenProfessions?.[id] && X.hiddenProfessions[id].kind !== "tu_tich");
+  const professionDefinition = (id) => X.professionDefinitions?.[id] || (isHiddenProfession(id) ? X.hiddenProfessions?.[id] : null);
   const RECIPE_CATALOG = Object.freeze({
     tu_khi_dan: { id: "tu_khi_dan", professionId: "luyen_dan", materials: { linh_thao: 2 }, output: { itemId: "tu_khi_dan", quantity: 1 }, costs: { stamina: 5 }, successBase: 0.45, perfectMultiplier: 0.15 },
     hoan_huyet_dan: { id: "hoan_huyet_dan", professionId: "luyen_dan", materials: { linh_thao: 3 }, output: { itemId: "hoan_huyet_dan", quantity: 1 }, costs: { stamina: 5 }, successBase: 0.45, perfectMultiplier: 0.15 },
@@ -468,15 +469,32 @@
   }
   function hiddenPathCatalog() {
     const configured = Array.isArray(X.hiddenPathCatalog) ? X.hiddenPathCatalog : [];
+    const codexPaths = Object.values(X.hiddenPathDefinitions || {}).map((definition) => ({ ...definition, pathType: "hidden_path", sourceType: definition.linkedTaThanId || "codex", unlockTrigger: "codex_clues", status: "dormant" }));
     const fallback = [
       { id: "co_than_tan_hon", name: "Cổ Thần Tàn Hồn", sourceType: "co_than_tan_hon", unlockTrigger: "omen_encounter", requiredState: { codexProgress: 7 }, effects: { pathInsight: true }, costs: { san: 10 }, risks: { corruption: 8 }, status: "dormant" },
       { id: "luan_hoi_tien", name: "Luân Hồi Tiên", sourceType: "gameplay_trigger", unlockTrigger: "reincarnation_trial", requiredState: { rebirthCount: 1 }, effects: { reincarnation: true }, costs: { lifespan: 30 }, risks: { memoryLoss: 1 }, status: "dormant" }
     ];
-    return copy(configured.length ? configured : fallback);
+    return copy(configured.length ? configured : [...codexPaths, ...fallback]);
   }
 
   function ensure(state) {
     if (!state || !state.player) return state;
+    state.player.techniques ||= {};
+    state.flags ||= {};
+    state.flags.techniqueAcquisitionReceipts ||= {};
+    Object.entries(state.player.techniques).forEach(([techniqueId, progress]) => {
+      if (!progress || typeof progress !== "object") state.player.techniques[techniqueId] = {};
+      const record = state.player.techniques[techniqueId];
+      const technique = E.techniqueCatalog?.()?.[techniqueId];
+      record.masteryStage = Math.max(0, Math.min(4, Math.floor(Number(record.masteryStage ?? record.stage ?? 0))));
+      record.masteryExp = Math.max(0, Number(record.masteryExp ?? record.exp ?? 0));
+      record.usageCount = Math.max(0, Math.floor(Number(record.usageCount || 0)));
+      record.sourceType ||= technique?.sourceType || "legacy";
+      record.acquisitionReceiptId ||= "technique-learn:legacy:" + techniqueId;
+      record.sourceContext ||= { intentId: state.player.journeyIntent || null, pathId: state.player.pathId || null, guildId: record.sourceGuildId || technique?.sourceGuildId || null };
+      record.combatState ||= { prepared: false, cooldownRemaining: 0, channelProgress: 0, lastResolvedActionId: null };
+      state.flags.techniqueAcquisitionReceipts[record.acquisitionReceiptId] ||= { receiptId: record.acquisitionReceiptId, techniqueId, sourceType: record.sourceType, legacyAcquired: true };
+    });
     // Canonical rare-progression state; additive for pre-v2 saves.
     state.pathState = state.pathState || { schemaVersion: 2, primaryPathId: state.player.pathId || null, secondaryPathId: state.player.secondaryPathId || null, hiddenPathId: state.player.hiddenPathId || null, dormant: {}, history: [] };
     state.pathState.schemaVersion = Math.max(2, Number(state.pathState.schemaVersion || 1));
@@ -592,11 +610,12 @@
     state.hiddenPathState.catalog = hiddenPathCatalog();
     state.hiddenPathState.clues ||= {};
     state.hiddenPathState.encounters ||= {};
+    state.hiddenPathState.unlocked ||= {};
     state.hiddenPathState.status ||= state.pathState.hiddenPathId ? "active" : "dormant";
     state.discoveries ||= emptyDiscoveries();
     state.discoveries.hiddenProfessionClues ||= {};
     state.discoveries.hiddenPathClues ||= {};
-    if (!state.hiddenProfessionGraph || Object.values(state.hiddenProfessionGraph).some((graph) => Number(graph?.schemaVersion || 0) < 2)) state.hiddenProfessionGraph = Object.fromEntries(Object.entries(X.hiddenProfessions || {}).map(([id, def], index) => {
+    if (!state.hiddenProfessionGraph || Object.values(state.hiddenProfessionGraph).some((graph) => Number(graph?.schemaVersion || 0) < 2)) state.hiddenProfessionGraph = Object.fromEntries(Object.entries(X.hiddenProfessions || {}).filter(([, def]) => def.kind !== "tu_tich").map(([id, def], index) => {
       const codex = (X.codexDefinitions || []).find((entry) => (entry.unlocksHiddenProfession || []).includes(id));
       const requirementTypes = ["npc", "location", "event", "weather", "fate", "beast", "behavior"];
       return [id, {
@@ -678,7 +697,7 @@
     // Canonical migration: a hidden profession is always the secondary slot.
     // Older saves used hiddenProfession/hiddenId (and occasionally secondaryId)
     // interchangeably; never allow a normal profession to occupy that slot.
-    const hiddenIds = new Set(Object.keys(X.hiddenProfessions || {}));
+    const hiddenIds = new Set(Object.entries(X.hiddenProfessions || {}).filter(([, def]) => def.kind !== "tu_tich").map(([id]) => id));
     if (hiddenIds.has(state.professionState.primaryId) && !state.professionState.secondaryId) {
       state.professionState.secondaryId = state.professionState.primaryId;
       state.professionState.primaryId = null;
@@ -2645,6 +2664,23 @@
     ensure(state); const definition = hiddenPathCatalog().find((entry) => entry.id === pathId) || null;
     return { definition, status: state.hiddenPathState.status || "dormant", clues: hiddenPathClues(state, pathId), encounter: copy(state.hiddenPathState.encounters?.[pathId] || null) };
   }
+  function hiddenPathClue(state, pathId, action = "lead") {
+    ensure(state);
+    const definition = hiddenPathCatalog().find((entry) => entry.id === pathId);
+    if (!definition) return { success: false, reason: "Con Đường Ẩn không tồn tại." };
+    if (codexProgress(state) < Number(definition.requiresCodex || 7)) return { success: false, reason: "Cần thu thập đủ Cổ Tịch trước khi lần theo Con Đường Ẩn." };
+    const clues = state.hiddenPathState.clues[pathId] ||= [];
+    const clueId = pathId + ":" + action;
+    if (!clues.some((entry) => entry.id === clueId)) clues.push({ id: clueId, action, day: absoluteDay(state.gameClock), sourceType: definition.sourceType || "codex" });
+    if (action === "unlock" && clues.length >= 3) {
+      state.hiddenPathState.unlocked ||= {};
+      state.hiddenPathState.unlocked[pathId] = true;
+      state.hiddenPathState.status = "active";
+      state.pathState.hiddenPathId = pathId;
+      state.player.hiddenPathId = pathId;
+    }
+    return { success: true, pathId, clues: copy(clues), unlocked: Boolean(state.hiddenPathState.unlocked?.[pathId]) };
+  }
   function resolveCoThanTanHonEncounter(state, choice = "seal") {
     ensure(state); const id = "co_than_tan_hon", existing = state.hiddenPathState.encounters[id];
     if (existing?.status === "resolved") return { success: false, alreadyResolved: true, encounter: copy(existing) };
@@ -3762,7 +3798,7 @@
   }
   function validateProfessionNamespace(state) {
     ensure(state);
-    const errors = [], ps = state.professionState || {}, hiddenIds = new Set(Object.keys(X.hiddenProfessions || {}));
+    const errors = [], ps = state.professionState || {}, hiddenIds = new Set(Object.entries(X.hiddenProfessions || {}).filter(([, def]) => def.kind !== "tu_tich").map(([id]) => id));
     if (ps.primaryId && hiddenIds.has(ps.primaryId)) errors.push("primary-hidden:" + ps.primaryId);
     if (ps.secondaryId && !hiddenIds.has(ps.secondaryId)) errors.push("secondary-not-hidden:" + ps.secondaryId);
     if (ps.primaryId && ps.secondaryId && ps.primaryId === ps.secondaryId) errors.push("duplicate-slot:" + ps.primaryId);
@@ -3798,7 +3834,7 @@
   function professionAvailability(state, id) {
     ensure(state); const definition = professionDefinition(id);
     if (!definition) return { visible: false, selectable: false, reason: "Nghề không tồn tại." };
-    const hidden = Boolean(X.hiddenProfessions?.[id]);
+    const hidden = isHiddenProfession(id);
     if (hidden && definition.linkedTaThanId && !state.flags?.coThanCodexCollected && Number(state.inventory?.co_tich_tan_trang || 0) < 1 && codexProgress(state) < 7) return { visible: false, selectable: false, reason: "Nhánh nghề này chỉ mở sau khi thu thập Cổ Thần tà tịch." };
     const hasClue = Object.keys(state.hiddenProfessionState.clues || {}).some((key) => key.startsWith(id + ":"));
     if (hidden && !hasClue) return { visible: false, selectable: false, reason: "Con đường này chưa lộ manh mối." };
@@ -3821,7 +3857,7 @@
   }
   function chooseProfessionLocked(state, id) {
     ensure(state);
-    const legacyLockedNormalChoice = state.professionState.primaryId && !X.hiddenProfessions?.[id] && id !== state.professionState.primaryId;
+    const legacyLockedNormalChoice = state.professionState.primaryId && !isHiddenProfession(id) && id !== state.professionState.primaryId;
     if (legacyLockedNormalChoice) {
       if (state.professionState.legacyNormalChoiceIgnored) return { success: false, compatibilityOnly: true, slot: null, selectionLocked: true, reason: "Luật canonical đã khóa nghề thường." };
       state.professionState.legacyNormalChoiceIgnored = true;
@@ -3832,7 +3868,7 @@
     const record = professionRecord(state, id); if (!record) return { success: false, reason: "Nghề không hợp lệ." };
     const slot = availability.slot;
     state.professionState[slot] = id;
-    if (X.hiddenProfessions?.[id]) {
+    if (isHiddenProfession(id)) {
       state.professionState.hiddenIds = Array.isArray(state.professionState.hiddenIds) ? state.professionState.hiddenIds : [];
       if (!state.professionState.hiddenIds.includes(id)) state.professionState.hiddenIds.push(id);
       state.professionState.hiddenId = id;
@@ -3878,7 +3914,7 @@
     return { success: true, itemId, charges: record.charges };
   }
   function useHiddenProfessionAction(state, professionId) {
-    ensure(state); const definition = X.hiddenProfessions?.[professionId];
+    ensure(state); const definition = isHiddenProfession(professionId) ? X.hiddenProfessions?.[professionId] : null;
     const legacyDirectHidden = state.professionState.primaryId === professionId && !state.professionState.secondaryId;
     if (!definition || !hasProfession(state, professionId) || (state.professionState.secondaryId !== professionId && !legacyDirectHidden)) return { success: false, reason: "Nghề Ẩn này chưa được cố định ở slot nghề phụ." };
     state.hiddenProfessionActions ||= {}; const day = absoluteDay(state.gameClock); const record = state.hiddenProfessionActions[professionId] || { uses: 0, lastUseDay: -999999 };
@@ -3962,6 +3998,14 @@
     const requirements = technique[scope + "Requirements"] || technique.requirements || {};
     const blockers = [], player = state.player || {}, pathId = player.pathId || state.pathId || null;
     const learned = Boolean(player.techniques?.[techniqueId]);
+    const policy = technique.accessPolicy || {};
+    const journeyIntent = player.journeyIntent || state.flags?.journeyIntent || null;
+    if (Array.isArray(policy.allowedJourneyIntents) && policy.allowedJourneyIntents.length && !policy.allowedJourneyIntents.includes(journeyIntent)) blockers.push(blocker("JOURNEY_INTENT_BLOCKED", "Ý Định hành đạo hiện tại không phù hợp với Công Pháp này."));
+    const currentGuildId = state.guildMembership?.guildId || null;
+    if (policy.requiredGuildId && currentGuildId !== policy.requiredGuildId) blockers.push(blocker("GUILD_REQUIRED", "Công Pháp này cần Tông Môn tương ứng."));
+    if (policy.forbiddenGuildMembership && currentGuildId) blockers.push(blocker("GUILD_FORBIDDEN", "Công Pháp này không dùng cho người đang mang membership Tông Môn."));
+    if (Array.isArray(policy.allowedPathIds) && policy.allowedPathIds.length && !policy.allowedPathIds.includes(pathId)) blockers.push(blocker("PATH_MISMATCH", "Con Đường hiện tại không tương hợp với Công Pháp này."));
+    if (Number(policy.requiredCodexProgress || 0) > Number(E.codexProgress?.(state) || 0)) blockers.push(blocker("CODEX_REQUIRED", "Chưa thu thập đủ Cổ Tịch để mở Công Pháp này."));
     if ((scope === "use" || scope === "training") && !learned) blockers.push(blocker("NOT_LEARNED", "Ngươi chưa lĩnh ngộ Công Pháp này."));
     const pathDefinition = window.PATH_FATE_RELATIONS?.paths?.[pathId] || {};
     const pathTags = [...(pathDefinition.lead || []), ...(pathDefinition.support || [])].map((tag) => String(tag).toLowerCase());
@@ -4032,6 +4076,34 @@
     const raw = policies.reduce((sum, policy) => sum + Number(policy.modifiers?.combatPowerPct || 0), 0);
     const cap = Math.max(0, ...policies.map((policy) => Number(policy.caps?.combatPowerPct || 0)));
     return { powerPct: Math.min(cap, raw), sourceIds: policies.map((policy) => policy.id), guildId: membership.guildId, formationTechniqueId: formation.techniqueId };
+  }
+
+  function acquireTechnique(state, techniqueId, acquisitionId = "", options = {}) {
+    ensure(state);
+    const technique = E.techniqueCatalog?.()?.[techniqueId];
+    if (!technique) return { success: false, reason: "Công Pháp không tồn tại." };
+    const acquisition = (technique.acquisition || []).find((entry) => !acquisitionId || entry.id === acquisitionId);
+    if (!acquisition) return { success: false, reason: "Nguồn lĩnh ngộ Công Pháp không hợp lệ." };
+    state.flags.techniqueAcquisitionReceipts ||= {};
+    const receiptId = "technique-learn:" + techniqueId + ":" + acquisition.id;
+    if (state.flags.techniqueAcquisitionReceipts[receiptId]) return { success: true, duplicate: true, receipt: copy(state.flags.techniqueAcquisitionReceipts[receiptId]) };
+    const eligibility = techniqueEligibility(state, techniqueId, "learn");
+    if (!eligibility.ok) return { success: false, reason: eligibility.blockers.map((entry) => entry.message).join(" · "), blockers: eligibility.blockers };
+    const meritCost = Number(acquisition.cost?.merit || 0);
+    if (meritCost > Number(state.player.merit || 0)) return { success: false, reason: "Không đủ công đức để lĩnh ngộ Công Pháp này." };
+    if (meritCost) state.player.merit -= meritCost;
+    if (!E.learnTechnique(state, techniqueId)) {
+      if (meritCost) state.player.merit += meritCost;
+      return { success: false, reason: "Không thể lĩnh ngộ Công Pháp này." };
+    }
+    const progress = state.player.techniques[techniqueId];
+    progress.sourceType = technique.sourceType || "legacy";
+    progress.acquisitionReceiptId = receiptId;
+    progress.sourceContext = { ...(progress.sourceContext || {}), acquisitionId: acquisition.id, sourceType: technique.sourceType || "legacy" };
+    const receipt = { receiptId, techniqueId, acquisitionId: acquisition.id, sourceType: technique.sourceType || "legacy", turn: Number(state.meta?.turn || 0), worldDay: absoluteDay(state.gameClock) };
+    state.flags.techniqueAcquisitionReceipts[receiptId] = receipt;
+    history(state, "sys", "§ Đã lĩnh ngộ Công Pháp qua nguồn " + (technique.ui?.sourceLabel || technique.sourceType || "khám phá") + ".");
+    return { success: true, techniqueId, receipt };
   }
   function mailboxSnapshot(state) {
     ensure(state);
@@ -5033,7 +5105,7 @@
   }
   function runExpansionCommand(state, command, arg, arg2, options = {}) {
     const table = {
-      divine: () => divine(state), technique_prepare: () => {
+      divine: () => divine(state), technique_acquire: () => acquireTechnique(state, arg, arg2 || "", options), technique_prepare: () => {
         const preview = E.techniquePreview(state, arg, { stance: arg2 || "steady" });
         if (!preview.success) return preview;
         if (preview.resourcesReady === false) return { success: false, reason: preview.blockers.map((entry) => entry.message).join(" · "), blockers: preview.blockers };
@@ -5045,7 +5117,7 @@
       scout: () => scoutWithCompanion(state), fate_trial: () => startFateEvolutionTrial(state, arg), fate_evolve: () => evolveFate(state, arg, arg2, options), fate_transform: () => E.transformFate(state, arg, arg2, options), fate_omen: () => E.heavenlyOmen(state), technique_evolve: () => chooseTechniqueEvolution(state, arg, arg2, options),
       guild_start: () => startGuildProject(state, arg), guild_contribute: () => contributeGuildProject(state, Number(arg || 1)), legacy: () => chooseLegacy(state, arg), tribulation: () => chooseTribulation(state, arg),
       mark: () => setPlayerMark(state, arg), mail: () => sendMail(state, arg, arg2 || "Bình an."), intel_buy: () => buyIntel(state), cover: () => createCoverIdentity(state, arg), cover_retire: () => retireCoverIdentity(state), counter_intel: () => counterIntelResponse(state, arg),
-      hidden_profession_action: () => useHiddenProfessionAction(state, arg), path_fusion: () => transitionSecondaryPath(state, arg, options),
+      hidden_profession_action: () => useHiddenProfessionAction(state, arg), hidden_path_clue: () => hiddenPathClue(state, arg, arg2 || "lead"), path_fusion: () => transitionSecondaryPath(state, arg, options),
       cultivation_deviation: () => resolveCultivationDeviation(state, arg || arg2 || "purify"),
       secluded_cancel: () => stopSecludedCultivation(state),
       secluded_advance: () => advanceSecludedCultivation(state, Number(arg || 1)),
@@ -5214,7 +5286,7 @@
     ensureExpansionState: ensure, consumeBlackMarketPrompt, markOpportunityPrompted, nextTechniqueActionId, ensureNpcWorldState, ensureMapState, mapNode, mapInfluenceSnapshot, resolveMapInfluence: mapInfluenceSnapshot, resolveMapTopology, getCurrentRegionViewModel, getLocalState, listLocalActivities, previewLocalActivity, resolveLocalActivity, listRouteOptions, edgeState, mapIncidentPreview, resolveMapIncident, setMapNote, getNodeDetail, enterSubLocation, availableNodeActions, NodeDetailLayout, travelTask, stateVersion, expectedVersion, tickSnapshot, computeMapInfluence, mapOwner, mapZoneStatus, mapStructurePreview, petitionFactionTerritory, refreshMapInfluence, recordMapEventInfluence, mapFogState, moveWithinNode, appendNodeHistory, nodeResonance, mapCompletion, mapCompletionDetailed, buildMapStructure, repairMapStructure, upgradeMapStructure, disableMapStructure, dismantleMapStructure, transferMapStructure, teleportAnchorEligibility, travelPlan: canonicalTravelPlan, travelTaskSnapshot, startTravel, resolveMapTransaction, advanceTravelTask, interruptTravel, resumeTravel, cancelTravel, travelWeightSnapshot, claimOutpost, petitionOutpostToFaction, createTradeRoute, updateTradeRoutes, validateTradeRouteState, repairInvalidMapExits, wardProtectionAtNode, ensureWorldSimulation, validateExpansionState, validateCacheInvalidationState, validateReplayEnvelope, gameDayOrdinal: absoluteDay, absoluteWorldDay, worldRandom: seeded, simulateWorldUntil, simulateWorldAggregate, updateNpcSchedules, updateFactionInternalEvents, seasonalDestinationSnapshot, scheduleWorldTask, cancelWorldTask, processScheduledWorldTasks, resolveOfflineNpcEncounters, actorHistorySnapshot, rehydrateUnknownContent, worldSimulationSummary, getWorldModifiers, setWeather, weatherCatalog, weatherSnapshot, validateWeatherRuntimeState, validateStructureRuntimeState, validateGuildProjectState, worldModifierPreview, resolveNpcWeatherReaction, activeRegionEvent, startWorldEvent, resolveWorldEventChoice,
     recordRelationshipEvent, relationshipTier, relationshipBreakdown, relationshipPolicySnapshot, validateRelationshipPolicy, validateRelationshipRuntimeState, npcActionPresentation, npcRoutineAt, giftNpc, giftBond, giftTrade, intimidateNpc, rememberNpcIdentity, nurtureHumanAnchor, resolveHumanAnchorLifecycle, resolveNpcSuccession, publishPlayerRumor, beginTrustTrial, trustTrial, resolveTrustTrial, updateNpcBetrayals, guildVaultSnapshot, resolveOrganizationDefection, resolveAllianceMediation, mediateAlliance, resolveLoyaltyTest, organizationSnapshot, organizationInteract, promoteGuildMember, guildPromotionStatus, promotionEligibility, resolveOrganizationCommission, advanceOrganizationCommissions, ensureOrganizationState, validateOrganizationState, sendMail, refreshContracts, acceptContract, previewCanonicalReward, grantCanonicalReward, captureTarget, interrogate, tamePrisoner, scoutWithCompanion, normalizeCompanion, validateCompanionState, validatePrisonerState, validateContestedOpportunity, validateHiddenRealmRuntimeState, factionPowerSnapshot, ensureArmyState, createArmy, armySnapshot, armyAction, updateArmies, productPolicySnapshot, validateProductPolicies, structureManagerDecision, selectCompanionTarget, useCompanionSkill, recordCompanionDamage, simulateOfflineCompanionCombat, recoverCompanion, reviveCompanion,
     discover, verifyDiscovery, collectDiscovery, rewardDiscovery, discoveryStatusSummary, validateDiscoveryLifecycle, divine, survivalProjection, setPlayerMark, progressionNamespaceSnapshot, validateCanonicalNamespaces, pathFusionAffinity, transitionSecondaryPath, switchPathContext, pathSwitchStatus, pathSwitchCandidates, resolveCultivationDeviation, getRegionalCultivationRankboard, stopSecludedCultivation, secludedCultivationStatus, performPathInsight, pathInsightOptions, triggerMinorTrial, pathRitualProfiles, pathVariant, hybridPath, ritualByPath, transitionHistory, detachHistory, chooseProfessionLocked, professionAvailability, practiceProfession, recipeDefinition, recipeCatalog: () => copy(RECIPE_CATALOG), structureCatalog, validateStructureRuntimeState, validateGuildProjectState, rewardPolicySnapshot, validateRewardPolicy, brewPill, useProfessionItem, rechargeProfessionItem, useHiddenProfessionAction, placeFormation, readNpc,
-    ensureTechniqueTrials, advanceTechniqueTrials, validateTechniqueRuntimeState, validateCharacterRuntimeState, techniqueEvolutionPreview, chooseTechniqueEvolution, techniqueEvolutionModifiers, techniqueEligibility, guildTechniqueSnapshot, guildTechniqueCombatBonus,
+    ensureTechniqueTrials, advanceTechniqueTrials, validateTechniqueRuntimeState, validateCharacterRuntimeState, techniqueEvolutionPreview, chooseTechniqueEvolution, techniqueEvolutionModifiers, techniqueEligibility, acquireTechnique, guildTechniqueSnapshot, guildTechniqueCombatBonus,
     fateEvolutionEligibility, startFateEvolutionTrial, recordFateEvolutionProgress, fateEvolutionCandidates, fateEvolutionPreview, evolveFate, applyFateEvolutionOps, fateEvolutionScoreDelta,
     awakenItem, markHeirloom, repairHeirloom, startGuildProject, contributeGuildProject, hiddenRealmEnter, claimHiddenRealmCore, exitHiddenRealm, validateReincarnationRuntimeState, prepareTribulation, chooseTribulation, chooseLegacy, visitTomb,
     beforeReincarnation, afterReincarnation, afterBreakthrough, afterBreakthroughAttempt,
@@ -5236,6 +5308,7 @@
   E.competitorCatalog = competitorCatalog;
   E.competitorProgressSnapshot = competitorProgressSnapshot;
   E.hiddenPathCatalog = hiddenPathCatalog;
+  E.hiddenPathClue = hiddenPathClue;
   E.hiddenPathStatus = hiddenPathStatus;
   E.resolveCoThanTanHonEncounter = resolveCoThanTanHonEncounter;
   E.buildTechniqueContext = buildTechniqueContext;
