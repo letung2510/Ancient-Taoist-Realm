@@ -91,6 +91,42 @@
       spiritualRootRequirements: [], isCore: true,
       visibleStats: { powerCoefficient: 2.2, manaCost: 18, staminaCost: 8, corruptionCost: 1, sanCost: 2, lifespanCost: 0, cooldownSeconds: 15, castTimeSeconds: 1, baseEffect: "Dẫn sát ý nhập huyết, đổi tâm thần lấy uy lực." },
       hiddenAttributes: [], corruptionProfile: { baseCorruptionGainPerUse: 1 }, mastery: { stage: 0, exp: 0, usageCount: 0 }, evolutionPaths: []
+    },
+    tu_lap_tam_phap: {
+      id: "tu_lap_tam_phap", schemaVersion: 2, name: "Tán Tu Dẫn Khí Quyết", category: "tam_phap", family: "independent",
+      sourceType: "independent", grade: "pham", quality: "ha", element: "vo_he", minRealmLevel: 1, isCore: true,
+      role: "core_cultivation", accessPolicy: { allowedJourneyIntents: ["tu_lap"], requiredGuildId: null },
+      acquisition: [{ id: "independent_opening", type: "opening_grant", requiredIntent: "tu_lap", oncePerCharacter: true }],
+      progression: { masteryCap: 5, breakthroughRole: "core", fusionEligible: true, evolutionIds: ["tu_lap_tam_phap_tu_chu"] },
+      visibleStats: { powerCoefficient: 0.7, manaCost: 0, staminaCost: 0, corruptionCost: 0, sanCost: 0, lifespanCost: 0, cooldownSeconds: 0, castTimeSeconds: 0, baseEffect: "Ổn định vận khí và mở nền tảng tu luyện độc lập.", allStatMultiplier: 0.05 },
+      hiddenAttributes: [], corruptionProfile: null, mastery: { stage: 0, exp: 0, usageCount: 0 }, evolutionPaths: []
+    },
+    tan_tu_dan_khi_quyet: {
+      id: "tan_tu_dan_khi_quyet", schemaVersion: 2, name: "Tán Tu Đan Khí Quyết", category: "tam_phap", family: "independent",
+      sourceType: "independent", grade: "hoang", quality: "trung", element: "tho", minRealmLevel: 2, isCore: true,
+      role: "core_cultivation", accessPolicy: { allowedJourneyIntents: ["tu_lap"], requiredGuildId: null },
+      acquisition: [{ id: "independent_mentor", type: "mentor", npcTags: ["tan_tu", "mentor_cultivation"], cost: { merit: 3 } }],
+      progression: { masteryCap: 5, breakthroughRole: "core", fusionEligible: true },
+      visibleStats: { powerCoefficient: 0.9, manaCost: 0, staminaCost: 0, corruptionCost: 0, sanCost: 0, lifespanCost: 0, cooldownSeconds: 0, castTimeSeconds: 0, baseEffect: "Tự điều hòa khí huyết, tăng hiệu quả tu luyện.", allStatMultiplier: 0.08 },
+      hiddenAttributes: [], corruptionProfile: null, mastery: { stage: 0, exp: 0, usageCount: 0 }, evolutionPaths: []
+    },
+    tu_lap_kiem_thuc: {
+      id: "tu_lap_kiem_thuc", schemaVersion: 2, name: "Tán Tu Kiếm Thức", category: "chieu_thuc", family: "independent",
+      sourceType: "independent", grade: "hoang", quality: "trung", element: "kim", pathAffinity: ["kiem_dao"], minRealmLevel: 2, isCore: true,
+      accessPolicy: { allowedJourneyIntents: ["tu_lap"], allowedPathIds: ["kiem_dao"] },
+      acquisition: [{ id: "independent_sword_trial", type: "path_trial", pathIds: ["kiem_dao"] }],
+      progression: { masteryCap: 5, breakthroughRole: "path_core" },
+      visibleStats: { powerCoefficient: 1.15, manaCost: 14, staminaCost: 5, corruptionCost: 0, sanCost: 0, lifespanCost: 0, cooldownSeconds: 12, castTimeSeconds: 1, baseEffect: "Kiếm thế gọn và linh hoạt, không lệ thuộc đạo thống.", allStatMultiplier: 0 },
+      hiddenAttributes: [], corruptionProfile: null, mastery: { stage: 0, exp: 0, usageCount: 0 }, evolutionPaths: []
+    },
+    tu_lap_luyen_the_phap: {
+      id: "tu_lap_luyen_the_phap", schemaVersion: 2, name: "Tán Tu Luyện Thể Pháp", category: "phu_tro", family: "independent",
+      sourceType: "independent", grade: "hoang", quality: "trung", element: "tho", pathAffinity: ["luyen_the_dao"], minRealmLevel: 2, isCore: true,
+      accessPolicy: { allowedJourneyIntents: ["tu_lap"], allowedPathIds: ["luyen_the_dao"] },
+      acquisition: [{ id: "independent_body_trial", type: "path_trial", pathIds: ["luyen_the_dao"] }],
+      progression: { masteryCap: 5, breakthroughRole: "path_core" },
+      visibleStats: { powerCoefficient: 0.9, manaCost: 6, staminaCost: 8, corruptionCost: 0, sanCost: 0, lifespanCost: 0, cooldownSeconds: 14, castTimeSeconds: 1, baseEffect: "Tôi luyện thân thể và giảm tổn thương khi tu hành.", allStatMultiplier: 0.03 },
+      hiddenAttributes: [], corruptionProfile: null, mastery: { stage: 0, exp: 0, usageCount: 0 }, evolutionPaths: []
     }
   };
 

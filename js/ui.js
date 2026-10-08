@@ -109,7 +109,7 @@ window.GameUI = (function () {
   function actionPresentation(state) {
     const ctx = window.GameEngine.contextState(state);
     const utilityIds = ["act_hanh_trang", "act_trang_thai", "act_ban_do", "act_cong_phap", "act_menh", "act_nhiem_vu", "act_to_chuc", "act_tim_tong_mon", "act_giup"];
-    const labels = { movement: "Di chuyển", social: "NPC", combat: "Chiến đấu", technique: "Công pháp", quest: "Nhiệm vụ", utility: "Tiện ích", discovery: "Khám phá", other: "Khác" };
+    const labels = { movement: "Di chuyển", social: "NPC", combat: "Chiến đấu", technique: "Công pháp", quest: "Nhiệm vụ", utility: "Tiện ích", discovery: "Khám phá", interaction: "Tương tác", other: "Khác" };
     const classify = (action) => {
       const id = action.id || "";
       const combat = id === "act_tan_cong_thuong" || id === "act_bo_chay" || id.startsWith("act_skill_");
@@ -308,6 +308,20 @@ window.GameUI = (function () {
     return '<button class="guild-action" data-expansion-command="' + escapeHtml(command) + '" data-expansion-arg="' + escapeHtml(arg) + '" ' + extra + '>' + escapeHtml(label) + '</button>';
   }
 
+  function renderNpcDialogue(state, npcId) {
+    const npc = state.worldSimulation?.npcState?.[npcId] || {};
+    const dialogue = state.dialogueState || {};
+    const questId = dialogue.questId || "npc_quest_" + npcId;
+    const quest = state.questState?.active?.[questId] || state.questState?.available?.[questId] || null;
+    const phase = dialogue.phase || "CHECK";
+    const buttons = [];
+    if (phase === "OFFER" || (quest && quest.status === "available")) buttons.push(expansionButton("npc_dialogue", "Nhận nhiệm vụ", npcId, 'data-expansion-arg2="accept"'));
+    if (phase === "PROGRESS" || (quest && quest.status === "active")) buttons.push(expansionButton("npc_dialogue", "Trao đổi tiến độ", npcId, 'data-expansion-arg2="progress"'));
+    if (phase === "TURN_IN") buttons.push(expansionButton("npc_dialogue", "Giao trả nhiệm vụ", npcId, 'data-expansion-arg2="turn_in"'));
+    if (!buttons.length && quest) buttons.push(expansionButton("npc_dialogue", "Hỏi về lời nhờ", npcId, 'data-expansion-arg2="offer"'));
+    return '<div class="section-title">Đối thoại</div><div class="detail-block"><b>' + escapeHtml(npc.name || npcId) + '</b><small> · Giai đoạn: ' + escapeHtml(phase) + '</small><p>' + (quest?.title ? escapeHtml(quest.title) : 'NPC đang chờ một lựa chọn của ngươi.') + '</p><div class="item-actions">' + buttons.join("") + '</div></div>';
+  }
+
   function renderNpcWorldSignals(state) {
     const actors = Object.values(state.worldSimulation?.npcState || {}).filter((npc) => npc.status === "alive" && npc.currentNodeId === state.locationId);
     if (!actors.length) return '<div class="section-title">Nhân vật tại địa điểm</div><p class="muted">Không có nhân vật đang hiện diện tại đây.</p>';
@@ -462,7 +476,16 @@ window.GameUI = (function () {
   }
   const renderOdditiesBase = renderOddities;
   renderOddities = function (state) {
-    return renderOdditiesBase(state) + '<span class="sr-only" aria-hidden="true">Dị Thể</span>';
+    const paths = (window.GameExpansion?.hiddenPathCatalog?.() || []).filter((entry) => entry.pathType === "hidden_path" && !["co_than_tan_hon", "luan_hoi_tien"].includes(entry.id));
+    const pathRows = paths.map((entry) => {
+      const status = window.GameExpansion?.hiddenPathStatus?.(state, entry.id) || {};
+      const unlocked = Boolean(state.hiddenPathState?.unlocked?.[entry.id]);
+      const clues = Number(status.clues?.length || 0);
+      const actions = !unlocked ? expansionButton("hidden_path_clue", "Điều Tra", entry.id, 'data-expansion-arg2="lead"') + expansionButton("hidden_path_clue", "Đối Chiếu", entry.id, 'data-expansion-arg2="crosscheck"') + expansionButton("hidden_path_clue", "Giải Mật · Mở Đường", entry.id, 'data-expansion-arg2="unlock"') : "";
+      return '<div class="item-row"><b>' + escapeHtml(entry.name || entry.id) + '</b><small> · Con Đường Ẩn · Manh mối ' + clues + '/3 · ' + (unlocked ? "Đã mở" : "Chưa giải xong") + '</small><div class="item-actions">' + actions + '</div></div>';
+    }).join("");
+    const extra = pathRows ? '<div class="section-title">Con Đường Ẩn · Cổ Tịch</div><div class="detail-block">' + pathRows + '</div>' : "";
+    return renderOdditiesBase(state) + extra + '<span class="sr-only" aria-hidden="true">Dị Thể</span>';
   };
   function renderCompanionPanel(state) {
     const companion = state.companion;
@@ -1346,6 +1369,11 @@ window.GameUI = (function () {
       const evolutionControls = evolution?.status === "ready" ? choices.map((choice) => expansionButton("technique_evolve", choice.name, technique.id, 'data-expansion-arg2="' + escapeHtml(choice.id) + '"')).join("") : choices.length ? '<small>Tiến hóa: ' + escapeHtml(window.GameI18n?.formatStatus(evolution?.status || "locked") || "Chưa mở") + (evolution?.status === "trial" ? ' · tiến độ ' + Number(evolution.progress || 0) : '') + '</small>' : "";
       return '<article class="technique-card category-' + escapeHtml(technique.category) + '" title="' + escapeHtml(visible.baseEffect || technique.name) + '"><div class="technique-head"><b>' + escapeHtml(technique.name) + '</b><small>' + escapeHtml(window.GameI18n?.element(technique.element) || technique.element) + (technique.isCore ? ' · Cốt Lõi' : '') + '</small></div><p>' + escapeHtml(visible.baseEffect || "Chưa rõ hiệu quả.") + '</p>' + (runtimePreview.success ? '<small>Uy lực dự kiến ×' + Number(runtimePreview.powerMultiplier || 1).toFixed(2) + (runtimePreview.combatPreview ? ' · Sát thương ' + Number(runtimePreview.combatPreview.damageMin) + '–' + Number(runtimePreview.combatPreview.damageMax) : '') + '</small>' : '') + '<div class="stat-tags">' + renderEffects({ manaCost: visible.manaCost || 0, staminaCost: visible.staminaCost || 0, sanCost: visible.sanCost || 0, lifespanCost: visible.lifespanCost || 0, corruptionCost: visible.corruptionCost || 0, allStatMult: visible.allStatMultiplier || 0 }) + '</div><div class="mastery"><div>' + helpLabel(progress.stageName, "Tầng thông thạo hiện tại; tăng bằng vận dụng đúng hoàn cảnh và Ngộ tính.") + '<b>' + helpLabel("Thông Thạo", "EXP riêng của Công pháp, không phải Tu vi cảnh giới.") + ' ' + progress.masteryExp + (progress.nextThreshold == null ? ' · Tối đa' : '/' + progress.nextThreshold) + '</b></div><div class="mastery-bar"><span style="width:' + pct + '%"></span></div><small>' + escapeHtml(progress.nextStageName ? ('Còn ' + progress.remaining + ' EXP tới ' + progress.nextStageName + '. ' + progress.guide) : 'Đã đạt Đại Viên Mãn.') + '</small></div><div class="item-actions">' + evolutionControls + '</div></article>';
     };
+    const independentOptions = state.player.journeyIntent === "tu_lap" ? Object.values(window.GameEngine.techniqueCatalog?.() || {}).filter((technique) => technique.sourceType === "independent" && !state.player.techniques?.[technique.id]).map((technique) => {
+      const acquisition = technique.acquisition?.[0];
+      if (!acquisition) return "";
+      return '<div class="item-row"><b>' + escapeHtml(technique.name) + '</b><small> · Công Pháp Tự Lập · ' + escapeHtml(technique.ui?.sourceLabel || "Nguồn độc lập") + '</small><div class="item-actions">' + expansionButton("technique_acquire", "Lĩnh Ngộ", technique.id, 'data-expansion-arg2="' + escapeHtml(acquisition.id) + '"') + '</div></div>';
+    }).join("") : "";
     const order = ["tam_phap", "chieu_thuc", "than_phap", "phu_tro", "tran_phap", "cam_thuat", "dan_phu_phap"];
     const allCategories = order.concat([...new Set(techniques.map((technique) => technique.category))].filter((category) => !order.includes(category)));
     const groups = preparedTechniques + allCategories.map((category) => {
@@ -1354,9 +1382,10 @@ window.GameUI = (function () {
       const meta = categories[category] || { label: window.GameI18n?.category(category) || "Dị Pháp", desc: "Truyền thừa đặc biệt, tuân theo quy tắc Thông Thạo riêng của engine." };
       return '<section class="technique-category group-' + category + '"><header><h3>' + meta.label + '</h3><p>' + meta.desc + '</p></header><div class="technique-grid">' + items.map(cardFor).join("") + '</div></section>';
     }).join("");
+    const independentSection = independentOptions ? '<section class="technique-category group-independent"><header><h3>Công Pháp Tự Lập</h3><p>Các nguồn lĩnh ngộ ngoài Tông Môn.</p></header><div class="detail-block">' + independentOptions + '</div></section>' : "";
     return '<img class="modal-illustration" src="assets/ui/technique-illustration.webp" alt="Bí điển Công Pháp">' +
       '<div class="detail-block"><h4>Cách tăng cấp Công Pháp</h4><p>Mỗi lượt tu luyện đồng thời nhận Tu vi và Thông Thạo. Tâm Pháp nhận nhiều nhất, Công pháp chiến đấu nhận ít hơn; trong giao chiến chỉ Công pháp chiến đấu thực sự được thi triển mới tăng thêm. Các mốc: ' + escapeHtml(stages.join(" → ")) + '.</p></div>' +
-      (groups || '<p class="empty-state">Chưa lĩnh ngộ Công Pháp nào.</p>');
+      independentSection + (groups || '<p class="empty-state">Chưa lĩnh ngộ Công Pháp nào.</p>');
   }
 
   function renderRewardSummary(summaries) {
@@ -1568,7 +1597,7 @@ window.GameUI = (function () {
   return {
     showScreen, addStory, renderStoryWindow, clearStory, renderChoices, clearChoices, actionPresentation, renderActions, renderOriginChoice,
     setLocation, setSaveIndicator, renderPanel, setMapView, adjustMapCamera, panMapCamera, setActiveTab,
-    renderFateDetail, renderFateSlotChooser, renderFateReplacementChooser, renderFateUpgradeChooser, renderPendingFateChooser, renderRitualModal, renderRewardSummary, renderTechniqueDetail, renderRealmDetail, renderMapDetail, renderMapFactionDetail, renderMarket, renderBlackMarket, renderQintian, renderInventoryModal, renderExpansion, renderWorld, renderStructures, renderStructureOwnershipPolicy, renderOddities, renderDiThe, renderProfessionSection, renderTechniqueEvolutionSection, renderFateEvolutionModal, renderGuildProjectModal, renderContestedOpportunityModal, renderMapEventModal, renderPendingDiscoveryModal, renderGuildTeaching, renderCompanionPanel, renderCombatReadout, renderCauldron,
+    renderFateDetail, renderFateSlotChooser, renderFateReplacementChooser, renderFateUpgradeChooser, renderPendingFateChooser, renderRitualModal, renderRewardSummary, renderTechniqueDetail, renderRealmDetail, renderMapDetail, renderMapFactionDetail, renderMarket, renderBlackMarket, renderQintian, renderInventoryModal, renderExpansion, renderWorld, renderStructures, renderStructureOwnershipPolicy, renderOddities, renderDiThe, renderProfessionSection, renderTechniqueEvolutionSection, renderFateEvolutionModal, renderGuildProjectModal, renderContestedOpportunityModal, renderMapEventModal, renderPendingDiscoveryModal, renderGuildTeaching, renderCompanionPanel, renderCombatReadout, renderCauldron, renderNpcDialogue,
     openOverlay, closeOverlay, bindOverlay, escapeHtml, openEquipmentPicker
   };
 })();

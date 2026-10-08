@@ -107,7 +107,7 @@ window.GameEngine = (function () {
   };
   const ORIGIN_SITUATIONS = {
     trung_vuc: [
-      { id: "tan_tu_luu_lac", title: "Tán Tu Lưu Lạc", startLocationId: "van_phong", questSeed: "thu_linh_thao" },
+      { id: "tan_tu_luu_lac", title: "Tán Tu Lưu Lạc", startLocationId: "truyen_phap", questSeed: "thu_linh_thao" },
       { id: "the_gia_suy_tan", title: "Thế Gia Suy Tàn", startLocationId: "truyen_phap", questSeed: "co_tich" },
       { id: "ke_song_sot", title: "Kẻ Sống Sót Tai Biến", startLocationId: "cam_dia", questSeed: "bi_mat_cam_dia" }
     ],
@@ -1563,6 +1563,13 @@ window.GameEngine = (function () {
       technique.risk = { corruptionProfile: technique.corruptionProfile || null, hiddenAttributes: Array.isArray(technique.hiddenAttributes) ? technique.hiddenAttributes.slice() : [] };
       technique.mastery = { stage: Number(technique.mastery?.stage || 0), exp: Number(technique.mastery?.exp || 0), usageCount: Number(technique.mastery?.usageCount || 0) };
       technique.evolutionPaths = Array.isArray(technique.evolutionPaths) ? technique.evolutionPaths : [];
+      technique.schemaVersion = Math.max(1, Number(technique.schemaVersion || 1));
+      technique.sourceType = technique.sourceType || (technique.sourceGuildId ? "guild" : Array.isArray(technique.pathAffinity) && technique.pathAffinity.length ? "path" : "universal");
+      technique.role = technique.role || (technique.category === "tam_phap" ? "core_cultivation" : "active");
+      technique.accessPolicy = { allowedJourneyIntents: [], allowedPathIds: [], requiredGuildId: technique.sourceGuildId || null, requiredProfessionIds: [], requiredHiddenIds: [], requiredCodexProgress: 0, ...(technique.accessPolicy || {}) };
+      technique.acquisition = Array.isArray(technique.acquisition) ? technique.acquisition.slice() : [];
+      technique.progression = { masteryCap: 5, breakthroughRole: technique.isCore ? "core" : "none", ...(technique.progression || {}) };
+      technique.ui = { categoryLabel: technique.category, sourceLabel: technique.sourceType, ...(technique.ui || {}) };
     });
     return catalog;
   }
@@ -1585,6 +1592,10 @@ window.GameEngine = (function () {
       if (!Number.isInteger(Number(technique.minRealmLevel || 1)) || Number(technique.minRealmLevel || 1) < 1) errors.push("technique:" + id + ":realm");
       if (!Array.isArray(technique.evolutionPaths)) errors.push("technique:" + id + ":evolution");
       if (technique.pathAffinity != null && (!Array.isArray(technique.pathAffinity) || technique.pathAffinity.some((pathId) => !validPathIds.has(pathId)))) errors.push("technique:" + id + ":path-affinity");
+      const sourceTypes = ["universal", "path", "guild", "independent", "profession", "hidden_profession", "hidden_path", "fate", "discovery", "legacy"];
+      if (!sourceTypes.includes(technique.sourceType)) errors.push("technique:" + id + ":source-type");
+      if (!technique.accessPolicy || !Array.isArray(technique.accessPolicy.allowedJourneyIntents) || !Array.isArray(technique.accessPolicy.allowedPathIds)) errors.push("technique:" + id + ":access-policy");
+      if (!Array.isArray(technique.acquisition) || !Array.isArray(technique.evolutionPaths)) errors.push("technique:" + id + ":acquisition");
     });
     const resonancePolicy = window.CONG_PHAP_DATA?.resonancePolicy || { perMatchingFatePct: 1, totalCapPct: 5 };
     if (!Number.isFinite(Number(resonancePolicy.perMatchingFatePct)) || Number(resonancePolicy.perMatchingFatePct) <= 0 || !Number.isFinite(Number(resonancePolicy.totalCapPct)) || Number(resonancePolicy.totalCapPct) < Number(resonancePolicy.perMatchingFatePct) || Number(resonancePolicy.totalCapPct) > 5) errors.push("technique:resonance-policy");
@@ -1592,7 +1603,7 @@ window.GameEngine = (function () {
   }
   function initialTechniqueProgress(technique) {
     const mastery = technique?.mastery || {};
-    return { masteryStage: Number(mastery.stage || 0), masteryExp: Number(mastery.exp || 0), usageCount: Number(mastery.usageCount || 0) };
+    return { masteryStage: Number(mastery.stage || 0), masteryExp: Number(mastery.exp || 0), usageCount: Number(mastery.usageCount || 0), learnedAtTurn: null, sourceType: technique?.sourceType || "legacy", acquisitionReceiptId: null, sourceContext: {}, combatState: { prepared: false, cooldownRemaining: 0, channelProgress: 0, lastResolvedActionId: null } };
   }
   function normalizeTechniqueProgress(progress = {}) {
     const value = progress && typeof progress === "object" ? progress : {};
@@ -1626,7 +1637,12 @@ window.GameEngine = (function () {
     if (Number(technique.minRealmLevel || 1) > cultivationTier(state)) return false;
     state.player.techniques = state.player.techniques || {};
     if (state.player.techniques[id]) return false;
-    state.player.techniques[id] = initialTechniqueProgress(technique);
+    const progress = initialTechniqueProgress(technique);
+    progress.learnedAtTurn = Number(state.meta?.turn || 0);
+    progress.sourceType = technique.sourceType || "legacy";
+    progress.acquisitionReceiptId = "technique-learn:" + id + ":turn:" + Number(state.meta?.turn || 0);
+    progress.sourceContext = { intentId: state.player.journeyIntent || null, pathId: state.player.pathId || null, guildId: state.guildMembership?.guildId || technique.sourceGuildId || null };
+    state.player.techniques[id] = progress;
     markForbiddenKnowledge(state, technique);
     pushHistory(state, { type: "sys", text: "§ Đã lĩnh ngộ Công pháp: " + technique.name + "." });
     return true;
@@ -2422,9 +2438,9 @@ window.GameEngine = (function () {
     return { score: clamp(lead * 3 + support - forbidden * 2, 0, 10), lead, support, forbidden, daoBonus, allHung: known > 0 && known === hung };
   }
   const PATH_LABELS = {
-    kiem_dao: "Kiếm Đạo", dan_dao: "Đan Đạo", phu_dao: "Phù Đạo", phong_thuy_dao: "Phong Thủy Đạo",
-    ngu_thu_dao: "Ngự Thú Đạo", khoi_loi_dao: "Khôi Lỗi Đạo", am_luat_dao: "Âm Luật Đạo",
-    mong_canh_dao: "Mộng Cảnh Đạo", luyen_the_dao: "Luyện Thể Đạo", tinh_tuong_dao: "Tinh Tượng Đạo",
+    kiem_dao: "Kiếm Chủ", dan_dao: "Thôn Linh", phu_dao: "Thiên Cơ", phong_thuy_dao: "Phong Thủy",
+    ngu_thu_dao: "Ngự Thú", khoi_loi_dao: "Khôi Lỗi", am_luat_dao: "Tà Âm",
+    mong_canh_dao: "Mộng Cảnh", luyen_the_dao: "Luyện Thể", tinh_tuong_dao: "Tinh Tượng",
     ngoai_dao_gia: "Kẻ Vô Lộ — Ngoại Đạo Giả"
   };
   function getPathDisplayName(pathId) {
@@ -2779,6 +2795,14 @@ window.GameEngine = (function () {
     state.flags.originChoicePending = false;
     state.flags.originLocked = true;
     state.flags.originSituation = { openingPlan, title: openingPlan.title, startLocationId: state.locationId, questSeed: null };
+    if (openingPlan.intentId === "tu_lap") {
+      const starter = "tu_lap_tam_phap";
+      if (!state.player.techniques?.[starter] && techniqueCatalog()[starter]) {
+        if (learnTechnique(state, starter)) {
+          state.player.techniques[starter].acquisitionReceiptId = "technique-learn:" + starter + ":independent_opening";
+        }
+      }
+    }
     const intentLabel = JOURNEY_INTENT_LABELS?.[openingPlan.intentId] || openingPlan.title || openingPlan.intentId;
     pushMemory(state, "Ý định hành đạo: " + intentLabel + ".");
     pushHistory(state, { type: "narr", text: openingPlan.text });
@@ -3044,6 +3068,10 @@ window.GameEngine = (function () {
     }
     if (state.guildMembership) {
       pushHistory(state, { type: "warn", text: "× Ngươi phải rời tổ chức hiện tại trước." });
+      return false;
+    }
+    if (state.player.journeyIntent === "tu_lap") {
+      pushHistory(state, { type: "warn", text: "× Ý Định Tự Lập không cho phép gia nhập Tông Môn." });
       return false;
     }
     const normalized = String(query || "").trim().toLowerCase();

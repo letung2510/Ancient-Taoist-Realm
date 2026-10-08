@@ -607,8 +607,10 @@
              else overlayContent.innerHTML = UI.renderMapEventModal(state);
            } else if (command.startsWith("guild_")) {
             overlayContent.innerHTML = UI.renderGuildProjectModal(state);
-          } else if (command === "technique_prepare" || command === "technique_channel" || command === "technique_cancel") {
+          } else if (command === "technique_prepare" || command === "technique_channel" || command === "technique_cancel" || command === "technique_acquire") {
             overlayContent.innerHTML = UI.renderTechniqueDetail(state);
+          } else if (command === "npc_dialogue" && UI.renderNpcDialogue) {
+            overlayContent.innerHTML = UI.renderNpcDialogue(state, arg);
           }
         }
         return;
@@ -952,6 +954,7 @@
       if (INFO_TAB_ACTIONS[action.id]) {
         if (action.id === "act_hanh_trang") { showInventoryOverlay(); return; }
         UI.setActiveTab(INFO_TAB_ACTIONS[action.id]);
+        UI.renderPanel(state);
         return;
       }
       if (action.id === "act_menh") {
@@ -989,6 +992,17 @@
         return;
       }
       let actionOptions = departure;
+      if (action.id.startsWith("act_exp_npc_talk_") || action.id.startsWith("act_talk_")) {
+        enqueueAction(() => {
+          const result = submitUiAction(action.id, actionOptions);
+          renderAfterTurn();
+          const npcId = action.id.replace(/^act_(?:exp_npc_talk_|talk_)/, "");
+          if ((result?.success || state.dialogueState?.npcId === npcId) && UI.renderNpcDialogue) {
+            UI.openOverlay("Đối thoại", UI.renderNpcDialogue(state, npcId));
+          }
+        });
+        return;
+      }
       enqueueAction(() => {
         submitUiAction(action.id, actionOptions);
         renderAfterTurn();
