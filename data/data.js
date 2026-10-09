@@ -177,7 +177,28 @@ window.GameData = (function () {
       desc: "Một bến đá nằm ngoài sơn môn, nơi tán tu và lữ khách bắt đầu hành trình trước khi quyết định bước vào các tông môn.",
       exits: { nam: "son_mon", tay: "truyen_phap" },
       npcs: [],
-      searchable: ["linh_thach", "thong_mach_dan"]
+      searchable: []
+    },
+    tan_thu_thon_trung_vuc: {
+      id: "tan_thu_thon_trung_vuc", name: "Tân Thủ Thôn", corruption: 0,
+      seasonalTags: ["spring_trade", "safe_hub"],
+      desc: "Một thôn nhỏ cách xa sơn môn và các địa chỉ tông phái. Người dân đổi lương thực, tin tức và công việc lấy linh thạch.",
+      exits: { dong: "phuong_thi_lac_van", nam: "trung_vuc_khoi_diem" },
+      npcs: [], searchable: ["linh_thach", "linh_thao"]
+    },
+    phuong_thi_lac_van: {
+      id: "phuong_thi_lac_van", name: "Phường Thị Lạc Vân", corruption: 0,
+      seasonalTags: ["spring_trade", "summer_market", "trade_hub"],
+      desc: "Phường thị đông đúc nằm giữa các tuyến dân cư, không thuộc quyền quản lý của bất kỳ tông môn nào.",
+      exits: { tay: "tan_thu_thon_trung_vuc", dong: "bach_thuy_tran" },
+      npcs: [], searchable: ["linh_thach", "thong_mach_dan", "co_tich_tan_trang"]
+    },
+    bach_thuy_tran: {
+      id: "bach_thuy_tran", name: "Bạch Thủy Trấn", corruption: 0,
+      seasonalTags: ["summer_market", "autumn_harvest", "trade_hub"],
+      desc: "Thành trấn ven sông do các hộ dân và thương hội cùng cai quản; khách tu hành chỉ là người qua đường.",
+      exits: { tay: "phuong_thi_lac_van", nam: "tay_mac_khoi_diem" },
+      npcs: [], searchable: ["linh_thach", "linh_thao", "thong_mach_dan"]
     },
     son_mon: {
       id: "son_mon", name: "Sơn Môn Thiên Huyền Tông", corruption: 1,
@@ -192,7 +213,7 @@ window.GameData = (function () {
       desc: "Đại điện uy nghiêm, khói hương lãng đãng. Trên điện, chưởng môn Ngọc Hư Tử thường ngồi tĩnh tọa.",
       exits: { nam: "son_mon", bac: "cam_dia" },
       npcs: ["su_phu", "dien_chu"],
-      searchable: []
+      searchable: ["linh_thach", "thong_mach_dan"]
     },
     truyen_phap: {
       id: "truyen_phap", name: "Truyền Pháp Các", corruption: 1,
@@ -272,6 +293,36 @@ window.GameData = (function () {
       seasonalTags: ["omen_site"],
       desc: "Biên ải sát khe nứt minh giới, tử khí cuộn thành sương và tà niệm rình rập mọi sinh linh.",
       exits: { dong: "abyss" }, npcs: [], enemies: ["di_qui"], searchable: ["co_tich_tan_trang"]
+    },
+    dong_hoang_bien_tran: {
+      id: "dong_hoang_bien_tran", name: "Thanh Mộc Biên Trấn", corruption: 1,
+      seasonalTags: ["autumn_harvest", "trade_hub"],
+      desc: "Một trấn gỗ nằm ngoài đường săn, nơi người dân đổi da thú và thảo dược lấy lương thực.",
+      exits: { tay: "hac_lam" }, npcs: [], searchable: ["linh_thach", "linh_thao"]
+    },
+    nam_chuong_duoc_tran: {
+      id: "nam_chuong_duoc_tran", name: "Dược Khê Trấn", corruption: 1,
+      seasonalTags: ["spring_trade", "autumn_harvest", "trade_hub"],
+      desc: "Thị trấn ven khe chuyên thu mua linh thảo từ dân cư, không chịu sự quản lý trực tiếp của tông môn.",
+      exits: { bac: "linh_dien" }, npcs: [], searchable: ["linh_thao", "linh_thach", "boi_nguyen_dan"]
+    },
+    bac_nguyen_tan_tran: {
+      id: "bac_nguyen_tan_tran", name: "Tuyết Tùng Trấn", corruption: 1,
+      seasonalTags: ["winter_market", "winter_supply"],
+      desc: "Thành trấn dựng bên rừng tuyết, nơi các đoàn xe dân sự nghỉ lại trước khi vượt thảo nguyên.",
+      exits: { nam: "bac_nguyen_khoi_diem" }, npcs: [], searchable: ["tu_khi_dan", "hoan_huyet_dan"]
+    },
+    thien_khong_dan_cu: {
+      id: "thien_khong_dan_cu", name: "Vân Bạc Bến", corruption: 2,
+      seasonalTags: ["trade_hub", "event_gathering"],
+      desc: "Bến neo của người vận chuyển trên tầng mây, cách xa các đạo thống và trận địa tranh chấp.",
+      exits: { bac: "thien_khong_khoi_diem" }, npcs: [], searchable: ["tu_khi_dan", "linh_thach"]
+    },
+    u_minh_bien_cu: {
+      id: "u_minh_bien_cu", name: "Minh Hà Trấn", corruption: 4,
+      seasonalTags: ["omen_site", "trade_hub"],
+      desc: "Biên trấn của những người sống sót, dựng sau các lớp tường đá để tránh khe nứt tử khí.",
+      exits: { tay: "u_minh_khoi_diem" }, npcs: [], enemies: ["di_qui"], searchable: ["co_tich_tan_trang"]
     }
   };
 
@@ -290,6 +341,14 @@ window.GameData = (function () {
     guilds: GUILDS,
     locations: {
       trung_vuc_khoi_diem: { x: 48, y: 68, region: "trung_vuc" },
+      tan_thu_thon_trung_vuc: { x: 12, y: 56, region: "trung_vuc" },
+      phuong_thi_lac_van: { x: 20, y: 56, region: "trung_vuc" },
+      bach_thuy_tran: { x: 30, y: 56, region: "trung_vuc" },
+      dong_hoang_bien_tran: { x: 86, y: 60, region: "dong_hoang" },
+      nam_chuong_duoc_tran: { x: 68, y: 88, region: "nam_chuong" },
+      bac_nguyen_tan_tran: { x: 58, y: 10, region: "bac_nguyen" },
+      thien_khong_dan_cu: { x: 86, y: 10, region: "thien_khong_vuc" },
+      u_minh_bien_cu: { x: 24, y: 88, region: "u_minh_gioi" },
       son_mon: { x: 48, y: 78, region: "trung_vuc" },
       truyen_phap: { x: 35, y: 78, region: "trung_vuc" },
       linh_dien: { x: 77, y: 78, region: "nam_chuong" },
