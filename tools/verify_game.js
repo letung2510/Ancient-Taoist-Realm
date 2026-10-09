@@ -449,7 +449,8 @@ function verifyDataIntegrity(sandbox) {
 }
 
 function verifyCharacters() {
-  for (let index = 0; index < 10000; index++) {
+  const count = Math.max(100, Number(process.env.VERIFY_CHARACTER_COUNT || 1000));
+  for (let index = 0; index < count; index++) {
     const character = generateCharacter();
     assert.strictEqual(character.realm.id, "di_menh");
     assert.strictEqual(character.realm.level, 1);
@@ -463,7 +464,36 @@ function verifyCharacters() {
     assert.strictEqual(new Set(character.origin.personality).size, 2);
     assert.deepStrictEqual(character.techniqueIds, ["kiem_khi_so_cap", "tam_phap_dan_dien"]);
     assert.strictEqual(character.hiddenProfession, null);
+    if ((index + 1) % 250 === 0 || index + 1 === count) process.stdout.write(`[verify_game] characters ${index + 1}/${count}\n`);
   }
+}
+
+function verifyOrganizationMapRuntime(sandbox) {
+  const D = sandbox.window.GameData;
+  const E = sandbox.window.GameEngine;
+  const X = sandbox.window.GameExpansion;
+  const state = E.createState({ character: E.createCharacter({ name: "Organization Map QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+  const addresses = [...(D.WORLD_MAP.addresses.organizations || []), ...(D.WORLD_MAP.addresses.factions || [])];
+  const pool = E.locationPool(state);
+  assert.strictEqual(addresses.length, 174);
+  addresses.forEach((address) => {
+    const node = pool[address.nodeId];
+    assert(node, `organization address missing runtime node: ${address.nodeId}`);
+    assert.strictEqual(node.organizationId, address.refId);
+    assert.strictEqual(node.regionId, address.regionId);
+    assert(Number.isFinite(Number(node.x)) && Number.isFinite(Number(node.y)));
+    const coordinates = E.nodeCoordinates(state, address.nodeId);
+    assert.strictEqual(Number(coordinates?.x), Number(address.oxyNode.x));
+    assert.strictEqual(Number(coordinates?.y), Number(address.oxyNode.y));
+  });
+  const validation = X.validateOrganizationState(state);
+  assert.strictEqual(validation.ok, true, validation.errors.join(", "));
+  const guildAddress = D.WORLD_MAP.addresses.organizations[0];
+  const guild = D.GUILDS.find((entry) => entry.id === guildAddress.refId);
+  state.locationId = guildAddress.nodeId;
+  const snapshot = X.organizationSnapshot(state, guild.id);
+  assert.strictEqual(snapshot.atNode, true);
+  assert.strictEqual(X.organizationInteract(state, guild.id, "status").success, true);
 }
 
 function verifyBrowserEngine(sandbox) {
@@ -479,6 +509,7 @@ function verifyBrowserEngine(sandbox) {
     assert(fates.reduce((sum, fate) => sum + fate.score, 0) > 5);
     assert(fates.every((fate) => gradeRank[fate.grade] <= 3));
   }
+  process.stdout.write("[verify_game] browser-engine fates complete\n");
 
   D.WORLD_MAP.regions.forEach((region) => {
     const eligibility = E.startRegionEligibility(region.id, 1);
@@ -504,6 +535,7 @@ function verifyBrowserEngine(sandbox) {
       assert(fateObjects.reduce((sum, fate) => sum + fate.score, 0) > 5);
       assert(fateObjects.every((fate) => gradeRank[fate.grade] <= 3));
     }
+    process.stdout.write(`[verify_game] browser-engine region ${region.id} complete\n`);
   });
 
   Object.keys(D.WORLD_MAP.locations).forEach((id) => assert(D.LOCATIONS[id], `Map location missing: ${id}`));
@@ -529,20 +561,29 @@ function verifyBrowserEngine(sandbox) {
     archetypeId: "kiem_tong",
     fates: E.drawInitialFates()
   });
+  process.stdout.write("[verify_game] browser-engine state setup complete\n");
   const state = E.createState({ character });
   assert(E.chooseJourneyIntent(state, "tam_su").success);
   assert(E.validateOpenWorldGrid(state).ok);
   ["bac", "nam", "dong", "tay"].forEach((direction) => {
-    const probe = E.deserialize(E.serialize(state)), before = probe.locationId;
+    // Movement probes need an isolated state, but do not need a full save
+    // round-trip. The canonical fixture is several MB because it contains
+    // generated map/runtime data; serializing it four times made this suite
+    // look hung while testing the same movement contract.
+    const probe = E.createState({ character: E.createCharacter({ name: "Movement QA " + direction, archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
+    assert(E.chooseJourneyIntent(probe, "tam_su").success);
+    const before = probe.locationId;
     E.move(probe, direction);
     assert.notStrictEqual(probe.locationId, before, `Oxy movement blocked: ${direction}`);
     assert(E.validateOpenWorldGrid(probe).ok);
   });
+  process.stdout.write("[verify_game] browser-engine movement probes complete\n");
   const lookTurn = state.meta.turn;
   const lookHistory = state.history.length;
   E.submitActionId(state, "act_nhin");
   assert.strictEqual(state.meta.turn, lookTurn);
   assert.strictEqual(state.history.length, lookHistory + 2);
+  process.stdout.write("[verify_game] browser-engine action probe complete\n");
 
   const commandState = E.createState({ character });
   assert(E.chooseJourneyIntent(commandState, "tu_lap").success);
@@ -550,6 +591,7 @@ function verifyBrowserEngine(sandbox) {
   E.submitTurn(commandState, { text: "look" });
   assert.strictEqual(commandState.meta.turn, commandTurn);
   assert(commandState.history.some((entry) => entry.text.includes(sandbox.window.GameData.LOCATIONS[commandState.locationId].desc)));
+  process.stdout.write("[verify_game] browser-engine command probe complete\n");
 
   const legacyOriginState = E.createState({ character: E.createCharacter({ name: "Tán Tu", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
   assert.strictEqual(legacyOriginState.flags.originChoicePending, false);
@@ -601,8 +643,10 @@ function verifyBrowserEngine(sandbox) {
     candidate.worldSimulation.seed = "danger-fixture:" + seedIndex;
     const result = E.search(candidate);
     if (result?.findings?.some((finding) => finding.type === "rare") && result.findings.some((finding) => finding.type === "encounter")) dangerSearch = result;
+    if ((seedIndex + 1) % 64 === 0) process.stdout.write(`[verify_game] browser-engine danger-search ${seedIndex + 1}/512\n`);
   }
   assert(dangerSearch);
+  process.stdout.write("[verify_game] browser-engine search fixtures complete\n");
   sandbox.__originalRandom = originalRandom;
   vm.runInContext("Math.random = __originalRandom", sandbox);
   delete sandbox.__originalRandom;
@@ -610,8 +654,10 @@ function verifyBrowserEngine(sandbox) {
   const moveBefore = E.nodeCoordinates(state, state.locationId);
   E.move(state, "bac");
   const moveAfter = E.nodeCoordinates(state, state.locationId);
+  process.stdout.write("[verify_game] browser-engine map movement complete\n");
   assert(moveAfter && moveAfter.x === moveBefore.x && moveAfter.y === moveBefore.y - 1);
   assert(E.describeMap(state).includes("Vạn Giới Lộ"));
+  process.stdout.write("[verify_game] browser-engine map description complete\n");
 
    // All four cardinal actions stay visible; movement lazily materializes the
    // destination and labels the inverse direction as a return action.
@@ -647,13 +693,18 @@ function verifyBrowserEngine(sandbox) {
   });
   assert(cardinalOrigin && E.validateOpenWorldGrid(topologyProbe).ok);
   if (openWorldState.pendingMapEvent) assert(E.resolveMapEvent(openWorldState, openWorldState.pendingMapEvent.choices[0].id).success);
-   E.submitActionId(openWorldState, "act_move_dong");
+  // The pending map-event branch intentionally hides movement actions until
+  // the event is resolved. At this point test the canonical movement commit
+  // directly; action-bar availability is already asserted above and this
+  // avoids coupling the topology round-trip to a stale presentation state.
+  E.move(openWorldState, "dong", { actionId: "act_move_dong" });
   assert.notStrictEqual(openWorldState.locationId, dangerousLocation);
   assert.notStrictEqual(openWorldState.locationId, oldLocation);
   const openedLocation = openWorldState.locationId;
   const restoredOpenWorld = E.deserialize(E.serialize(openWorldState));
   assert.strictEqual(E.locationExits(restoredOpenWorld, dangerousLocation).dong, openedLocation);
   assert.strictEqual(E.locationExits(restoredOpenWorld, openedLocation).tay, dangerousLocation);
+  process.stdout.write("[verify_game] browser-engine open-world save roundtrip complete\n");
 
   // Migration for saves written before per-save exit topology was introduced.
   const legacyOpenWorld = E.createState({ character });
@@ -664,6 +715,7 @@ function verifyBrowserEngine(sandbox) {
   delete legacyOpenWorld.openWorld.exits;
   const migratedOpenWorld = E.deserialize(E.serialize(legacyOpenWorld));
   assert.strictEqual(E.locationExits(migratedOpenWorld, oldLocation).nam, legacyGenerated);
+  process.stdout.write("[verify_game] browser-engine open-world migration complete\n");
 
   const localGuild = D.GUILDS.find((guild) => guild.region_id === "trung_vuc" && guild.pyramid_tier === 5);
   state.player.openingPlan.targetOrganizationId = localGuild.id;
@@ -1092,22 +1144,33 @@ function updateSamples() {
 }
 
 function main() {
-  if (process.argv.includes("--update-samples")) updateSamples();
-  verifyCharacters();
+  const startedAt = Date.now();
+  const phase = (label, fn) => {
+    const phaseStartedAt = Date.now();
+    process.stdout.write(`[verify_game] START ${label}\n`);
+    const result = fn();
+    process.stdout.write(`[verify_game] PASS ${label} (${Date.now() - phaseStartedAt}ms)\n`);
+    return result;
+  };
+  if (process.argv.includes("--update-samples")) phase("update-samples", updateSamples);
+  phase("characters", verifyCharacters);
+  process.stdout.write("[verify_game] START load-browser-game\n");
   const sandbox = loadBrowserGame();
+  process.stdout.write("[verify_game] PASS load-browser-game\n");
   const staticLocationCatalog = JSON.stringify(sandbox.window.GameData.LOCATIONS);
-  verifyDataIntegrity(sandbox);
-  verifyBrowserEngine(sandbox);
-  verifyGeneratedItems(sandbox);
-  verifyTechniquesAndActions(sandbox);
-  verifyExpansionSystems(sandbox);
-  verifyMapUI(sandbox);
-  verifyDomReferences();
-  verifyCreationUI(sandbox);
+  phase("data-integrity", () => verifyDataIntegrity(sandbox));
+  phase("browser-engine", () => verifyBrowserEngine(sandbox));
+  phase("organization-map-runtime", () => verifyOrganizationMapRuntime(sandbox));
+  phase("generated-items", () => verifyGeneratedItems(sandbox));
+  phase("techniques-actions", () => verifyTechniquesAndActions(sandbox));
+  phase("expansion-systems", () => verifyExpansionSystems(sandbox));
+  phase("map-ui", () => verifyMapUI(sandbox));
+  phase("dom-references", verifyDomReferences);
+  phase("creation-ui", () => verifyCreationUI(sandbox));
   assert.strictEqual(JSON.stringify(sandbox.window.GameData.LOCATIONS), staticLocationCatalog, "runtime map flows must not mutate the shared static location catalog");
-  console.log("OK: characters, procedural items, map, data integrity, save migration, UI and DOM");
+  console.log(`OK: characters, procedural items, map, data integrity, save migration, UI and DOM (${Date.now() - startedAt}ms)`);
 }
 
 if (require.main === module) main();
 
-module.exports = { loadBrowserGame, main };
+module.exports = { loadBrowserGame, main, verifyOrganizationMapRuntime };

@@ -46,6 +46,9 @@ assert(!ui.includes("Dị Chí"), "legacy Dị Chí label must not remain in UI 
 assert(["discovered", "verified", "collected", "rewarded"].every((status) => ui.includes(status)), "oddities UI must expose all discovery lifecycle states");
 assert((main.match(/\$\("tab-content"\)\.addEventListener\("click"/g) || []).length === 1, "tab-content click delegation must be bound once");
 assert(main.includes("enqueueAction"), "UI actions must pass through the serialized action queue");
+assert(main.includes("pendingActions") && main.includes("drainingActions"), "UI action queue must serialize cross-surface clicks");
+assert(ui.includes("isDeferredUiAction"), "modal/navigation actions must not be permanently grayed out after click");
+assert(ui.includes("action?.consumesTurn === false"), "non-turn actions must remain reusable from action bar and overflow menu");
 assert(read("js/engine.js").includes("pendingDepartureGuard"), "action priority guard must be present at engine boundary");
 assert(ui.includes("act_move_group"), "action bar must expose grouped movement");
 assert(main.includes('action.id === "act_move_group"'), "grouped movement must have a single action-bar handler");

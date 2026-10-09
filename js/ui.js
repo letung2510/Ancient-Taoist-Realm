@@ -191,12 +191,18 @@ window.GameUI = (function () {
     if (!box || !window.GameEngine.contextState) return;
     box.innerHTML = "";
     const presentation = actionPresentation(state);
+    const isDeferredUiAction = (action) => {
+      const id = String(action?.id || "");
+      return action?.consumesTurn === false || action?.requiresConfirmation || [
+        "act_move_group", "act_exp_map_event", "act_exp_opportunity", "act_dot_pha", "act_be_quan"
+      ].includes(id) || id.startsWith("act_skill_") || id.startsWith("act_ritual_");
+    };
     const makeButton = (action) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "action-chip action-category-" + action.category + (action.priority === 0 ? " danger" : "");
       btn.dataset.actionId = action.id;
-      btn.textContent = window.GameI18n?.formatHistory?.(action.label, state) || action.label;
+      btn.textContent = action.id === "act_move_group" ? "⌖ Lân cận" : (window.GameI18n?.formatHistory?.(action.label, state) || action.label);
       if (action.description) btn.title = action.description;
       if ((action.disabled_reason || action.disabledReason || action.disabled || action.enabled === false) && !action.open_only) {
         btn.disabled = true;
@@ -204,9 +210,11 @@ window.GameUI = (function () {
       }
       btn.addEventListener("click", () => {
         if (btn.disabled) return;
-        // Lock the clicked action before enqueueing it. A rapid double-click
-        // must not place the same turn-consuming action into the UI queue twice.
-        btn.disabled = true;
+        // Only lock actions that immediately commit a turn. Navigation and
+        // confirmation/modal actions must remain reusable after the overlay
+        // is closed; locking those here leaves the action bar grayed out
+        // when the user switches between the bar and the overflow menu.
+        if (!isDeferredUiAction(action)) btn.disabled = true;
         box.querySelectorAll("details.action-more").forEach((menu) => { menu.open = false; });
         onAction(action);
       });
@@ -1189,8 +1197,18 @@ window.GameUI = (function () {
     }).join("");
     unexploredNodes += directionNodes + fastTravelPanel;
     const region = map.regions.find((item) => item.id === current?.region);
+    const journeyDirections = Object.keys({ bac: 1, dong: 1, nam: 1, tay: 1 }).map((direction) => {
+      const preview = window.GameEngine.movementCandidatePreview?.(state, direction) || { success: false, reason: "Chưa có điểm đến." };
+      const label = { bac: "Bắc", nam: "Nam", dong: "Đông", tay: "Tây" }[direction] || direction;
+        const plan = preview.travelPlan;
+        const canAfford = !plan || Number(state.player?.stamina || 0) >= Number(plan.staminaCost || 0);
+        const disabled = preview.success && canAfford ? "" : " disabled";
+        const detail = preview.success ? (preview.a + " ô" + (preview.b ? " · lệch 1" : "") + " · " + (plan?.gameDays || "?") + " ngày · " + (plan?.staminaCost ?? "?") + " thể lực · commitment theo lượt" + (!canAfford ? " · thiếu thể lực" : "")) : (preview.reason || "Không có tuyến hợp lệ.");
+      return '<button type="button" class="local-direction-card ' + (preview.success ? "available" : "disabled") + '" data-map-dir="' + direction + '"' + disabled + '><span class="local-direction-arrow">' + ({ bac: "↑", nam: "↓", dong: "→", tay: "←" }[direction] || "·") + '</span><span><b>' + label + '</b><small>' + escapeHtml(detail) + '</small></span></button>';
+    }).join("");
+    const journeyPanel = '<section class="local-journey-panel" aria-label="Lựa chọn hành trình"><div class="local-journey-head"><div><span class="eyebrow">ĐƯỜNG ĐI TRƯỚC MẮT</span><h3>Chọn một hướng để xem vùng có thể tới</h3></div><span class="local-journey-status">Không tự di chuyển</span></div><p class="local-journey-copy">Mỗi lần khởi hành có thể tiến 1–3 ô và lệch nhẹ theo địa hình. Kết quả đã được neo theo lượt hiện tại trước khi trừ thời gian và thể lực.</p><div class="local-direction-grid">' + journeyDirections + '</div></section>';
     return '<div class="map-heading"><b>' + map.name + '</b><small>' + (region ? region.name + " — " + (region.desc || "Một vùng đất đang được ghi chép.") : "") + '</small></div>' +
-      '<div class="world-map constellation-map local-constellation" role="region" aria-label="Bản đồ tinh tú khu vực hiện tại"><div class="map-corner-label">LOCAL CONSTELLATION · ' + escapeHtml(current?.name || "UNKNOWN") + '</div><div class="map-compass" aria-hidden="true"><span>N</span><i></i><span>S</span></div><div class="constellation-cluster-label">Khu vực lân cận · ' + escapeHtml(region?.name || "Vùng chưa định danh") + '</div><div class="constellation-field"><svg class="local-route-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">' + localRoutes + '</svg><div class="constellation-core" aria-hidden="true"></div>' + nodes + unexploredNodes + '</div></div>' +
+      '<div class="world-map constellation-map local-constellation" role="region" aria-label="Bản đồ tinh tú khu vực hiện tại"><div class="map-corner-label">LOCAL CONSTELLATION · ' + escapeHtml(current?.name || "UNKNOWN") + '</div><div class="map-compass" aria-hidden="true"><span>N</span><i></i><span>S</span></div><div class="constellation-cluster-label">Khu vực lân cận · ' + escapeHtml(region?.name || "Vùng chưa định danh") + '</div><div class="constellation-field"><svg class="local-route-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">' + localRoutes + '</svg><div class="constellation-core" aria-hidden="true"></div>' + nodes + unexploredNodes + '</div></div>' + journeyPanel +
       '<p class="map-legend"><span class="dot current"></span> Hiện tại <span class="dot reachable"></span> Có thể đi <span class="dot visited"></span> Đã khám phá <span class="dot npc"></span> NPC <span class="dot event"></span> Biến cố <span class="dot opportunity"></span> Cơ duyên</p>';
   }
 

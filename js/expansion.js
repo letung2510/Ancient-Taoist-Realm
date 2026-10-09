@@ -174,8 +174,13 @@
       if (!pass) { state.guildMembership.contribution = Math.max(0, Number(state.guildMembership.contribution || 0) - 20); state.guildMembership.promotionTrialPassed = false; state.guildMembership.promotionRetryDay = absoluteDay(state.gameClock) + 7; history(state, "warn", "Khảo hạch nội môn không thành; ngươi bị trừ 20 điểm cống hiến và phải chờ bảy ngày mới được thử lại."); return { success: false, trialFailed: true, reason: "Chưa vượt qua khảo hạch." }; }
       state.guildMembership.promotionTrialPassed = true;
     }
-    const rankIndex = memberRankIndex(state.guildMembership) + 1, rank = ORG_RANKS[rankIndex];
-    state.guildMembership.rankIndex = rankIndex; state.guildMembership.rankId = rank.id; state.guildMembership.rank = rank.label; state.guildMembership.revision = Number(state.guildMembership.revision || 0) + 1; state.guildMembership.promotionTrialPassed = false; state.guildMembership.promotionRetryDay = 0;
+    const previousMembership = copy(state.guildMembership), rankIndex = memberRankIndex(state.guildMembership) + 1, rank = ORG_RANKS[rankIndex];
+    const nextMembership = { ...previousMembership, rankIndex, rankId: rank.id, rank: rank.label, revision: Number(previousMembership.revision || 0) + 1, promotionTrialPassed: false, promotionRetryDay: 0 };
+    if (E.transitionGuildMembership) {
+      state.guildMembership = previousMembership;
+      const transition = E.transitionGuildMembership(state, nextMembership, { expectedGuildId: previousMembership.guildId, reason: "promotion" });
+      if (!transition.success) return transition;
+    } else state.guildMembership = nextMembership;
     const relation = ensureOrganizationState(state).relations[state.guildMembership.guildId];
     relation.reputation = clamp(Number(relation.reputation || 0) + 3, -100, 100);
     const learned = E.grantGuildTechniques?.(state) || [];
@@ -244,7 +249,10 @@
     if (request?.tier !== "life_death" || membership?.guildId !== request.organizationId) return false;
     const index = memberRankIndex(membership);
     if (index <= 0) return false;
-    const rank = ORG_RANKS[index - 1]; membership.rankIndex = index - 1; membership.rankId = rank.id; membership.rank = rank.label;
+    const rank = ORG_RANKS[index - 1];
+    const nextMembership = { ...membership, rankIndex: index - 1, rankId: rank.id, rank: rank.label, revision: Number(membership.revision || 0) + 1 };
+    const transition = E.transitionGuildMembership?.(state, nextMembership, { expectedGuildId: membership.guildId, reason: "commission_failure" });
+    if (transition && !transition.success) return false;
     history(state, "warn", "Ủy thác sinh tử thất bại; tổ chức giáng ngươi xuống chức vị " + rank.label + ".");
     return true;
   }
@@ -304,8 +312,18 @@
   }
   function validateOrganizationState(state) {
     ensureOrganizationState(state);
-    const errors = [], known = new Set(organizationDefinitions().map((entry) => entry.id));
-    organizationDefinitions().forEach((organization) => { if (!organizationAddress(organization.id)?.nodeId) errors.push(organization.id + ":missing-address"); });
+    const errors = [], known = new Set(organizationDefinitions().map((entry) => entry.id)), locations = runtimeLocationPool(state);
+    organizationDefinitions().forEach((organization) => {
+      const address = organizationAddress(organization.id);
+      if (!address?.nodeId) { errors.push(organization.id + ":missing-address"); return; }
+      const node = locations[address.nodeId];
+      if (!node) errors.push(organization.id + ":missing-runtime-node");
+      else {
+        if (String(node.organizationId || "") !== String(organization.id)) errors.push(organization.id + ":node-identity");
+        if (String(node.regionId || node.region || "") !== String(address.regionId || organization.region_id || "")) errors.push(organization.id + ":region-mismatch");
+        if (!Number.isFinite(Number(node.x)) || !Number.isFinite(Number(node.y))) errors.push(organization.id + ":missing-coordinates");
+      }
+    });
     Object.entries(state.organizationState.relations || {}).forEach(([id, relation]) => {
       if (!known.has(id) || relation.organizationId !== id) errors.push(id + ":unknown");
       ["reputation", "favor", "trust", "heat"].forEach((field) => { if (!Number.isFinite(Number(relation[field]))) errors.push(id + ":" + field); });
@@ -652,7 +670,7 @@
       runtime.basePower = Number(runtime.basePower || runtime.power || Math.max(1, Number(faction.scale || 3) * 10));
       runtime.power = factionPowerSnapshot(state, faction.id).power;
     });
-    Object.keys(D.NPCS || {}).slice(0, 20).forEach((npcId, index) => {
+    Object.keys(D.NPCS || {}).sort((a, b) => String(a).localeCompare(String(b))).slice(0, 20).forEach((npcId, index) => {
       const home = Object.keys(runtimeLocationPool(state) || {}).find((locId) => runtimeLocationPool(state)[locId]?.npcs?.includes(npcId)) || state.homeLocationId || state.locationId;
       const definition = D.NPCS[npcId] || {}; const traits = Array.isArray(definition.traits) ? definition.traits : [];
       const mobileTrait = traits.some((trait) => /du hành|thương|wander|merchant|itinerant/i.test(String(trait))) || /merchant|thương nhân|lữ khách|du hành/i.test(String(definition.role || definition.title || ""));
@@ -3066,7 +3084,14 @@
     const contestedWeight = plan.influence?.contested ? 1.25 : 1;
     const risk = clamp((danger * contestedWeight * weights.terrainWeight * weights.weatherWeight * weights.influenceWeight * weights.structureWeight) + Number(modifiers.travelRiskDelta || 0), 0, 1);
     const gameDays = Math.max(1, Math.ceil(Number(plan.distance || 0) / effectiveSpeed));
-    return { ...plan, baseSpeed, speed: effectiveSpeed, partySize, partyWeight, gameDays, eventRolls: gameDays, risk, modifiers, weights };
+    // Walking stamina is a canonical commitment cost.  It is deliberately
+    // derived from the same terrain/weather/ward weights shown to the player,
+    // so preview and commit cannot disagree about the resource charge.
+    const staminaMultiplier = Math.max(0.55, Number(weights.terrainWeight || 1) * Number(weights.weatherWeight || 1) * Number(weights.structureWeight || 1));
+    const staminaCost = travelType === "walk"
+      ? Math.max(1, Math.ceil(Number(plan.distance || 0) * staminaMultiplier * Number(partyWeight || 1)))
+      : 0;
+    return { ...plan, baseSpeed, speed: effectiveSpeed, partySize, partyWeight, gameDays, eventRolls: gameDays, risk, modifiers, weights, staminaMultiplier, staminaCost, resourcePolicy: "walk_distance_weighted_v1" };
   }
 
   function travelTaskSnapshot(state) {
@@ -3991,7 +4016,7 @@
     history(state, "sys", "◇ Xem tướng " + (npc.name || npcId) + ": " + clue); return { success, clue };
   }
 
-  function techniqueEligibility(state, techniqueId, scope = "use") {
+  function techniqueEligibility(state, techniqueId, scope = "use", options = {}) {
     const technique = E.techniqueCatalog?.()?.[techniqueId];
     const blocker = (code, playerText, sourceId = techniqueId, recoverable = true) => ({ code, scope, sourceId, playerText, recoverable, message: playerText });
     if (!technique) return { ok: false, blockers: [blocker("UNKNOWN_TECHNIQUE", "Công Pháp không tồn tại.")] };
@@ -4033,20 +4058,18 @@
       if (!requirements.fateElementsAny.some((element) => activeElements.includes(element)) && !blockers.some((blocker) => blocker.code === "FATE_REQUIRED")) blockers.push({ code: "FATE_REQUIRED", message: "Required active Fate element is not equipped." });
     }
     if (requirements.fateScope !== "owned" && Array.isArray(requirements.fateIdsAny) && requirements.fateIdsAny.length && !requirements.fateIdsAny.some((id) => activeFateIds.includes(id)) && !blockers.some((blocker) => blocker.code === "FATE_REQUIRED")) blockers.push({ code: "FATE_REQUIRED", message: "Required Fate is not actively equipped." });
-    if (guild && (guild.suspended || ["suspended", "expelled", "left", "inactive"].includes(String(guild.status || "active"))) && !blockers.some((blocker) => ["GUILD_REQUIRED", "GUILD_RANK_REQUIRED"].includes(blocker.code))) blockers.push({ code: "GUILD_REQUIRED", message: "Guild membership is not active." });
+    if (guild && (guild.suspended || ["suspended", "expelled", "left", "departed", "inactive"].includes(String(guild.status || "active"))) && !blockers.some((blocker) => ["GUILD_REQUIRED", "GUILD_RANK_REQUIRED"].includes(blocker.code))) blockers.push({ code: "GUILD_REQUIRED", message: "Guild membership is not active." });
     if (scope === "use" && learned) {
       const cooldown = typeof player.techniqueCooldowns?.[techniqueId] === "object"
         ? Number(player.techniqueCooldowns[techniqueId]?.readyAtTurn || 0)
         : Number(player.techniqueCooldowns?.[techniqueId] || 0);
       if (cooldown > Number(state.meta?.turn || 0)) blockers.push(blocker("COOLDOWN", "Công pháp đang hồi chiêu."));
       const declared = technique.cost || {}, visible = technique.visibleStats || {};
-      const costs = [
-        ["qi", Number(declared.mana ?? visible.manaCost ?? 0), "Linh Khí"],
-        ["stamina", Number(declared.stamina ?? visible.staminaCost ?? 0), "Thể Lực"],
-        ["san", Number(declared.san ?? visible.sanCost ?? 0), "Thanh Tỉnh"]
-      ];
+      const evolution = E.techniqueEvolutionModifiers?.(state, techniqueId) || {}, stats = E.computeStats?.(player) || {}, stage = Number(player.techniques?.[techniqueId]?.masteryStage || 0), masteryCostMultiplier = stage >= 3 ? 0.85 : 1, stance = options.stance || "steady";
+      const rawCost = (key, legacy) => Number(declared[key] ?? visible[legacy] ?? 0);
+      const costs = [["qi", Math.max(0, Math.ceil(rawCost("mana", "manaCost") * masteryCostMultiplier * Number(evolution.manaCostMult || 1))), "Linh Khí"], ["stamina", Math.max(0, Math.ceil(rawCost("stamina", "staminaCost") * masteryCostMultiplier * Number(stats.staminaCostMultiplier || 1) * Number(evolution.staminaCostMult || 1))), "Thể Lực"], ["san", Math.round(Math.max(0, rawCost("san", "sanCost") * masteryCostMultiplier * Number(evolution.sanCostMult || 1) * Number(stats.sanCostMultiplier || 1) * (stance === "guarded" ? 0.5 : 1)) * 100) / 100, "Thanh Tỉnh"], ["lifespan", Math.round(Math.max(0, rawCost("lifespan", "lifespanCost") * masteryCostMultiplier * Number(evolution.lifespanCostMult || 1)) * 100) / 100, "Thọ Nguyên"]];
       costs.forEach(([key, cost, label]) => {
-        if (cost > 0 && Number(player[key] || 0) < cost) blockers.push(blocker("RESOURCE_SHORTAGE", "Thiếu " + label + " (cần " + cost + ")."));
+        if (cost > 0 && (key === "lifespan" ? Number(player[key] || 0) <= cost : Number(player[key] || 0) < cost)) blockers.push(blocker("RESOURCE_SHORTAGE", "Thiếu " + label + " (cần " + cost + ")."));
       });
       const gateCodes = new Set(["REALM_TOO_LOW", "REALM_TOO_HIGH", "PATH_MISMATCH", "FATE_REQUIRED", "GUILD_REQUIRED", "GUILD_RANK_REQUIRED", "FACTION_REQUIRED"]);
       if (blockers.some((entry) => gateCodes.has(entry.code))) blockers.push(blocker("TECHNIQUE_DORMANT", "Công pháp hiện đang ở trạng thái dormant do điều kiện sử dụng chưa phù hợp."));
@@ -4056,11 +4079,13 @@
   }
   function guildTechniqueSnapshot(state, technique) {
     const membership = state.guildMembership, policies = X.guildTechniquePolicies || [];
-    if (!membership || membership.suspended) return { valid: false, guildId: null, rankId: null, revision: 0, masteryGainPct: 0, sourceIds: [] };
+    if (!membership || !membership.guildId || membership.suspended || String(membership.status || "active") !== "active") return { valid: false, guildId: null, rankId: null, revision: 0, masteryGainPct: 0, sourceIds: [] };
     const rankIndex = memberRankIndex(membership); let masteryGainPct = 0; const sourceIds = [];
     policies.filter((policy) => policy.guildId === "*" || policy.guildId === membership.guildId).forEach((policy) => {
       if (rankIndex < Number(policy.rankMin || 0)) return;
-      if (policy.appliesTo === "guild_taught" && technique?.sourceGuildId !== membership.guildId) return;
+      const learned = state.player.techniques?.[technique?.id] || {};
+      const taughtGuildId = technique?.sourceGuildId || learned.sourceGuildId || learned.sourceContext?.guildId || null;
+      if (policy.appliesTo === "guild_taught" && taughtGuildId !== membership.guildId) return;
       masteryGainPct += Number(policy.modifiers?.masteryGainPct || 0); sourceIds.push(policy.id);
     });
     const cap = Math.max(0, ...policies.filter((policy) => sourceIds.includes(policy.id)).map((policy) => Number(policy.caps?.masteryGainPct || 0)));
@@ -4092,7 +4117,7 @@
     const meritCost = Number(acquisition.cost?.merit || 0);
     if (meritCost > Number(state.player.merit || 0)) return { success: false, reason: "Không đủ công đức để lĩnh ngộ Công Pháp này." };
     if (meritCost) state.player.merit -= meritCost;
-    if (!E.learnTechnique(state, techniqueId)) {
+    if (!E.learnTechnique(state, techniqueId, { sourceId: acquisition.id, sourceType: technique.sourceType || "legacy" })) {
       if (meritCost) state.player.merit += meritCost;
       return { success: false, reason: "Không thể lĩnh ngộ Công Pháp này." };
     }
@@ -4733,6 +4758,7 @@
       history(state, "narr", "Phe của " + (state.worldSimulation.npcState[candidateId]?.name || candidateId) + " nắm ưu thế; đường hướng của tổ chức đổi theo người đứng đầu mới."); return { success: true, leaderNpcId: candidateId };
     }
     if (actionId.startsWith("act_exp_org_study:")) {
+      state.flags.guildTeaching = state.guildMembership?.guildId || null;
       const id = actionId.slice("act_exp_org_study:".length), snapshot = guildVaultSnapshot(state);
       if (!snapshot.unlocked || !snapshot.techniques.some((entry) => entry.id === id)) return { success: false, reason: "Cấp bậc chưa mở bí pháp này." };
       const learned = E.learnTechnique(state, id); return { success: Boolean(learned), reason: learned ? null : "Chưa đủ điều kiện thỉnh học." };
