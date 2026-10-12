@@ -28,6 +28,9 @@
   let storyWindowSize = 20;
   const commandHistory = [];
   let commandHistoryCursor = -1;
+  let renderFramePending = false;
+  let saveTimer = null;
+  let saveDirty = false;
 
   // Small durable queue for narrative history. It is intentionally isolated
   // from gameplay saves: a blocked IndexedDB write must never block a turn.
@@ -150,6 +153,12 @@
     bindGame();
     bindCosmicMapCamera();
     if (UI.bindOverlay) UI.bindOverlay();
+    if (typeof window.addEventListener === "function") window.addEventListener("beforeunload", () => {
+      if (saveTimer != null) { clearTimeout(saveTimer); saveTimer = null; }
+      if (state && saveDirty) {
+        try { localStorage.setItem(SAVE_KEY, E.serialize(state)); saveDirty = false; } catch (error) { console.warn("Save flush failed", error); }
+      }
+    });
     UI.showScreen("home");
     refreshContinue();
     if (typeof setInterval === "function") setInterval(() => {
@@ -713,6 +722,16 @@
         UI.openOverlay("Bản Đồ", UI.renderMapDetail(state));
         return;
       }
+      const mapAction = event.target.closest("[data-map-action]");
+      if (mapAction && state) {
+        const actionId = mapAction.dataset.mapAction;
+        if (actionId === "act_ban_do") return;
+        enqueueAction(() => {
+          submitUiAction(actionId);
+          renderAfterTurn();
+        });
+        return;
+      }
       const factionPin = event.target.closest("[data-map-faction]");
       if (factionPin && state) {
         UI.openOverlay("Hồ sơ thế lực", UI.renderMapFactionDetail(state, factionPin.dataset.mapFaction, ""));
@@ -777,7 +796,7 @@
         renderAfterTurn();
       }
 
-  function renderAfterTurn() {
+  function renderAfterTurnNow() {
     if (!state) return;
     const history = Array.isArray(state.history) ? state.history : [];
     renderStoryWindow();
@@ -804,6 +823,21 @@
       E.markOpportunityPrompted?.(state, opportunity.id);
       UI.openOverlay("Cơ Duyên Tranh Đoạt", UI.renderContestedOpportunityModal(state));
     }
+  }
+
+  // Coalesce action-bar/menu updates arriving in the same event loop turn.
+  // Gameplay state is committed synchronously; only DOM work waits for the
+  // next frame, preventing duplicate full panel/action-bar paints.
+  function renderAfterTurn() {
+    if (!state || renderFramePending) return;
+    renderFramePending = true;
+    const flush = () => {
+      renderFramePending = false;
+      renderAfterTurnNow();
+    };
+    if (typeof window.requestAnimationFrame === "function") window.requestAnimationFrame(flush);
+    else if (typeof setTimeout === "function") setTimeout(flush, 0);
+    else flush();
   }
 
   function renderStoryWindow() {
@@ -1123,7 +1157,20 @@
   /* ---------- save / load ---------- */
   function saveGame(explicit = false) {
     if (!state) return;
+    saveDirty = true;
+    if (!explicit) {
+      if (saveTimer != null) return;
+      saveTimer = setTimeout(() => {
+        saveTimer = null;
+        if (!state || !saveDirty) return;
+        localStorage.setItem(SAVE_KEY, E.serialize(state));
+        saveDirty = false;
+      }, 250);
+      return;
+    }
+    if (saveTimer != null) { clearTimeout(saveTimer); saveTimer = null; }
     localStorage.setItem(SAVE_KEY, E.serialize(state));
+    saveDirty = false;
   }
   function exportSaveFile() {
     if (!state) {
