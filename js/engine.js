@@ -6,6 +6,26 @@ window.GameEngine = (function () {
   "use strict";
   const D = () => window.GameData;
   const runtimeLocationPoolCache = new WeakMap();
+  let FATE_PATTERN_SOURCE = null;
+  let FATE_PATTERN_INDEX = null;
+  let FATE_RELATION_SOURCE = null;
+  let FATE_RELATION_INDEX = null;
+  let FATE_COMBO_INDEX = null;
+  let FATE_FUSION_INDEX = null;
+  let TECHNIQUE_CATALOG_SOURCE = null;
+  let TECHNIQUE_GUILD_SOURCE = null;
+  let TECHNIQUE_CATALOG_CACHE = null;
+  const COMPUTE_STATS_MEMO = new WeakMap();
+  const DERIVED_MEMO = new WeakMap();
+  function fatePatternIndex() {
+    const patterns = D().FATE_PATTERNS || [];
+    if (FATE_PATTERN_INDEX && FATE_PATTERN_SOURCE === patterns) return FATE_PATTERN_INDEX;
+    FATE_PATTERN_SOURCE = patterns;
+    FATE_PATTERN_INDEX = new Map();
+    patterns.forEach((fate) => { if (fate?.id != null) FATE_PATTERN_INDEX.set(String(fate.id), fate); });
+    return FATE_PATTERN_INDEX;
+  }
+  function fateById(id) { return id == null ? null : fatePatternIndex().get(String(id)) || null; }
   function organizationAddressForNode(nodeId) {
     const addresses = D().WORLD_MAP?.addresses;
     return [...(addresses?.factions || []), ...(addresses?.organizations || [])].find((address) => address.nodeId === nodeId) || null;
@@ -602,26 +622,42 @@ window.GameEngine = (function () {
     return { modifiers, conditionalEffects };
   }
   function fateDefinition(fate) {
-    const source = fate?.id ? (D().FATE_PATTERNS.find((item) => item.id === fate.id) || fate) : fate;
+    const source = fate?.id ? (fateById(fate.id) || fate) : fate;
     const split = splitFateEffects(source);
     return { ...source, alignment: fateSign(source), tier: fateGradeTier(source.grade ?? source.tier), element: fateElement(source), path_affinity: fatePathAffinity(source), modifiers: split.modifiers, conditionalEffects: split.conditionalEffects };
   }
-  let FATE_RELATION_INDEX = null;
   function fateRelationshipIndex() {
-    if (FATE_RELATION_INDEX) return FATE_RELATION_INDEX;
     const rel = (typeof window !== "undefined" && window.FATE_RELATIONSHIPS) || {};
+    if (FATE_RELATION_INDEX && FATE_RELATION_SOURCE === rel) return FATE_RELATION_INDEX;
+    FATE_RELATION_SOURCE = rel;
     FATE_RELATION_INDEX = new Map();
-    (rel.pairwise_relationships || []).forEach((edge) => { [edge.from, edge.to].forEach((id) => { if (!FATE_RELATION_INDEX.has(id)) FATE_RELATION_INDEX.set(id, []); FATE_RELATION_INDEX.get(id).push(edge); }); });
+    FATE_COMBO_INDEX = new Map();
+    FATE_FUSION_INDEX = new Map();
+    (rel.pairwise_relationships || []).forEach((edge) => { [edge.from, edge.to].forEach((id) => { const key = String(id); if (!FATE_RELATION_INDEX.has(key)) FATE_RELATION_INDEX.set(key, []); FATE_RELATION_INDEX.get(key).push(edge); }); });
+    (rel.combo_sets || []).forEach((combo) => (combo.members || []).forEach((member) => {
+      const id = member?.id || member;
+      if (id == null) return;
+      const key = String(id);
+      if (!FATE_COMBO_INDEX.has(key)) FATE_COMBO_INDEX.set(key, []);
+      FATE_COMBO_INDEX.get(key).push(combo);
+    }));
+    (rel.fusion_recipes || []).forEach((recipe) => (recipe.materials || []).forEach((member) => {
+      const id = member?.id || member;
+      if (id == null) return;
+      const key = String(id);
+      if (!FATE_FUSION_INDEX.has(key)) FATE_FUSION_INDEX.set(key, []);
+      FATE_FUSION_INDEX.get(key).push(recipe);
+    }));
     return FATE_RELATION_INDEX;
   }
-  function fateRelationshipsFor(fateId) { return fateRelationshipIndex().get(fateId) || []; }
+  function fateRelationshipsFor(fateId) { return fateRelationshipIndex().get(String(fateId)) || []; }
   function fateCombosFor(fateId) {
-    const rel = (typeof window !== "undefined" && window.FATE_RELATIONSHIPS) || {};
-    return (rel.combo_sets || []).filter((combo) => (combo.members || []).some((member) => (member.id || member) === fateId));
+    fateRelationshipIndex();
+    return FATE_COMBO_INDEX.get(String(fateId)) || [];
   }
   function fateFusionRecipesFor(fateId) {
-    const rel = (typeof window !== "undefined" && window.FATE_RELATIONSHIPS) || {};
-    return (rel.fusion_recipes || []).filter((recipe) => (recipe.materials || []).some((member) => (member.id || member) === fateId));
+    fateRelationshipIndex();
+    return FATE_FUSION_INDEX.get(String(fateId)) || [];
   }
 
   function fateRelationshipRecord(character, fateId) {
@@ -821,11 +857,11 @@ window.GameEngine = (function () {
   }
 
   function computeFate(character) {
-    const patterns = D().FATE_PATTERNS;
+    const patterns = fatePatternIndex();
     let total = 0;
     let normal = 0;
     (character.fates || []).forEach((f) => {
-      const p = patterns.find((x) => x.id === f);
+      const p = patterns.get(String(f));
       if (!p) return;
       const suppression = character.suppressedFates?.[f];
       if (suppression && Number(suppression.untilTurn || 0) > Number(character._turn || 0)) return;
@@ -1019,7 +1055,6 @@ window.GameEngine = (function () {
 
   /* ---------- Quan hệ Mệnh Số ---------- */
   function computeRelationshipEffects(character) {
-    const rel = D().FATE_RELATIONSHIPS || {};
     const owned = new Set(character.fates || []);
     const result = {
       activePairs: [],
@@ -1034,7 +1069,9 @@ window.GameEngine = (function () {
     };
 
     // pairwise (tương sinh/tương khắc)
-    (rel.pairwise_relationships || []).forEach((p) => {
+    const pairwise = new Set();
+    owned.forEach((fateId) => fateRelationshipsFor(fateId).forEach((edge) => pairwise.add(edge)));
+    pairwise.forEach((p) => {
       if (owned.has(p.from) && owned.has(p.to)) {
         if (p.type === "TUONG_SINH") {
           result.phyMult += (p.bonusPct || 0) / 100;
@@ -1051,7 +1088,9 @@ window.GameEngine = (function () {
     });
 
     // combo sets
-    (rel.combo_sets || []).forEach((c) => {
+    const combos = new Set();
+    owned.forEach((fateId) => fateCombosFor(fateId).forEach((combo) => combos.add(combo)));
+    combos.forEach((c) => {
       const members = c.members || [];
       if (!members.length) return;
       const hasAll = members.every((m) => owned.has(m.id));
@@ -1167,9 +1206,23 @@ window.GameEngine = (function () {
     return JSON.parse(JSON.stringify(ORIGIN_PROFILES));
   }
 
+  function computeStatsFingerprint(character) {
+    const suppression = Object.entries(character.suppressedFates || {}).sort(([a], [b]) => String(a).localeCompare(String(b)));
+    const techniques = Object.entries(character.techniques || {}).map(([id, value]) => [id, value?.masteryStage || 0, value?.masteryExp || 0]).sort(([a], [b]) => String(a).localeCompare(String(b)));
+    const equippedGeneratedItems = equippedItemIds(character.equipment).map((id) => [id, character.generatedItems?.[id]?.phy || 0, character.generatedItems?.[id]?.mag || 0, character.generatedItems?.[id]?.sanResist || 0, character.generatedItems?.[id]?.phyDef || 0]);
+    return JSON.stringify([
+      character.realmId, character._turn, character.san, character.maxSan, character.basePhy, character.baseMag, character.baseFortune,
+      character.maxQiBonusPct, character.corruptionRating, character.sat, character.fates || [], suppression,
+      character.fateEnhancements || {}, character.fateRelationships || {}, character.fateAdvancedActions || {},
+      techniques, character.equipment || {}, equippedGeneratedItems, character.origin?.modifiers || {}, character.tainted || {}
+    ]);
+  }
   function computeStats(character) {
+    const memoKey = computeStatsFingerprint(character);
+    const memo = COMPUTE_STATS_MEMO.get(character);
+    if (memo?.key === memoKey) return memo.value;
     const realm = realmById(character.realmId);
-    const patterns = D().FATE_PATTERNS;
+    const patterns = fatePatternIndex();
     const eff = {
       phyMult: realm.phyMult, magMult: realm.magMult,
       allStatMult: 0, phyFlat: 0, qiFlat: 0, fortune: 0,
@@ -1180,7 +1233,7 @@ window.GameEngine = (function () {
       searchRarePct: 0, searchRiskReductionPct: 0
     };
     (character.fates || []).forEach((f) => {
-      const p = patterns.find((x) => x.id === f);
+      const p = patterns.get(String(f));
       if (!p) return;
       const suppression = character.suppressedFates?.[f];
       if (suppression && Number(suppression.untilTurn || 0) > Number(character._turn || 0)) return;
@@ -1230,8 +1283,9 @@ window.GameEngine = (function () {
     });
 
     // Tâm Pháp là nội tại luôn bật; tiến độ mastery thuộc về nhân vật, định nghĩa catalog bất biến.
+    const techniques = techniqueCatalog();
     Object.keys(character.techniques || {}).forEach((id) => {
-      const technique = techniqueCatalog()[id];
+      const technique = techniques[id];
       if (!technique || technique.category !== "tam_phap") return;
       if (technique.requiredFaction && technique.requiredFaction !== character.tainted?.faction) return;
       const stage = clamp(Math.floor(Number(character.techniques[id]?.masteryStage || 0)), 0, 4);
@@ -1262,7 +1316,9 @@ window.GameEngine = (function () {
     const staminaPenalty = Number(tainted.staminaPenalty || 0) + (faction === "rebel_heaven" ? rank * 5 : 0);
     const stamina = clamp(staminaMax - staminaPenalty, 1, staminaMax);
     const staminaCostMultiplier = faction === "neutral" ? 0.75 : faction === "loyal_heaven" ? 0.9 : faction === "rebel_heaven" ? 1.15 : 1;
-    return { phy: Math.round(phy), mag: Math.round(mag), fortune, sat: Number(character.sat || 0), stamina, staminaMax, staminaCostMultiplier, eff, rel, mental };
+    const result = { phy: Math.round(phy), mag: Math.round(mag), fortune, sat: Number(character.sat || 0), stamina, staminaMax, staminaCostMultiplier, eff, rel, mental };
+    COMPUTE_STATS_MEMO.set(character, { key: computeStatsFingerprint(character), value: result });
+    return result;
   }
 
   function maxQi(stats) {
@@ -1278,10 +1334,10 @@ window.GameEngine = (function () {
     let base = realm.lifespanBase + realm.lifespanBonus;
     // Dùng cùng pipeline hiệu ứng với computeStats để Cường Hóa/Quan hệ Mệnh
     // được áp dụng nhất quán và Trấn Mệnh thật sự tạm vô hiệu hóa hiệu ứng.
-    const patterns = D().FATE_PATTERNS;
+    const patterns = fatePatternIndex();
     let mult = 1;
     (character.fates || []).forEach((f) => {
-      const p = patterns.find((x) => x.id === f);
+      const p = patterns.get(String(f));
       if (!p) return;
       const suppression = character.suppressedFates?.[f];
       if (suppression && Number(suppression.untilTurn || 0) > Number(character._turn || 0)) return;
@@ -1579,10 +1635,11 @@ window.GameEngine = (function () {
   /* ---------- Công pháp / kỹ năng ---------- */
   function techniqueCatalog() {
     const sourceCatalog = (typeof window !== "undefined" && window.CONG_PHAP_DATA?.techniques) || {};
+    const guilds = (typeof window !== "undefined" && window.GUILD_DATA?.guilds) || [];
+    if (TECHNIQUE_CATALOG_CACHE && TECHNIQUE_CATALOG_SOURCE === sourceCatalog && TECHNIQUE_GUILD_SOURCE === guilds) return TECHNIQUE_CATALOG_CACHE;
     const catalog = copy(sourceCatalog);
     // Mỗi tổ chức có một bí pháp truyền thừa riêng, tạo ổn định từ guild id để
     // save cũ vẫn giữ nguyên id và không cần nhân bản thủ công 150 bản ghi.
-    const guilds = (typeof window !== "undefined" && window.GUILD_DATA?.guilds) || [];
     guilds.forEach((guild) => {
       const id = "guild_signature_" + guild.id;
       if (catalog[id]) return;
@@ -1657,7 +1714,10 @@ window.GameEngine = (function () {
       technique.progression = { masteryCap: 5, breakthroughRole: technique.isCore ? "core" : "none", ...(technique.progression || {}) };
       technique.ui = { categoryLabel: technique.category, sourceLabel: technique.sourceType, ...(technique.ui || {}) };
     });
-    return catalog;
+    TECHNIQUE_CATALOG_SOURCE = sourceCatalog;
+    TECHNIQUE_GUILD_SOURCE = guilds;
+    TECHNIQUE_CATALOG_CACHE = catalog;
+    return TECHNIQUE_CATALOG_CACHE;
   }
   function validateTechniqueCatalog() {
     const errors = [];
@@ -2143,7 +2203,13 @@ window.GameEngine = (function () {
     return state;
   }
 
+  function derivedFingerprint(state) {
+    return JSON.stringify([Number(state.meta?.turn || 0), computeStatsFingerprint(state.player), state.player.techniqueCooldowns || {}]);
+  }
   function updateDerived(state) {
+    const fingerprint = derivedFingerprint(state);
+    const memo = DERIVED_MEMO.get(state);
+    if (memo?.fingerprint === fingerprint) return { changed: false, stats: state.player.stats };
     state.player._turn = Number(state.meta?.turn || 0);
     Object.entries(state.player.techniques || {}).forEach(([techniqueId, rawProgress]) => {
       const combatState = ensureTechniqueCombatState(rawProgress);
@@ -2170,6 +2236,8 @@ window.GameEngine = (function () {
       state.guildPursuit = null;
     }
     validateFateInventory(state, "updateDerived");
+    DERIVED_MEMO.set(state, { fingerprint: derivedFingerprint(state) });
+    return { changed: true, stats: state.player.stats };
   }
 
   function refreshMarket(state, day = gameDayIndex(ensureGameClock(state))) {
@@ -4358,8 +4426,17 @@ window.GameEngine = (function () {
     const coordinates = ensureOpenWorld(state).coordinates[nodeId];
     return Array.isArray(coordinates) && coordinates.length >= 2 ? { x: Number(coordinates[0]), y: Number(coordinates[1]) } : null;
   }
+  function proceduralNodeDisplayName(x, y) {
+    const hash = openWorldHash(x, y);
+    return ["Dã Lộ Vô Danh", "Cổ Trạm Tàn Nguyệt", "Linh Hoang Vực", "Hắc Thủy Bến", "Thiên Khuyết Ngoại Biên"][hash % 5];
+  }
   function normalizeNodeDisplayName(value, fallback = "Chưa rõ") {
-    return String(value || fallback)
+    const raw = String(value || fallback);
+    if (/^open_-?\d+_-?\d+$/.test(raw)) {
+      const [, x, y] = raw.match(/^open_(-?\d+)_(-?\d+)$/);
+      return proceduralNodeDisplayName(Number(x), Number(y));
+    }
+    return raw
       .replace(/\s*(?:\u00c2)?[\u00b7\u2022]\s*-?\d+\s*[,，]\s*-?\d+\s*$/, "")
       .replace(/\s*\(\s*-?\d+\s*[,，]\s*-?\d+\s*\)\s*$/, "")
       .replace(/\s*@\s*-?\d+\s*[,，]\s*-?\d+\s*$/, "")
@@ -7284,6 +7361,13 @@ window.GameEngine = (function () {
       activateQuest(state, "chon_dao_lo");
     }
     recordTaintedMilestones(state);
+    // Final boundary check: expansion rehydration can run after the legacy
+    // migration filter, so stale enemy IDs must be removed once more before
+    // the restored state becomes combat-live.
+    state.enemies = Object.fromEntries(Object.entries(state.enemies || {}).filter(([enemyId, hp]) => {
+      const knownEnemy = Boolean(D().ENEMIES?.[enemyId] || entityCatalog()?.[enemyId]);
+      return knownEnemy && Number.isFinite(Number(hp)) && Number(hp) > 0;
+    }));
     updateDerived(state);
     return state;
   }

@@ -50,25 +50,20 @@ window.GameUI = (function () {
   function renderStoryWindow(entries, visibleCount, onLoadMore, gameState) {
     const log = document.getElementById("story-log");
     if (!log) return false;
-    log.innerHTML = "";
     const list = Array.isArray(entries) ? entries : [];
     const count = Math.max(1, Number(visibleCount) || 20);
     const start = Math.max(0, list.length - count);
-    if (start > 0) {
-      const older = document.createElement("button");
-      older.type = "button";
-      older.className = "story-load-more";
-      older.textContent = "↑ Xem thêm lịch sử (" + start + " dòng cũ hơn)";
-      older.addEventListener("click", onLoadMore);
-      log.appendChild(older);
-    }
     const visible = list.slice(start).filter((entry) => entry && entry.type !== "COMMAND_ECHO" && !entry.debugOnly);
     // The engine owns the day-grouping contract so every surface (story panel,
     // export and regression) renders the same novel paragraph boundaries.
     const paragraphs = window.GameEngine.novelLogParagraphs && gameState
       ? window.GameEngine.novelLogParagraphs(gameState, visible)
       : visible.map((entry) => ({ dayKey: entry.clock || entry.timestamp || "", clock: entry.clock || entry.timestamp || "", text: entry.text || "", events: [entry], portrait: entry.portrait || null }));
-    paragraphs.forEach((paragraph) => {
+    const previousLength = Number(log.dataset.storySourceLength || 0);
+    const previousStart = Number(log.dataset.storyStart || 0);
+    const previousParagraphs = Number(log.dataset.storyParagraphs || 0);
+    const canAppend = log.dataset.storyRendered === "1" && start === previousStart && list.length >= previousLength && paragraphs.length >= previousParagraphs;
+    const appendParagraph = (paragraph) => {
       const entry = paragraph.events[0] || {};
       const rawType = String(entry.uiType || entry.type || "narr").toLowerCase();
       const cls = rawType === "system" ? (entry.severity === "warning" ? "warn" : "sys") : rawType;
@@ -81,7 +76,35 @@ window.GameUI = (function () {
         .filter(Boolean);
       const statLine = [...new Set(stats)].length ? "\n◇ " + [...new Set(stats)].join(" · ") : "";
       addStory(cls, paragraph.text + statLine, paragraph.portrait || entry.portrait, paragraph.clock || entry.clock || entry.timestamp || null);
-    });
+      if (log.lastElementChild) log.lastElementChild.dataset.storyParagraph = "1";
+    };
+    if (canAppend && previousParagraphs > 0 && paragraphs.length === previousParagraphs) {
+      const existing = log.querySelector('[data-story-paragraph]:last-of-type');
+      existing?.remove();
+      appendParagraph(paragraphs[paragraphs.length - 1]);
+      log.dataset.storySourceLength = String(list.length);
+      return true;
+    }
+    if (canAppend && paragraphs.length > previousParagraphs) {
+      paragraphs.slice(Math.max(0, previousParagraphs - 1)).forEach(appendParagraph);
+      log.dataset.storySourceLength = String(list.length);
+      log.dataset.storyParagraphs = String(paragraphs.length);
+      return true;
+    }
+    log.innerHTML = "";
+    if (start > 0) {
+      const older = document.createElement("button");
+      older.type = "button";
+      older.className = "story-load-more";
+      older.textContent = "↑ Xem thêm lịch sử (" + start + " dòng cũ hơn)";
+      older.addEventListener("click", onLoadMore);
+      log.appendChild(older);
+    }
+    paragraphs.forEach(appendParagraph);
+    log.dataset.storyRendered = "1";
+    log.dataset.storySourceLength = String(list.length);
+    log.dataset.storyStart = String(start);
+    log.dataset.storyParagraphs = String(paragraphs.length);
     log.scrollTop = log.scrollHeight;
     return true;
   }
@@ -270,7 +293,9 @@ window.GameUI = (function () {
   // Legacy saves may contain generated node names with an OXY suffix.
   // Coordinates remain engine metadata and are never shown as the node name.
   function displayNodeName(value) {
-    return String(value || "Chưa rõ")
+    const raw = String(value || "Chưa rõ");
+    if (/^open_-?\d+_-?\d+$/.test(raw)) return "Dã Lộ Vô Danh";
+    return raw
       .replace(/\s*[·•]\s*-?\d+\s*[,，]\s*-?\d+\s*$/, "")
       .replace(/\s*\(\s*-?\d+\s*[,，]\s*-?\d+\s*\)\s*$/, "")
       .replace(/\s*@\s*-?\d+\s*[,，]\s*-?\d+\s*$/, "")
@@ -310,6 +335,18 @@ window.GameUI = (function () {
     // Do not render the compact HUD above it a second time.
     if (pinned) pinned.innerHTML = active === "status" ? "" : renderPinnedCharacterSummary(state);
     document.getElementById("tab-content").innerHTML = html;
+    // Presentation-only art state: keep the gameplay renderer/data untouched,
+    // but let map backgrounds follow the current region weather and terrain.
+    if (active === "map") {
+      const mapData = window.GameData?.WORLD_MAP || {};
+      const currentNode = window.GameEngine.locationForState?.(state, state.locationId) || window.GameData?.LOCATIONS?.[state.locationId] || {};
+      const regionId = currentNode.region || mapData.locations?.[state.locationId]?.region || "trung_vuc";
+      const visualClasses = mapVisualClasses(state, currentNode, regionId).split(" ");
+      document.querySelectorAll(".world-map").forEach((mapElement) => {
+        mapElement.classList.remove("map-weather-clear", "map-weather-rain", "map-weather-mist", "map-weather-wind", "map-weather-snow", "terrain-valley", "terrain-forest", "terrain-water", "terrain-mountain", "terrain-desert");
+        mapElement.classList.add(...visualClasses);
+      });
+    }
   }
 
   function expansionButton(command, label, arg = "", extra = "") {
@@ -905,6 +942,27 @@ window.GameUI = (function () {
       (available.length > 20 ? '<p class="muted">Hiển thị 20 tổ chức nổi bật trong vùng.</p>' : "");
   }
 
+  function mapVisualWeather(state, regionId) {
+    const runtime = state.worldSimulation?.regionState?.[regionId] || {};
+    const raw = String(runtime.weather || state.weather || "quang").toLowerCase();
+    if (raw.includes("tuyet") || raw.includes("snow") || raw.includes("dong")) return "snow";
+    if (raw.includes("mua") || raw.includes("loi") || raw.includes("rain")) return "rain";
+    if (raw.includes("suong") || raw.includes("fog") || raw.includes("mist")) return "mist";
+    if (raw.includes("phong") || raw.includes("gio") || raw.includes("wind")) return "wind";
+    return "clear";
+  }
+  function mapVisualTerrain(location) {
+    const raw = String(location?.terrain || location?.terrainType || location?.biome || location?.mapNodeType || "valley").toLowerCase();
+    if (raw.includes("desert") || raw.includes("sa_mac") || raw.includes("mac")) return "desert";
+    if (raw.includes("snow") || raw.includes("tuyet") || raw.includes("ice") || raw.includes("bang")) return "snow";
+    if (raw.includes("forest") || raw.includes("rung") || raw.includes("lam")) return "forest";
+    if (raw.includes("water") || raw.includes("river") || raw.includes("lake") || raw.includes("song") || raw.includes("ho")) return "water";
+    if (raw.includes("mountain") || raw.includes("son") || raw.includes("nui")) return "mountain";
+    return "valley";
+  }
+  function mapVisualClasses(state, location, regionId) {
+    return "map-weather-" + mapVisualWeather(state, regionId) + " terrain-" + mapVisualTerrain(location);
+  }
   function renderMap(state) {
     const data = window.GameData;
     const map = data.WORLD_MAP;
@@ -926,7 +984,7 @@ window.GameUI = (function () {
     const mapSignals = completion ? '<div class="detail-block map-signals"><b>Trạm Quan Sát</b><small> · Đã biết ' + completion.visited + '/' + completion.known + ' node trong vùng · Hoàn thành ' + completion.percent + '%' + (completion.title ? ' · ' + escapeHtml(completion.title) : '') + '</small><br><small>Ảnh hưởng hiện tại: ' + escapeHtml(influence?.ownerFactionId || (influence?.contested ? 'Vùng tranh chấp' : 'Vô chủ')) + '</small></div>' : '';
     const climate = preview ? '<div class="detail-block"><b>Thiên tượng tuyến đường: ' + escapeHtml(preview.weatherLabel) + '</b><small> · Nguy cơ di chuyển ' + (Number(preview.travelRiskDelta || 0) * 100).toFixed(0) + '% · tìm kiếm ×' + Number(preview.searchRewardMult || 1).toFixed(2) + '</small></div>' : '';
     const addressStrip = nodeAddresses.length ? '<div class="map-address-strip"><span class="map-address-label">Địa chỉ node</span>' + nodeAddresses.map((address) => '<span class="map-address-chip ' + escapeHtml(address.kind) + '">' + escapeHtml(address.name) + '</span>').join('') + '</div>' : '';
-    return mapSignals + climate + controls + addressStrip + (activeMapView === "world" ? renderWorldMap(state, data, map) : renderLocalMap(state, data, map));
+    return mapSignals + climate + controls + addressStrip + (activeMapView === "world" ? renderWorldMap(state, data, map) : renderLocalMapDesigned(state, data, map));
   }
 
   function setMapView(view, state) {
@@ -1038,6 +1096,38 @@ window.GameUI = (function () {
     return '<p class="muted">Không tìm thấy dữ liệu thế lực này.</p>';
   }
 
+  function renderLocalMapDesigned(state, data, map) {
+    const directions = { bac: "Bắc", nam: "Nam", dong: "Đông", tay: "Tây" };
+    const current = window.GameEngine.locationForState?.(state, state.locationId) || data.LOCATIONS?.[state.locationId] || {};
+    const region = (map.regions || []).find((item) => item.id === current.region);
+    const selectedDirection = ["bac", "dong", "nam", "tay"].includes(state.flags?.lastMoveDirection) ? state.flags.lastMoveDirection : "dong";
+    const cards = Object.keys(directions).map((direction) => {
+      const preview = window.GameEngine.movementCandidatePreview?.(state, direction) || { success: false, reason: "Chưa có tuyến hợp lệ." };
+      const plan = preview.travelPlan;
+      const affordable = !plan || Number(state.player?.stamina || 0) >= Number(plan.staminaCost || 0);
+      const disabled = !preview.success || !affordable;
+      const targetId = plan?.toNodeId || preview.targetNodeId || preview.destinationId;
+      const target = targetId ? window.GameEngine.locationForState?.(state, targetId) : null;
+      const destination = target?.name || (targetId ? displayNodeName(targetId) : directions[direction]);
+      const detail = preview.success ? `${preview.a || 1} ô${preview.b ? " · lệch 1" : ""} · ${plan?.gameDays ?? "?"} ngày · ${plan?.staminaCost ?? "?"} thể lực` : (preview.reason || "Không có tuyến hợp lệ.");
+      const selected = direction === selectedDirection ? " is-selected" : "";
+      return `<button type="button" class="local-map-direction ${disabled ? "is-disabled" : "is-available"}${selected}" data-map-dir="${direction}" aria-label="${escapeHtml(directions[direction] + " · " + destination + " · " + detail)}"${disabled ? " disabled" : ""}><span class="local-map-direction-dot">○</span><span><b><strong>${directions[direction]}</strong><em>${escapeHtml(destination)}</em></b><small>${escapeHtml(detail)}</small></span></button>`;
+    }).join("");
+    const visited = [...new Set(state.visitedLocations || [])].filter((id) => id !== state.locationId && window.GameEngine.locationForState?.(state, id)).slice(0, 8);
+    const teleportButtons = visited.map((id) => {
+      const target = window.GameEngine.locationForState(state, id), plan = window.GameEngine.travelPlan?.(state, state.locationId, id, "truyền_tống_trận");
+      return plan?.success ? `<button class="local-map-teleport-destination" data-expansion-command="travel_fast" data-expansion-arg="${escapeHtml(id)}">${escapeHtml(target.name || id)}</button>` : "";
+    }).join("");
+    const journal = state.history?.filter((entry) => entry.type === "narr" || entry.type === "sys").slice(-1)[0]?.text || current.desc || "Tiếng gió lướt qua vùng đất chưa được ghi chép.";
+    const base = renderLocalMap(state, data, map);
+    const direction = directions[selectedDirection];
+    const directionRail = Object.entries(directions).map(([key, label]) => `<span class="local-map-direction-rail-item ${key === selectedDirection ? "is-selected" : ""}">${label}</span>`).join("");
+    const side = `<aside class="local-map-sidepanel"><small class="local-map-kicker">ĐỔI VỀ PHÍA ${escapeHtml(direction.toUpperCase())}</small><h2>${escapeHtml(direction.toUpperCase())} HÀNH</h2><p>${escapeHtml(String(current.desc || "Men theo lối cũ, ngươi có thể dừng chân ở một trong những chốn dưới đây.").slice(0, 220))}</p><div class="local-map-direction-rail" aria-label="Bốn hướng di chuyển">${directionRail}</div><hr><h3>NHỮNG CHỐN CÓ THỂ TỚI</h3><div class="local-map-direction-list">${cards}</div><div class="local-map-warning"><b>!</b><span>Thời tiết và địa hình ảnh hưởng tới cước trình, thể lực và thời gian.</span></div><button class="local-map-route-link" data-map-action="act_ban_do">Dữ liệu hành trình ›</button></aside>`;
+    const journalPanel = `<section class="local-map-journal"><h3>▣ NHẬT KÝ HÀNH TRÌNH</h3><p>${escapeHtml(String(journal).replace(/<[^>]+>/g, "").slice(-280))}</p><div><button data-map-action="act_nhin">◉ Quan sát</button><button data-map-action="act_nhin">♧ Lắng nghe</button><button data-map-action="act_nghi_ngoi">♨ Nghỉ ngơi</button></div></section>`;
+    const teleport = `<details class="local-map-teleport"><summary><b>◉ Truyền tống</b><span> · ${teleportButtons ? visited.length : 0} điểm đã mở</span><i>⌄</i></summary><div>${teleportButtons || '<span class="muted">Chưa có điểm truyền tống hợp lệ.</span>'}</div></details>`;
+    return `<div class="local-map-shell"><header class="local-map-title"><b>LÂN CẬN</b><span>${escapeHtml(region?.name || "Vùng chưa định danh")} / ${escapeHtml(current.name || "Vị trí chưa định danh")}</span></header><div class="local-map-layout"><div class="local-map-canvas">${base}</div>${side}</div>${journalPanel}${teleport}</div>`;
+  }
+
   function renderLocalMap(state, data, map) {
     const localViewport = window.GameEngine.localBfsConstellation?.(state, 39) || { nodeIds: [state.locationId], treeEdges: [], gameplayEdges: [] };
     const coords = { ...(map.locations || {}) };
@@ -1097,7 +1187,8 @@ window.GameUI = (function () {
       const point = coords[node.nodeId] || currentOxy;
       const dx = Number(point.x ?? point[0]) - Number(currentOxy.x ?? currentOxy[0]);
       const dy = Number(point.y ?? point[1]) - Number(currentOxy.y ?? currentOxy[1]);
-      return [node.nodeId, { x: 50 + dx * coordinateScale / 5, y: 50 + dy * coordinateScale / 5 }];
+      // World +y is Bắc; screen y grows downward, so invert the projected y.
+      return [node.nodeId, { x: 50 + dx * coordinateScale / 5, y: 50 - dy * coordinateScale / 5 }];
     }));
 
     const localRoutePairs = visibleTreeNodes.filter((node) => node.parentNodeId && points[node.parentNodeId] && points[node.nodeId] && (visited.has(node.nodeId) || visited.has(node.parentNodeId))).map((node) => ({ key: node.parentEdgeId, from: node.parentNodeId, to: node.nodeId, kind: "tree" }));
@@ -1117,6 +1208,25 @@ window.GameUI = (function () {
     const localRoutes = localRoutePairs.concat(guidePairs).map(({ from, to, kind }) => {
       const explored = visited.has(from) && visited.has(to) ? " explored" : "";
       return '<line class="map-path ' + kind + '-edge' + explored + '" x1="' + points[from].x + '" y1="' + points[from].y + '" x2="' + points[to].x + '" y2="' + points[to].y + '"></line>';
+    }).join("");
+
+    // The design shows a discovery field before a movement is committed. These
+    // are deterministic preview dots, not gameplay nodes and never mutate save state.
+    const previewDirection = state.flags?.lastMoveDirection && ["bac", "dong", "nam", "tay"].includes(state.flags.lastMoveDirection) ? state.flags.lastMoveDirection : "dong";
+    const preview = window.GameEngine.movementCandidatePreview?.(state, previewDirection);
+    const previewCandidates = preview?.success ? (preview.candidates || []) : [];
+    const previewScale = Math.max(8, coordinateScale * 1.25);
+    const previewPoints = previewCandidates.map((candidate, index) => {
+      const dx = Number(candidate.x) - Number(currentOxy.x ?? currentOxy[0]);
+      const dy = Number(candidate.y) - Number(currentOxy.y ?? currentOxy[1]);
+      return { candidate, index, x: 50 + dx * previewScale / 5, y: 50 - dy * previewScale / 5 };
+    }).filter(({ x, y }) => x >= 8 && x <= 92 && y >= 10 && y <= 88);
+    const previewRoutes = previewPoints.map(({ x, y, index }) => '<line class="map-path preview-edge' + (index === Number(preview?.index) ? ' preview-selected' : '') + '" x1="50" y1="50" x2="' + x + '" y2="' + y + '"></line>').join("");
+    const previewNodes = previewPoints.map(({ candidate, index, x, y }) => {
+      const selected = index === Number(preview?.index);
+      const detail = preview?.travelPlan && selected ? " · " + (preview.travelPlan.gameDays ?? "?") + " ngày · " + (preview.travelPlan.staminaCost ?? "?") + " thể lực" : "";
+      const label = selected ? "Ứng viên " + (index + 1) : "Khám phá " + (index + 1);
+      return '<button type="button" class="map-node preview-node' + (selected ? ' preview-selected' : '') + '" style="left:' + x + '%;top:' + y + '%" data-map-dir="' + previewDirection + '" data-map-candidate-index="' + index + '" aria-label="' + escapeHtml(label + " · Oxy " + candidate.x + "," + candidate.y + detail) + '" title="' + escapeHtml(label + " · Oxy " + candidate.x + "," + candidate.y + detail) + '"><span class="map-node-label">' + escapeHtml(label) + '</span></button>';
     }).join("");
 
     const nodes = Object.entries(points).map(([id, point]) => {
@@ -1160,7 +1270,7 @@ window.GameUI = (function () {
       const displayName = displayNodeName(location.name);
       const oxyPoint = coords[id];
       const oxy = oxyPoint ? Number(oxyPoint.x ?? oxyPoint[0]) + "," + Number(oxyPoint.y ?? oxyPoint[1]) : "chưa rõ";
-      const label = isCurrent || notableCount || hasOpportunity || hasEvent || hiddenOpen ? displayName : (fogLevel >= 1 ? "✦" : "·");
+      const label = isCurrent || isVisited || isReachable || notableCount || hasOpportunity || hasEvent || hiddenOpen ? displayName : (fogLevel >= 1 ? "✦" : "·");
       const detail = ["Oxy " + oxy, "Khoảng cách " + distance(id), isVisited ? "Đã đi qua" : "Chưa đi qua", direction ? "Có thể đi " + direction : "Chưa có tuyến trực tiếp", notableCount ? "NPC " + notableCount : "", hasOpportunity ? "Có cơ duyên" : "", hasEvent ? "Có biến cố" : "", hiddenOpen ? "Bí cảnh mở" : ""].filter(Boolean).join(" · ");
       const action = direction ? ' data-map-dir="' + direction + '"' : "";
       return '<button class="' + classes.join(" ") + '" style="left:' + point.x + '%;top:' + point.y + '%"' + action + ' aria-label="' + escapeHtml(displayName + " · " + detail) + '" title="' + escapeHtml(displayName + " · " + detail) + '"><span class="map-star-glyph">✦</span><span class="map-node-label">' + escapeHtml(label) + '</span></button>';
@@ -1195,7 +1305,7 @@ window.GameUI = (function () {
       const x = 50 + Math.cos(angle) * 38, y = 50 + Math.sin(angle) * 38;
       return '<button class="map-node direction-dot ' + (exits[direction] ? "direction-known" : "direction-unknown") + '" style="left:' + x + '%;top:' + y + '%" ' + (exits[direction] ? 'data-map-dir="' + direction + '"' : 'data-map-explore-dir="' + direction + '"') + ' aria-label="Direction ' + direction + '" title="Direction ' + direction + '"><span class="map-star-glyph">·</span></button>';
     }).join("");
-    unexploredNodes += directionNodes + fastTravelPanel;
+    unexploredNodes = previewNodes + directionNodes + fastTravelPanel;
     const region = map.regions.find((item) => item.id === current?.region);
     const journeyDirections = Object.keys({ bac: 1, dong: 1, nam: 1, tay: 1 }).map((direction) => {
       const preview = window.GameEngine.movementCandidatePreview?.(state, direction) || { success: false, reason: "Chưa có điểm đến." };
@@ -1208,7 +1318,7 @@ window.GameUI = (function () {
     }).join("");
     const journeyPanel = '<section class="local-journey-panel" aria-label="Lựa chọn hành trình"><div class="local-journey-head"><div><span class="eyebrow">ĐƯỜNG ĐI TRƯỚC MẮT</span><h3>Chọn một hướng để xem vùng có thể tới</h3></div><span class="local-journey-status">Không tự di chuyển</span></div><p class="local-journey-copy">Mỗi lần khởi hành có thể tiến 1–3 ô và lệch nhẹ theo địa hình. Kết quả đã được neo theo lượt hiện tại trước khi trừ thời gian và thể lực.</p><div class="local-direction-grid">' + journeyDirections + '</div></section>';
     return '<div class="map-heading"><b>' + map.name + '</b><small>' + (region ? region.name + " — " + (region.desc || "Một vùng đất đang được ghi chép.") : "") + '</small></div>' +
-      '<div class="world-map constellation-map local-constellation" role="region" aria-label="Bản đồ tinh tú khu vực hiện tại"><div class="map-corner-label">LOCAL CONSTELLATION · ' + escapeHtml(current?.name || "UNKNOWN") + '</div><div class="map-compass" aria-hidden="true"><span>N</span><i></i><span>S</span></div><div class="constellation-cluster-label">Khu vực lân cận · ' + escapeHtml(region?.name || "Vùng chưa định danh") + '</div><div class="constellation-field"><svg class="local-route-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">' + localRoutes + '</svg><div class="constellation-core" aria-hidden="true"></div>' + nodes + unexploredNodes + '</div></div>' + journeyPanel +
+      '<div class="world-map constellation-map local-constellation" role="region" aria-label="Bản đồ tinh tú khu vực hiện tại"><div class="map-corner-label">LOCAL CONSTELLATION · ' + escapeHtml(current?.name || "UNKNOWN") + '</div><div class="map-compass" aria-hidden="true"><span>N</span><i></i><span>S</span></div><div class="constellation-cluster-label">Khu vực lân cận · ' + escapeHtml(region?.name || "Vùng chưa định danh") + '</div><div class="constellation-field"><svg class="local-route-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">' + localRoutes + previewRoutes + '</svg><div class="constellation-core" aria-hidden="true"></div>' + nodes + unexploredNodes + '</div></div>' + journeyPanel +
       '<p class="map-legend"><span class="dot current"></span> Hiện tại <span class="dot reachable"></span> Có thể đi <span class="dot visited"></span> Đã khám phá <span class="dot npc"></span> NPC <span class="dot event"></span> Biến cố <span class="dot opportunity"></span> Cơ duyên</p>';
   }
 
@@ -1502,7 +1612,7 @@ window.GameUI = (function () {
   }
 
   function renderMapDetail(state) {
-    return '<img class="modal-illustration" src="assets/ui/map-illustration.webp" alt="Bản đồ Vạn Giới Lộ">' + renderMap(state);
+    return '<img class="modal-illustration map-modal-illustration" src="assets/ui/maps/celestial-atlas.png" alt="Bản đồ Vạn Giới Lộ">' + renderMap(state);
   }
 
   function setActiveTab(name) {

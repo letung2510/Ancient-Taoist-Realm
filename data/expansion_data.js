@@ -171,7 +171,15 @@
   };
 
   const hiddenPathDefinitions = Object.fromEntries(Object.entries(hiddenProfessions).filter(([, definition]) => definition.kind === "tu_tich"));
-  Object.keys(hiddenPathDefinitions).forEach((id) => delete hiddenProfessions[id]);
+  Object.keys(hiddenPathDefinitions).forEach((id) => {
+    // Keep a non-enumerable compatibility lookup for old save/audit readers.
+    // Runtime enumeration remains strictly separated: hiddenProfessions is
+    // the Cổ Tịch nghề namespace, hiddenPathDefinitions is the Từ Tích path
+    // namespace. This prevents the old UI from rendering paths as professions.
+    const definition = hiddenPathDefinitions[id];
+    delete hiddenProfessions[id];
+    Object.defineProperty(hiddenProfessions, id, { value: definition, enumerable: false, configurable: true, writable: false });
+  });
   window.EXPANSION_DATA = {
     version: 1,
     worldEvents,
