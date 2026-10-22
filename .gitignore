@@ -14,3 +14,8 @@ desktop.ini
 # Local saves/cache
 *.save
 co_di_dien_save_*
+.cache/
+
+# Build artifact: offline single-file bundle (~140MB, exceeds GitHub's 100MB limit).
+# Build locally with tools/build_offline_bundle.ps1 when needed.
+index.offline.html

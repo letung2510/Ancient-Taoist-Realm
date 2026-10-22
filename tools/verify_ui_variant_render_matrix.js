@@ -5,9 +5,8 @@
 // HTML/action selectors without pretending to prove viewport or file chooser
 // behavior that requires a browser connector.
 const assert = require("assert");
-const fs = require("fs");
 const path = require("path");
-const vm = require("vm");
+const { loadRuntime } = require("./lib/load_runtime");
 const root = path.join(__dirname, "..");
 
 function node(tag = "div") {
@@ -28,17 +27,10 @@ const document = {
   querySelector() { return null; },
   body: node("body")
 };
-const sandbox = {
-  window: {}, document, console, performance: { now: () => Date.now() }, Date,
+const { sandbox } = loadRuntime({ sandboxStyle: "window", until: "js/ui.js", globals: {
+  document, console, performance: { now: () => Date.now() }, Date,
   setTimeout, clearTimeout, URL, Blob, FileReader: function FileReader() {}
-};
-vm.createContext(sandbox);
-[
-  "gemini-code-1788430656294.js", "data/world_data.js", "data/fate_data.js",
-  "data/fate_relationships.js", "data/cong_phap.js", "data/npc_monsters.js",
-  "data/path_fate_relations.js", "data/profession_items.js", "data/expansion_data.js",
-  "data/data.js", "js/i18n.js", "js/engine.js", "js/expansion.js", "js/ui.js"
-].forEach((file) => vm.runInContext(fs.readFileSync(path.join(root, file), "utf8"), sandbox, { filename: file }));
+} });
 
 const E = sandbox.window.GameEngine;
 const X = sandbox.window.GameExpansion;

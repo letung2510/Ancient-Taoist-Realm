@@ -1,7 +1,7 @@
 "use strict";
 
 const assert = require("assert");
-const { generateCharacter } = require("../character_generator");
+const { generateCharacter } = require("./character_generator");
 
 function makeRng() {
   const sequence = [0.11, 0.27, 0.43, 0.59, 0.73, 0.89, 0.17, 0.31, 0.47, 0.67, 0.83, 0.05];

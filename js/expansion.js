@@ -19,6 +19,9 @@
   const copy = (value) => JSON.parse(JSON.stringify(value));
   const MAP_INFLUENCE_INDEX = new WeakMap();
   const MAP_HOME_COORDS_CACHE = new WeakMap();
+  // Non-persisted influence snapshots for read-only (persist=false) callers.
+  const MAP_INFLUENCE_VIEW_CACHE = new WeakMap();
+  const NORMALIZED_MAP_NODE_KEYS = new WeakMap();
   const runtimeLocationPool = (state) => E.locationPool ? E.locationPool(state) : (D.LOCATIONS || {});
   const currentRegion = (state) => D.WORLD_MAP?.locations?.[state.locationId]?.region || runtimeLocationPool(state)?.[state.locationId]?.region || "trung_vuc";
   const absoluteDay = (clock) => {
@@ -314,11 +317,11 @@
   }
   function validateOrganizationState(state) {
     ensureOrganizationState(state);
-    const errors = [], known = new Set(organizationDefinitions().map((entry) => entry.id)), locations = runtimeLocationPool(state);
+    const errors = [], known = new Set(organizationDefinitions().map((entry) => entry.id));
     organizationDefinitions().forEach((organization) => {
       const address = organizationAddress(organization.id);
       if (!address?.nodeId) { errors.push(organization.id + ":missing-address"); return; }
-      const node = locations[address.nodeId];
+      const node = E.peekLocation ? E.peekLocation(state, address.nodeId) : runtimeLocationPool(state)[address.nodeId];
       if (!node) errors.push(organization.id + ":missing-runtime-node");
       else {
         if (String(node.organizationId || "") !== String(organization.id)) errors.push(organization.id + ":node-identity");
@@ -497,8 +500,30 @@
     return copy(configured.length ? configured : [...codexPaths, ...fallback]);
   }
 
+  // Lookup indexes are derived from immutable catalogs: built once per catalog and attached as a
+  // non-enumerable property so they are never serialized into the save (the fate index alone is ~3MB).
+  let SHARED_FATE_INDEX = { source: null, count: -1, index: null };
+  function sharedFateIndex() {
+    const patterns = D.FATE_PATTERNS || [];
+    if (SHARED_FATE_INDEX.source !== patterns || SHARED_FATE_INDEX.count !== patterns.length) {
+      const byId = {};
+      patterns.forEach((fate) => { byId[fate.id] = fate; });
+      SHARED_FATE_INDEX = { source: patterns, count: patterns.length, index: { byId } };
+    }
+    return SHARED_FATE_INDEX.index;
+  }
+  function attachRuntimeIndexes(state) {
+    const current = Object.getOwnPropertyDescriptor(state, "runtimeIndexes");
+    const fate = sharedFateIndex();
+    if (current && !current.enumerable && current.value?.fate === fate) return;
+    const prior = current?.value || {};
+    Object.defineProperty(state, "runtimeIndexes", { value: { fate, npc: prior.npc || { byId: {} }, location: prior.location || { byId: {} } }, enumerable: false, writable: true, configurable: true });
+  }
+
+  const ENSURE_SCOPE = new WeakSet();
   function ensure(state) {
     if (!state || !state.player) return state;
+    if (ENSURE_SCOPE.has(state)) return state;
     state.player.techniques ||= {};
     state.flags ||= {};
     state.flags.techniqueAcquisitionReceipts ||= {};
@@ -567,9 +592,7 @@
     state.runtimeMetrics.mapInfluence ||= { calls: 0, cacheHits: 0, uncached: 0, totalMs: 0 };
     state.runtimeMetrics.npcView ||= { calls: 0, totalMs: 0 };
     state.runtimeMetrics.offline ||= { calls: 0, totalMs: 0 };
-    state.runtimeIndexes = state.runtimeIndexes || { fate: { byId: {} }, npc: { byId: {} }, location: { byId: {} } };
-    state.runtimeIndexes.fate ||= { byId: {} }; state.runtimeIndexes.npc ||= { byId: {} }; state.runtimeIndexes.location ||= { byId: {} };
-    (D.FATE_PATTERNS || []).forEach((fate) => { state.runtimeIndexes.fate.byId[fate.id] = fate; });
+    attachRuntimeIndexes(state);
     state.meta.featureVersions = state.meta.featureVersions || {};
     ["worldSimulation", "relationships", "techniqueEvolution", "techniqueCrossSystem", "professions", "professionItems", "contracts", "itemLegacy", "companions", "discoveries", "reincarnationLegacy", "fateEvolution"].forEach((key) => {
       state.meta.featureVersions[key] = Number(state.meta.featureVersions[key] || VERSION);
@@ -695,7 +718,7 @@
     });
     state.relationships = state.relationships || {};
     ensureOrganizationState(state);
-    Object.values(state.relationships).forEach((relation) => { relation.schemaVersion = Math.max(2, Number(relation.schemaVersion || 1)); relation.decayPolicy ||= "event_only"; const migratedDimensions = []; if (relation.loyalty == null) { relation.loyalty = relation.trust; migratedDimensions.push("loyalty"); } if (relation.affection == null) { relation.affection = relation.trust; migratedDimensions.push("affection"); } if (migratedDimensions.length) relation.migration = { source: "legacy_trust", fields: migratedDimensions, appliedAtDay: playerDay(state) }; relation.loyalty = clamp(relation.loyalty, 0, 100); relation.affection = clamp(relation.affection, 0, 100); relation.score = Number(relation.score ?? ((Number(relation.trust || 0) + Number(relation.respect || 0)) - (Number(relation.fear || 0) + Number(relation.suspicion || 0)) * 0.5)); });
+    Object.values(state.relationships).forEach((relation) => { relation.schemaVersion = Math.max(2, Number(relation.schemaVersion || 1)); relation.decayPolicy ||= "event_only"; const migratedDimensions = []; if (relation.loyalty == null) { relation.loyalty = relation.trust; migratedDimensions.push("loyalty"); } if (relation.affection == null) { relation.affection = relation.trust; migratedDimensions.push("affection"); } if (migratedDimensions.length) relation.migration = { source: "legacy_trust", fields: migratedDimensions, appliedAtDay: playerDay(state) }; relation.loyalty = clamp(relation.loyalty, 0, 100); relation.affection = clamp(relation.affection, 0, 100); relation.score = Number(relation.score ?? relationScore(relation)); });
     state.relationshipEvents = state.relationshipEvents || {};
     state.rewardLedger = state.rewardLedger || {};
     Object.entries(state.rewardLedger).forEach(([key, receipt]) => {
@@ -788,6 +811,8 @@
     });
     if (state.activeHiddenRealm) rebuildHiddenRealmNodes(state, state.activeHiddenRealm.realmId, state.activeHiddenRealm.cycleIndex);
     ensureRuntimeLocationCoordinates(state);
+    normalizeMapState(state);
+    normalizeOwnedMapNodes(state);
     return state;
   }
 
@@ -1182,9 +1207,9 @@
     return companion;
   }
   function validateCompanionState(state) {
-    const companion = state.companion, errors = [], allowed = new Set(["active", "mutated", "recovering", "dead", "fled", "released"]);
+    // Validate a normalized copy; validators must not repair live state.
+    const companion = state.companion ? normalizeCompanion(copy(state.companion)) : null, errors = [], allowed = new Set(["active", "mutated", "recovering", "dead", "fled", "released"]);
     if (!companion) return { ok: true, present: false, errors };
-    normalizeCompanion(companion);
     if (!allowed.has(companion.state)) errors.push("state");
     ["loyalty", "corruption"].forEach((key) => { if (Number(companion[key] || 0) < 0 || Number(companion[key] || 0) > 100) errors.push(key); });
     Object.entries(companion.skillMastery || {}).forEach(([id, value]) => { if (!id || !Number.isFinite(Number(value)) || Number(value) < 0) errors.push("mastery:" + id); });
@@ -1405,8 +1430,8 @@
     const requiredSlotsMet = (definition.requiredSlots || []).every((slot) => occupiedCategories.has(slot));
     return { setId, matching, equipped, active: matching.length >= Number(definition.requiredCount || 2) && matching.length === equipped.length && requiredSlotsMet };
   }
-  function equipmentSetModifiers(state) {
-    ensure(state);
+  function equipmentSetModifiers(state, options = {}) {
+    if (options.ensure !== false) ensure(state);
     const result = { combatPowerMult: 0, cultivationMult: 0, fortuneFlat: 0, phyDef: 0, activeSets: [] };
     Object.values(X.achievementDefinitions || {}).filter((d) => d.type === "equipment_set").forEach((def) => {
       const set = equipmentSetState(state, def);
@@ -1415,11 +1440,23 @@
       }
     }); return result;
   }
+  function applyEquipmentSetBonus(state, stats) {
+    if (!state?.player?.equipment || !stats?.eff) return;
+    const bonus = equipmentSetModifiers(state, { ensure: false });
+    stats.eff.combatDamagePct = Number(stats.eff.combatDamagePct || 0) + Number(bonus.combatPowerMult || 0) * 100;
+    stats.eff.phyDef = Number(stats.eff.phyDef || 0) + Number(bonus.phyDef || 0);
+    stats.eff.fortune = Number(stats.eff.fortune || 0) + Number(bonus.fortuneFlat || 0);
+  }
 
-  function seasonInfo(state) {
-    const month = Number(state.gameClock?.currentMonth || 1);
-    const index = Math.floor((month - 1) / 3) % 4;
-    return (X.seasons || [])[index] || { id: "xuan", name: "Xuân", element: "moc" };
+  // Seasons follow the canonical world ordinal, not the legacy player clock.
+  // This keeps season effects aligned with weather/NPC/world simulation after
+  // save/load and after offline catch-up.
+  function seasonInfoCanonical(state) {
+    const worldDay = absoluteWorldDay(state);
+    const dayOfYear = (Math.max(1, worldDay) - 1) % 360;
+    const index = Math.floor(dayOfYear / 90) % 4;
+    const season = (X.seasons || [])[index] || { id: "xuan", name: "Xuân", element: "moc" };
+    return { ...season, index, dayOfYear: dayOfYear + 1, dayInSeason: (dayOfYear % 90) + 1, daysRemaining: 90 - (dayOfYear % 90) };
   }
 
   function activeRegionEvent(state, regionId = currentRegion(state)) {
@@ -1458,7 +1495,13 @@
       result.tags.push("di_the:" + physique.id);
     }
     const equipment = equipmentSetModifiers(state); result.cultivationMult += equipment.cultivationMult || 0;
-    const season = seasonInfo(state);
+    const guildBenefits = typeof E.getGuildBenefits === "function" ? E.getGuildBenefits(state) : null;
+    if (guildBenefits?.guild) {
+      result.cultivationMult *= 1 + Number(guildBenefits.expBonusPct || 0) / 100;
+      result.corruptionResist += clamp(Number(guildBenefits.cityPenaltyReductionPct || 0) / 100, 0, 0.95);
+      result.tags.push("guild:" + guildBenefits.guild.id, "guild-rank:" + (guildBenefits.rank?.rankIndex ?? 0));
+    }
+    const season = seasonInfoCanonical(state);
     if (context.element && context.element === season.element) result.combatPowerByElement[context.element] = 1.1;
     const regionId = context.regionId || currentRegion(state);
     const event = activeRegionEvent(state, regionId);
@@ -1590,7 +1633,8 @@
     Object.entries(choice.influence || {}).forEach(([factionId, score]) => recordMapEventInfluence(state, event.regionId, factionId, score, absoluteDay(state.gameClock) + Number(choice.influenceDurationDays || 7)));
     event.playerContribution += Number(choice.contribution || 1);
     event.choiceHistory.push({ choiceId, day: absoluteDay(state.gameClock) });
-    history(state, "narr", "Giữa biến cố " + template.name + ", ngươi chọn: " + choice.label + ". Đóng góp +" + Number(choice.contribution || 1) + ".");
+    const rewardText = [Number(rewardGrant.receipt?.linhThach || 0) ? Number(rewardGrant.receipt.linhThach) + " Linh Thạch" : "", Number(rewardGrant.receipt?.merit || 0) ? Number(rewardGrant.receipt.merit) + " Công Đức" : "", Number(choice.san || 0) ? "Thanh Tỉnh " + (Number(choice.san) > 0 ? "+" : "") + Number(choice.san) : ""].filter(Boolean).join(" · ");
+    history(state, "narr", "Giữa biến cố " + template.name + ", ngươi chọn: " + choice.label + ". Phần thưởng: " + (rewardText || "không có") + ".");
     E.updateDerived(state);
     return { success: true, event, choice };
   }
@@ -1903,7 +1947,7 @@
         if (false && loc && !loc.organizationId && npc.nodeVisits[next] >= 8 && !state.worldSimulation.settlements?.[next] && seeded(state, "settlement:" + npc.npcId + ":" + next) < 0.2) {
           state.worldSimulation.settlements ||= {};
           state.worldSimulation.settlements[next] = { id: "settlement:" + next, founderNpcId: npc.npcId, foundedDay: day, name: "Quầy Lưu Lạc", status: "active" };
-          const worldNode = mapNode(state, next); worldNode.subLocations ||= [];
+          const worldNode = normalizeMapNode(state, next); worldNode.subLocations ||= [];
           if (!worldNode.subLocations.some((spot) => spot.id === "itinerant_stall")) worldNode.subLocations.push({ id: "itinerant_stall", name: "Quầy Lưu Lạc", displayName: "Quầy Lưu Lạc", type: "market", ownerNpcId: npc.npcId });
           appendNodeHistory(state, next, { type: "actor", actorId: npc.npcId, summary: "Một người buôn đường xa dựng quầy nhỏ bên lối cổ.", key: "settlement:" + next });
         }
@@ -2091,7 +2135,7 @@
           state.mailInbox = Array.isArray(state.mailInbox) ? state.mailInbox : [];
           state.mailInbox.push({ taskId: task.id, npcId: task.npcId, message: task.message, itemId: task.itemId || null, deliveredDay: day, read: false });
           state.mailInbox = state.mailInbox.slice(-50);
-          recordRelationshipEvent(state, task.npcId, "sent_gift", { uniqueKey: task.id, deltas: { trust: task.itemId ? 4 : 1 } });
+          recordRelationshipEvent(state, task.npcId, task.itemId ? "mail_gift" : "mail_letter", { uniqueKey: task.id, replaceDefaults: true, deltas: task.itemId ? { affection: 2, trust: 1 } : { affection: 1 } });
           history(state, "sys", "◇ Truyền thư đã tới " + (D.NPCS[task.npcId]?.name || "người nhận") + ".");
         } else if (task.itemId) addItem(state, task.itemId, 1);
       }
@@ -2112,6 +2156,18 @@
   }
 
   function tick(state, day) {
+    // ensure() normalizes the whole save; during one daily tick it is run once before and once after,
+    // and nested calls from per-NPC/per-node helpers are skipped (they were ~70% of simulation time).
+    if (ENSURE_SCOPE.has(state)) { forceEnsure(state); try { return tickBody(state, day); } finally { forceEnsure(state); } }
+    ensure(state);
+    ENSURE_SCOPE.add(state);
+    try { return tickBody(state, day); } finally { ENSURE_SCOPE.delete(state); ensure(state); }
+  }
+  function forceEnsure(state) {
+    ENSURE_SCOPE.delete(state);
+    try { ensure(state); } finally { ENSURE_SCOPE.add(state); }
+  }
+  function tickBody(state, day) {
     Object.entries(state.questState?.available || {}).forEach(([questId, quest]) => {
       if (quest.status === "available" && Number.isFinite(Number(quest.expiresDay)) && day > Number(quest.expiresDay)) {
         quest.status = "failed"; quest.failedDay = day; state.questState.failed[questId] = quest; delete state.questState.available[questId];
@@ -2407,13 +2463,11 @@
       return { success: true, phase: "WAKE", sleeping: true, detected, relationship: disturbed.relation };
     }
     const quest = ensureNpcQuestOffer(state, npcId) || state.questState?.active?.["npc_quest_" + npcId] || null;
-    const runtimeRelation = state.relationships[npcId] ||= { trust: 0, fear: 0, respect: 0, suspicion: 0, affection: 0, loyalty: 0, score: 0 };
+    ensureRelationRecord(state, npcId);
     const gossip = Object.values(npc.rumorLedger || {}).filter((rumor) => Number(rumor.expiresDay || 0) >= absoluteDay(state.gameClock)).sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0))[0];
     if (gossip && !npc.heardPlayerRumor) {
       npc.heardPlayerRumor = gossip.key;
-      if (gossip.alignment === "villainous") { runtimeRelation.suspicion = clamp(Number(runtimeRelation.suspicion || 0) + 8, 0, 100); runtimeRelation.affection = clamp(Number(runtimeRelation.affection || 0) - 3, 0, 100); }
-      else { runtimeRelation.respect = clamp(Number(runtimeRelation.respect || 0) + 4, 0, 100); }
-      runtimeRelation.score = Number(runtimeRelation.trust || 0) + Number(runtimeRelation.respect || 0) - (Number(runtimeRelation.fear || 0) + Number(runtimeRelation.suspicion || 0)) * 0.5;
+      recordRelationshipEvent(state, npcId, "heard_rumor", { uniqueKey: "rumor:" + gossip.key, replaceDefaults: true, deltas: gossip.alignment === "villainous" ? { suspicion: 8, affection: -3 } : { respect: 4 } });
     }
     if (npc.betrayalWarning?.status === "warning") history(state, "warn", "Có điều gì đó bất an trong ánh mắt " + (npc.name || npcId) + "; lời hứa giữa hai người dường như đang lung lay.");
     if (npc.hostileToPlayer || state.guildMembership?.betrayedOrganizations?.includes(npc.factionId)) return { success: false, reason: "Ánh mắt NPC lạnh hẳn: tổ chức của họ đã xem ngươi là kẻ phản đồ." };
@@ -2421,6 +2475,10 @@
     history(state, "narr", "Ánh mắt " + (npc.name || npcId) + " dừng lại nơi ngươi; câu chuyện mở ra giữa những điều chưa được nói hết.");
     state.dialogueState.history.push({ phase: state.dialogueState.phase, day: absoluteDay(state.gameClock) });
     return { success: true, profileId: npc.dialogueProfileId, phase: state.dialogueState.phase, quest };
+  }
+  function giftableItem(state, itemId, item = D.ITEMS?.[itemId] || state.generatedItems?.[itemId]) {
+    if (!item || item.kind === "quest" || item.questItem || item.equipped || item.locked) return false;
+    return !E.equippedItemIds(state.player.equipment).includes(itemId) && E.freeItemQuantity(state, itemId) >= 1;
   }
   function giftNpc(state, npcId, itemId, mode = "bond") {
     ensureNpcWorldState(state); const npc = state.worldSimulation.npcState[npcId], item = D.ITEMS?.[itemId] || state.generatedItems?.[itemId];
@@ -2436,7 +2494,7 @@
     const giftDay = state.flags.giftLedger[npcId] ||= { day, count: 0 };
     if (Number(giftDay.day) !== day) { giftDay.day = day; giftDay.count = 0; }
     if (Number(giftDay.count || 0) >= 3) return { success: false, reason: "Đã tặng quá nhiều quà cho NPC này hôm nay." };
-    if (item.kind === "quest" || item.questItem || item.equipped || item.locked || E.equippedItemIds(state.player.equipment).includes(itemId) || E.freeItemQuantity(state, itemId) < 1) return { success: false, reason: "Vật phẩm này không thể dùng làm quà tặng." };
+    if (!giftableItem(state, itemId, item)) return { success: false, reason: "Vật phẩm này không thể dùng làm quà tặng." };
     if (!removeItem(state, itemId, 1)) return { success: false, reason: "Không đủ vật phẩm tự do để tặng." };
     const delta = disliked ? -6 : liked ? 8 : 1; giftDay.count += 1;
     const relationshipResult = recordRelationshipEvent(state, npcId, giftMode === "trade" ? "trade_gift" : "sent_gift", { uniqueKey: giftMode + ":gift:" + npcId + ":" + itemId + ":" + day, deltas: giftMode === "trade" ? { respect: 1 } : { affection: delta } });
@@ -2732,8 +2790,8 @@
     history(state, "sys", "Cổ Thần Tàn Hồn đã được xử lý bằng nghi thức " + choice + ".");
     return { success: true, encounter: copy(state.hiddenPathState.encounters[id]), status: state.hiddenPathState.status };
   }
-  function ensureMapState(state) { ensure(state); state.mapState ||= { version: 2, structures: {}, invalidExits: [], journal: [], fastTravel: {}, teleportAnchors: {}, tradeRoutes: {}, outposts: {}, eventInfluence: {}, influenceCache: {}, influenceRevision: 1, invalidationCount: 0, lastInvalidation: null }; state.mapState.version = Math.max(2, Number(state.mapState.version || 1)); state.mapState.structures ||= {}; state.mapState.invalidExits ||= []; state.mapState.journal ||= []; state.mapState.fastTravel ||= {}; state.mapState.teleportAnchors ||= {}; state.mapState.tradeRoutes ||= {}; state.mapState.outposts ||= {}; state.mapState.eventInfluence ||= {}; state.mapState.influenceCache ||= {}; state.mapState.influenceRevision = Number(state.mapState.influenceRevision || 1); state.mapState.invalidationCount = Number(state.mapState.invalidationCount || 0); state.worldSimulation ||= {}; state.worldSimulation._influenceRevision = Number(state.worldSimulation._influenceRevision || 0); return state.mapState; }
-  function invalidateMapInfluence(state, nodeId) { const map = ensureMapState(state); map.influenceRevision += 1; map.invalidationCount += 1; map.lastInvalidation = { nodeId: nodeId || null, revision: map.influenceRevision, day: absoluteDay(state.gameClock) }; map.influenceCache = {}; if (nodeId) { const node = mapNode(state, nodeId); if (node) node.influenceRevision = map.influenceRevision; } return map.influenceRevision; }
+  function ensureMapState(state) { ensure(state); return normalizeMapState(state); }
+  function normalizeMapState(state) { state.mapState ||= { version: 2, structures: {}, invalidExits: [], journal: [], fastTravel: {}, teleportAnchors: {}, tradeRoutes: {}, outposts: {}, eventInfluence: {}, influenceCache: {}, influenceRevision: 1, invalidationCount: 0, lastInvalidation: null }; state.mapState.version = Math.max(2, Number(state.mapState.version || 1)); state.mapState.structures ||= {}; state.mapState.invalidExits ||= []; state.mapState.journal ||= []; state.mapState.fastTravel ||= {}; state.mapState.teleportAnchors ||= {}; state.mapState.tradeRoutes ||= {}; state.mapState.outposts ||= {}; state.mapState.eventInfluence ||= {}; state.mapState.influenceCache ||= {}; state.mapState.influenceRevision = Number(state.mapState.influenceRevision || 1); state.mapState.invalidationCount = Number(state.mapState.invalidationCount || 0); state.worldSimulation ||= {}; state.worldSimulation._influenceRevision = Number(state.worldSimulation._influenceRevision || 0); return state.mapState; }
   function recordMapEventInfluence(state, nodeId, factionId, score, expiresDay = null) {
     const map = ensureMapState(state); if (!nodeId || !factionId || !Number.isFinite(Number(score))) return { success: false, reason: "Tín hiệu ảnh hưởng không hợp lệ." };
     map.eventInfluence[nodeId] ||= {};
@@ -2743,7 +2801,7 @@
     invalidateMapInfluence(state, nodeId);
     return { success: true, nodeId, factionId, score: map.eventInfluence[nodeId][factionId].score };
   }
-  function invalidateMapInfluence(state, nodeId) { const map = ensureMapState(state); map.version = Math.max(1, Number(map.version || 1) + 1); map.influenceRevision += 1; map.invalidationCount += 1; map.lastInvalidation = { nodeId: nodeId || null, revision: map.influenceRevision, day: absoluteDay(state.gameClock) }; map.influenceCache = {}; if (nodeId) { const node = mapNode(state, nodeId); if (node) node.influenceRevision = map.influenceRevision; } return map.influenceRevision; }
+  function invalidateMapInfluence(state, nodeId) { const map = ensureMapState(state); map.version = Math.max(1, Number(map.version || 1) + 1); map.influenceRevision += 1; map.invalidationCount += 1; map.lastInvalidation = { nodeId: nodeId || null, revision: map.influenceRevision, day: absoluteDay(state.gameClock) }; map.influenceCache = {}; MAP_INFLUENCE_VIEW_CACHE.delete(state); MAP_HOME_COORDS_CACHE.delete(state); if (nodeId) { const node = normalizeMapNode(state, nodeId); if (node) node.influenceRevision = map.influenceRevision; } return map.influenceRevision; }
   function activeEventInfluence(state, nodeId) {
     const map = ensureMapState(state); const now = absoluteDay(state.gameClock); const raw = map.eventInfluence[nodeId] || {}; const active = {};
     Object.entries(raw).forEach(([factionId, value]) => { const score = typeof value === "object" ? Number(value.score || 0) : Number(value || 0); const expiresDay = typeof value === "object" ? Number(value.expiresDay || 0) : 0; if (score > 0 && (!expiresDay || expiresDay >= now)) active[factionId] = score; });
@@ -2761,16 +2819,42 @@
     }
     return state.runtimeLocations[nodeId];
   }
-  function mapNode(state, nodeId = state.locationId) {
-    ensure(state); const node = mutableMapNode(state, nodeId);
+  function mapNodeNormalizedFields(state, nodeId, node) {
+    return {
+      regionId: node.regionId || node.region || D.WORLD_MAP?.locations?.[nodeId]?.region || (E.peekLocation ? E.peekLocation(state, nodeId) : null)?.region || currentRegion(state),
+      mapNodeType: node.mapNodeType || (node.openWorld ? "wilderness" : "location"),
+      subLocations: Array.isArray(node.subLocations) ? node.subLocations : [{ id: "main", type: "indoor", displayName: node.name || nodeId, actions: ["look", "search"], npcsPresent: [] }],
+      influenceMap: node.influenceMap || {}, history: Array.isArray(node.history) ? node.history : [],
+      fogState: clamp(node.fogState ?? (state.visitedLocations?.includes(nodeId) ? 2 : 0), 0, 3),
+      fastTravelUnlocked: Boolean(node.fastTravelUnlocked || state.mapState?.fastTravel?.[nodeId]),
+      playerStructures: Array.isArray(node.playerStructures) ? node.playerStructures : (state.mapState?.structures?.[nodeId] || [])
+    };
+  }
+  // Load/action-time normalizer: materializes a state-owned node and writes the
+  // canonical map fields. Writers must use this; mapNode() is a pure read.
+  function normalizeMapNode(state, nodeId = state.locationId) {
+    const node = mutableMapNode(state, nodeId);
     if (!node) return null;
-    node.regionId ||= node.region || D.WORLD_MAP?.locations?.[nodeId]?.region || runtimeLocationPool(state)?.[nodeId]?.region || currentRegion(state); node.mapNodeType ||= node.openWorld ? "wilderness" : "location";
-    node.subLocations = Array.isArray(node.subLocations) ? node.subLocations : [{ id: "main", type: "indoor", displayName: node.name || nodeId, actions: ["look", "search"], npcsPresent: [] }];
-    node.influenceMap ||= {}; node.history = Array.isArray(node.history) ? node.history : [];
-    node.fogState = clamp(node.fogState ?? (state.visitedLocations?.includes(nodeId) ? 2 : 0), 0, 3);
-    node.fastTravelUnlocked = Boolean(node.fastTravelUnlocked || state.mapState?.fastTravel?.[nodeId]);
-    node.playerStructures = Array.isArray(node.playerStructures) ? node.playerStructures : (ensureMapState(state).structures[nodeId] || []);
-    return node;
+    normalizeMapState(state);
+    return Object.assign(node, mapNodeNormalizedFields(state, nodeId, node));
+  }
+  function normalizeOwnedMapNodes(state) {
+    const runtimeIds = Object.keys(state.runtimeLocations || {}), poolIds = Object.keys(state.openWorld?.nodePool || {});
+    const key = runtimeIds.length + "|" + poolIds.length + "|" + state.locationId;
+    if (NORMALIZED_MAP_NODE_KEYS.get(state) === key) return;
+    new Set([...poolIds, ...runtimeIds, state.locationId].filter(Boolean)).forEach((nodeId) => normalizeMapNode(state, nodeId));
+    NORMALIZED_MAP_NODE_KEYS.set(state, Object.keys(state.runtimeLocations || {}).length + "|" + Object.keys(state.openWorld?.nodePool || {}).length + "|" + state.locationId);
+  }
+  // Pure read: returns the live state node when it is already normalized,
+  // otherwise a detached normalized view. Never materializes or writes.
+  function mapNode(state, nodeId = state.locationId) {
+    if (!nodeId) return null;
+    const owned = state.openWorld?.nodePool?.[nodeId] || state.runtimeLocations?.[nodeId] || null;
+    const node = owned || (E.peekLocation ? E.peekLocation(state, nodeId) : runtimeLocationPool(state)?.[nodeId]);
+    if (!node) return null;
+    const fields = mapNodeNormalizedFields(state, nodeId, node);
+    if (owned && Object.keys(fields).every((key) => owned[key] === fields[key])) return owned;
+    return { ...node, ...fields };
   }
   function nodeCoordinates(state, nodeId) {
     const node = state.openWorld?.nodePool?.[nodeId] || state.runtimeLocations?.[nodeId]; const mapLocation = D.WORLD_MAP?.locations?.[nodeId];
@@ -2833,12 +2917,23 @@
     ensure(state); if (persist) state.runtimeMetrics.mapInfluence.calls += 1;
     const map = ensureMapState(state);
     const contextKey = [Number(state.worldSimulation.lastProcessedDay || 0), Number(state.worldSimulation._influenceRevision || 0), Number(map.invalidationCount || 0)].join("|");
-    const cached = map.influenceCache[nodeId];
-    if (cached?.revision === map.influenceRevision && cached.contextKey === contextKey) {
+    // persist=false is a pure read: results go to a transient (non-saved) cache and
+    // only persist=true writes map.influenceCache and the node's influence fields.
+    const viewCache = MAP_INFLUENCE_VIEW_CACHE.get(state) || {};
+    const valid = (entry) => entry?.revision === map.influenceRevision && entry.contextKey === contextKey;
+    const store = (entry) => {
       if (persist) {
+        map.influenceCache[nodeId] = { revision: entry.revision, contextKey: entry.contextKey, snapshot: entry.snapshot };
+        if (entry.nodeFields) { const live = normalizeMapNode(state, nodeId); if (live) { live.influenceMap = { ...entry.snapshot.influenceMap }; live.contested = entry.snapshot.contested; live.ownerFactionId = entry.snapshot.ownerFactionId; } }
+      } else { viewCache[nodeId] = entry; MAP_INFLUENCE_VIEW_CACHE.set(state, viewCache); }
+    };
+    const cached = valid(map.influenceCache[nodeId]) ? map.influenceCache[nodeId] : valid(viewCache[nodeId]) ? viewCache[nodeId] : null;
+    if (cached) {
+      if (persist) {
+        if (cached !== map.influenceCache[nodeId]) store(cached);
         state.runtimeMetrics.mapInfluence.cacheHits += 1; state.runtimeMetrics.mapInfluence.totalMs += (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now()) - startedAt;
       }
-      return cached.snapshot;
+      return copy(cached.snapshot);
     }
     const node = mapNode(state, nodeId); if (!node) return { nodeId, discovered: false, source: "missing", influenceMap: {}, factions: [], ownerFactionId: null, contested: false, pressure: 0, confidence: 0 };
     const discovered = nodeIsDiscovered(state, nodeId); const eventInfluence = activeEventInfluence(state, nodeId); const coordinates = nodeCoordinates(state, nodeId);
@@ -2846,9 +2941,9 @@
     if (!discovered) {
       const eventValues = Object.entries(eventInfluence).filter(([, value]) => Number(value) > 0).map(([factionId, score]) => ({ factionId, score: Number(score), tier: "event" }));
       const hiddenResult = { nodeId, discovered: false, source: eventValues.length ? "world_event" : "hidden", influenceMap: eventValues.reduce((out, item) => (out[item.factionId] = item.score, out), {}), factions: eventValues, ownerFactionId: null, contested: false, pressure: eventValues.reduce((sum, item) => sum + item.score, 0), confidence: eventValues.length ? 0.25 : 0, revision: map.influenceRevision };
-      map.influenceCache[nodeId] = { revision: map.influenceRevision, contextKey, snapshot: hiddenResult };
+      store({ revision: map.influenceRevision, contextKey, snapshot: hiddenResult });
       if (persist) state.runtimeMetrics.mapInfluence.totalMs += (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now()) - startedAt;
-      return hiddenResult;
+      return copy(hiddenResult);
     }
     if (persist) state.runtimeMetrics.mapInfluence.uncached += 1;
     const [x, y] = coordinates; const factions = D.WORLD_MAP?.factions || D.FACTION_DATA?.factions || [];
@@ -2894,10 +2989,9 @@
     });
     const values = Object.entries(influenceMap).sort((a, b) => b[1] - a[1]); const top = values[0], second = values[1];
     const contested = Boolean(top && second && top[1] > 0 && ((top[1] - second[1]) / top[1]) < 0.15); const pressure = values.reduce((sum, [, value]) => sum + Number(value || 0), 0); const result = { nodeId, discovered: true, source: "canonical_gradient", influenceMap: { ...influenceMap }, factions: values.map(([factionId, score], index) => ({ factionId, score, tier: index === 0 ? "dominant" : score >= top[1] * 0.6 ? "strong" : "weak" })), ownerFactionId: top && top[1] >= 35 && !contested ? top[0] : null, contested, stable: Boolean(top && top[1] >= 35 && !contested), frontier: Boolean(top && second && top[1] >= 35 && second[1] >= top[1] * 0.6), pressure, confidence: top ? clamp(Number(top[1] / Math.max(1, pressure)), 0, 1) : 0, revision: map.influenceRevision };
-    node.influenceMap = influenceMap; node.contested = contested; node.ownerFactionId = result.ownerFactionId;
-    map.influenceCache[nodeId] = { revision: map.influenceRevision, contextKey, snapshot: result };
+    store({ revision: map.influenceRevision, contextKey, snapshot: result, nodeFields: true });
     if (persist) state.runtimeMetrics.mapInfluence.totalMs += (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now()) - startedAt;
-    return result;
+    return copy(result);
   }
   function refreshMapInfluence(state) {
     ensure(state); const ids = new Set([...Object.keys(state.openWorld?.nodePool || {}), ...Object.keys(runtimeLocationPool(state) || {})]);
@@ -2951,10 +3045,14 @@
     return { ok: errors.length === 0, profile, metrics, errors };
   }
   function mapFogState(state, nodeId = state.locationId, level) {
-    const node = mapNode(state, nodeId); if (!node) return null;
-    if (level !== undefined) node.fogState = clamp(level, 0, 3); else if (state.visitedLocations?.includes(nodeId)) node.fogState = Math.max(2, Number(node.fogState || 0));
-    if (node.fogState >= 3) node.fastTravelUnlocked = true;
-    return node.fogState;
+    const view = mapNode(state, nodeId); if (!view) return null;
+    const fogState = level !== undefined ? clamp(level, 0, 3) : state.visitedLocations?.includes(nodeId) ? Math.max(2, Number(view.fogState || 0)) : view.fogState;
+    // Reads stay pure; only an explicit level or a real fog/fast-travel change is written.
+    if (level !== undefined || fogState !== view.fogState || (fogState >= 3 && !view.fastTravelUnlocked)) {
+      const node = normalizeMapNode(state, nodeId); node.fogState = fogState;
+      if (fogState >= 3) node.fastTravelUnlocked = true;
+    }
+    return fogState;
   }
   function moveWithinNode(state, subLocationId) {
     const node = mapNode(state); const target = node?.subLocations?.find((location) => location.id === subLocationId);
@@ -2969,7 +3067,7 @@
     return { success: true, subLocation: target };
   }
   function appendNodeHistory(state, nodeId, entry) {
-    const node = mapNode(state, nodeId); if (!node || !entry?.type) return false;
+    const node = normalizeMapNode(state, nodeId); if (!node || !entry?.type) return false;
     const record = { turn: Number(state.meta?.turn || 0), day: absoluteDay(state.gameClock), regionId: node.regionId, ...entry };
     const key = record.key || [record.type, record.summary, record.day].join(":");
     if (node.history.some((item) => item.key === key)) return false;
@@ -3029,7 +3127,7 @@
     const requestedType = type; type = aliases[type] || type;
     if (!STRUCTURE_CATALOG[type]) return { success: false, reason: "Invalid structure catalog entry." };
     const allowed = ["watchtower", "waystation", "trading_post", "ward_formation"]; if (!allowed.includes(type)) return { success: false, reason: "Công trình bản đồ không hợp lệ." };
-    const node = mapNode(state, nodeId); if (!node) return { success: false, reason: "Không tìm thấy địa điểm." };
+    const node = normalizeMapNode(state, nodeId); if (!node) return { success: false, reason: "Không tìm thấy địa điểm." };
     if (nodeId !== state.locationId) return { success: false, reason: "Ngươi phải đang đứng tại node muốn xây công trình." };
     if (!nodeIsDiscovered(state, nodeId)) return { success: false, reason: "Chưa khám phá địa điểm này." };
     const list = ensureMapState(state).structures[nodeId] ||= []; if (list.some((structure) => structure.type === type && structure.status !== "dismantled")) return { success: false, reason: "Công trình này đã tồn tại." };
@@ -3225,7 +3323,7 @@
   }
 
   function claimOutpost(state, nodeId = state.locationId) {
-    const node = mapNode(state, nodeId); if (!node) return { success: false, reason: "Không tìm thấy địa điểm." };
+    const node = normalizeMapNode(state, nodeId); if (!node) return { success: false, reason: "Không tìm thấy địa điểm." };
     if (nodeId !== state.locationId) return { success: false, reason: "Ngươi phải đang đứng tại node muốn lập trạm." };
     if (!nodeIsDiscovered(state, nodeId)) return { success: false, reason: "Chưa khám phá địa điểm này." };
     const influence = mapInfluenceSnapshot(state, nodeId); if (influence.ownerFactionId || influence.contested) return { success: false, reason: "Nơi này chưa đủ vô chủ để lập trạm." };
@@ -3565,6 +3663,9 @@
     return { lastProcessedDay: state.worldSimulation.lastProcessedDay, regions: copy(state.worldSimulation.regionState), activeEvents: copy(Object.values(state.worldSimulation.events).filter((event) => event.status === "active")), wars: copy(Object.values(state.worldSimulation.wars).filter((war) => war.status === "active")), pendingTasks: pending.length, nextTaskDay: pending.length ? Math.min(...pending.map((task) => Number(task.dueDay))) : null };
   }
   function validateExpansionState(state) {
+    return withEnsureScope(state, () => validateExpansionStateScoped(state));
+  }
+  function validateExpansionStateScoped(state) {
     ensure(state); const errors = [], sim = state.worldSimulation;
     const namespaceAudit = validateCanonicalNamespaces(state);
     if (!namespaceAudit.ok) namespaceAudit.errors.forEach((error) => errors.push("namespace:" + error));
@@ -3604,7 +3705,7 @@
     ["mapInfluence", "npcView", "offline"].forEach((metric) => { const value = state.runtimeMetrics?.[metric]; if (!value || !Number.isFinite(Number(value.calls)) || !Number.isFinite(Number(value.totalMs))) errors.push("runtimeMetrics:" + metric); });
     if (!Array.isArray(sim?.scheduledTasks)) errors.push("scheduledTasks");
     if (state.companion) {
-      const companion = normalizeCompanion(state.companion);
+      const companion = normalizeCompanion(copy(state.companion));
       if (companion.hp < 0 || companion.hp > companion.hpMax) errors.push("companion.hp");
       if (!Array.isArray(companion.damageLedger)) errors.push("companion.damageLedger");
     }
@@ -3730,6 +3831,14 @@
     return { processed: lastDay - firstDay + 1, cadence: "canonical_daily_tick", parity: true };
   }
 
+  function relationScore(r) {
+    return Number(r?.trust || 0) + Number(r?.respect || 0) - (Number(r?.fear || 0) + Number(r?.suspicion || 0)) * 0.5;
+  }
+  function ensureRelationRecord(state, npcId, initial = null) {
+    return state.relationships[npcId] ||= { schemaVersion: 2, trust: 0, fear: 0, respect: 0, suspicion: 0, affection: 0, loyalty: 0, score: 0, decayPolicy: "event_only", ...(initial || {}) };
+  }
+  // Single write path for NPC relationship dimensions. options.replaceDefaults
+  // makes options.deltas authoritative instead of merging with the tag defaults.
   function recordRelationshipEvent(state, npcId, tag, options = {}) {
     ensure(state);
     const uniqueKey = options.uniqueKey || tag + ":" + playerDay(state);
@@ -3738,15 +3847,15 @@
     const defaults = {
       talked: { trust: 1, respect: 1, affection: 1 }, sent_gift: { trust: 3, loyalty: 2, affection: 2 }, saved: { trust: 12, respect: 8, loyalty: 10, affection: 4 }, threatened: { fear: 12, suspicion: 8, loyalty: -8, affection: -8 }, kept_promise: { trust: 8, loyalty: 7, affection: 2 }, broke_promise: { trust: -12, suspicion: 12, loyalty: -15, affection: -12 }, shared_reward: { trust: 7, respect: 4, loyalty: 5, affection: 3 }, used_forbidden_art: { fear: 5, suspicion: 10, loyalty: -4, affection: -3 }, supported_faction: { respect: 6, loyalty: 6 }, abandoned: { trust: -8, loyalty: -10, affection: -6 }, disturbed_sleep: { affection: -3, trust: -1, suspicion: 1 }
     };
-    const deltas = { ...(defaults[tag] || {}), ...(options.deltas || {}) };
-    const relation = state.relationships[npcId] ||= { schemaVersion: 2, trust: 0, fear: 0, respect: 0, suspicion: 0, affection: 0, loyalty: 0, score: 0, decayPolicy: "event_only" };
+    const deltas = options.replaceDefaults ? { ...(options.deltas || {}) } : { ...(defaults[tag] || {}), ...(options.deltas || {}) };
+    const relation = ensureRelationRecord(state, npcId, options.initial);
     const intimidatedPermanently = Boolean(state.worldSimulation.npcState[npcId]?.intimidatedPermanently);
     const effectiveDeltas = { ...deltas };
     if (intimidatedPermanently) { effectiveDeltas.trust = 0; effectiveDeltas.affection = 0; }
     relation.affection = clamp(Number(relation.affection || 0), 0, 100);
     Object.entries(effectiveDeltas).forEach(([key, value]) => { relation[key] = clamp(Number(relation[key] || 0) + Number(value), 0, 100); });
     if (intimidatedPermanently) { relation.trust = 0; relation.affection = 0; }
-    relation.score = Number(relation.trust || 0) + Number(relation.respect || 0) - (Number(relation.fear || 0) + Number(relation.suspicion || 0)) * 0.5;
+    relation.score = relationScore(relation);
     const event = { id: uid(state, "relation"), tag, day: playerDay(state), locationId: state.locationId, questId: options.questId || null, outcome: options.outcome || null, deltas: effectiveDeltas, uniqueKey };
     events.push(event); if (events.length > 20) events.shift();
     const npcRuntime = state.worldSimulation.npcState[npcId]; if (npcRuntime) { npcRuntime.memoryWithPlayer.push(event); if (npcRuntime.memoryWithPlayer.length > 10) npcRuntime.memoryWithPlayer.shift(); }
@@ -3772,7 +3881,7 @@
     ensure(state); const errors = [];
     Object.entries(state.relationships || {}).forEach(([npcId, relation]) => {
       RELATIONSHIP_POLICY.dimensions.forEach((key) => { if (!Number.isFinite(Number(relation[key])) || Number(relation[key]) < 0 || Number(relation[key]) > 100) errors.push(npcId + ":" + key); });
-      const expected = Number(relation.trust || 0) + Number(relation.respect || 0) - (Number(relation.fear || 0) + Number(relation.suspicion || 0)) * 0.5;
+      const expected = relationScore(relation);
       if (Math.abs(Number(relation.score || 0) - expected) > 0.0001) errors.push(npcId + ":score");
       if ((relation.decayPolicy || "event_only") !== "event_only") errors.push(npcId + ":decayPolicy");
     });
@@ -3802,6 +3911,7 @@
     ensure(state); const npc = state.worldSimulation.npcState[npcId];
     if (!npc || npc.status !== "alive") return { success: false, reason: "Không thể xác định người nhận." };
     if (itemId && Number(state.inventory?.[itemId] || 0) < 1) return { success: false, reason: "Không có vật phẩm gửi kèm." };
+    if (itemId && !giftableItem(state, itemId)) return { success: false, reason: "Vật phẩm này không thể gửi kèm thư." };
     const cost = 2 + (currentRegion(state) === (D.WORLD_MAP?.locations?.[npc.currentNodeId]?.region || currentRegion(state)) ? 0 : 3);
     if (Number(state.inventory?.linh_thach || 0) < cost) return { success: false, reason: "Thiếu Linh Thạch truyền thư." };
     removeItem(state, "linh_thach", cost); if (itemId) removeItem(state, itemId, 1);
@@ -4095,57 +4205,59 @@
     const blockers = [], player = state.player || {}, pathId = player.pathId || state.pathId || null;
     const learned = Boolean(player.techniques?.[techniqueId]);
     const policy = technique.accessPolicy || {};
+    const listed = (value) => Array.isArray(value) && value.length > 0;
     const journeyIntent = player.journeyIntent || state.flags?.journeyIntent || null;
-    if (Array.isArray(policy.allowedJourneyIntents) && policy.allowedJourneyIntents.length && !policy.allowedJourneyIntents.includes(journeyIntent)) blockers.push(blocker("JOURNEY_INTENT_BLOCKED", "Ý Định hành đạo hiện tại không phù hợp với Công Pháp này."));
-    const currentGuildId = state.guildMembership?.guildId || null;
+    if (listed(policy.allowedJourneyIntents) && !policy.allowedJourneyIntents.includes(journeyIntent)) blockers.push(blocker("JOURNEY_INTENT_BLOCKED", "Ý Định hành đạo hiện tại không phù hợp với Công Pháp này."));
+    const guild = state.guildMembership || null, currentGuildId = guild?.guildId || null, rank = memberRankIndex(guild);
+    const membershipInactive = Boolean(guild && (guild.suspended || ["suspended", "expelled", "left", "departed", "inactive"].includes(String(guild.status || "active"))));
+    if (technique.source?.kind === "guild_signature" && (!guild || currentGuildId !== technique.source.sourceId || membershipInactive)) blockers.push(blocker("GUILD_DEPARTED", "Thân phận hiện tại không còn quyền dùng bí pháp Tông Môn."));
+    const requiredProfessionIds = policy.requiredProfessionIds || policy.professions || [];
+    const professionState = state.professionState || {};
+    const currentProfessionIds = [professionState.primaryId, professionState.secondaryId, ...(professionState.hiddenIds || [])].filter(Boolean);
+    const legacyProfessionId = player.professionState?.professionId || player.professionId || null;
+    if (legacyProfessionId && !currentProfessionIds.includes(legacyProfessionId)) currentProfessionIds.push(legacyProfessionId);
+    if (listed(requiredProfessionIds) && !requiredProfessionIds.some((id) => currentProfessionIds.includes(id))) blockers.push(blocker("PROFESSION_REQUIRED", "Nghề hiện tại chưa phù hợp với Công Pháp này."));
+    const requiredHiddenIds = policy.requiredHiddenIds || [];
+    const currentHiddenIds = [player.hiddenProfession?.id, player.hiddenProfession?.hiddenId, player.hiddenPathId, player.pathState?.hiddenPathId].filter(Boolean);
+    if (listed(requiredHiddenIds) && !requiredHiddenIds.some((id) => currentHiddenIds.includes(id))) blockers.push(blocker("DISCOVERY_REQUIRED", "Chưa mở đúng Nghề Ẩn hoặc Con Đường Ẩn."));
+    // Access policy and scope requirements describe the same guild/path gates; each gate reports once.
     if (policy.requiredGuildId && currentGuildId !== policy.requiredGuildId) blockers.push(blocker("GUILD_REQUIRED", "Công Pháp này cần Tông Môn tương ứng."));
+    else if (listed(requirements.guildIds) && !requirements.guildIds.includes(currentGuildId)) blockers.push(blocker("GUILD_REQUIRED", "Cần là thành viên Tông Môn tương ứng."));
     if (policy.forbiddenGuildMembership && currentGuildId) blockers.push(blocker("GUILD_FORBIDDEN", "Công Pháp này không dùng cho người đang mang membership Tông Môn."));
-    if (Array.isArray(policy.allowedPathIds) && policy.allowedPathIds.length && !policy.allowedPathIds.includes(pathId)) blockers.push(blocker("PATH_MISMATCH", "Con Đường hiện tại không tương hợp với Công Pháp này."));
-    if (Number(policy.requiredCodexProgress || 0) > Number(E.codexProgress?.(state) || 0)) blockers.push(blocker("CODEX_REQUIRED", "Chưa thu thập đủ Cổ Tịch để mở Công Pháp này."));
-    if ((scope === "use" || scope === "training") && !learned) blockers.push(blocker("NOT_LEARNED", "Ngươi chưa lĩnh ngộ Công Pháp này."));
     const pathDefinition = window.PATH_FATE_RELATIONS?.paths?.[pathId] || {};
     const pathTags = [...(pathDefinition.lead || []), ...(pathDefinition.support || [])].map((tag) => String(tag).toLowerCase());
+    const pathFailure = (listed(policy.allowedPathIds) && !policy.allowedPathIds.includes(pathId)) || (listed(requirements.pathIds) && !requirements.pathIds.includes(pathId)) ? "Con Đường hiện tại không tương hợp với Công Pháp này."
+      : listed(requirements.pathTagsAny) && !requirements.pathTagsAny.some((tag) => pathTags.includes(String(tag).toLowerCase())) ? "Con Đường thiếu căn cơ cần thiết."
+      : listed(requirements.pathTagsAll) && requirements.pathTagsAll.some((tag) => !pathTags.includes(String(tag).toLowerCase())) ? "Con Đường chưa lĩnh hội đủ căn cơ." : null;
+    if (pathFailure) blockers.push(blocker("PATH_MISMATCH", pathFailure));
+    if (Number(policy.requiredCodexProgress || 0) > Number(E.codexProgress?.(state) || 0)) blockers.push(blocker("CODEX_REQUIRED", "Chưa thu thập đủ Cổ Tịch để mở Công Pháp này."));
+    if ((scope === "use" || scope === "training") && !learned) blockers.push(blocker("NOT_LEARNED", "Ngươi chưa lĩnh ngộ Công Pháp này."));
     const realm = E.cultivationTier(state);
-    if (requirements.minRealmLevel != null && realm < Number(requirements.minRealmLevel)) blockers.push({ code: "REALM_TOO_LOW", message: "Cảnh giới chưa đủ." });
-    if (requirements.maxRealmLevel != null && realm > Number(requirements.maxRealmLevel)) blockers.push({ code: "REALM_TOO_HIGH", message: "Cảnh giới hiện tại không còn phù hợp." });
-    if (Array.isArray(requirements.pathIds) && requirements.pathIds.length && !requirements.pathIds.includes(pathId)) blockers.push({ code: "PATH_MISMATCH", message: "Con Đường hiện tại không tương hợp." });
-    if (Array.isArray(requirements.pathTagsAny) && requirements.pathTagsAny.length && !requirements.pathTagsAny.some((tag) => pathTags.includes(String(tag).toLowerCase()))) blockers.push({ code: "PATH_MISMATCH", message: "Con Đường thiếu căn cơ cần thiết." });
-    if (Array.isArray(requirements.pathTagsAll) && requirements.pathTagsAll.some((tag) => !pathTags.includes(String(tag).toLowerCase()))) blockers.push({ code: "PATH_MISMATCH", message: "Con Đường chưa lĩnh hội đủ căn cơ." });
-    if (Number(requirements.minActiveFates || 0) > (player.fates || []).length) blockers.push({ code: "FATE_REQUIRED", message: "Chưa kích hoạt đủ Mệnh Số." });
-    if (requirements.forbiddenKnowledge === true && !player.forbiddenKnowledge && !state.flags?.forbiddenKnowledge) blockers.push({ code: "FACTION_REQUIRED", message: "Cần dấu ấn tri thức cấm." });
-    if (requirements.requireAtTrainingHall && scope === "training") { const address = state.guildMembership && organizationAddress(state.guildMembership.guildId); if (!address?.nodeId || state.locationId !== address.nodeId) blockers.push({ code: "GUILD_REQUIRED", message: "Cần có mặt tại sơn môn để luyện Công Pháp." }); }
-    if (Array.isArray(requirements.fateIdsAny) && requirements.fateIdsAny.length) { const source = requirements.fateScope === "owned" ? [...(player.fates || []), ...(state.fateInventory || [])] : (player.fates || []); if (!requirements.fateIdsAny.some((id) => source.includes(id))) blockers.push({ code: "FATE_REQUIRED", message: "Cần kích hoạt Mệnh Số tương ứng." }); }
-    if (Array.isArray(requirements.fateElementsAny) && requirements.fateElementsAny.length) { const activeElements = (player.fates || []).map((id) => E.fateElement?.((D.FATE_PATTERNS || []).find((fate) => fate.id === id))).filter(Boolean); if (!requirements.fateElementsAny.some((element) => activeElements.includes(element))) blockers.push({ code: "FATE_REQUIRED", message: "Cần Mệnh Số đang kích hoạt có nguyên tố tương ứng." }); }
-    const guild = state.guildMembership, rank = memberRankIndex(guild);
-    if (Array.isArray(requirements.guildIds) && requirements.guildIds.length && (!guild || !requirements.guildIds.includes(guild.guildId))) blockers.push({ code: "GUILD_REQUIRED", message: "Cần là thành viên Tông Môn tương ứng." });
-    const rankRequirement = requirements.guildRankMin == null ? null : (Number.isFinite(Number(requirements.guildRankMin)) ? Number(requirements.guildRankMin) : ORG_RANKS.findIndex((entry) => entry.id === String(requirements.guildRankMin)));
-    if (rankRequirement != null && (!guild || rankRequirement < 0 || rank < rankRequirement)) blockers.push({ code: "GUILD_RANK_REQUIRED", message: "Chức vị Tông Môn chưa đủ." });
-    const faction = player.tainted?.faction, factionIds = requirements.taintedFactionIds || (technique.requiredFaction ? [technique.requiredFaction] : []);
-    if (factionIds.length && !factionIds.includes(faction) && !E.factionStatus?.(state)?.forbiddenTechniqueBypass) blockers.push({ code: "FACTION_REQUIRED", message: "Phe phái hiện tại không thể sử dụng Công Pháp này." });
+    if (requirements.minRealmLevel != null && realm < Number(requirements.minRealmLevel)) blockers.push(blocker("REALM_TOO_LOW", "Cảnh giới chưa đủ."));
+    if (requirements.maxRealmLevel != null && realm > Number(requirements.maxRealmLevel)) blockers.push(blocker("REALM_TOO_HIGH", "Cảnh giới hiện tại không còn phù hợp."));
+    // Fate gates count only active, non-suppressed Fates (the stricter of the former duplicate checks).
     const activeFateIds = [...new Set((player.fates || []).filter((id) => typeof id === "string" && id))].filter((id) => (D.FATE_PATTERNS || []).some((fate) => fate.id === id) && Number(player.suppressedFates?.[id]?.untilTurn || 0) <= Number(state.meta?.turn || 0));
-    if (Number(requirements.minActiveFates || 0) > activeFateIds.length && !blockers.some((blocker) => blocker.code === "FATE_REQUIRED")) blockers.push({ code: "FATE_REQUIRED", message: "Active Fate requirement is not met." });
-    if (Array.isArray(requirements.fateElementsAny) && requirements.fateElementsAny.length) {
-      const activeElements = activeFateIds.map((id) => E.fateElement?.((D.FATE_PATTERNS || []).find((fate) => fate.id === id))).filter(Boolean);
-      if (!requirements.fateElementsAny.some((element) => activeElements.includes(element)) && !blockers.some((blocker) => blocker.code === "FATE_REQUIRED")) blockers.push({ code: "FATE_REQUIRED", message: "Required active Fate element is not equipped." });
-    }
-    if (requirements.fateScope !== "owned" && Array.isArray(requirements.fateIdsAny) && requirements.fateIdsAny.length && !requirements.fateIdsAny.some((id) => activeFateIds.includes(id)) && !blockers.some((blocker) => blocker.code === "FATE_REQUIRED")) blockers.push({ code: "FATE_REQUIRED", message: "Required Fate is not actively equipped." });
-    if (guild && (guild.suspended || ["suspended", "expelled", "left", "departed", "inactive"].includes(String(guild.status || "active"))) && !blockers.some((blocker) => ["GUILD_REQUIRED", "GUILD_RANK_REQUIRED"].includes(blocker.code))) blockers.push({ code: "GUILD_REQUIRED", message: "Guild membership is not active." });
+    if (Number(requirements.minActiveFates || 0) > activeFateIds.length) blockers.push(blocker("FATE_REQUIRED", "Chưa kích hoạt đủ Mệnh Số."));
+    if (requirements.forbiddenKnowledge === true && !player.forbiddenKnowledge && !state.flags?.forbiddenKnowledge) blockers.push(blocker("FACTION_REQUIRED", "Cần dấu ấn tri thức cấm."));
+    if (requirements.requireAtTrainingHall && scope === "training") { const address = guild && organizationAddress(guild.guildId); if (!address?.nodeId || state.locationId !== address.nodeId) blockers.push(blocker("GUILD_REQUIRED", "Cần có mặt tại sơn môn để luyện Công Pháp.")); }
+    if (listed(requirements.fateIdsAny)) { const source = requirements.fateScope === "owned" ? [...(player.fates || []), ...(state.fateInventory || [])] : activeFateIds; if (!requirements.fateIdsAny.some((id) => source.includes(id))) blockers.push(blocker("FATE_REQUIRED", "Cần kích hoạt Mệnh Số tương ứng.")); }
+    if (listed(requirements.fateElementsAny)) { const activeElements = activeFateIds.map((id) => E.fateElement?.((D.FATE_PATTERNS || []).find((fate) => fate.id === id))).filter(Boolean); if (!requirements.fateElementsAny.some((element) => activeElements.includes(element))) blockers.push(blocker("FATE_REQUIRED", "Cần Mệnh Số đang kích hoạt có nguyên tố tương ứng.")); }
+    const rankRequirement = requirements.guildRankMin == null ? null : (Number.isFinite(Number(requirements.guildRankMin)) ? Number(requirements.guildRankMin) : ORG_RANKS.findIndex((entry) => entry.id === String(requirements.guildRankMin)));
+    if (rankRequirement != null && (!guild || rankRequirement < 0 || rank < rankRequirement)) blockers.push(blocker("GUILD_RANK_REQUIRED", "Chức vị Tông Môn chưa đủ."));
+    const faction = player.tainted?.faction, factionIds = requirements.taintedFactionIds || (technique.requiredFaction ? [technique.requiredFaction] : []);
+    if (factionIds.length && !factionIds.includes(faction) && !E.factionStatus?.(state)?.forbiddenTechniqueBypass) blockers.push(blocker("FACTION_REQUIRED", "Phe phái hiện tại không thể sử dụng Công Pháp này."));
+    if (membershipInactive && !blockers.some((entry) => ["GUILD_REQUIRED", "GUILD_RANK_REQUIRED"].includes(entry.code))) blockers.push(blocker("GUILD_REQUIRED", "Thân phận Tông Môn hiện không còn hiệu lực."));
     if (scope === "use" && learned) {
-      const cooldown = typeof player.techniqueCooldowns?.[techniqueId] === "object"
-        ? Number(player.techniqueCooldowns[techniqueId]?.readyAtTurn || 0)
-        : Number(player.techniqueCooldowns?.[techniqueId] || 0);
-      if (cooldown > Number(state.meta?.turn || 0)) blockers.push(blocker("COOLDOWN", "Công pháp đang hồi chiêu."));
-      const declared = technique.cost || {}, visible = technique.visibleStats || {};
-      const evolution = E.techniqueEvolutionModifiers?.(state, techniqueId) || {}, stats = E.computeStats?.(player) || {}, stage = Number(player.techniques?.[techniqueId]?.masteryStage || 0), masteryCostMultiplier = stage >= 3 ? 0.85 : 1, stance = options.stance || "steady";
-      const rawCost = (key, legacy) => Number(declared[key] ?? visible[legacy] ?? 0);
-      const costs = [["qi", Math.max(0, Math.ceil(rawCost("mana", "manaCost") * masteryCostMultiplier * Number(evolution.manaCostMult || 1))), "Linh Khí"], ["stamina", Math.max(0, Math.ceil(rawCost("stamina", "staminaCost") * masteryCostMultiplier * Number(stats.staminaCostMultiplier || 1) * Number(evolution.staminaCostMult || 1))), "Thể Lực"], ["san", Math.round(Math.max(0, rawCost("san", "sanCost") * masteryCostMultiplier * Number(evolution.sanCostMult || 1) * Number(stats.sanCostMultiplier || 1) * (stance === "guarded" ? 0.5 : 1)) * 100) / 100, "Thanh Tỉnh"], ["lifespan", Math.round(Math.max(0, rawCost("lifespan", "lifespanCost") * masteryCostMultiplier * Number(evolution.lifespanCostMult || 1)) * 100) / 100, "Thọ Nguyên"]];
-      costs.forEach(([key, cost, label]) => {
-        if (cost > 0 && (key === "lifespan" ? Number(player[key] || 0) <= cost : Number(player[key] || 0) < cost)) blockers.push(blocker("RESOURCE_SHORTAGE", "Thiếu " + label + " (cần " + cost + ")."));
+      if (E.techniqueCooldownReadyAt(player.techniqueCooldowns?.[techniqueId]) > Number(state.meta?.turn || 0)) blockers.push(blocker("COOLDOWN", "Công pháp đang hồi chiêu."));
+      // Same resolver as techniquePreview/useTechnique so eligibility never disagrees with the committed cost.
+      const { manaCost, staminaCost, sanCost, lifespanCost } = E.resolveTechniqueExecutionInputs(state, technique, null, options.stance || "steady").costs;
+      [["qi", manaCost, "Linh Khí"], ["stamina", staminaCost, "Thể Lực"], ["san", sanCost, "Thanh Tỉnh"], ["lifespan", lifespanCost, "Thọ Nguyên"]].forEach(([key, cost, label]) => {
+        if (cost > 0 && (key === "lifespan" ? Number(player[key] || 0) <= cost : Number(player[key] || 0) < cost)) blockers.push({ ...blocker("RESOURCE_SHORTAGE", "Thiếu " + label + " (cần " + cost + ")."), params: { resource: key, cost } });
       });
       const gateCodes = new Set(["REALM_TOO_LOW", "REALM_TOO_HIGH", "PATH_MISMATCH", "FATE_REQUIRED", "GUILD_REQUIRED", "GUILD_RANK_REQUIRED", "FACTION_REQUIRED"]);
       if (blockers.some((entry) => gateCodes.has(entry.code))) blockers.push(blocker("TECHNIQUE_DORMANT", "Công pháp hiện đang ở trạng thái dormant do điều kiện sử dụng chưa phù hợp."));
     }
-    const normalized = blockers.map((entry) => ({ ...entry, scope: entry.scope || scope, sourceId: entry.sourceId || techniqueId, playerText: entry.playerText || entry.message || "Điều kiện Công Pháp chưa đáp ứng.", recoverable: entry.recoverable !== false, message: entry.playerText || entry.message || "Điều kiện Công Pháp chưa đáp ứng." }));
+    const normalized = blockers.map((entry) => ({ ...entry, scope: entry.scope || scope, sourceId: entry.sourceId || techniqueId, severity: entry.severity || "error", messageKey: entry.messageKey || "technique.blocker." + String(entry.code || "unknown").toLowerCase(), params: entry.params || {}, source: entry.source || "accessPolicy", playerText: entry.playerText || entry.message || "Điều kiện Công Pháp chưa đáp ứng.", recoverable: entry.recoverable !== false, message: entry.playerText || entry.message || "Điều kiện Công Pháp chưa đáp ứng." }));
     return { ok: normalized.length === 0, blockers: normalized, scope, techniqueId };
   }
   function guildTechniqueSnapshot(state, technique) {
@@ -4196,7 +4308,7 @@
     progress.sourceType = technique.sourceType || "legacy";
     progress.acquisitionReceiptId = receiptId;
     progress.sourceContext = { ...(progress.sourceContext || {}), acquisitionId: acquisition.id, sourceType: technique.sourceType || "legacy" };
-    const receipt = { receiptId, techniqueId, acquisitionId: acquisition.id, sourceType: technique.sourceType || "legacy", turn: Number(state.meta?.turn || 0), worldDay: absoluteDay(state.gameClock) };
+    const receipt = { receiptId, techniqueId, acquisitionId: acquisition.id, source: { kind: technique.source?.kind || technique.sourceType || "legacy", sourceId: technique.source?.sourceId || technique.sourceGuildId || null, acquisitionId: acquisition.id }, sourceType: technique.sourceType || "legacy", turn: Number(state.meta?.turn || 0), worldDay: absoluteDay(state.gameClock) };
     state.flags.techniqueAcquisitionReceipts[receiptId] = receipt;
     history(state, "sys", "§ Đã lĩnh ngộ Công Pháp qua nguồn " + (technique.ui?.sourceLabel || technique.sourceType || "khám phá") + ".");
     return { success: true, techniqueId, receipt };
@@ -4636,7 +4748,8 @@
     if (!combat && state.pendingMapEvent?.status === "pending") actions.push({ id: "act_exp_map_event", label: "Ứng Biến Phát Hiện", aliases: ["ứng biến phát hiện", "ung bien phat hien"], priority: 0, category: "discovery", blocking: true });
     if (!combat && state.pendingCaveChallenge?.status === "pending") {
       const nextCaveObstacle = (state.pendingCaveChallenge.obstacles || []).find((entry) => !(state.pendingCaveChallenge.completed || []).includes(entry));
-      actions.push({ id: "act_exp_cave_challenge", label: "Vượt Chướng Ngại Động Phủ" + (nextCaveObstacle ? " · " + nextCaveObstacle : ""), aliases: ["vượt chướng ngại động phủ", "chinh phục động phủ"], priority: 0, category: "discovery", blocking: true });
+      const caveObstacleLabels = { guardian: "Hộ pháp", formation: "Trận pháp", sealed_ward: "Phong ấn" };
+      actions.push({ id: "act_exp_cave_challenge", label: "Vượt Chướng Ngại Động Phủ" + (nextCaveObstacle ? " · " + (caveObstacleLabels[nextCaveObstacle] || "Chướng ngại tiếp theo") : ""), aliases: ["vượt chướng ngại động phủ", "chinh phục động phủ"], priority: 0, category: "discovery", blocking: true });
     }
       if (!combat && state.pendingContestedOpportunity?.status === "pending") actions.push({ id: "act_exp_opportunity", label: "Ứng Biến Cơ Duyên", aliases: ["ứng biến cơ duyên", "ung bien co duyen"], priority: 0, category: "opportunity", blocking: true });
     const event = activeRegionEvent(state); const template = event && worldEventTemplate(event.templateId);
@@ -4829,10 +4942,10 @@
       history(state, "narr", "Phe của " + (state.worldSimulation.npcState[candidateId]?.name || candidateId) + " nắm ưu thế; đường hướng của tổ chức đổi theo người đứng đầu mới."); return { success: true, leaderNpcId: candidateId };
     }
     if (actionId.startsWith("act_exp_org_study:")) {
-      state.flags.guildTeaching = state.guildMembership?.guildId || null;
       const id = actionId.slice("act_exp_org_study:".length), snapshot = guildVaultSnapshot(state);
       if (!snapshot.unlocked || !snapshot.techniques.some((entry) => entry.id === id)) return { success: false, reason: "Cấp bậc chưa mở bí pháp này." };
-      const learned = E.learnTechnique(state, id); return { success: Boolean(learned), reason: learned ? null : "Chưa đủ điều kiện thỉnh học." };
+      const guildId = state.guildMembership?.guildId || null;
+      const learned = E.learnTechnique(state, id, guildId ? { sourceType: "guild", guildId } : {}); return { success: Boolean(learned), reason: learned ? null : "Chưa đủ điều kiện thỉnh học." };
     }
     if (actionId.startsWith("act_exp_org_vault_")) return { success: true, vault: guildVaultSnapshot(state, actionId.slice("act_exp_org_vault_".length)) };
     if (actionId.startsWith("act_exp_org_mediation:")) { const [, a, b] = actionId.split(":"); return resolveAllianceMediation(state, a, b); }
@@ -4870,7 +4983,7 @@
     return { success: false, reason: "Hành động mở rộng không hợp lệ." };
   }
 
-  function postAction(state, actionId, before) {
+  function postActionScoped(state, actionId, before) {
     ensure(state); simulateWorldUntil(state, absoluteDay(state.gameClock)); ensureTechniqueTrials(state);
     advanceOrganizationCommissions(state, actionId);
     const day = absoluteDay(state.gameClock);
@@ -4920,14 +5033,18 @@
     state.worldSimulation._npcRevision = Number(state.worldSimulation._npcRevision || 0) + 1;
     state.worldSimulation._influenceRevision = Number(state.worldSimulation._influenceRevision || 0) + 1;
     state._dirtyFlags = { ...(state._dirtyFlags || {}), world: true, mapInfluence: true, npc: true };
+  }
+  function postAction(state, actionId, before) {
+    withEnsureScope(state, () => postActionScoped(state, actionId, before));
     runRuntimeValidation(state);
   }
 
   function expansionSummary(state) {
     ensure(state); const region = state.worldSimulation.regionState[currentRegion(state)], event = activeRegionEvent(state), template = event && worldEventTemplate(event.templateId), survival = survivalProjection(state);
+    const season = seasonInfoCanonical(state), weatherState = weatherSnapshot(state), worldDay = absoluteWorldDay(state);
     return {
-      day: absoluteDay(state.gameClock), season: seasonInfo(state), weather: region?.weather || "quang",
-      weatherUntilDay: Number(region?.weatherUntilDay || 0), weatherSeverity: Number(region?.weatherSeverity || 0),
+      day: worldDay, worldDay, season, weather: weatherState.id, weatherLabel: weatherState.label,
+      weatherUntilDay: Number(region?.weatherUntilDay || 0), weatherRemainingDays: Math.max(0, Number(region?.weatherUntilDay || 0) - worldDay), weatherSeverity: Number(region?.weatherSeverity || 0),
       weatherHistory: copy((region?.weatherHistory || []).slice(-5)),
       event: event ? { ...event, name: template?.name, phase: template?.phases?.[event.phaseIndex]?.id, choices: template?.phases?.[event.phaseIndex]?.id === "active" ? (template.choices || []).filter((choice) => !(event.choiceHistory || []).some((entry) => entry.choiceId === choice.id)).map((choice) => ({ id: choice.id, label: choice.label, actionId: "act_exp_world_" + event.id + "_" + choice.id })) : [] } : null,
       contracts: Object.values(state.contractBoard.offers), acceptedContracts: Object.values(state.contractBoard.accepted),
@@ -5205,13 +5322,15 @@
   }
   function runExpansionCommand(state, command, arg, arg2, options = {}) {
     const table = {
-      divine: () => divine(state), technique_acquire: () => acquireTechnique(state, arg, arg2 || "", options), technique_prepare: () => {
+      divine: () => divine(state), technique_acquire: () => acquireTechnique(state, arg, arg2 || "", options), technique_use: () => { state.player.techniqueActionSequence = Number(state.player.techniqueActionSequence || 0) + 1; return E.useTechnique(state, arg, { stance: arg2 || "steady", actionId: options.actionId || ("technique-ui:" + state.player.techniqueActionSequence), confirmed: Boolean(options.confirmed), targetId: options.targetId || null }); }, technique_prepare: () => {
+        const directTechnique = E.techniqueCatalog?.()?.[arg];
+        if (directTechnique && directTechnique.category !== "tam_phap" && !directTechnique.preparation?.enabled && !directTechnique.prepareCost && !directTechnique.cost?.prepare) { state.player.techniqueActionSequence = Number(state.player.techniqueActionSequence || 0) + 1; return E.useTechnique(state, arg, { stance: arg2 || "steady", actionId: options.actionId || ("technique-ui:" + state.player.techniqueActionSequence), confirmed: Boolean(options.confirmed), targetId: options.targetId || null }); }
         const preview = E.techniquePreview(state, arg, { stance: arg2 || "steady" });
         if (!preview.success) return preview;
         if (preview.resourcesReady === false) return { success: false, reason: preview.blockers.map((entry) => entry.message).join(" · "), blockers: preview.blockers };
         if (!options.confirmed) return { ...preview, requiresConfirmation: true, reason: "Chuẩn bị " + (preview.technique?.name || arg) + " sẽ tiêu hao tài nguyên theo preview. Xác nhận tiếp tục?" };
-        state.player.techniquePrepareSequence = Number(state.player.techniquePrepareSequence || 0) + 1;
-        return E.prepareTechnique(state, arg, "technique-prepare-ui:" + state.player.techniquePrepareSequence, { stance: arg2 || "steady" });
+        const prepareActionId = options.actionId || (() => { const sequence = Number(state.player.techniquePrepareSequence || 0) + 1; state.player.techniquePrepareSequence = sequence; return "technique-prepare-ui:" + sequence; })();
+        return E.prepareTechnique(state, arg, prepareActionId, { stance: arg2 || "steady", targetId: options.targetId || null });
       }, technique_channel: () => E.advanceTechniqueChannel(state, arg, Number(arg2 || 1)), technique_cancel: () => E.cancelTechniquePreparation(state, arg), contract_accept: () => acceptContract(state, arg), profession_choose: () => chooseProfessionLocked(state, arg), profession_practice: () => practiceProfession(state, arg),
       brew: () => brewPill(state, arg), profession_item_use: () => useProfessionItem(state, arg), profession_item_recharge: () => rechargeProfessionItem(state, arg), craft: () => craftArtifact(state), formation: () => placeFormation(state, arg || "gather"), interrogate: () => interrogate(state, arg, arg2 || "persuade", options), tame: () => tamePrisoner(state, arg),
       scout: () => scoutWithCompanion(state), fate_trial: () => startFateEvolutionTrial(state, arg), fate_evolve: () => evolveFate(state, arg, arg2, options), fate_transform: () => E.transformFate(state, arg, arg2, options), fate_omen: () => E.heavenlyOmen(state), technique_evolve: () => chooseTechniqueEvolution(state, arg, arg2, options),
@@ -5236,7 +5355,11 @@
       return result;
     }
     const result = table[command] ? table[command]() : { success: false, reason: "Lệnh mở rộng không hợp lệ." };
-    E.updateDerived(state); return result;
+    // Preview/confirmation responses are read-only contracts. Updating
+    // derived state here would normalize combat/evolution fields and make a
+    // rejected or unconfirmed action mutate the save.
+    if ((result?.success && !result?.requiresConfirmation) || result?.committed) E.updateDerived(state);
+    return result;
   }
 
   function runRuntimeValidation(state) {
@@ -5333,59 +5456,68 @@
     Object.defineProperty(state, "_contextStateMemo", { value: { fingerprint, value: copy(resolved) }, writable: true, configurable: true, enumerable: false });
     return copy(resolved);
   };
-  E.submitActionId = function (state, actionId, options = {}) {
+  // Shared transaction wrapper for player actions: snapshot the save envelope and
+  // combat baseline, run the action, and restore the snapshot if it throws.
+  function withRollback(state, failure, run) {
     ensure(state);
     const rollbackEnvelope = original.serialize.call(E, state);
-    const turnBefore = Number(state.meta?.turn || 0);
     const first = E.aliveEnemies(state)[0], info = first && E.combatEntity(state, first[0]);
     const before = { enemyCount: E.aliveEnemies(state).length, enemyId: first?.[0], enemyExp: Number(info?.exp || 0), san: Number(state.player.san || 0), corruption: Number(state.player.corruptionRating || 0) };
     try {
-      let result;
-      if (actionId.startsWith("act_exp_")) {
-        const action = E.contextState(state).actions.find((entry) => entry.id === actionId); if (!action) return false;
-        state.meta.turn += 1; state.meta.updatedAt = new Date().toISOString(); history(state, "COMMAND_ECHO", "> [" + action.label + "]", { debugOnly: true, playerVisible: false }); result = handleExpansionAction(state, actionId, options); E.updateDerived(state);
-      } else result = original.submitActionId.call(E, state, actionId, options);
+      return run(before);
+    } catch (error) {
+      const restored = ensure(original.deserialize.call(E, rollbackEnvelope));
+      Object.keys(state).forEach((key) => { delete state[key]; });
+      Object.assign(state, restored);
+      runRuntimeValidation(state);
+      return failure;
+    }
+  }
+  // Run fn with ensure() applied once before and once after; nested ensure() calls on the same state
+  // are skipped meanwhile (see ENSURE_SCOPE). Use only around synchronous, self-contained operations.
+  function withEnsureScope(state, fn) {
+    if (!state || ENSURE_SCOPE.has(state)) return fn();
+    ensure(state);
+    ENSURE_SCOPE.add(state);
+    try { return fn(); } finally { ENSURE_SCOPE.delete(state); ensure(state); }
+  }
+  E.submitActionId = function (state, actionId, options = {}) {
+    const turnBefore = Number(state.meta?.turn || 0);
+    return withRollback(state, { success: false, code: "ACTION_RUNTIME_ERROR", reason: "Hành động chưa thể thực hiện lúc này.", recoverable: true }, (before) => {
+      const NOT_FOUND = {};
+      const result = withEnsureScope(state, () => {
+        if (actionId.startsWith("act_exp_")) {
+          const action = E.contextState(state).actions.find((entry) => entry.id === actionId); if (!action) return NOT_FOUND;
+          state.meta.turn += 1; state.meta.updatedAt = new Date().toISOString(); history(state, "COMMAND_ECHO", "> [" + action.label + "]", { debugOnly: true, playerVisible: false }); const handled = handleExpansionAction(state, actionId, options); E.updateDerived(state); return handled;
+        }
+        return original.submitActionId.call(E, state, actionId, options);
+      });
+      if (result === NOT_FOUND) return false;
       if (result === false || result?.success === false) state.meta.turn = turnBefore;
       state._contextRevision = Number(state._contextRevision || 0) + 1; postAction(state, actionId, before); return result;
-    } catch (error) {
-      const restored = ensure(original.deserialize.call(E, rollbackEnvelope));
-      Object.keys(state).forEach((key) => { delete state[key]; });
-      Object.assign(state, restored);
-      runRuntimeValidation(state);
-      return { success: false, code: "ACTION_RUNTIME_ERROR", reason: "Hành động chưa thể thực hiện lúc này.", recoverable: true };
-    }
+    });
   };
   E.submitTurn = function (state, action) {
-    ensure(state);
-    const rollbackEnvelope = original.serialize.call(E, state);
-    const first = E.aliveEnemies(state)[0], info = first && E.combatEntity(state, first[0]);
-    const before = { enemyCount: E.aliveEnemies(state).length, enemyId: first?.[0], enemyExp: Number(info?.exp || 0), san: Number(state.player.san || 0), corruption: Number(state.player.corruptionRating || 0) };
-    try {
-      const result = original.submitTurn.call(E, state, action);
-       state._contextRevision = Number(state._contextRevision || 0) + 1; postAction(state, String(action?.text || ""), before);
+    return withRollback(state, { success: false, code: "TURN_RUNTIME_ERROR", reason: "Lượt hành động chưa thể thực hiện lúc này.", recoverable: true }, (before) => {
+      const result = withEnsureScope(state, () => original.submitTurn.call(E, state, action));
+      state._contextRevision = Number(state._contextRevision || 0) + 1; postAction(state, String(action?.text || ""), before);
       return result;
-    } catch (error) {
-      const restored = ensure(original.deserialize.call(E, rollbackEnvelope));
-      Object.keys(state).forEach((key) => { delete state[key]; });
-      Object.assign(state, restored);
-      runRuntimeValidation(state);
-      return { success: false, code: "TURN_RUNTIME_ERROR", reason: "Lượt hành động chưa thể thực hiện lúc này.", recoverable: true };
-    }
+    });
   };
   E.processLuanHoi = function (state) { return original.processLuanHoi.call(E, state); };
   E.processChuyenSinh = function (state) { return original.processChuyenSinh.call(E, state); };
+  // Equipment set bonus is applied inside engine updateDerived via a hook so internal recomputes keep it.
+  if (typeof E.registerDerivedStatHook === "function") E.registerDerivedStatHook(applyEquipmentSetBonus);
   E.updateDerived = function (state) {
     const result = original.updateDerived.call(E, state);
     if (result?.changed === false) return result;
-    const bonus = equipmentSetModifiers(state);
-    if (state.player?.stats?.eff) { state.player.stats.eff.combatDamagePct = Number(state.player.stats.eff.combatDamagePct || 0) + Number(bonus.combatPowerMult || 0) * 100; state.player.stats.eff.phyDef = Number(state.player.stats.eff.phyDef || 0) + Number(bonus.phyDef || 0); state.player.stats.eff.fortune = Number(state.player.stats.eff.fortune || 0) + Number(bonus.fortuneFlat || 0); }
     unlockAchievements(state);
     runRuntimeValidation(state);
     return result;
   };
 
   Object.assign(E, {
-    ensureExpansionState: ensure, consumeBlackMarketPrompt, markOpportunityPrompted, nextTechniqueActionId, ensureNpcWorldState, ensureMapState, mapNode, mapInfluenceSnapshot, resolveMapInfluence: mapInfluenceSnapshot, resolveMapTopology, getCurrentRegionViewModel, getLocalState, listLocalActivities, previewLocalActivity, resolveLocalActivity, listRouteOptions, edgeState, mapIncidentPreview, resolveMapIncident, setMapNote, getNodeDetail, enterSubLocation, availableNodeActions, NodeDetailLayout, travelTask, stateVersion, expectedVersion, tickSnapshot, computeMapInfluence, mapOwner, mapZoneStatus, mapStructurePreview, petitionFactionTerritory, refreshMapInfluence, recordMapEventInfluence, mapFogState, moveWithinNode, appendNodeHistory, nodeResonance, mapCompletion, mapCompletionDetailed, buildMapStructure, repairMapStructure, upgradeMapStructure, disableMapStructure, dismantleMapStructure, transferMapStructure, teleportAnchorEligibility, travelPlan: canonicalTravelPlan, travelTaskSnapshot, startTravel, resolveMapTransaction, advanceTravelTask, interruptTravel, resumeTravel, cancelTravel, travelWeightSnapshot, claimOutpost, petitionOutpostToFaction, createTradeRoute, updateTradeRoutes, validateTradeRouteState, repairInvalidMapExits, wardProtectionAtNode, ensureWorldSimulation, validateExpansionState, validateCacheInvalidationState, validateReplayEnvelope, gameDayOrdinal: absoluteDay, absoluteWorldDay, worldRandom: seeded, simulateWorldUntil, simulateWorldUntilAsync, simulateWorldAggregate, updateNpcSchedules, updateFactionInternalEvents, seasonalDestinationSnapshot, scheduleWorldTask, cancelWorldTask, processScheduledWorldTasks, resolveOfflineNpcEncounters, actorHistorySnapshot, rehydrateUnknownContent, worldSimulationSummary, getWorldModifiers, setWeather, weatherCatalog, weatherSnapshot, validateWeatherRuntimeState, validateStructureRuntimeState, validateGuildProjectState, worldModifierPreview, resolveNpcWeatherReaction, activeRegionEvent, startWorldEvent, resolveWorldEventChoice,
+    ensureExpansionState: ensure, consumeBlackMarketPrompt, markOpportunityPrompted, nextTechniqueActionId, ensureNpcWorldState, ensureMapState, mapNode, mapInfluenceSnapshot, resolveMapInfluence: mapInfluenceSnapshot, resolveMapTopology, getCurrentRegionViewModel, getLocalState, listLocalActivities, previewLocalActivity, resolveLocalActivity, listRouteOptions, edgeState, mapIncidentPreview, resolveMapIncident, setMapNote, getNodeDetail, enterSubLocation, availableNodeActions, NodeDetailLayout, travelTask, stateVersion, expectedVersion, tickSnapshot, computeMapInfluence, mapOwner, mapZoneStatus, mapStructurePreview, petitionFactionTerritory, refreshMapInfluence, recordMapEventInfluence, mapFogState, moveWithinNode, appendNodeHistory, nodeResonance, mapCompletion, mapCompletionDetailed, buildMapStructure, repairMapStructure, upgradeMapStructure, disableMapStructure, dismantleMapStructure, transferMapStructure, teleportAnchorEligibility, travelPlan: canonicalTravelPlan, travelTaskSnapshot, startTravel, resolveMapTransaction, advanceTravelTask, interruptTravel, resumeTravel, cancelTravel, travelWeightSnapshot, claimOutpost, petitionOutpostToFaction, createTradeRoute, updateTradeRoutes, validateTradeRouteState, repairInvalidMapExits, wardProtectionAtNode, ensureWorldSimulation, validateExpansionState, validateCacheInvalidationState, validateReplayEnvelope, absoluteWorldDay, worldRandom: seeded, simulateWorldUntil, simulateWorldUntilAsync, simulateWorldAggregate, updateNpcSchedules, updateFactionInternalEvents, seasonalDestinationSnapshot, scheduleWorldTask, cancelWorldTask, processScheduledWorldTasks, resolveOfflineNpcEncounters, actorHistorySnapshot, rehydrateUnknownContent, worldSimulationSummary, getWorldModifiers, setWeather, weatherCatalog, weatherSnapshot, validateWeatherRuntimeState, validateStructureRuntimeState, validateGuildProjectState, worldModifierPreview, resolveNpcWeatherReaction, activeRegionEvent, startWorldEvent, resolveWorldEventChoice,
     recordRelationshipEvent, relationshipTier, relationshipBreakdown, relationshipPolicySnapshot, validateRelationshipPolicy, validateRelationshipRuntimeState, npcActionPresentation, npcRoutineAt, giftNpc, giftBond, giftTrade, intimidateNpc, rememberNpcIdentity, nurtureHumanAnchor, resolveHumanAnchorLifecycle, resolveNpcSuccession, publishPlayerRumor, beginTrustTrial, trustTrial, resolveTrustTrial, updateNpcBetrayals, guildVaultSnapshot, resolveOrganizationDefection, resolveAllianceMediation, mediateAlliance, resolveLoyaltyTest, organizationSnapshot, organizationInteract, promoteGuildMember, guildPromotionStatus, promotionEligibility, resolveOrganizationCommission, advanceOrganizationCommissions, ensureOrganizationState, validateOrganizationState, sendMail, refreshContracts, acceptContract, previewCanonicalReward, grantCanonicalReward, captureTarget, interrogate, tamePrisoner, scoutWithCompanion, normalizeCompanion, validateCompanionState, validatePrisonerState, validateContestedOpportunity, validateHiddenRealmRuntimeState, factionPowerSnapshot, ensureArmyState, createArmy, armySnapshot, armyAction, updateArmies, productPolicySnapshot, validateProductPolicies, structureManagerDecision, selectCompanionTarget, useCompanionSkill, recordCompanionDamage, simulateOfflineCompanionCombat, recoverCompanion, reviveCompanion,
     discover, verifyDiscovery, collectDiscovery, rewardDiscovery, discoveryStatusSummary, validateDiscoveryLifecycle, divine, survivalProjection, setPlayerMark, progressionNamespaceSnapshot, validateCanonicalNamespaces, pathFusionAffinity, transitionSecondaryPath, switchPathContext, pathSwitchStatus, pathSwitchCandidates, resolveCultivationDeviation, getRegionalCultivationRankboard, stopSecludedCultivation, secludedCultivationStatus, performPathInsight, pathInsightOptions, triggerMinorTrial, pathRitualProfiles, pathVariant, hybridPath, ritualByPath, transitionHistory, detachHistory, chooseProfessionLocked, professionAvailability, practiceProfession, recipeDefinition, recipeCatalog: () => copy(RECIPE_CATALOG), structureCatalog, validateStructureRuntimeState, validateGuildProjectState, rewardPolicySnapshot, validateRewardPolicy, brewPill, useProfessionItem, rechargeProfessionItem, useHiddenProfessionAction, placeFormation, readNpc,
     ensureTechniqueTrials, advanceTechniqueTrials, validateTechniqueRuntimeState, validateCharacterRuntimeState, techniqueEvolutionPreview, chooseTechniqueEvolution, techniqueEvolutionModifiers, techniqueEligibility, acquireTechnique, guildTechniqueSnapshot, guildTechniqueCombatBonus,
@@ -5435,7 +5567,6 @@
     E.validateBalanceCatalog = validateBalanceCatalog;
   E.validateMapCoordinates = validateMapCoordinates;
   E.validateMapCanonicalState = validateMapCanonicalState;
-  E.validateActionPriorityMatrix = E.validateActionPriorityMatrix;
   E.runtimeBudgetSnapshot = runtimeBudgetSnapshot;
   E.resolvePerformanceProfile = resolvePerformanceProfile;
   E.performanceProfile = performanceProfile;

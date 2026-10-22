@@ -4,13 +4,9 @@
  * fixture exercises a state transition or rejection boundary; catalog/export
  * presence alone is intentionally insufficient. */
 const assert = require("assert");
-const fs = require("fs");
 const path = require("path");
-const vm = require("vm");
-const root = path.join(__dirname, "..");
-const sandbox = { window: {}, console, performance: { now: () => Date.now() }, Date, Math, structuredClone: global.structuredClone };
-vm.createContext(sandbox);
-["gemini-code-1788430656294.js", "data/world_data.js", "data/fate_data.js", "data/fate_relationships.js", "data/cong_phap.js", "data/npc_monsters.js", "data/path_fate_relations.js", "data/profession_items.js", "data/expansion_data.js", "data/data.js", "js/i18n.js", "js/engine.js", "js/expansion.js"].forEach((file) => vm.runInContext(fs.readFileSync(path.join(root, file), "utf8"), sandbox, { filename: file }));
+const { loadRuntime } = require("./lib/load_runtime");
+const { sandbox } = loadRuntime({ sandboxStyle: "window", globals: { console, performance: { now: () => Date.now() }, Date, Math, structuredClone: global.structuredClone } });
 const E = sandbox.window.GameEngine;
 const X = sandbox.window.GameExpansion;
 const make = (seed = "n3-n54") => E.createState({ seed, character: E.createCharacter({ name: "N3-N54 QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });

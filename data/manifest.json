@@ -1,0 +1,128 @@
+{
+  "runtimeScripts": [
+    "gemini-code-1788430656294.js",
+    "data/world_data.js",
+    "data/fate_data.js",
+    "data/fate_relationships.js",
+    "data/cong_phap.js",
+    "data/npc_monsters.js",
+    "data/path_fate_relations.js",
+    "data/profession_items.js",
+    "data/expansion_data.js",
+    "data/data.js",
+    "js/i18n.js",
+    "js/engine.js",
+    "js/expansion.js",
+    "js/ui.js",
+    "js/main.js"
+  ],
+  "bundles": {
+    "gemini-code-1788430656294.js": {
+      "feature": "item-generator",
+      "sourceFiles": [
+        "gemini-code-1788430656294.js"
+      ],
+      "generated": false
+    },
+    "data/world_data.js": {
+      "feature": "world",
+      "sourceFiles": [
+        "data/src/realm/canh_gioi_tien_hiep.json",
+        "data/src/world/tu_tien_factions.json"
+      ],
+      "generated": true,
+      "runtimeSourcePath": "data/canh_gioi_tien_hiep.json"
+    },
+    "data/fate_data.js": {
+      "feature": "fate",
+      "sourceFiles": [
+        "data/src/fate/fates.json"
+      ],
+      "generated": true
+    },
+    "data/fate_relationships.js": {
+      "feature": "fate",
+      "sourceFiles": [
+        "data/src/fate/relationships.json"
+      ],
+      "generated": true
+    },
+    "data/cong_phap.js": {
+      "feature": "technique",
+      "sourceFiles": [
+        "data/cong_phap.js"
+      ],
+      "generated": false
+    },
+    "data/npc_monsters.js": {
+      "feature": "npc",
+      "sourceFiles": [
+        "data/npc_monsters.js"
+      ],
+      "generated": false
+    },
+    "data/path_fate_relations.js": {
+      "feature": "path",
+      "sourceFiles": [
+        "data/src/path/path_fate_relations.json"
+      ],
+      "generated": true
+    },
+    "data/profession_items.js": {
+      "feature": "profession",
+      "sourceFiles": [
+        "data/profession_items.js"
+      ],
+      "generated": false
+    },
+    "data/expansion_data.js": {
+      "feature": "expansion",
+      "sourceFiles": [
+        "data/expansion_data.js"
+      ],
+      "generated": false
+    },
+    "data/data.js": {
+      "feature": "fallback-world",
+      "sourceFiles": [
+        "data/data.js"
+      ],
+      "generated": false
+    },
+    "js/i18n.js": {
+      "feature": "runtime",
+      "sourceFiles": [
+        "js/i18n.js"
+      ],
+      "generated": false
+    },
+    "js/engine.js": {
+      "feature": "runtime",
+      "sourceFiles": [
+        "js/engine.js"
+      ],
+      "generated": false
+    },
+    "js/expansion.js": {
+      "feature": "runtime",
+      "sourceFiles": [
+        "js/expansion.js"
+      ],
+      "generated": false
+    },
+    "js/ui.js": {
+      "feature": "runtime",
+      "sourceFiles": [
+        "js/ui.js"
+      ],
+      "generated": false
+    },
+    "js/main.js": {
+      "feature": "runtime",
+      "sourceFiles": [
+        "js/main.js"
+      ],
+      "generated": false
+    }
+  }
+}

@@ -30,23 +30,9 @@ function Data-Uri([string]$relativePath) {
 
 $html = Read-Utf8 "index.html"
 $css = Read-Utf8 "styles.css"
-$scriptFiles = @(
-  "gemini-code-1788430656294.js",
-  "data/world_data.js",
-  "data/fate_data.js",
-  "data/fate_relationships.js",
-  "data/cong_phap.js",
-  "data/npc_monsters.js",
-  "data/path_fate_relations.js",
-  "data/profession_items.js",
-  "data/expansion_data.js",
-  "data/data.js",
-  "js/i18n.js",
-  "js/engine.js",
-  "js/expansion.js",
-  "js/ui.js",
-  "js/main.js"
-)
+$scriptListRaw = & node (Join-Path $rootPath "tools/build_data.js") --print-scripts
+if ($LASTEXITCODE -ne 0) { throw "Unable to resolve runtime script list from build_data.js" }
+$scriptFiles = $scriptListRaw -split "`r?`n" | Where-Object { $_ -and $_.Trim().Length -gt 0 }
 
 $newline = [Environment]::NewLine
 $inlineCss = "<style>" + $newline + $css + $newline + "</style>"

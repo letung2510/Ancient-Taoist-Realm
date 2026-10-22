@@ -2,11 +2,9 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
-const vm = require("vm");
+const { loadRuntime } = require("./lib/load_runtime");
 const root = path.join(__dirname, "..");
-const sandbox = { window: {}, console, performance: { now: () => Date.now() }, Date };
-vm.createContext(sandbox);
-["gemini-code-1788430656294.js", "data/world_data.js", "data/fate_data.js", "data/fate_relationships.js", "data/cong_phap.js", "data/npc_monsters.js", "data/path_fate_relations.js", "data/profession_items.js", "data/expansion_data.js", "data/data.js", "js/i18n.js", "js/engine.js", "js/expansion.js"].forEach((file) => vm.runInContext(fs.readFileSync(path.join(root, file), "utf8"), sandbox, { filename: file }));
+const { sandbox } = loadRuntime({ sandboxStyle: "window", globals: { console, performance: { now: () => Date.now() }, Date } });
 const E = sandbox.window.GameEngine, X = sandbox.window.GameExpansion;
 const state = () => E.createState({ character: E.createCharacter({ name: "Legacy Matrix QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
 const probe = {
@@ -54,7 +52,7 @@ assert(!behaviorState.pendingMapEvent || behaviorState.pendingMapEvent.status ==
 
 // T10 legacy sample fixture: numeric Fate array indexes must migrate to
 // canonical string IDs at the createState boundary, never remain dangling.
-const legacySamples = JSON.parse(fs.readFileSync(path.join(root, 'sample_characters.json'), 'utf8'));
+const legacySamples = JSON.parse(fs.readFileSync(path.join(root, 'tools', 'fixtures', 'sample_characters.json'), 'utf8'));
 const canonicalFateIds = new Set((sandbox.window.GameData.FATE_PATTERNS || []).map((entry) => entry.id));
 legacySamples.forEach((sample, index) => {
   const migrated = E.createState({ character: sample });

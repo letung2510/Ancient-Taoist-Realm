@@ -4,7 +4,8 @@ const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
-const { generateCharacter } = require("../character_generator");
+const { generateCharacter } = require("./character_generator");
+const { loadRuntime } = require("./lib/load_runtime");
 
 const ROOT = path.join(__dirname, "..");
 
@@ -13,12 +14,7 @@ function read(relativePath) {
 }
 
 function loadBrowserGame() {
-  const sandbox = { window: {} };
-  vm.createContext(sandbox);
-  ["gemini-code-1788430656294.js", "data/world_data.js", "data/fate_data.js", "data/fate_relationships.js", "data/cong_phap.js", "data/npc_monsters.js", "data/path_fate_relations.js", "data/profession_items.js", "data/expansion_data.js", "data/data.js", "js/i18n.js", "js/engine.js", "js/expansion.js"].forEach((file) => {
-    vm.runInContext(read(file), sandbox, { filename: file });
-  });
-  return sandbox;
+  return loadRuntime({ sandboxStyle: "window" }).sandbox;
 }
 
 function verifyGeneratedItems(sandbox) {
@@ -388,9 +384,9 @@ function verifyDataIntegrity(sandbox) {
   // Canonical Fate source is data/fate_data.js (the old 1,300-entry JSON pool was removed).
   assert.strictEqual(D.FATE_PATTERNS.filter((fate) => !String(fate.id).startsWith("luan_hoi_tien")).length, 10000);
 
-  const cultivationSource = JSON.parse(read("data/canh_gioi_tien_hiep.json"));
+  const cultivationSource = JSON.parse(read("data/src/realm/canh_gioi_tien_hiep.json"));
   const cultivationRealms = Array.isArray(cultivationSource) ? cultivationSource : cultivationSource.realms;
-  const factionData = JSON.parse(read("data/tu_tien_factions.json"));
+  const factionData = JSON.parse(read("data/src/world/tu_tien_factions.json"));
   const guildData = {
     total: factionData.guild_source?.total,
     tiers: factionData.guild_tiers,
@@ -1140,7 +1136,7 @@ function updateSamples() {
   const samples = Array.from({ length: 5 }, (_, index) => generateCharacter({
     name: `Vô Danh #${String(index + 1).padStart(4, "0")}`
   }));
-  fs.writeFileSync(path.join(ROOT, "sample_characters.json"), `${JSON.stringify(samples, null, 2)}\n`, "utf8");
+  fs.writeFileSync(path.join(ROOT, "tools", "fixtures", "sample_characters.json"), `${JSON.stringify(samples, null, 2)}\n`, "utf8");
 }
 
 function main() {

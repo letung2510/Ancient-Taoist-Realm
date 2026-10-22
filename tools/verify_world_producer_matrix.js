@@ -1,14 +1,7 @@
 /* Producer matrix for N173, M51-M54, N189 and FT7/FT9-FT11. */
-const fs = require('fs');
-const vm = require('vm');
 const assert = require('assert');
-const root = __dirname + '/..';
-const context = { console, Math, Date, structuredClone: global.structuredClone };
-context.window = context;
-vm.createContext(context);
-for (const file of ['data/data.js', 'data/fate_data.js', 'data/expansion_data.js', 'data/fate_relationships.js', 'js/i18n.js', 'js/engine.js', 'js/expansion.js']) {
-  vm.runInContext(fs.readFileSync(root + '/' + file, 'utf8'), context, { filename: file });
-}
+const { loadRuntime } = require('./lib/load_runtime');
+const { context } = loadRuntime();
 const E = context.GameEngine, X = context.GameExpansion;
 const state = E.createState('world-producer-matrix');
 X.ensureExpansionState(state);

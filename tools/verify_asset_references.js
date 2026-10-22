@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.join(__dirname, "..");
-const SOURCES = ["index.html", "js/engine.js", "js/expansion.js", "js/ui.js", "js/main.js", "styles.css", "data/data.js", "data/expansion_data.js", "data/npc_monsters.js", "data/world_data.js", "character_generator.js"];
+const SOURCES = ["index.html", "js/engine.js", "js/expansion.js", "js/ui.js", "js/main.js", "styles.css", "data/data.js", "data/expansion_data.js", "data/npc_monsters.js", "data/world_data.js", "tools/character_generator.js"];
 const references = new Set();
 SOURCES.forEach((file) => {
   const source = fs.readFileSync(path.join(ROOT, file), "utf8");

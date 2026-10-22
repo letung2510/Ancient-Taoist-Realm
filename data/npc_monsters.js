@@ -9,6 +9,8 @@
       stats: { PHY: 2000, MAG: 5000, HP: 500000, SAN_influence: 60 }, god_domain: "Điên Loạn", min_realm: "hoa_than_so_ky",
       phases: [{ phase: 1, hp_threshold_pct: 100 }, { phase: 2, hp_threshold_pct: 60 }, { phase: 3, hp_threshold_pct: 25 }], server_wide: true }),
     ma_dau_nghich_do: base({ entity_type: "monster", name: "Ma Đầu Nghịch Đồ", race: "Nhân Tộc", level_tier: 5, is_hostile_by_default: true, stats: { PHY: 90, MAG: 70, HP: 900, SAN_influence: 8 }, nemesis: true }),
+    hac_lang_vuong: base({ entity_type: "monster", name: "Hắc Lang Vương", race: "Yêu Tộc", level_tier: 4, is_hostile_by_default: true, stats: { PHY: 120, MAG: 55, HP: 1400, SAN_influence: 5 }, loot_table_id: "loot_hac_lang_vuong", location_tags: ["dong_hoang"] }),
+    vong_nhan_chi_nhan: base({ entity_type: "monster", name: "Vong Nhân Chi Nhãn", race: "U Minh", level_tier: 6, is_hostile_by_default: true, stats: { PHY: 85, MAG: 150, HP: 1800, SAN_influence: 18 }, loot_table_id: "loot_vong_nhan_chi_nhan", location_tags: ["u_minh_gioi"] }),
     ho_dao_gia: base({ entity_type: "monster", name: "Hộ Đạo Giả", level_tier: 6, is_hostile_by_default: true, guardian: true, stats: { PHY: 130, MAG: 90, HP: 1500, SAN_influence: 6 } }),
     phan_boi_gia: base({ entity_type: "monster", name: "Phản Bội Giả", level_tier: 6, is_hostile_by_default: true, stats: { PHY: 120, MAG: 110, HP: 1400, SAN_influence: 10 } }),
     ma_su: base({ entity_type: "monster", name: "Ma Sứ", level_tier: 7, is_hostile_by_default: true, stats: { PHY: 100, MAG: 150, HP: 1600, SAN_influence: 14 } }),

@@ -32,7 +32,8 @@ const targetFiles = new Set([
   path.join(root, "requirement", "SYSTEM_LOGIC_CATALOG", "features", "04-world", "MAP_CANONICAL.md"),
   path.join(root, "requirement", "SYSTEM_LOGIC_CATALOG", "features", "04-world", "WORLD_SIMULATION_CANONICAL.md"),
   path.join(root, "requirement", "SYSTEM_LOGIC_CATALOG", "features", "07-ui", "UI_ACTION_LOG_CANONICAL.md")
-]);
+// Legacy one-off targets; the 2026-10-22 restructure removed them, so only existing files are repaired.
+].filter((file) => fs.existsSync(file)));
 
 function fold(value) {
   return String(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();

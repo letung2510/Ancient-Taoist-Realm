@@ -1,12 +1,64 @@
-# Data runtime và nguồn dữ liệu
+# Dữ liệu runtime (data/)
 
-Các tệp trong thư mục này được trình duyệt nạp trực tiếp hoặc được các script build dùng làm nguồn sinh dữ liệu:
+Thư mục `data/` tách thành **nguồn (`data/src/`)** và **bundle runtime (`data/*.js`)**.
 
-- `world_data.js`, `data.js`, `fate_data.js`, `fate_relationships.js`, `cong_phap.js`: dữ liệu runtime.
-- `canh_gioi_tien_hiep.json`, `tu_tien_factions.json`: nguồn JSON/build data. Không có `fate-pool.json` hoặc `fate-relationships.json` runtime riêng; FATE canonical nằm ở các file JS được liệt kê trong source map.
-- `Xianxin_guild.md`: nguồn sinh dữ liệu môn phái.
-- `path_fate_relations.json` là nguồn Node/build; `path_fate_relations.js` là bridge duy nhất được browser load: liên kết tag Mệnh Số với Con Đường/Nghề Ẩn, bao gồm tỷ lệ roll Luân Hồi Tiên.
-- Bảng phân nhóm và audit toàn bộ nguồn FATE: `fate_system_update/FATE_DATA_SOURCE_MAP.md`.
-- Mệnh Kho runtime lưu trong `state.fateInventory`, có sức chứa bằng 2× số Mệnh Số đang gắn và hỗ trợ tiếp nhận ưu tiên/hiến tế.
-- `canh_gioi_tien_hiep.json` là nguồn chuẩn của đúng 14 cấp phẳng; `legacyIds` chỉ dùng để migrate save cũ, không tạo tiểu cảnh runtime.
-- Save version 12 đóng gói Mệnh Kho trong `player.fate.vaultIds`; `state.fateInventory` chỉ là adapter nội bộ khi game đang chạy.
+## 1) Nguồn (`data/src/`)
+
+- `data/src/fate/`
+  - `fates.json`: nguồn Mệnh Số canonical.
+  - `relationships.json`: nguồn quan hệ/cộng minh Mệnh Số.
+- `data/src/path/`
+  - `path_fate_relations.json`: nguồn JSON cho quan hệ Mệnh ↔ Con Đường.
+- `data/src/world/`
+  - `tu_tien_factions.json`: nguồn vùng, tuyến đường, thế lực, guild.
+  - `Xianxin_guild.md`: bảng nguồn guild.
+- `data/src/realm/`
+  - `canh_gioi_tien_hiep.json`: nguồn cảnh giới phẳng + legacyIds migration.
+
+## 2) Bundle runtime (`data/*.js`)
+
+Browser chỉ nạp các file JS theo thứ tự runtime (xem `data/manifest.json`).
+
+- **Generated (`generated: true`)**: được sinh bởi `tools/build_data.js`.
+- **Hand-edited (`generated: false`)**: chỉnh tay trực tiếp.
+
+> Quy tắc bắt buộc: **không sửa tay bất kỳ file `data/*.js` nào được đánh dấu `generated: true` trong `data/manifest.json`.**
+
+## 3) Manifest runtime
+
+- `data/manifest.json` là nguồn sự thật cho:
+  - thứ tự script runtime,
+  - metadata từng bundle (`feature`, `sourceFiles`, `generated`).
+- `tools/lib/load_runtime.js` đọc manifest (fallback parse `index.html` nếu thiếu manifest).
+
+## 4) Build dữ liệu
+
+```bash
+node tools/build_data.js
+```
+
+Lệnh trên sẽ:
+
+1. Sinh lại các bundle `generated: true` từ nguồn trong `data/src/`.
+2. Đồng bộ block script runtime trong `index.html` giữa marker:
+   - `<!-- runtime-scripts:start -->`
+   - `<!-- runtime-scripts:end -->`
+
+Giữ nguyên query version `?v=...` hiện có cho từng script.
+
+## 5) Chế độ kiểm tra CI/gate
+
+```bash
+node tools/build_data.js --check
+```
+
+- Exit code `1` nếu có file generated hoặc block runtime script của `index.html` bị lệch so với kết quả build.
+- Dùng trong regression suite để chặn drift dữ liệu.
+
+## 6) In danh sách runtime scripts
+
+```bash
+node tools/build_data.js --print-scripts
+```
+
+Dùng cho tooling khác (ví dụ offline bundle) để tránh hard-code danh sách script.

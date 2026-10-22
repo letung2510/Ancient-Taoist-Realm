@@ -13,7 +13,7 @@
       choices: [
         { id: "relief", label: "Cứu trợ dân chúng", merit: 4, contribution: 2 },
         { id: "hunt", label: "Săn sinh vật dị biến", exp: 35, corruption: 1, contribution: 2 },
-        { id: "exploit", label: "Khai thác dị khí", item: "linh_thach", quantity: 6, san: -5, corruption: 3, contribution: 1 }
+        { id: "exploit", label: "Khai thác dị khí", item: "linh_thach", quantity: 12, merit: 4, san: -10, corruption: 2, contribution: 1 }
       ]
     },
     {

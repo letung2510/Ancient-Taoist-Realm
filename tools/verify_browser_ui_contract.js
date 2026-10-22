@@ -28,16 +28,20 @@ assert(/!imported\?\.player|!imported\.player/.test(main), 'file import canonica
 assert(/validateSaveEnvelope/.test(main) && /validateSaveEnvelope/.test(expansion), 'file import must use canonical save envelope validator');
 assert(/queueNodeId/.test(ui) && /Điểm chờ/.test(ui), 'NPC queue destination disclosure missing');
 assert(/overlay.*hidden|classList\.add\(['"]hidden/.test(main + ui), 'overlay lifecycle close contract missing');
-assert(/setAttribute\(['"]data-['"] \+ key/.test(main) && !/dataset\[key\]/.test(main), 'dynamic data-* action buttons must not use invalid dataset keys');
+// Fate advanced-action buttons moved from DOM decoration in main.js to ui.js HTML rendering (fateAdvancedActions).
+assert((/setAttribute\(['"]data-['"] \+ key/.test(main) || /data-' \+ key \+ '="/.test(ui)) && !/dataset\[key\]/.test(main + ui), 'dynamic data-* action buttons must not use invalid dataset keys');
 assert(/consumeBlackMarketPrompt\?\./.test(main) && /markOpportunityPrompted\?\./.test(main) && /nextTechniqueActionId\(/.test(main), 'UI prompt/state transitions must use canonical runtime helpers');
 assert(/command === "technique_prepare"/.test(main) && /UI\.renderTechniqueDetail\(state\)/.test(main), 'technique prepare/channel overlay refresh contract missing');
 assert(/requiresConfirmation/.test(main) && /technique_prepare/.test(main), 'technique prepare preview-confirm bridge missing');
+assert(/data-technique-danger-confirm/.test(ui) && /data-technique-danger-cancel/.test(ui) && /requestDangerConfirmation/.test(main) && !/E\.submitActionId\(state, action\.id, \{ confirmed: true, stance, actionId \}\)/.test(main), 'Cấm Thuật must confirm through the inline danger sheet, not an unconditional confirmed:true');
 assert(/data-technique-stance/.test(main) && /technique-stance-picker/.test(main) && /\$\("overlay-content"\)\.addEventListener/.test(main) && !/stanceInput/.test(main), 'technique stance must use a canonical UI picker, not window.prompt');
 assert(!/Thế vận công:[^\n]*prompt\(/.test(main), 'combat technique path still contains a prompt stance fallback');
 assert(/data-mark-input/.test(main) && /data-mark-submit/.test(main), 'mark action must use canonical overlay input');
 assert(/data-secluded-hours-input/.test(main) && /data-secluded-hours/.test(main), 'secluded cultivation hours must use canonical overlay input');
 assert(/if \(btn\.disabled\) return/.test(ui) && /btn\.disabled = true/.test(ui), 'action buttons must lock before enqueueing to prevent rapid duplicate execution');
-assert((main.match(/if \(expansionCommand\.disabled\) return/g) || []).length >= 2, 'delegated expansion commands must lock before execution');
+// tab-content, overlay-content and the inline stance picker share one delegate (handleSharedClick),
+// so the lock exists once and must be reached from every surface.
+assert((main.match(/if \(expansionCommand\.disabled\) return/g) || []).length >= 1 && /handleSharedClick\(event, "tab"\)/.test(main) && /handleSharedClick\(event, "overlay"\)/.test(main) && /runExpansionCommandFlow\(el, surface\)/.test(main), 'delegated expansion commands must lock before execution');
 assert(/if \(markSubmit\.disabled\) return/.test(main) && /if \(secludedHours\.disabled\) return/.test(main), 'overlay action buttons must lock before execution');
 assert(!/Khắc lại dấu vết[^\n]*prompt\(/.test(main) && !/Bế quan bao nhiêu giờ[^\n]*prompt\(/.test(main), 'legacy mark/secluded prompt path remains');
 assert(/resourcesReady/.test(main) && /preview\.blockers/.test(main), 'technique resource rejection must happen before confirmation');

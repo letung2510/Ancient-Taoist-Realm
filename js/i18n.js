@@ -6,6 +6,7 @@
   const WEATHER = { quang: "Quang đãng", mua: "Mưa", suong: "Sương", tuyet: "Tuyết", loi_vu: "Lôi Vũ", linh_phong: "Linh Phong", am_vu: "Ám Vũ", bao_linh_khi: "Bão Linh Khí" };
   const ELEMENTS = { moc: "Mộc", hoa: "Hỏa", kim: "Kim", thuy: "Thủy", tho: "Thổ", phong: "Phong", loi: "Lôi", bang: "Băng", huyet: "Huyết", vo_he: "Vô hệ" };
   const OUTCOMES = { contained: "đã khống chế", survived: "đã vượt qua", ignored: "đã bỏ lỡ", located: "đã tìm thấy", escaped: "đã mất dấu", released: "phóng thích", turned_in: "giao nộp", executed: "xử quyết", won: "thắng", lost: "thất bại", kill: "tiêu diệt", capture: "bắt sống", search: "điều tra", travel: "hộ tống", item: "thu hồi vật phẩm" };
+  const RUNTIME_LABELS = { guardian: "Hộ pháp", formation: "Trận pháp", sealed_ward: "Phong ấn", open: "Đang mở", main: "Khu trung tâm", neutral: "Trung lập", important: "Điểm quan trọng", opportunity: "Cơ duyên", event: "Biến cố", danger: "Nguy hiểm" };
   const CATEGORIES = { tam_phap: "Tâm Pháp", chieu_thuc: "Chiêu Thức", than_phap: "Thân Pháp", phu_tro: "Phụ Trợ", tran_phap: "Trận Pháp", cam_thuat: "Cấm Thuật", dan_phu_phap: "Đan · Phù · Tạp Pháp", procedural: "Vật phẩm biến hóa" };
   function lookup(state, id) {
     const value = String(id ?? "");
@@ -24,6 +25,7 @@
     result = result.replace(/\b(quang|mua|suong|tuyet|loi_vu|linh_phong|am_vu|bao_linh_khi)\b/gi, (value) => WEATHER[value.toLowerCase()] || value);
     result = result.replace(/\b(moc|hoa|kim|thuy|tho|phong|loi|bang|huyet|vo_he)\b/gi, (value) => ELEMENTS[value] || value);
     result = result.replace(/\b(contained|survived|ignored|located|escaped|released|turned_in|executed|won|lost|kill|capture|search|travel)\b/gi, (value) => OUTCOMES[value.toLowerCase()] || value);
+    result = result.replace(/\b(guardian|formation|sealed_ward|open|main|neutral|important|opportunity|event|danger)\b/gi, (value) => RUNTIME_LABELS[value.toLowerCase()] || value);
     const regionCatalog = Object.fromEntries((window.GameData?.WORLD_MAP?.regions || []).map((entry) => [entry.id, entry]));
     const factionCatalog = Object.fromEntries((window.GameData?.WORLD_MAP?.factions || window.GameData?.FACTION_DATA?.factions || []).map((entry) => [entry.id, entry]));
     const catalogs = [window.GameData?.ITEMS, window.GameData?.NPCS, window.GameData?.ENTITIES, window.NPC_MONSTER_DATA?.entities, window.GameData?.LOCATIONS, window.GameData?.FACTIONS, regionCatalog, factionCatalog];

@@ -12,6 +12,7 @@
       grade: "pham", quality: "ha", element: "kim", pathAffinity: ["kiem_dao"], minRealmLevel: 1,
       spiritualRootRequirements: [], isCore: false,
       visibleStats: { powerCoefficient: 0.6, manaCost: 12, staminaCost: 5, corruptionCost: 0, sanCost: 0, lifespanCost: 0, cooldownSeconds: 10, castTimeSeconds: 1, baseEffect: "Kiếm khí trực tiếp" },
+      preparation: { enabled: false, turns: 0, interruptible: true, refundPolicy: "none" },
       hiddenAttributes: [], corruptionProfile: null, mastery: { stage: 0, exp: 0, usageCount: 0 }, evolutionPaths: []
     },
     tam_phap_dan_dien: {
@@ -83,6 +84,8 @@
       grade: "hoang", quality: "trung", element: "tho", pathAffinity: ["phong_thuy_dao", "phu_dao"], minRealmLevel: 2,
       spiritualRootRequirements: [], isCore: true,
       visibleStats: { powerCoefficient: 1.1, manaCost: 20, staminaCost: 4, corruptionCost: 0, sanCost: 0, lifespanCost: 0, cooldownSeconds: 18, castTimeSeconds: 2, baseEffect: "Lấy trận văn dẫn địa khí, thủ thế rồi phản kích." },
+      preparation: { enabled: true, turns: 1, interruptible: true, refundPolicy: "none" },
+      prepareCost: { mana: 4, stamina: 1 },
       hiddenAttributes: [], corruptionProfile: null, mastery: { stage: 0, exp: 0, usageCount: 0 }, evolutionPaths: []
     },
     huyet_sat_bi_luc: {
@@ -130,6 +133,102 @@
     }
   };
 
+  // Interaction layer: Fate is the highest-priority modifier, Technique is
+  // the reusable foundation, and Skill is the contextual action built on it.
+  // These records are data-only; the engine resolves them through the same
+  // preview/commit pipeline as legacy techniques.
+  const interactionCatalog = {
+    schemaVersion: 1,
+    priority: ["fate", "technique", "skill"],
+    resonance: {
+      sameElementPct: 4,
+      samePathPct: 5,
+      matchingTagPct: 3,
+      opposingElementPct: -4,
+      hungRiskPct: 3,
+      capPct: 18,
+      maxSources: 3
+    },
+    fateProfiles: {
+      kim: { element: "kim", tags: ["kiem", "kim", "sat_phat"] },
+      moc: { element: "moc", tags: ["sinh_truong", "hoi_phuc", "mong"] },
+      hoa: { element: "hoa", tags: ["boc_phat", "dot_pha", "dan"] },
+      tho: { element: "tho", tags: ["phong_ngu", "tran", "luyen_the"] },
+      vo_he: { element: "vo_he", tags: ["can_bang", "tinh", "menh"] },
+      di_he: { element: "di_he", tags: ["ta_than", "cam_thuat", "phan_phuc"] }
+    },
+    techniqueRules: {
+      kiem_khi_so_cap: {
+        skillFamily: "single_target_strike",
+        preferredFateTags: ["kiem", "kim", "sat_phat"],
+        skillBlueprint: { action: "strike", target: "enemy", effect: "damage", stance: true }
+      },
+      hon_hoa_chuong: {
+        skillFamily: "burning_arc",
+        preferredFateTags: ["hoa", "boc_phat", "dot_pha", "dan"],
+        skillBlueprint: { action: "spell", target: "enemy", effect: "damage_and_burn", stance: true }
+      },
+      thanh_phong_kiem_quyet: {
+        skillFamily: "wind_sword",
+        preferredFateTags: ["kiem", "kim", "phong", "nhanh"],
+        skillBlueprint: { action: "strike", target: "enemy", effect: "damage_and_reposition", stance: true }
+      },
+      than_phap_phi_van: {
+        skillFamily: "evasion_step",
+        preferredFateTags: ["moc", "mong", "nhanh", "sinh_truong"],
+        skillBlueprint: { action: "movement_skill", target: "self", effect: "evasion", stance: true }
+      },
+      bich_moc_hoi_xuan: {
+        skillFamily: "life_recovery",
+        preferredFateTags: ["moc", "hoi_phuc", "sinh_truong"],
+        skillBlueprint: { action: "support", target: "self_or_ally", effect: "heal", stance: true }
+      },
+      huyen_mon_tran_giai: {
+        skillFamily: "counter_formation",
+        preferredFateTags: ["tho", "tran", "phong_ngu", "dia_mach"],
+        skillBlueprint: { action: "formation", target: "area", effect: "ward_and_counter", stance: true }
+      },
+      huyet_sat_bi_luc: {
+        skillFamily: "blood_curse",
+        preferredFateTags: ["di_he", "ta_than", "cam_thuat", "phan_phuc"],
+        reverseFate: { hungOnly: true, corruptionPct: 8, sanCostPct: 5 },
+        skillBlueprint: { action: "curse", target: "enemy", effect: "damage_and_corruption", stance: true }
+      },
+      cam_thuat_huyet_te: {
+        skillFamily: "blood_ritual",
+        preferredFateTags: ["di_he", "ta_than", "cam_thuat", "phan_phuc"],
+        reverseFate: { hungOnly: true, corruptionPct: 12, sanCostPct: 8 },
+        skillBlueprint: { action: "ritual", target: "enemy_or_area", effect: "damage_and_backlash", stance: true }
+      },
+      tu_lap_kiem_thuc: {
+        skillFamily: "independent_sword",
+        preferredFateTags: ["kiem", "kim", "tu_lap", "vo_bound"],
+        intent: ["tu_lap"],
+        skillBlueprint: { action: "strike", target: "enemy", effect: "damage_and_mastery", stance: true }
+      },
+      tu_lap_luyen_the_phap: {
+        skillFamily: "independent_body",
+        preferredFateTags: ["tho", "luyen_the", "phong_ngu", "tu_lap"],
+        intent: ["tu_lap"],
+        skillBlueprint: { action: "support", target: "self", effect: "guard_and_recovery", stance: true }
+      }
+    },
+    forbiddenArts: {
+      huyet_sat_bi_luc: { dangerLevel: "high", price: { corruption: 1, san: 2 }, backlash: { corruption: 5, hpPct: 4, chancePct: 12 }, requiresFaction: "rebel_heaven", confirmation: "tainted" },
+      cam_thuat_huyet_te: { dangerLevel: "critical", price: { corruption: 4, san: 5, lifespan: 1 }, backlash: { corruption: 12, hpPct: 12, chancePct: 20 }, requiresFaction: "rebel_heaven", confirmation: "tainted" }
+    },
+    guildSkillPolicies: {
+      signature: { access: "membership_and_rank", retention: "membership", masteryBonusWhenActivePct: 5, formationBonusRequiresRank: 2, departed: "blocked" },
+      taught: { access: "taught_receipt", retention: "knowledge", masteryBonusWhenActivePct: 5, departed: "dormant" }
+    },
+    reverseRules: [
+      { id: "fate_hung_overload", when: { sign: "hung", tag: "phan_phuc" }, effect: { riskPct: 8, corruptionPct: 5 }, narrativeKey: "technique.fate.backlash" },
+      { id: "fate_suppressed_break", when: { suppressed: true }, effect: { powerPct: -6, cooldownPct: 10 }, narrativeKey: "technique.fate.suppressed" },
+      { id: "fate_opposed_element", when: { opposingElement: true }, effect: { powerPct: -4, costPct: 5 }, narrativeKey: "technique.fate.opposed" }
+    ]
+  };
+
   window.CONG_PHAP_DATA = { techniques, masteryStages, masteryMultipliers, masteryThresholds,
-    resonancePolicy: { version: 1, perMatchingFatePct: 1, totalCapPct: 5, activeOnly: true, suppressed: false } };
+    interactionCatalog,
+    resonancePolicy: { version: 2, perMatchingFatePct: 1, totalCapPct: 5, activeOnly: true, suppressed: false } };
 })();

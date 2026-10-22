@@ -17,36 +17,20 @@ window.GameData = (function () {
 
   /* ---------- Cảnh giới tu vi ---------- */
   const FALLBACK_REALMS = [
-    {
-      id: "phan_nhan", name: "Phàm Nhân",
-      minFate: 8, activeSlots: 5, lifespanBase: 75, lifespanBonus: 0,
-      breakExp: 100, phyMult: 1.0, magMult: 1.0, maxQa: 40, desc: "Thân phàm, tích đủ 100 EXP hoặc dùng đan khai mạch để bước vào Luyện Khí."
-    },
-    {
-      id: "luyen_khi", name: "Luyện Khí Kỳ",
-      minFate: 20, activeSlots: 5, lifespanBonus: 50,
-      breakExp: 600, phyMult: 1.2, magMult: 1.2, maxQa: 80, desc: "Dẫn khí nhập thể, khai mở đan điền."
-    },
-    {
-      id: "truc_co", name: "Trúc Cơ Kỳ",
-      minFate: 50, activeSlots: 10, lifespanBonus: 150,
-      breakExp: 3000, phyMult: 1.5, magMult: 1.5, maxQa: 140, desc: "Trúc nền đạo căn, thọ nguyên đại tăng."
-    },
-    {
-      id: "kim_dan", name: "Kim Đan Kỳ",
-      minFate: 100, activeSlots: 15, lifespanBonus: 500,
-      breakExp: 15000, phyMult: 2.2, magMult: 2.2, maxQa: 260, desc: "Ngưng luyện kim đan, thoát tục."
-    },
-    {
-      id: "nguyen_anh", name: "Nguyên Anh Kỳ",
-      minFate: 150, activeSlots: 20, lifespanBonus: 2000,
-      breakExp: 60000, phyMult: 3.5, magMult: 3.5, maxQa: 450, desc: "Nguyên anh xuất khiếu, thần thức linh thiêng."
-    },
-    {
-      id: "hoa_than", name: "Hóa Thần Kỳ",
-      minFate: 200, activeSlots: 30, lifespanBonus: 10000,
-      breakExp: Infinity, phyMult: 6.0, magMult: 6.0, maxQa: 800, desc: "Hóa thần thông thiên, gần chạm đạo quả."
-    }
+    { id: "di_menh", level: 1, name: "Di Mệnh Cảnh", legacyIds: ["phan_nhan"], minFate: 6, activeSlots: 5, lifespanBase: 75, lifespanBonus: 0, breakExp: 100, phyMult: 1, magMult: 1, maxQa: 40 },
+    { id: "khai_lo", level: 2, name: "Khai Lộ Cảnh", legacyIds: ["luyen_khi"], minFate: 6, activeSlots: 5, lifespanBase: 75, lifespanBonus: 50, breakExp: 600, phyMult: 1.2, magMult: 1.2, maxQa: 80 },
+    { id: "dung_thai", level: 3, name: "Dựng Thai Cảnh", legacyIds: ["truc_co"], minFate: 20, activeSlots: 10, lifespanBase: 75, lifespanBonus: 150, breakExp: 3000, phyMult: 1.5, magMult: 1.5, maxQa: 140 },
+    { id: "kim_an", level: 4, name: "Kim Ấn Cảnh", legacyIds: ["kim_dan"], minFate: 35, activeSlots: 15, lifespanBase: 75, lifespanBonus: 500, breakExp: 15000, phyMult: 2.2, magMult: 2.2, maxQa: 260 },
+    { id: "anh_linh", level: 5, name: "Anh Linh Cảnh", legacyIds: ["nguyen_anh"], minFate: 55, activeSlots: 20, lifespanBase: 75, lifespanBonus: 2000, breakExp: 60000, phyMult: 3.5, magMult: 3.5, maxQa: 450 },
+    { id: "than_tinh", level: 6, name: "Thần Tính Cảnh", legacyIds: ["hoa_than"], minFate: 80, activeSlots: 30, lifespanBase: 75, lifespanBonus: 5000, breakExp: 180000, phyMult: 6, magMult: 6, maxQa: 800 },
+    { id: "hu_gioi", level: 7, name: "Hư Giới Cảnh", minFate: 100, activeSlots: 30, lifespanBase: 75, lifespanBonus: 12000, breakExp: 540000, phyMult: 9.5, magMult: 9.5, maxQa: 1300 },
+    { id: "hop_dao", level: 8, name: "Hợp Đạo Cảnh", minFate: 140, activeSlots: 30, lifespanBase: 75, lifespanBonus: 30000, breakExp: 1500000, phyMult: 15, magMult: 15, maxQa: 2100 },
+    { id: "thien_kiep", level: 9, name: "Thiên Kiếp Cảnh", minFate: 180, activeSlots: 30, lifespanBase: 75, lifespanBonus: 80000, breakExp: 4500000, phyMult: 25, magMult: 25, maxQa: 3500 },
+    { id: "chu_te", level: 10, name: "Chủ Tể Cảnh", minFate: 220, activeSlots: 30, lifespanBase: 75, lifespanBonus: 200000, breakExp: 12000000, phyMult: 40, magMult: 40, maxQa: 6000 },
+    { id: "chan_ngoai", level: 11, name: "Chân Ngoại Cảnh", minFate: 270, activeSlots: 30, lifespanBase: 75, lifespanBonus: 500000, breakExp: 35000000, phyMult: 70, magMult: 70, maxQa: 12000 },
+    { id: "kim_bat_hoai", level: 12, name: "Kim Bất Hoại Cảnh", minFate: 320, activeSlots: 30, lifespanBase: 75, lifespanBonus: 1500000, breakExp: 95000000, phyMult: 120, magMult: 120, maxQa: 25000 },
+    { id: "thai_at", level: 13, name: "Thái Ất Cảnh", minFate: 450, activeSlots: 30, lifespanBase: 75, lifespanBonus: 5000000, breakExp: 280000000, phyMult: 210, magMult: 210, maxQa: 50000 },
+    { id: "dao_ngoai", level: 14, name: "Đạo Ngoại Cảnh", minFate: 500, activeSlots: 30, lifespanBase: 75, lifespanBonus: 20000000, breakExp: null, phyMult: 400, magMult: 400, maxQa: 100000 }
   ];
 
   const REALMS = (window.CULTIVATION_DATA?.realms || FALLBACK_REALMS).map((realm) => ({

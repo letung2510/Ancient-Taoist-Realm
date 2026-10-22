@@ -1,0 +1,42 @@
+{
+  "scripts": [
+    "data/fate_data.js",
+    "data/fate_relationships.js",
+    "data/cong_phap.js",
+    "data/path_fate_relations.js",
+    "data/profession_items.js",
+    "data/expansion_data.js",
+    "data/world_data.js",
+    "data/npc_monsters.js",
+    "gemini-code-1788430656294.js"
+  ],
+  "globals": [
+    "FATE_DATA",
+    "FATE_RELATIONSHIPS",
+    "CONG_PHAP_DATA",
+    "PATH_FATE_RELATIONS",
+    "PROFESSION_ITEMS",
+    "PROFESSION_ITEMS_SCHEMA_VERSION",
+    "EXPANSION_DATA",
+    "FACTION_DATA",
+    "CULTIVATION_DATA",
+    "GUILD_DATA",
+    "NPC_MONSTER_DATA",
+    "ItemGeneratorConstants"
+  ],
+  "hashes": {
+    "FATE_DATA": "28e0bbcabe186f6ead963d80bfe7acd894db34d0ec093a1aa9dbd771f894a3ce",
+    "FATE_RELATIONSHIPS": "7e82701fe03da7d246390f6e1468531d6ab352da95bedfca8a1bc9c49309b4e2",
+    "CONG_PHAP_DATA": "758197bba97159c62ffb6480277183d9f599f815a6ee979945480bfff71e5052",
+    "PATH_FATE_RELATIONS": "3ac877f4f200a6b60a2c547752bd02aaabd4137ef63544da0a5be78e41285a84",
+    "PROFESSION_ITEMS": "7632bc71507c1b7ca3514d754cdadb74b4ef29d5a63ddafc43259d9db94fcc8b",
+    "PROFESSION_ITEMS_SCHEMA_VERSION": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+    "EXPANSION_DATA": "6ed11f6db5c5015ded048f2efa01e3bb400e7dbcebca5b392a12fda03e96fb86",
+    "FACTION_DATA": "50d19ba07919b0a87354a0bbd7cbd9eb8d132e97c5b0c0a4ca959f2a3d7f5f86",
+    "CULTIVATION_DATA": "da1960a8a45995367cfdbc58d4360635d6bc0a5e8610c8ea5da9a790675dfb40",
+    "GUILD_DATA": "9b9d4219f3efdcae54c037468fe541b3a2fd27465a2533c2bcbac38cd5b54c2f",
+    "NPC_MONSTER_DATA": "7e38539f12256cd4287c38d0f91d1ae57186c73eb19e3776457ef4c1e7b77e1e",
+    "ItemGeneratorConstants": "b3c0a452ea62a1210df6657a8e950ef259e09e1d81b4fd9088403af2bb370b05"
+  },
+  "combinedHash": "949abe42ad7deaa15caa4bccc27baf808653ac4f0c3c8b4cf1310005d5ba4215"
+}

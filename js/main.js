@@ -24,7 +24,7 @@
   // the story panel was still rendering, leaving later entries/buttons stuck.
   const pendingActions = [];
   let drainingActions = false;
-  let renderedHistoryEntries = new WeakSet();
+  let pendingDangerConfirm = null;
   let storyWindowSize = 20;
   const commandHistory = [];
   let commandHistoryCursor = -1;
@@ -332,430 +332,364 @@
       $("free-input").value = commandHistory[commandHistoryCursor] || "";
     });
 
-    const updateCauldronSelectionUI = () => {
-      const inputs = [...document.querySelectorAll("[data-cauldron-item]")];
-      let remaining = 9;
-      inputs.forEach((input) => { const max = Math.min(Number(input.max || 9), remaining); input.value = Math.max(0, Math.min(max, Math.floor(Number(input.value || 0)))); remaining -= Number(input.value || 0); });
-      const selected = inputs.filter((input) => Number(input.value || 0) > 0);
-      const total = selected.reduce((sum, input) => sum + Number(input.value || 0), 0);
-      const label = document.querySelector("[data-cauldron-count]"); if (label) label.textContent = total;
-      const summary = document.querySelector("[data-cauldron-summary]"); if (summary) summary.textContent = selected.length ? selected.map((input) => input.dataset.cauldronName + " ×" + input.value).join(" · ") : "Chưa chọn nguyên liệu";
-      const submit = document.querySelector("[data-cauldron-refine]"); if (submit) submit.disabled = total < 3 || total > 9;
-    };
     $("tab-content").addEventListener("input", (event) => { if (event.target.matches("[data-cauldron-item]")) updateCauldronSelectionUI(); });
-    $("tab-content").addEventListener("click", (event) => {
-      const statusAction = event.target.closest("[data-status-action]");
-      if (statusAction && state && !statusAction.disabled) {
-        const actionId = statusAction.dataset.statusAction;
-        const actionButton = [...document.querySelectorAll("#action-list [data-action-id]")].find((button) => button.dataset.actionId === actionId);
-        if (actionButton) actionButton.click();
-        else alert("Hành động này hiện không còn khả dụng trong bối cảnh hiện tại.");
-        return;
-      }
-      const worldEventChoice = event.target.closest("[data-world-event-action]");
-      if (worldEventChoice && state && !worldEventChoice.disabled) {
-        const actionId = worldEventChoice.dataset.worldEventAction;
-        const actionButton = [...document.querySelectorAll("#action-list [data-action-id]")].find((button) => button.dataset.actionId === actionId);
-        if (actionButton) actionButton.click();
-        else alert("Lựa chọn biến cố không còn khả dụng trong pha hiện tại.");
-        return;
-      }
-      const modalButton = event.target.closest("[data-expansion-modal]");
-      if (modalButton && state) {
-        const type = modalButton.dataset.expansionModal;
-        if (type === "guild-project") UI.openOverlay("Công Trình Tông Môn", UI.renderGuildProjectModal(state));
-        if (type === "opportunity") UI.openOverlay("Cơ Duyên Tranh Đoạt", UI.renderContestedOpportunityModal(state));
-        return;
-      }
-      const physiqueButton = event.target.closest("[data-special-physique]");
-      if (physiqueButton && state && E.claimSpecialPhysique) {
-        const result = E.claimSpecialPhysique(state, physiqueButton.dataset.specialPhysique);
-        if (!result.success) alert(result.reason || "Chưa thể tiếp nhận Dị Thể.");
-        else { saveGame(); UI.renderPanel(state); }
-        return;
-      }
-      const techniqueStance = event.target.closest("[data-technique-stance]");
-      if (techniqueStance && state) {
-        const actionId = techniqueStance.dataset.techniqueAction || "";
-        const stance = techniqueStance.dataset.techniqueStance || "steady";
-        const action = (E.contextState(state)?.actions || []).find((entry) => entry.id === actionId) || (/^act_skill_/.test(actionId) ? { id: actionId } : null);
-        if (action) commitTechniqueAction(action, stance);
-        return;
-      }
-      const expansionCommand = event.target.closest("[data-expansion-command]");
-      if (expansionCommand && state && E.runExpansionCommand) {
-        if (expansionCommand.disabled) return;
-        expansionCommand.disabled = true;
-        const command = expansionCommand.dataset.expansionCommand;
-        let arg = expansionCommand.dataset.expansionArg || "";
-        const arg2 = expansionCommand.dataset.expansionArg2 || "";
-        if (command === "mark") {
-          const existing = UI.escapeHtml(state.playerMarks?.[state.locationId]?.text || "");
-          UI.openOverlay("Khắc dấu tại node", '<div class="mark-editor"><p class="muted">Ghi tối đa 120 ký tự cho node hiện tại.</p><textarea data-mark-input maxlength="120" rows="3" placeholder="Dấu vết cần ghi">' + existing + '</textarea><button class="choice" data-mark-submit>Ghi dấu</button></div>');
+    $("tab-content").addEventListener("click", (event) => handleSharedClick(event, "tab"));
+    $("overlay-content").addEventListener("click", (event) => handleSharedClick(event, "overlay"));
+    // Bộ chọn thế vận công nằm ngay trên thanh hành động.
+    $("action-list")?.addEventListener?.("click", (event) => {
+      if (event.target?.closest?.(".technique-stance-picker-inline")) handleSharedClick(event, "actions");
+    });
+  }
+
+  function updateCauldronSelectionUI() {
+    const inputs = [...document.querySelectorAll("[data-cauldron-item]")];
+    let remaining = 9;
+    inputs.forEach((input) => { const max = Math.min(Number(input.max || 9), remaining); input.value = Math.max(0, Math.min(max, Math.floor(Number(input.value || 0)))); remaining -= Number(input.value || 0); });
+    const selected = inputs.filter((input) => Number(input.value || 0) > 0);
+    const total = selected.reduce((sum, input) => sum + Number(input.value || 0), 0);
+    const label = document.querySelector("[data-cauldron-count]"); if (label) label.textContent = total;
+    const summary = document.querySelector("[data-cauldron-summary]"); if (summary) summary.textContent = selected.length ? selected.map((input) => input.dataset.cauldronName + " ×" + input.value).join(" · ") : "Chưa chọn nguyên liệu";
+    const submit = document.querySelector("[data-cauldron-refine]"); if (submit) submit.disabled = total < 3 || total > 9;
+  }
+
+  function clickActionBarButton(actionId, unavailableText) {
+    const actionButton = [...document.querySelectorAll("#action-list [data-action-id]")].find((button) => button.dataset.actionId === actionId);
+    if (actionButton) actionButton.click();
+    else alert(unavailableText);
+  }
+
+  // Rerender target follows the surface that hosted the click.
+  function refreshFateSurface(surface) {
+    if (surface === "overlay") UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state));
+    else UI.renderPanel(state);
+  }
+
+  function refreshOverlayAfterCommand(surface, command, arg, result) {
+    const overlay = document.getElementById("overlay");
+    const overlayContent = document.getElementById("overlay-content");
+    if (command === "opportunity" || command === "map_event") {
+      if (result?.success) { UI.closeOverlay(); return; }
+    }
+    if (!overlay || overlay.classList.contains("hidden") || !overlayContent) return;
+    if (command === "opportunity") overlayContent.innerHTML = UI.renderContestedOpportunityModal(state);
+    else if (command === "map_event") overlayContent.innerHTML = UI.renderMapEventModal(state);
+    else if (command.startsWith("guild_")) overlayContent.innerHTML = UI.renderGuildProjectModal(state);
+    else if (command === "fate_trial" || command === "fate_evolve") overlayContent.innerHTML = UI.renderFateEvolutionModal(state, arg);
+    else if (command === "technique_evolve") overlayContent.innerHTML = UI.renderTechniqueDetail(state);
+    else if (surface === "overlay" && ["technique_use", "technique_prepare", "technique_channel", "technique_cancel", "technique_acquire"].includes(command)) {
+      if (result?.success) UI.closeOverlay();
+      else overlayContent.innerHTML = UI.renderTechniqueDetail(state);
+    } else if (surface === "overlay" && command === "npc_dialogue" && UI.renderNpcDialogue) overlayContent.innerHTML = UI.renderNpcDialogue(state, arg);
+  }
+
+  function finishExpansionCommand(surface, button, command, arg, result) {
+    if (!result?.success && String(command).startsWith("technique_")) { E.pushHistory(state, { type: "warn", text: result?.reason || "Không thể thi triển Công Pháp." }); renderAfterTurn(); return; }
+    const moveAfterDiscovery = button?.dataset?.pendingMove || "";
+    if (result?.success && command === "map_event" && moveAfterDiscovery) submitUiAction(moveAfterDiscovery, { confirmPendingDeparture: true });
+    if (!result?.success) alert(result?.reason || "Không thể thực hiện hành động này.");
+    renderAfterTurn();
+    refreshOverlayAfterCommand(surface, command, arg, result);
+  }
+
+  function runExpansionCommandFlow(expansionCommand, surface) {
+    if (expansionCommand.disabled) return;
+    expansionCommand.disabled = true;
+    const command = expansionCommand.dataset.expansionCommand;
+    const arg = expansionCommand.dataset.expansionArg || "";
+    const arg2 = expansionCommand.dataset.expansionArg2 || "";
+    if (command === "mark") {
+      const existing = UI.escapeHtml(state.playerMarks?.[state.locationId]?.text || "");
+      UI.openOverlay("Khắc dấu tại địa điểm", '<div class="mark-editor"><p class="muted">Ghi tối đa 120 ký tự cho địa điểm hiện tại.</p><textarea data-mark-input maxlength="120" rows="3" placeholder="Dấu vết cần ghi">' + existing + '</textarea><button class="choice" data-mark-submit>Ghi dấu</button></div>');
+      return;
+    }
+    enqueueAction(() => {
+      let result = E.runExpansionCommand(state, command, arg, arg2);
+      if (result?.requiresConfirmation && (command === "technique_prepare" || command === "technique_use")) {
+        const stance = arg2 || "steady";
+        const preview = E.techniquePreview?.(state, arg, { stance }) || result;
+        if (isDangerousTechnique(preview)) {
+          renderAfterTurn();
+          requestDangerConfirmation(preview, { stance, purpose: command === "technique_prepare" ? "Tụ lực" : "Thi triển" }, () => enqueueAction(() => {
+            finishExpansionCommand(surface, expansionCommand, command, arg, E.runExpansionCommand(state, command, arg, arg2, { confirmed: true }));
+          }));
           return;
         }
-        let result = E.runExpansionCommand(state, command, arg, arg2);
-        if (result?.requiresConfirmation && confirm(result.reason + "\nXác nhận tiếp tục?")) result = E.runExpansionCommand(state, command, arg, arg2, { confirmed: true });
-        if (!result?.success) alert(result?.reason || "Không thể thực hiện hành động này.");
-        if ((command === "opportunity" || command === "map_event") && result?.success) UI.closeOverlay();
-        renderAfterTurn();
-        const overlay = document.getElementById("overlay");
-        const overlayContent = document.getElementById("overlay-content");
-        if (overlay && !overlay.classList.contains("hidden") && overlayContent) {
-          if (command.startsWith("guild_")) overlayContent.innerHTML = UI.renderGuildProjectModal(state);
-          else if (command === "opportunity" && !result?.success) overlayContent.innerHTML = UI.renderContestedOpportunityModal(state);
-          else if (command === "map_event" && !result?.success) overlayContent.innerHTML = UI.renderMapEventModal(state);
-          else if (command === "fate_trial" || command === "fate_evolve") overlayContent.innerHTML = UI.renderFateEvolutionModal(state, arg);
-          else if (command === "technique_evolve") overlayContent.innerHTML = UI.renderTechniqueDetail(state);
-        }
-        return;
+        // Chi phí tụ lực thường đã hiện trên bộ chọn; không cần hộp thoại trình duyệt.
+        result = E.runExpansionCommand(state, command, arg, arg2, { confirmed: true });
+      } else if (result?.requiresConfirmation && confirm(result.reason + "\nXác nhận tiếp tục?")) {
+        result = E.runExpansionCommand(state, command, arg, arg2, { confirmed: true });
       }
-      const autoCauldron = event.target.closest("[data-cauldron-auto]");
-      if (autoCauldron && state) {
-        const boxes = [...document.querySelectorAll("[data-cauldron-item]")];
-        boxes.forEach((box) => { box.value = 0; });
-        let remaining = 9;
-        boxes.forEach((box) => { if (remaining <= 0 || box.dataset.cauldronSafe !== "true") return; const qty = Math.min(remaining, Number(box.max || 0)); box.value = qty; remaining -= qty; });
-        updateCauldronSelectionUI();
-        return;
-      }
-      const clearCauldron = event.target.closest("[data-cauldron-clear]");
-      if (clearCauldron) { document.querySelectorAll("[data-cauldron-item]").forEach((box) => { box.value = 0; }); updateCauldronSelectionUI(); return; }
-      const questTrack = event.target.closest("[data-quest-track]");
-      if (questTrack && state) { if (E.trackQuest(state, questTrack.dataset.questTrack, true)) { saveGame(); UI.renderPanel(state); } return; }
-      const questAbandon = event.target.closest("[data-quest-abandon]");
-      if (questAbandon && state) { if (confirm("Từ bỏ nhiệm vụ này? Hậu quả sẽ được ghi vào lịch sử.")) { E.abandonQuest(state, questAbandon.dataset.questAbandon); saveGame(); UI.renderPanel(state); } return; }
-      const fateEquip = event.target.closest("[data-fate-equip]");
-      if (fateEquip && state) { const result = E.equipFateFromVault(state, fateEquip.dataset.fateEquip); if (result.requiresReplacement) UI.openOverlay("Thay thế Ấn Ký Mệnh Số", UI.renderFateReplacementChooser(state, fateEquip.dataset.fateEquip)); else if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
-      const fateUpgrade = event.target.closest("[data-fate-upgrade-target]");
-      if (fateUpgrade && state) { UI.openOverlay("Cường Hóa Mệnh Số", UI.renderFateUpgradeChooser(state, fateUpgrade.dataset.fateUpgradeTarget)); return; }
-      const fateEvolution = event.target.closest("[data-fate-evolution]");
-      if (fateEvolution && state) { UI.openOverlay("Mệnh Số Tiến Hóa", UI.renderFateEvolutionModal(state, fateEvolution.dataset.fateEvolution)); return; }
-      const fateNurture = event.target.closest("[data-fate-nurture]");
-      if (fateNurture && state) { const result = E.nurtureFate(state, fateNurture.dataset.fateNurture); if (!result.success) alert(result.reason || (result.blockers || []).join("\n")); else { saveGame(); UI.renderPanel(state); } return; }
-      const fateResonate = event.target.closest("[data-fate-resonate]");
-      if (fateResonate && state) { const result = E.resonateFate(state, fateResonate.dataset.fateResonate); if (!result.success) alert((result.blockers || [result.reason]).join("\n")); else { saveGame(); UI.renderPanel(state); } return; }
-      const fateTransform = event.target.closest("[data-fate-transform]");
-      if (fateTransform && state) { const id = fateTransform.dataset.fateTransform; const preview = E.transformFate(state, id); if (!preview.success) { alert((preview.blockers || [preview.reason]).join("\n")); return; } const candidates = preview.candidates || []; if (!candidates.length) { alert("Chưa có nhánh biến thể phù hợp."); return; } const branch = candidates[0]; if (!confirm("Xác nhận Mệnh Đổi theo nhánh " + (branch.name || branch.id) + "? Chi phí: " + preview.costs.essence + " Tinh Hoa, " + preview.costs.merit + " Công Đức, " + preview.costs.san + " SAN.")) return; const result = E.transformFate(state, id, branch.id, { confirmed: true }); if (!result.success) alert(result.reason || (result.blockers || []).join("\n")); else { saveGame(); UI.renderPanel(state); } return; }
-      const fateInsight = event.target.closest("[data-fate-insight]");
-      if (fateInsight && state) { const result = E.revealFateInsight(state, fateInsight.dataset.fateInsight); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
-      const fateRelease = event.target.closest("[data-fate-release]");
-      if (fateRelease && state) { const result = E.releaseStagnantFate(state, fateRelease.dataset.fateRelease); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
-      const fateDefy = event.target.closest("[data-fate-defy]");
-      if (fateDefy && state) { const result = E.defyFate(state, fateDefy.dataset.fateDefy); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
-      const fateSuppress = event.target.closest("[data-fate-suppress]");
-      if (fateSuppress && state) { const result = E.suppressFate(state, fateSuppress.dataset.fateSuppress); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
-      const fateMerge = event.target.closest("[data-fate-merge-submit]");
-      if (fateMerge && state) { const ids = [...document.querySelectorAll("[data-fate-merge]:checked")].map((el) => el.dataset.fateMerge); const result = E.mergeFates(state, ids); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
-      const market = event.target.closest("[data-market-fate]");
-      if (market && state) { const result = E.buyFateAtMarket(state, market.dataset.marketFate); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
-      const qintian = event.target.closest("[data-qintian-fate]");
-      if (qintian && state) { const result = E.sacrificeLifespanForFate(state, qintian.dataset.qintianFate); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
-      const qintianMethod = event.target.closest("[data-qintian-method]");
-      if (qintianMethod && state) { const result = E.sacrificeLifespanForFate(state, qintianMethod.dataset.qintianMethod); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
-      const offer = event.target.closest("[data-market-offer]");
-      if (offer && state) { const result = E.buyMarketOffer(state, offer.dataset.marketOffer); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
-      const blackMarketFate = event.target.closest("[data-black-market-fate]");
-      if (blackMarketFate && state) { const result = E.buyBlackMarketOffer(state, blackMarketFate.dataset.blackMarketFate); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Nghịch Thương Nhân", UI.renderBlackMarket(state)); } return; }
-      const meritFate = event.target.closest("[data-merit-fate]");
-      if (meritFate && state) { const result = E.buyFateWithMerit(state, meritFate.dataset.meritFate); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
-      const refine = event.target.closest("[data-cauldron-refine]");
-      if (refine && state) { const selection = [...document.querySelectorAll("[data-cauldron-item]")].map((el) => ({ itemId: el.dataset.cauldronItem, name: el.dataset.cauldronName, quantity: Number(el.value || 0) })).filter((entry) => entry.quantity > 0); if (!selection.length) { alert("Hãy chọn nguyên liệu thủ công trước."); return; } const total = selection.reduce((sum, entry) => sum + entry.quantity, 0); const summary = selection.map((entry) => entry.name + " ×" + entry.quantity).join("\n"); if (!confirm("Xác nhận tiêu hao " + total + " đơn vị sau?\n\n" + summary + "\n\nKhông thể hoàn tác sau khi dung luyện.")) return; const result = E.refineAtVoidCauldron(state, selection); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } return; }
-      const suggest = event.target.closest("[data-fate-suggest]");
-      if (suggest && state) { const rows = E.suggestFateForRealmRequirement(state, suggest.dataset.fateSuggest).map((f) => '<li><b>' + f.name + '</b> · ' + f.grade + ' · Hiệu quả +' + f.impact + '<br><small>' + f.source + '</small></li>').join(""); UI.openOverlay("Gợi ý Mệnh Số", '<p>Ưu tiên Mệnh tương hợp với Con Đường hiện tại:</p><ol>' + (rows || '<li>Chưa có Mệnh Số phù hợp.</li>') + '</ol>'); return; }
-      const breakthroughHelp = event.target.closest("[data-breakthrough-help]");
-      if (breakthroughHelp && state) { UI.openOverlay("Cách hoàn thành điều kiện", '<div class="detail-block"><h3>' + breakthroughHelp.dataset.breakthroughHelp + '</h3><p><b>Cần làm:</b> ' + breakthroughHelp.dataset.breakthroughGuide + '</p><p>Hiện tại: <b>' + breakthroughHelp.dataset.breakthroughCurrent + '</b> · Mục tiêu: <b>' + breakthroughHelp.dataset.breakthroughTarget + '</b></p></div>'); return; }
-      const fateSlot = event.target.closest("[data-fate-slot]");
-      if (fateSlot && state) { UI.openOverlay("Hoán đổi Ấn ký Mệnh Số", UI.renderFateSlotChooser(state, fateSlot.dataset.fateSlot)); return; }
-      const equipRow = event.target.closest("[data-equip-category]");
-      if (equipRow && state) {
-        UI.openEquipmentPicker(state, equipRow.dataset.equipCategory, equipRow.dataset.equipSlot || "");
-        return;
-      }
-      const itemAction = event.target.closest("[data-item-action]");
-      if (itemAction && state) {
-        enqueueAction(() => {
-          const result = E.handleInventoryAction(state, itemAction.dataset.itemId, itemAction.dataset.itemAction);
-          if (result !== true) alert(typeof result === "string" ? result : "Không thể sử dụng vật phẩm này.");
-          renderAfterTurn();
-        });
-        return;
-      }
-      const join = event.target.closest("[data-guild-join]");
-      if (join && state) {
-        E.joinGuild(state, join.dataset.guildJoin);
-        saveGame();
-        UI.renderPanel(state);
-        flushRewardSummaries();
-        return;
-      }
-      const refuse = event.target.closest("[data-guild-refuse]");
-      if (refuse && state) {
-        E.refuseGuild(state, refuse.dataset.guildRefuse);
-        saveGame();
-        UI.renderPanel(state);
-        flushRewardSummaries();
-        return;
-      }
-      const leave = event.target.closest("[data-guild-leave]");
-      if (leave && state) {
-        E.leaveGuild(state);
-        saveGame();
-        UI.renderPanel(state);
-        flushRewardSummaries();
-        return;
-      }
-      const camera = event.target.closest("[data-map-camera]");
-      if (camera) {
-        UI.adjustMapCamera(camera.dataset.mapCamera);
-        return;
-      }
-      const view = event.target.closest("[data-map-view]");
-      if (view && state) {
-        UI.setMapView(view.dataset.mapView, state);
-        return;
-      }
-      const factionPin = event.target.closest("[data-map-faction]");
-      if (factionPin && state) {
-        UI.openOverlay("Hồ sơ thế lực", UI.renderMapFactionDetail(state, factionPin.dataset.mapFaction, ""));
-        return;
-      }
-      const guildPin = event.target.closest("[data-map-guild]");
-      if (guildPin && state) {
-        UI.openOverlay("Hồ sơ tổ chức", UI.renderMapFactionDetail(state, "", guildPin.dataset.mapGuild));
-        return;
-      }
-       const target = event.target.closest("[data-map-dir]");
-       if (!target || !state) return;
-       const direction = target.dataset.mapDir;
-       const actionId = "act_move_" + direction;
-       if (openPendingMoveModal(actionId)) return;
-       const departure = departureOptions(actionId);
-      if (departure === null) return;
+      finishExpansionCommand(surface, expansionCommand, command, arg, result);
+    });
+  }
+
+  function moveByMapDirection(direction, surface) {
+    const actionId = "act_move_" + direction;
+    if (openPendingMoveModal(actionId)) return;
+    const departure = departureOptions(actionId);
+    if (departure === null) return;
+    enqueueAction(() => {
+      submitUiAction(actionId, departure);
+      if (surface === "overlay") UI.closeOverlay();
+      renderAfterTurn();
+    });
+  }
+
+  // One delegate for #tab-content, #overlay-content and the inline stance picker.
+  function handleSharedClick(event, surface) {
+    const find = (selector) => event.target.closest(selector);
+    const scope = surface === "overlay" ? "#overlay-content " : "";
+    let el;
+    if ((el = find("[data-technique-danger-confirm]"))) {
+      const run = pendingDangerConfirm;
+      pendingDangerConfirm = null;
+      UI.closeOverlay();
+      if (state && typeof run === "function") run();
+      return;
+    }
+    if ((el = find("[data-technique-danger-cancel]"))) { pendingDangerConfirm = null; UI.closeOverlay(); return; }
+    if (!state) {
+      const endingAction = find("[data-ending-action]");
+      if (endingAction) handleEndingAction(endingAction.dataset.endingAction);
+      const camera = find("[data-map-camera]");
+      if (camera) UI.adjustMapCamera(camera.dataset.mapCamera);
+      return;
+    }
+    if ((el = find("[data-status-action]")) && !el.disabled) { clickActionBarButton(el.dataset.statusAction, "Hành động này hiện không còn khả dụng trong bối cảnh hiện tại."); return; }
+    if ((el = find("[data-world-event-action]")) && !el.disabled) { clickActionBarButton(el.dataset.worldEventAction, "Lựa chọn biến cố không còn khả dụng trong pha hiện tại."); return; }
+    if ((el = find("[data-mark-submit]")) && E.runExpansionCommand) {
+      const markSubmit = el;
+      if (markSubmit.disabled) return;
+      markSubmit.disabled = true;
+      const note = String(document.querySelector("[data-mark-input]")?.value || "").slice(0, 120);
       enqueueAction(() => {
-        submitUiAction(actionId, departure);
+        const result = E.runExpansionCommand(state, "mark", note, "");
+        if (!result?.success) alert(result?.reason || "Không thể ghi dấu tại địa điểm này.");
+        else { UI.closeOverlay(); renderAfterTurn(); }
+      });
+      return;
+    }
+    if ((el = find("[data-secluded-hours]"))) {
+      const secludedHours = el;
+      if (secludedHours.disabled) return;
+      secludedHours.disabled = true;
+      const raw = Number(document.querySelector("[data-secluded-hours-input]")?.value || 1);
+      const hours = Math.max(1, Math.min(8, Number.isFinite(raw) ? Math.floor(raw) : 1));
+      enqueueAction(() => {
+        E.submitActionId(state, "act_be_quan", { hours });
+        UI.closeOverlay();
         renderAfterTurn();
       });
-    });
-
-    $("overlay-content").addEventListener("click", (event) => {
-      const markSubmit = event.target.closest("[data-mark-submit]");
-      if (markSubmit && state && E.runExpansionCommand) {
-        if (markSubmit.disabled) return;
-        markSubmit.disabled = true;
-        const input = document.querySelector("[data-mark-input]");
-        const note = String(input?.value || "").slice(0, 120);
-        const result = E.runExpansionCommand(state, "mark", note, "");
-        if (!result?.success) alert(result?.reason || "Không thể ghi dấu tại node này.");
-        else { UI.closeOverlay(); renderAfterTurn(); }
+      return;
+    }
+    if ((el = find("[data-expansion-modal]"))) {
+      const type = el.dataset.expansionModal;
+      if (type === "guild-project") UI.openOverlay("Công Trình Tông Môn", UI.renderGuildProjectModal(state));
+      if (type === "opportunity") UI.openOverlay("Cơ Duyên Tranh Đoạt", UI.renderContestedOpportunityModal(state));
+      return;
+    }
+    if ((el = find("[data-special-physique]")) && E.claimSpecialPhysique) {
+      const physiqueId = el.dataset.specialPhysique;
+      enqueueAction(() => { const result = E.claimSpecialPhysique(state, physiqueId); if (!result.success) alert(result.reason || "Chưa thể tiếp nhận Dị Thể."); else { saveGame(); UI.renderPanel(state); } });
+      return;
+    }
+    if ((el = find("[data-technique-stance]"))) {
+      const actionId = el.dataset.techniqueAction || "";
+      const stance = el.dataset.techniqueStance || "steady";
+      const action = (E.contextState(state)?.actions || []).find((entry) => entry.id === actionId) || (/^act_skill_/.test(actionId) ? { id: actionId } : null);
+      if (action) commitTechniqueAction(action, stance);
+      return;
+    }
+    if ((el = find("[data-pending-resolve]"))) { resolvePendingThenMove(el.dataset.pendingResolve, el.dataset.pendingMove || ""); return; }
+    if ((el = find("[data-pending-move-now]"))) {
+      const moveId = el.dataset.pendingMoveNow;
+      enqueueAction(() => { submitUiAction(moveId, { confirmPendingDeparture: true }); UI.closeOverlay(); renderAfterTurn(); });
+      return;
+    }
+    if ((el = find("[data-map-camera]"))) { UI.adjustMapCamera(el.dataset.mapCamera); return; }
+    if ((el = find("[data-expansion-command]")) && E.runExpansionCommand) { runExpansionCommandFlow(el, surface); return; }
+    if ((el = find("[data-origin-confirm]"))) {
+      const [type, specialization] = (document.querySelector('#overlay-content input[name="origin-specialization"]:checked')?.value || "").split(":");
+      enqueueAction(() => { const result = E.chooseOrigin(state, type, specialization); if (!result.success) { alert(result.reason); return; } UI.closeOverlay(true); saveGame(); renderAfterTurn(); });
+      return;
+    }
+    if ((el = find("[data-journey-intent-confirm]"))) {
+      const intentId = document.querySelector('#overlay-content input[name="journey-intent"]:checked')?.value || "";
+      enqueueAction(() => { const result = E.chooseJourneyIntent(state, intentId); if (!result.success) { alert(result.reason); return; } UI.closeOverlay(true); saveGame(); renderAfterTurn(); });
+      return;
+    }
+    if ((el = find("[data-anchor-select]"))) {
+      const anchorId = el.dataset.anchorSelect;
+      enqueueAction(() => { const result = E.establishHumanAnchor(state, anchorId); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Nghi Thức Đột Phá", UI.renderRitualModal(state, "anchor", { disabled_reason: "" })); } });
+      return;
+    }
+    if ((el = find("[data-ritual-confirm]")) && !el.disabled) { const actionId = "act_ritual_" + el.dataset.ritualConfirm; UI.closeOverlay(); enqueueAction(() => { E.submitActionId(state, actionId); renderAfterTurn(); }); return; }
+    if ((el = find("[data-cauldron-auto]"))) {
+      const boxes = [...document.querySelectorAll("[data-cauldron-item]")];
+      boxes.forEach((box) => { box.value = 0; });
+      let remaining = 9;
+      boxes.forEach((box) => { if (remaining <= 0 || box.dataset.cauldronSafe !== "true") return; const qty = Math.min(remaining, Number(box.max || 0)); box.value = qty; remaining -= qty; });
+      updateCauldronSelectionUI();
+      return;
+    }
+    if (find("[data-cauldron-clear]")) { document.querySelectorAll("[data-cauldron-item]").forEach((box) => { box.value = 0; }); updateCauldronSelectionUI(); return; }
+    if ((el = find("[data-quest-track]"))) { const questId = el.dataset.questTrack; enqueueAction(() => { if (E.trackQuest(state, questId, true)) { saveGame(); UI.renderPanel(state); } }); return; }
+    if ((el = find("[data-quest-abandon]"))) { const questId = el.dataset.questAbandon; if (confirm("Từ bỏ nhiệm vụ này? Hậu quả sẽ được ghi vào lịch sử.")) enqueueAction(() => { E.abandonQuest(state, questId); saveGame(); UI.renderPanel(state); }); return; }
+    if ((el = find("[data-fate-equip]"))) {
+      const fateId = el.dataset.fateEquip;
+      enqueueAction(() => { const result = E.equipFateFromVault(state, fateId); if (result.requiresReplacement) UI.openOverlay("Thay thế Ấn Ký Mệnh Số", UI.renderFateReplacementChooser(state, fateId)); else if (!result.success) alert(result.reason); else { saveGame(); refreshFateSurface(surface); } });
+      return;
+    }
+    if ((el = find("[data-fate-unequip]"))) {
+      const fateId = el.dataset.fateUnequip;
+      enqueueAction(() => { const index = (state.player.fates || []).indexOf(fateId); const result = E.storeFateToVault(state, index); if (!result.success) alert(result.reason); else { saveGame(); refreshFateSurface(surface); } });
+      return;
+    }
+    if ((el = find("[data-fate-upgrade-target]"))) { UI.openOverlay("Cường Hóa Mệnh Số", UI.renderFateUpgradeChooser(state, el.dataset.fateUpgradeTarget)); return; }
+    if ((el = find("[data-fate-upgrade-confirm]"))) {
+      const targetId = el.dataset.fateUpgradeConfirm, materialId = el.dataset.fateUpgradeMaterial;
+      enqueueAction(() => { const result = E.upgradeFate(state, targetId, materialId); if (!result.success) alert(result.reason); else { saveGame(); refreshFateSurface(surface); } });
+      return;
+    }
+    if ((el = find("[data-fate-evolution]"))) { UI.openOverlay("Mệnh Số Tiến Hóa", UI.renderFateEvolutionModal(state, el.dataset.fateEvolution)); return; }
+    if ((el = find("[data-fate-nurture]"))) {
+      const fateId = el.dataset.fateNurture;
+      enqueueAction(() => { const result = E.nurtureFate(state, fateId); if (!result.success) alert(result.reason || (result.blockers || []).join("\n")); else { saveGame(); refreshFateSurface(surface); } });
+      return;
+    }
+    if ((el = find("[data-fate-resonate]"))) {
+      const fateId = el.dataset.fateResonate;
+      enqueueAction(() => { const result = E.resonateFate(state, fateId); if (!result.success) alert((result.blockers || [result.reason]).join("\n")); else { saveGame(); refreshFateSurface(surface); } });
+      return;
+    }
+    if ((el = find("[data-fate-transform]"))) {
+      const id = el.dataset.fateTransform;
+      enqueueAction(() => {
+        const preview = E.transformFate(state, id);
+        if (!preview.success) { alert((preview.blockers || [preview.reason]).join("\n")); return; }
+        const candidates = preview.candidates || [];
+        if (!candidates.length) { alert("Chưa có nhánh biến thể phù hợp."); return; }
+        const branch = candidates[0];
+        if (!confirm("Xác nhận Mệnh Đổi theo nhánh " + (branch.name || branch.id) + "? Chi phí: " + preview.costs.essence + " Tinh Hoa, " + preview.costs.merit + " Công Đức, " + preview.costs.san + " SAN.")) return;
+        const result = E.transformFate(state, id, branch.id, { confirmed: true });
+        if (!result.success) alert(result.reason || (result.blockers || []).join("\n")); else { saveGame(); refreshFateSurface(surface); }
+      });
+      return;
+    }
+    const fateSimpleActions = [["[data-fate-insight]", (node) => node.dataset.fateInsight, "revealFateInsight"], ["[data-fate-release]", (node) => node.dataset.fateRelease, "releaseStagnantFate"], ["[data-fate-defy]", (node) => node.dataset.fateDefy, "defyFate"], ["[data-fate-suppress]", (node) => node.dataset.fateSuppress, "suppressFate"]];
+    for (const [selector, readId, method] of fateSimpleActions) {
+      if ((el = find(selector))) {
+        const fateId = readId(el);
+        enqueueAction(() => { const result = E[method](state, fateId); if (!result.success) alert(result.reason); else { saveGame(); refreshFateSurface(surface); } });
         return;
       }
-      const secludedHours = event.target.closest("[data-secluded-hours]");
-      if (secludedHours && state) {
-        if (secludedHours.disabled) return;
-        secludedHours.disabled = true;
-        const raw = Number(document.querySelector("[data-secluded-hours-input]")?.value || 1);
-        const hours = Math.max(1, Math.min(8, Number.isFinite(raw) ? Math.floor(raw) : 1));
-        enqueueAction(() => {
-          E.submitActionId(state, "act_be_quan", { hours });
-          UI.closeOverlay();
-          renderAfterTurn();
-        });
+    }
+    if (find("[data-fate-merge-submit]")) {
+      const ids = [...document.querySelectorAll(scope + "[data-fate-merge]:checked")].map((input) => input.dataset.fateMerge);
+      enqueueAction(() => { const result = E.mergeFates(state, ids); if (!result.success) alert(result.reason); else { saveGame(); refreshFateSurface(surface); } });
+      return;
+    }
+    if ((el = find("[data-fate-swap-active]"))) {
+      const activeId = el.dataset.fateSwapActive, vaultId = el.dataset.fateVaultId;
+      enqueueAction(() => { const result = E.swapFateFromVault(state, activeId, vaultId); if (!result.success) alert(result.reason); else { UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); saveGame(); } });
+      return;
+    }
+    if (find("[data-pending-fate-resolve]")) {
+      enqueueAction(() => { if ((state.fateInventory || []).length < E.fateVaultCapacity(state)) { const result = E.resolvePendingFateReward(state); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } } else UI.openOverlay("Xử lý Mệnh Số chờ nhận", UI.renderPendingFateChooser(state)); });
+      return;
+    }
+    if ((el = find("[data-pending-fate-replace]"))) {
+      const replaceId = el.dataset.pendingFateReplace;
+      enqueueAction(() => { const result = E.resolvePendingFateReward(state, replaceId); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } });
+      return;
+    }
+    if (find("[data-pending-fate-dismiss]")) { if (confirm("Từ chối Mệnh Số đang chờ? Lựa chọn này không thể hoàn tác.")) enqueueAction(() => { E.dismissPendingFateReward(state); saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); }); return; }
+    const purchases = [
+      ["[data-qintian-method]", (node) => node.dataset.qintianMethod, "sacrificeLifespanForFate"],
+      ["[data-market-offer]", (node) => node.dataset.marketOffer, "buyMarketOffer"], ["[data-merit-fate]", (node) => node.dataset.meritFate, "buyFateWithMerit"]
+    ];
+    for (const [selector, readId, method] of purchases) {
+      if ((el = find(selector))) {
+        const offerId = readId(el);
+        enqueueAction(() => { const result = E[method](state, offerId); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } });
         return;
       }
-      const techniqueStance = event.target.closest("[data-technique-stance]");
-      if (techniqueStance && state) {
-        const actionId = techniqueStance.dataset.techniqueAction || "";
-        const stance = techniqueStance.dataset.techniqueStance || "steady";
-        const action = (E.contextState(state)?.actions || []).find((entry) => entry.id === actionId) || (/^act_skill_/.test(actionId) ? { id: actionId } : null);
-        if (action) commitTechniqueAction(action, stance);
-        return;
-      }
-      const pendingDiscoveryResolve = event.target.closest("[data-pending-resolve]");
-      if (pendingDiscoveryResolve && state) {
-        resolvePendingThenMove(pendingDiscoveryResolve.dataset.pendingResolve, pendingDiscoveryResolve.dataset.pendingMove || "");
-        return;
-      }
-      const pendingMoveNow = event.target.closest("[data-pending-move-now]");
-      if (pendingMoveNow && state) {
-        enqueueAction(() => {
-          submitUiAction(pendingMoveNow.dataset.pendingMoveNow, { confirmPendingDeparture: true });
-          UI.closeOverlay();
-          renderAfterTurn();
-        });
-        return;
-      }
-      const overlayCamera = event.target.closest("[data-map-camera]");
-      if (overlayCamera) {
-        UI.adjustMapCamera(overlayCamera.dataset.mapCamera);
-        return;
-      }
-      const expansionCommand = event.target.closest("[data-expansion-command]");
-      if (expansionCommand && state && E.runExpansionCommand) {
-        if (expansionCommand.disabled) return;
-        expansionCommand.disabled = true;
-        const command = expansionCommand.dataset.expansionCommand;
-        const arg = expansionCommand.dataset.expansionArg || "";
-        const arg2 = expansionCommand.dataset.expansionArg2 || "";
-        let result = E.runExpansionCommand(state, command, arg, arg2);
-        if (result?.requiresConfirmation && confirm(result.reason + "\nXác nhận tiếp tục?")) {
-           result = E.runExpansionCommand(state, command, arg, arg2, { confirmed: true });
-         }
-         const moveAfterDiscovery = expansionCommand.dataset.pendingMove || "";
-         if (result?.success && command === "map_event" && moveAfterDiscovery) submitUiAction(moveAfterDiscovery, { confirmPendingDeparture: true });
-        if (!result?.success) alert(result?.reason || "Không thể thực hiện hành động này.");
-        renderAfterTurn();
-        const overlay = document.getElementById("overlay");
-        const overlayContent = document.getElementById("overlay-content");
-        if (overlay && !overlay.classList.contains("hidden") && overlayContent) {
-           if (command === "opportunity") {
-             if (result?.success) UI.closeOverlay();
-             else overlayContent.innerHTML = UI.renderContestedOpportunityModal(state);
-           } else if (command === "map_event") {
-             if (result?.success) UI.closeOverlay();
-             else overlayContent.innerHTML = UI.renderMapEventModal(state);
-           } else if (command.startsWith("guild_")) {
-            overlayContent.innerHTML = UI.renderGuildProjectModal(state);
-          } else if (command === "technique_prepare" || command === "technique_channel" || command === "technique_cancel" || command === "technique_acquire") {
-            overlayContent.innerHTML = UI.renderTechniqueDetail(state);
-          } else if (command === "npc_dialogue" && UI.renderNpcDialogue) {
-            overlayContent.innerHTML = UI.renderNpcDialogue(state, arg);
-          }
-        }
-        return;
-      }
-      const originConfirm = event.target.closest("[data-origin-confirm]");
-      if (originConfirm && state) {
-        const selected = document.querySelector('#overlay-content input[name="origin-specialization"]:checked')?.value || "";
-        const [type, specialization] = selected.split(":");
-        const result = E.chooseOrigin(state, type, specialization);
-        if (!result.success) { alert(result.reason); return; }
-        UI.closeOverlay(true);
-        saveGame();
-        renderAfterTurn();
-        return;
-      }
-      const journeyIntentConfirm = event.target.closest("[data-journey-intent-confirm]");
-      if (journeyIntentConfirm && state) {
-        const intentId = document.querySelector('#overlay-content input[name="journey-intent"]:checked')?.value || "";
-        const result = E.chooseJourneyIntent(state, intentId);
-        if (!result.success) { alert(result.reason); return; }
-        UI.closeOverlay(true);
-        saveGame();
-        renderAfterTurn();
-        return;
-      }
-      const anchorSelect = event.target.closest("[data-anchor-select]");
-      if (anchorSelect && state) {
-        const result = E.establishHumanAnchor(state, anchorSelect.dataset.anchorSelect);
-        if (!result.success) alert(result.reason);
-        else { saveGame(); UI.openOverlay("Nghi Thức Đột Phá", UI.renderRitualModal(state, "anchor", { disabled_reason: "" })); }
-        return;
-      }
-      const ritualConfirm = event.target.closest("[data-ritual-confirm]");
-      if (ritualConfirm && state && !ritualConfirm.disabled) { const actionId = "act_ritual_" + ritualConfirm.dataset.ritualConfirm; UI.closeOverlay(); enqueueAction(() => { E.submitActionId(state, actionId); renderAfterTurn(); }); return; }
-      const itemAction = event.target.closest("[data-item-action]");
-      if (itemAction && state) {
-        const result = E.handleInventoryAction(state, itemAction.dataset.itemId, itemAction.dataset.itemAction);
-        if (result !== true) { alert(typeof result === "string" ? result : "Không thể sử dụng vật phẩm này."); return; }
-        saveGame();
-        UI.openOverlay("Hành Trang", UI.renderInventoryModal(state));
-        return;
-      }
-      const blackMarketFate = event.target.closest("[data-black-market-fate]");
-      if (blackMarketFate && state) { const result = E.buyBlackMarketOffer(state, blackMarketFate.dataset.blackMarketFate); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Nghịch Thương Nhân", UI.renderBlackMarket(state)); } return; }
-      const fateEquip = event.target.closest("[data-fate-equip]");
-      if (fateEquip && state) { const result = E.equipFateFromVault(state, fateEquip.dataset.fateEquip); if (result.requiresReplacement) UI.openOverlay("Thay thế Ấn Ký Mệnh Số", UI.renderFateReplacementChooser(state, fateEquip.dataset.fateEquip)); else if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
-      const fateUnequip = event.target.closest("[data-fate-unequip]");
-      if (fateUnequip && state) { const index = (state.player.fates || []).indexOf(fateUnequip.dataset.fateUnequip); const result = E.storeFateToVault(state, index); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
-      const fateUpgrade = event.target.closest("[data-fate-upgrade-target]");
-      if (fateUpgrade && state) { UI.openOverlay("Cường Hóa Mệnh Số", UI.renderFateUpgradeChooser(state, fateUpgrade.dataset.fateUpgradeTarget)); return; }
-      const fateNurture = event.target.closest("[data-fate-nurture]");
-      if (fateNurture && state) { const result = E.nurtureFate(state, fateNurture.dataset.fateNurture); if (!result.success) alert(result.reason || (result.blockers || []).join("\n")); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
-      const fateResonate = event.target.closest("[data-fate-resonate]");
-      if (fateResonate && state) { const result = E.resonateFate(state, fateResonate.dataset.fateResonate); if (!result.success) alert((result.blockers || [result.reason]).join("\n")); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
-      const fateUpgradeConfirm = event.target.closest("[data-fate-upgrade-confirm]");
-      if (fateUpgradeConfirm && state) { const result = E.upgradeFate(state, fateUpgradeConfirm.dataset.fateUpgradeConfirm, fateUpgradeConfirm.dataset.fateUpgradeMaterial); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
-      const fateMerge = event.target.closest("[data-fate-merge-submit]");
-      if (fateMerge && state) { const ids = [...document.querySelectorAll("#overlay-content [data-fate-merge]:checked")].map((el) => el.dataset.fateMerge); const result = E.mergeFates(state, ids); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
-      const endingAction = event.target.closest("[data-ending-action]");
-      if (endingAction) {
-        const action = endingAction.dataset.endingAction;
-        UI.closeOverlay();
-        if (action === "restart" || action === "home") { state = null; UI.showScreen("home"); refreshContinue(); }
-        else if (action === "load") { loadGame(); renderFull(); }
-        return;
-      }
-      const fateView = event.target.closest("[data-fate-view]");
-      if (fateView && state) {
-        const body = document.querySelector("#overlay-content .fate-paperdoll");
-        const grid = document.querySelector("#overlay-content .detail-columns");
-        const isBody = fateView.dataset.fateView === "body";
-        if (body) body.hidden = !isBody;
-        if (grid) grid.hidden = isBody;
-        return;
-      }
-      const suggest = event.target.closest("[data-fate-suggest]");
-      if (suggest && state) { const rows = E.suggestFateForRealmRequirement(state, suggest.dataset.fateSuggest).map((f) => '<li><b>' + f.name + '</b> · ' + f.grade + ' · Hiệu quả +' + f.impact + '<br><small>' + f.source + '</small></li>').join(""); UI.openOverlay("Gợi ý Mệnh Số", '<ol>' + (rows || '<li>Chưa có Mệnh Số phù hợp.</li>') + '</ol>'); return; }
-      const breakthroughHelp = event.target.closest("[data-breakthrough-help]");
-      if (breakthroughHelp && state) { UI.openOverlay("Cách hoàn thành điều kiện", '<div class="detail-block"><h3>' + breakthroughHelp.dataset.breakthroughHelp + '</h3><p><b>Cần làm:</b> ' + breakthroughHelp.dataset.breakthroughGuide + '</p><p>Hiện tại: <b>' + breakthroughHelp.dataset.breakthroughCurrent + '</b> · Mục tiêu: <b>' + breakthroughHelp.dataset.breakthroughTarget + '</b></p></div>'); return; }
-      const swap = event.target.closest("[data-fate-swap-active]");
-      if (swap && state) { const result = E.swapFateFromVault(state, swap.dataset.fateSwapActive, swap.dataset.fateVaultId); if (!result.success) alert(result.reason); else { UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); saveGame(); } return; }
-      const pendingResolve = event.target.closest("[data-pending-fate-resolve]");
-      if (pendingResolve && state) { if ((state.fateInventory || []).length < E.fateVaultCapacity(state)) { const result = E.resolvePendingFateReward(state); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } } else UI.openOverlay("Xử lý Mệnh Số chờ nhận", UI.renderPendingFateChooser(state)); return; }
-      const pendingReplace = event.target.closest("[data-pending-fate-replace]");
-      if (pendingReplace && state) { const result = E.resolvePendingFateReward(state, pendingReplace.dataset.pendingFateReplace); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
-      const pendingDismiss = event.target.closest("[data-pending-fate-dismiss]");
-      if (pendingDismiss && state) { if (confirm("Từ chối Mệnh Số đang chờ? Lựa chọn này không thể hoàn tác.")) { E.dismissPendingFateReward(state); saveGame(); UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state)); } return; }
-      const pick = event.target.closest("[data-equip-pick]");
-      if (pick && state) {
+    }
+    if ((el = find("[data-black-market-fate]"))) {
+      const offerId = el.dataset.blackMarketFate;
+      enqueueAction(() => { const result = E.buyBlackMarketOffer(state, offerId); if (!result.success) alert(result.reason); else { saveGame(); UI.openOverlay("Nghịch Thương Nhân", UI.renderBlackMarket(state)); } });
+      return;
+    }
+    if (find("[data-cauldron-refine]")) {
+      const selection = [...document.querySelectorAll("[data-cauldron-item]")].map((input) => ({ itemId: input.dataset.cauldronItem, name: input.dataset.cauldronName, quantity: Number(input.value || 0) })).filter((entry) => entry.quantity > 0);
+      if (!selection.length) { alert("Hãy chọn nguyên liệu thủ công trước."); return; }
+      const total = selection.reduce((sum, entry) => sum + entry.quantity, 0);
+      const summary = selection.map((entry) => entry.name + " ×" + entry.quantity).join("\n");
+      if (!confirm("Xác nhận tiêu hao " + total + " đơn vị sau?\n\n" + summary + "\n\nKhông thể hoàn tác sau khi dung luyện.")) return;
+      enqueueAction(() => { const result = E.refineAtVoidCauldron(state, selection); if (!result.success) alert(result.reason); else { saveGame(); UI.renderPanel(state); } });
+      return;
+    }
+    if ((el = find("[data-fate-suggest]"))) { UI.openOverlay("Gợi ý Mệnh Số", UI.renderFateSuggestions(state, el.dataset.fateSuggest)); return; }
+    if ((el = find("[data-breakthrough-help]"))) { UI.openOverlay("Cách hoàn thành điều kiện", UI.renderBreakthroughHelp(el.dataset)); return; }
+    if ((el = find("[data-fate-slot]"))) { UI.openOverlay("Hoán đổi Ấn ký Mệnh Số", UI.renderFateSlotChooser(state, el.dataset.fateSlot)); return; }
+    if ((el = find("[data-equip-category]"))) { UI.openEquipmentPicker(state, el.dataset.equipCategory, el.dataset.equipSlot || ""); return; }
+    if ((el = find("[data-equip-pick]"))) {
+      const pick = el;
+      enqueueAction(() => {
         const result = pick.dataset.equipAction === "equip" ? E.equipItem(state, pick.dataset.equipPick, pick.dataset.equipTargetSlot || null) : E.handleInventoryAction(state, pick.dataset.equipPick, pick.dataset.equipAction);
         if (result !== true) { alert(result || "Không thể thay đổi trang bị."); return; }
         UI.closeOverlay(); saveGame(); UI.renderPanel(state);
+      });
+      return;
+    }
+    if ((el = find("[data-item-action]"))) {
+      const itemId = el.dataset.itemId, itemAction = el.dataset.itemAction;
+      enqueueAction(() => {
+        const result = E.handleInventoryAction(state, itemId, itemAction);
+        if (result !== true) alert(typeof result === "string" ? result : "Không thể sử dụng vật phẩm này.");
+        else if (surface === "overlay") { saveGame(); UI.openOverlay("Hành Trang", UI.renderInventoryModal(state)); }
+        renderAfterTurn();
+      });
+      return;
+    }
+    const guildActions = [["[data-guild-join]", (target) => E.joinGuild(state, target.dataset.guildJoin)], ["[data-guild-refuse]", (target) => E.refuseGuild(state, target.dataset.guildRefuse)], ["[data-guild-leave]", () => E.leaveGuild(state)]];
+    for (const [selector, run] of guildActions) {
+      if ((el = find(selector))) {
+        const target = el;
+        enqueueAction(() => { run(target); saveGame(); UI.renderPanel(state); flushRewardSummaries(); });
         return;
       }
-      const ritualOpen = event.target.closest("[data-ritual-open]");
-      if (ritualOpen && state) { if (ritualOpen.dataset.ritualOpen === "fate") showFateOverlay(); else showTechniqueOverlay(); return; }
-      const view = event.target.closest("[data-map-view]");
-      if (view && state) {
-        UI.setMapView(view.dataset.mapView, state);
-        UI.openOverlay("Bản Đồ", UI.renderMapDetail(state));
-        return;
-      }
-      const mapAction = event.target.closest("[data-map-action]");
-      if (mapAction && state) {
-        const actionId = mapAction.dataset.mapAction;
-        if (actionId === "act_ban_do") return;
-        enqueueAction(() => {
-          submitUiAction(actionId);
-          renderAfterTurn();
-        });
-        return;
-      }
-      const factionPin = event.target.closest("[data-map-faction]");
-      if (factionPin && state) {
-        UI.openOverlay("Hồ sơ thế lực", UI.renderMapFactionDetail(state, factionPin.dataset.mapFaction, ""));
-        return;
-      }
-      const guildPin = event.target.closest("[data-map-guild]");
-      if (guildPin && state) {
-        UI.openOverlay("Hồ sơ tổ chức", UI.renderMapFactionDetail(state, "", guildPin.dataset.mapGuild));
-        return;
-      }
-       const target = event.target.closest("[data-map-dir]");
-       if (target && state) {
-         const direction = target.dataset.mapDir;
-         const actionId = "act_move_" + direction;
-         if (openPendingMoveModal(actionId)) return;
-         const departure = departureOptions(actionId);
-        if (departure === null) return;
-        enqueueAction(() => {
-          submitUiAction(actionId, departure);
-          UI.closeOverlay();
-          renderAfterTurn();
-        });
-      }
-    });
+    }
+    if ((el = find("[data-ending-action]"))) { handleEndingAction(el.dataset.endingAction); return; }
+    if ((el = find("[data-fate-view]"))) {
+      const body = document.querySelector("#overlay-content .fate-paperdoll");
+      const grid = document.querySelector("#overlay-content .detail-columns");
+      const isBody = el.dataset.fateView === "body";
+      if (body) body.hidden = !isBody;
+      if (grid) grid.hidden = isBody;
+      return;
+    }
+    if ((el = find("[data-ritual-open]"))) { if (el.dataset.ritualOpen === "fate") showFateOverlay(); else showTechniqueOverlay(); return; }
+    if ((el = find("[data-map-view]"))) {
+      UI.setMapView(el.dataset.mapView, state);
+      if (surface === "overlay") UI.openOverlay("Bản Đồ", UI.renderMapDetail(state));
+      return;
+    }
+    if ((el = find("[data-map-action]"))) {
+      const actionId = el.dataset.mapAction;
+      if (actionId === "act_ban_do") { showMapOverlay(); return; }
+      enqueueAction(() => { submitUiAction(actionId); renderAfterTurn(); });
+      return;
+    }
+    if ((el = find("[data-map-faction]"))) { event.stopPropagation(); UI.openOverlay("Hồ sơ thế lực", UI.renderMapFactionDetail(state, el.dataset.mapFaction, "")); return; }
+    if ((el = find("[data-map-guild]"))) { event.stopPropagation(); UI.openOverlay("Hồ sơ tổ chức", UI.renderMapFactionDetail(state, "", el.dataset.mapGuild)); return; }
+    if ((el = find("[data-map-dir]"))) moveByMapDirection(el.dataset.mapDir, surface);
+  }
+
+  function handleEndingAction(action) {
+    UI.closeOverlay();
+    if (action === "restart" || action === "home") { state = null; UI.showScreen("home"); refreshContinue(); }
+    else if (action === "load") { loadGame(); renderFull(); }
   }
 
   function submitAction() {
@@ -778,8 +712,7 @@
 
     let result = E.submitTurn(state, { text });
     if (result && result.requiresConfirmation) {
-      const kind = result.pendingType === "opportunity" ? "cơ duyên tranh đoạt" : "phát hiện chưa xử lý";
-      if (confirm("Ngươi còn " + kind + " tại đây. Rời đi sẽ làm mất vĩnh viễn. Vẫn muốn rời đi?")) {
+      if (confirmDeparture(result.pendingType)) {
         result = E.submitTurn(state, { text }, { confirmPendingDeparture: true });
       }
     }
@@ -798,10 +731,7 @@
 
   function renderAfterTurnNow() {
     if (!state) return;
-    const history = Array.isArray(state.history) ? state.history : [];
     renderStoryWindow();
-    window._renderedTurn = history.length;
-
     flushRewardSummaries();
 
     if (state.pendingEnding) {
@@ -812,7 +742,6 @@
     const renderLocation = E.locationForState?.(state) || D.LOCATIONS[state.locationId] || { name: state.locationId || "Vị trí chưa định danh" };
     UI.setLocation(renderLocation.name || state.locationId || "Vị trí chưa định danh");
     UI.renderPanel(state);
-    decorateFateAdvancedActions();
     renderActionButtons();
     updateClockDisplay();
     updateAtmosphereClass();
@@ -854,21 +783,6 @@
       renderStoryWindow();
     }, state);
   }
-  function decorateFateAdvancedActions() {
-    if (!state) return;
-    document.querySelectorAll("[data-fate-nurture]").forEach((nurture) => {
-      const card = nurture.closest(".fate-card"); if (!card || card.querySelector("[data-fate-transform]")) return;
-      const id = nurture.dataset.fateNurture; const relation = state.player?.fateRelationships?.[id] || {};
-      const level = E.fateEnhancementLevel(state.player, id);
-      const actions = card.querySelector(".fate-actions"); if (!actions) return;
-      const add = (key, label) => { const button = document.createElement("button"); button.className = "guild-action"; button.setAttribute("data-" + key, id); button.textContent = label; actions.appendChild(button); };
-      if (!relation.insightRevealed) add("fate-insight", "Giác Ngộ");
-      if (Number(relation.stagnantDays || 0) >= 60) add("fate-release", "Buông Mệnh");
-      const fate = window.GameData.FATE_PATTERNS.find((item) => item.id === id); if (fate?.sign === "hung") { add("fate-defy", "Nghịch Mệnh"); add("fate-suppress", "Trấn Mệnh"); }
-      if (Number(relation.stage || 0) >= 4 && level >= 5) add("fate-transform", "Mệnh Đổi");
-    });
-  }
-
   function flushRewardSummaries() {
     if (!state || state.pendingEnding || !state.pendingRewardSummaries?.length) return;
     if (!document.getElementById("overlay") || !document.getElementById("overlay-title") || !document.getElementById("overlay-content")) return;
@@ -881,14 +795,10 @@
     const fullRenderLocation = E.locationForState?.(state) || D.LOCATIONS[state.locationId] || { name: state.locationId || "Vị trí chưa định danh" };
     UI.setLocation(fullRenderLocation.name || state.locationId || "Vị trí chưa định danh");
     UI.clearStory();
-    window._renderedTurn = 0;
-    renderedHistoryEntries = new WeakSet();
     const renderProfile = window.GameExpansion?.performanceProfile?.(state, { reducedMotion: Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches), hardwareConcurrency: window.navigator?.hardwareConcurrency, deviceMemory: window.navigator?.deviceMemory });
     storyWindowSize = Math.min(20, Number(renderProfile?.historyWindow || 20));
     renderStoryWindow();
-    window._renderedTurn = state.history.length;
     UI.renderPanel(state);
-    decorateFateAdvancedActions();
     renderActionButtons();
     flushRewardSummaries();
     if (state.pendingEnding) showEnding(state.pendingEnding);
@@ -900,8 +810,34 @@
 
   function updateClockDisplay() {
     const el = $("game-clock");
-      if (el && state && E.clockLabel) { el.textContent = E.clockLabel(state); el.title = "Thời gian của nhân vật · 1 ngày game = " + Number(E.GAME_TIME_CONFIG?.realSecondsPerGameDay || 30) + " giây thực"; const world = $("world-clock"); if (world && E.worldClockLabel) { world.textContent = E.worldClockLabel(state); world.title = "Thời gian của Thái Thanh đại lục · dùng cho thiên tượng, NPC, chiến sự và biến cố."; } const summary = E.expansionSummary?.(state); let weather = $("game-weather"); if (!weather && el.parentNode) { weather = document.createElement("span"); weather.id = "game-weather"; weather.className = "game-weather"; weather.title = "Thời tiết hiện tại"; el.parentNode.insertBefore(weather, el.nextSibling); } if (weather) { const labels = { quang: "Quang đãng", mua: "Mưa", suong: "Sương", loi_vu: "Lôi Vũ", linh_phong: "Linh Phong" }; weather.hidden = false; weather.textContent = "☁ " + (labels[summary?.weather] || "Quang đãng"); } }
+    if (!el || !state || !E.clockLabel) return;
+    el.textContent = E.clockLabel(state);
+    el.title = "Thời gian của nhân vật · 1 ngày game = " + Number(E.GAME_TIME_CONFIG?.realSecondsPerGameDay || 30) + " giây thực";
+    const world = $("world-clock");
+    if (world && E.worldClockLabel) {
+      world.textContent = E.worldClockLabel(state);
+      world.title = "Thời gian của Thái Thanh đại lục · dùng cho thiên tượng, NPC, chiến sự và biến cố.";
+    }
+    const summary = E.expansionSummary?.(state) || {};
+    let weather = $("game-weather");
+    if (!weather) {
+      weather = document.createElement("span");
+      weather.id = "game-weather";
+      weather.className = "game-weather";
+      weather.title = "Mùa và thời tiết hiện tại";
+      (world?.parentNode || el.parentNode)?.appendChild(weather);
+    }
+    if (weather) {
+      const weatherLabels = { quang: "Quang đãng", mua: "Mưa", suong: "Sương", tuyet: "Tuyết", loi_vu: "Lôi Vũ", linh_phong: "Linh Phong", am_vu: "Âm Vũ", bao_linh_khi: "Bão Linh Khí" };
+      const seasonName = summary.season?.name || "Chưa rõ mùa";
+      const weatherName = summary.weatherLabel || weatherLabels[summary.weather] || "Quang đãng";
+      const remaining = Number(summary.weatherRemainingDays);
+      weather.hidden = false;
+      weather.textContent = "☁ " + seasonName + " · " + weatherName + (Number.isFinite(remaining) && remaining > 0 ? " · còn " + remaining + " ngày" : "");
+      weather.title = "Mùa " + seasonName + " · Thiên tượng " + weatherName + (Number.isFinite(remaining) ? " · còn " + remaining + " ngày" : "");
+    }
   }
+
   function updateAtmosphereClass() {
     const screen = $("screen-game");
     if (!screen || !state) return;
@@ -923,11 +859,15 @@
     act_tim_tong_mon: "guilds"
   };
 
+  function confirmDeparture(pendingType) {
+    const kind = pendingType === "opportunity" ? "cơ duyên tranh đoạt" : pendingType === "map_event" ? "phát hiện ẩn" : "phát hiện chưa xử lý";
+    return confirm("Ngươi còn " + kind + " tại đây. Rời đi sẽ làm mất vĩnh viễn. Vẫn muốn rời đi?");
+  }
+
   function departureOptions(actionId) {
     const guard = E.pendingDepartureGuard ? E.pendingDepartureGuard(state, actionId) : { allowed: true };
     if (!guard.requiresConfirmation) return {};
-    const kind = guard.pendingType === "opportunity" ? "cơ duyên tranh đoạt" : guard.pendingType === "map_event" ? "phát hiện ẩn" : "phát hiện chưa xử lý";
-    if (!confirm("Ngươi còn " + kind + " tại đây. Rời đi sẽ làm mất vĩnh viễn. Vẫn muốn rời đi?")) return null;
+    if (!confirmDeparture(guard.pendingType)) return null;
     return { confirmPendingDeparture: true };
   }
 
@@ -939,7 +879,7 @@
     if (!isMovementActionId(actionId)) return false;
     if (!E.pendingExplorationAt?.(state) && state.pendingMapEvent?.status !== "pending") return false;
     if (!E.pendingExplorationAt?.(state) && state.pendingMapEvent?.status === "pending") {
-      UI.openOverlay("Hidden discovery", UI.renderMapEventModal(state, actionId));
+      UI.openOverlay("Phát Hiện Ẩn", UI.renderMapEventModal(state, actionId));
       return true;
     }
     UI.openOverlay("Phát hiện đang chờ", UI.renderPendingDiscoveryModal(state, actionId));
@@ -967,6 +907,17 @@
     if (!UI.renderActions) return;
     UI.renderActions(state, (action) => {
       if (openPendingMoveModal(action.id)) return;
+      if (action.id === "act_giup") {
+        UI.openOverlay("Trợ Giúp", '<pre class="help-overlay-text">' + UI.escapeHtml(window.GameData?.HELP_TEXT || "Chưa có hướng dẫn.") + '</pre>');
+        return;
+      }
+      if (action.id === "act_exp_divine") {
+        const result = E.divine?.(state);
+        if (!result?.success) { alert(result?.reason || "Chưa thể xem quẻ lúc này."); return; }
+        UI.openOverlay("Xem Quẻ", '<div class="detail-block"><h3>Điềm quẻ</h3><p>' + UI.escapeHtml(result.hint?.text || "Quẻ chưa hiện rõ.") + '</p><small>Đã trả 3 Linh Thạch · hiệu lực đến ngày ' + Number(result.hint?.expiresDay || 0) + ' · hướng ' + UI.escapeHtml(result.hint?.direction || "chưa rõ") + '</small></div>');
+        renderAfterTurn();
+        return;
+      }
       if (action.id === "act_exp_map_event") {
         UI.openOverlay("Phát Hiện Ẩn", UI.renderMapEventModal(state));
         return;
@@ -982,7 +933,7 @@
       const departure = departureOptions(action.id);
       if (departure === null) return;
       if (action.requiresConfirmation) {
-        confirmTechniqueAction(action);
+        showTechniqueStancePicker(action);
         return;
       }
       if (INFO_TAB_ACTIONS[action.id]) {
@@ -1022,7 +973,7 @@
       // Route every combat technique through the canonical stance picker so
       // preview/resource blockers cannot be bypassed by a legacy UI path.
       if (action.id.startsWith("act_skill_")) {
-        confirmTechniqueAction(action);
+        showTechniqueStancePicker(action);
         return;
       }
       let actionOptions = departure;
@@ -1046,7 +997,6 @@
 
   function showFateOverlay() {
     UI.openOverlay("Tử Vi Mệnh Số", UI.renderFateDetail(state));
-    decorateFateAdvancedActions();
   }
   function showInventoryOverlay() { UI.openOverlay("Hành Trang", UI.renderInventoryModal(state)); }
 
@@ -1080,39 +1030,69 @@
     if (type === "realm") showRealmOverlay();
   }
 
+  function showTechniqueStancePicker(action) {
+    const techniqueId = action.id.slice("act_skill_".length);
+    const host = document.getElementById("action-list");
+    if (!host) return;
+    host.querySelectorAll(".technique-stance-picker-inline").forEach((node) => node.remove());
+    const technique = E.techniqueCatalog?.()[techniqueId] || {};
+    const previewFor = (stance) => E.techniquePreview(state, techniqueId, { stance });
+    const stances = [
+      ["steady", "Thông thường", "Uy lực và chi phí cân bằng."],
+      ["burst", "Bạo kích", "Uy lực +20%, nhưng Tà Nhiễm tăng 50%."],
+      ["guarded", "Hộ thể", "Uy lực -15%, giảm một nửa chi phí Thanh Tỉnh/Tà Nhiễm."]
+    ];
+    const preparation = Boolean(technique.preparation?.enabled || technique.prepareCost || technique.cost?.prepare);
+    const cooldownTurnsFor = (preview) => {
+      if (preview?.cooldownTurns != null) return Number(preview.cooldownTurns || 0);
+      return typeof E.techniqueCooldownTurns === "function" ? Number(E.techniqueCooldownTurns(technique) || 0) : 0;
+    };
+    const rows = stances.map(([id, label, description]) => {
+      const preview = previewFor(id);
+      const disabled = !preview?.success || preview.resourcesReady === false;
+      const cost = preview?.costs || {};
+      const detail = disabled ? (preview?.reason || (preview?.blockers || []).map((entry) => entry.message).join(" · ") || "Chưa sẵn sàng") : "Khí " + Number(cost.manaCost || 0) + " · Thể " + Number(cost.staminaCost || 0) + " · Tỉnh " + Number(cost.sanCost || 0) + " · Hồi " + cooldownTurnsFor(preview) + " lượt" + (isDangerousTechnique(preview) ? " · ⚠ cần xác nhận cái giá" : "");
+      return '<button type="button" class="technique-stance-option" data-technique-stance="' + id + '" data-technique-action="' + UI.escapeHtml(action.id) + '"' + (disabled ? ' disabled' : '') + '><b>' + UI.escapeHtml(label) + '</b><small>' + UI.escapeHtml(description) + '</small><em>' + UI.escapeHtml(detail) + '</em></button>';
+    }).join("");
+    const prepare = preparation ? '<button type="button" class="technique-prepare-option" data-expansion-command="technique_prepare" data-expansion-arg="' + UI.escapeHtml(techniqueId) + '" data-expansion-arg2="steady"><b>Tụ lực</b><small>Tụ lực Công Pháp trước khi vận công và thi triển.</small></button>' : "";
+    const panel = document.createElement("section");
+    panel.className = "technique-stance-picker-inline";
+    panel.setAttribute("aria-label", "Chọn cách thi triển Công Pháp");
+    panel.innerHTML = '<div class="technique-stance-picker-head"><b>' + UI.escapeHtml(technique.name || techniqueId) + '</b><small>Chọn cách thi triển · ' + (technique.category === "cam_thuat" ? "Cấm Thuật cần xác nhận cái giá" : "không cần xác nhận lại") + '</small></div><div class="technique-stance-options">' + prepare + rows + '</div>';
+    host.appendChild(panel);
+    panel.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+
+  function isDangerousTechnique(preview) {
+    if (typeof UI.isDangerousTechniquePreview === "function") return UI.isDangerousTechniquePreview(preview);
+    return Boolean(preview && (preview.requiresConfirmation || preview.dangerous || preview.family === "cam_thuat" || preview.category === "cam_thuat"));
+  }
+
+  // Inline danger sheet replaces browser confirm(); only its confirm button runs onConfirm.
+  function requestDangerConfirmation(preview, options, onConfirm) {
+    pendingDangerConfirm = onConfirm;
+    UI.openOverlay("Xác nhận Cấm Thuật", UI.renderTechniqueDangerSheet(state, preview, options));
+  }
+
   function commitTechniqueAction(action, stance) {
     const techniqueId = action.id.slice("act_skill_".length);
     const preview = E.techniquePreview(state, techniqueId, { stance });
-    if (!preview || !preview.success) { alert(preview?.reason || "Không thể thi triển công pháp này."); return; }
-    if (preview.resourcesReady === false) { alert((preview.blockers || []).map((entry) => entry.message).join("\n")); return; }
-    const c = preview.costs;
-    const lines = ["Công pháp: " + preview.name, "Loại: " + preview.family + " · Thế: " + stance, "Giá phải trả:", "  Linh Khí: " + c.manaCost, "  Thể Lực: " + c.staminaCost, "  Thanh Tỉnh: " + c.sanCost, "  Thọ Nguyên: " + c.lifespanCost, "  Tà Nhiễm: " + c.corruptionCost];
-    if (preview.combatPreview) lines.push("Sát thương dự kiến: " + preview.combatPreview.damageMin + "–" + preview.combatPreview.damageMax);
-    if (preview.fateResonanceFates?.length) lines.push("Cộng hưởng Mệnh: " + preview.fateResonanceFates.length + " Mệnh đang kích hoạt");
-    if (preview.family === "cam_thuat") lines.push("", "⚠ CẤM THUẬT — thi triển sẽ gây phản phệ. Xác nhận?"); else lines.push("", "Xác nhận thi triển?");
-    if (preview.pathResonanceFates?.length) lines.push("Cộng hưởng Con Đường: " + preview.pathResonanceFates.length + " Mệnh · +" + preview.fateResonancePct + "% uy lực");
-    if (preview.guildCombatPowerPct > 0) lines.push("Trận pháp Tông Môn: +" + preview.guildCombatPowerPct + "% uy lực (" + (preview.guildCombatSources || []).join(", ") + ")");
-    if (!confirm(lines.join("\n"))) return;
-    const actionId = E.nextTechniqueActionId(state);
-    enqueueAction(() => {
-      E.submitActionId(state, action.id, { confirmed: true, stance, actionId });
-      renderAfterTurn();
-    });
-  }
-  function confirmTechniqueAction(action) {
-    const techniqueId = action.id.slice("act_skill_".length);
-    const stances = [
-      ["steady", "Ổn định", "Giữ uy lực và chi phí cân bằng."],
-      ["burst", "Bộc phát", "Uy lực +20%, Tà Nhiễm +50%."],
-      ["guarded", "Hộ thể", "Uy lực -15%, giảm nửa phí Thanh Tỉnh/Tà Nhiễm."]
-    ];
-    const rows = stances.map(([id, label, description]) => {
-      const preview = E.techniquePreview(state, techniqueId, { stance: id });
-      const disabled = !preview?.success || preview.resourcesReady === false;
-      const blocker = disabled ? '<small class="inline-blocker">' + UI.escapeHtml(preview?.reason || (preview?.blockers || []).map((entry) => entry.message).join(" · ") || "Không đủ tài nguyên") + '</small>' : '<small>Chi phí: Khí ' + Number(preview.costs?.manaCost || 0) + ' · Thể ' + Number(preview.costs?.staminaCost || 0) + ' · Tỉnh ' + Number(preview.costs?.sanCost || 0) + '</small>';
-      return '<div class="technique-stance-row"><b>' + UI.escapeHtml(label) + '</b><p>' + UI.escapeHtml(description) + '</p>' + blocker + '<button class="guild-action" data-technique-stance="' + id + '" data-technique-action="' + UI.escapeHtml(action.id) + '"' + (disabled ? ' disabled' : '') + '>Chọn thế này</button></div>';
-    }).join('');
-    UI.openOverlay("Chọn thế vận công", '<div class="technique-stance-picker"><p class="muted">' + UI.escapeHtml(techniqueId) + ' · xem preview trước khi xác nhận thi triển.</p>' + rows + '</div>');
+    if (!preview || !preview.success) { E.pushHistory(state, { type: "warn", text: preview?.reason || "Không thể thi triển Công Pháp." }); renderAfterTurn(); return; }
+    if (preview.resourcesReady === false) { E.pushHistory(state, { type: "warn", text: (preview.blockers || []).map((entry) => entry.message).join(" · ") || "Chưa đủ tài nguyên để thi triển Công Pháp." }); renderAfterTurn(); return; }
+    const submit = (confirmed) => {
+      const actionId = E.nextTechniqueActionId(state);
+      enqueueAction(() => {
+        const options = confirmed ? { confirmed: true, stance, actionId } : { stance, actionId };
+        const result = E.submitActionId(state, action.id, options);
+        renderAfterTurn();
+        if (!confirmed && result?.requiresConfirmation) requestDangerConfirmation(E.techniquePreview(state, techniqueId, { stance }) || preview, { stance, purpose: "Thi triển" }, () => submit(true));
+      });
+    };
+    if (isDangerousTechnique(preview)) {
+      requestDangerConfirmation(preview, { stance, purpose: "Thi triển" }, () => submit(true));
+      return;
+    }
+    submit(false);
   }
   function flashSave(text) {
     UI.setSaveIndicator(text);

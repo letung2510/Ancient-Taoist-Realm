@@ -1,14 +1,9 @@
 /* Deep probes for the audit's former stale/uncertain runtime contracts. */
 const fs = require('fs');
-const vm = require('vm');
 const assert = require('assert');
+const { loadRuntime } = require('./lib/load_runtime');
 const root = __dirname + '/..';
-const context = { console, Math, Date, JSON, structuredClone: global.structuredClone };
-context.window = context;
-vm.createContext(context);
-for (const file of ['data/world_data.js', 'data/data.js', 'data/fate_data.js', 'data/expansion_data.js', 'data/fate_relationships.js', 'js/i18n.js', 'js/engine.js', 'js/expansion.js']) {
-  vm.runInContext(fs.readFileSync(root + '/' + file, 'utf8'), context, { filename: file });
-}
+const { context } = loadRuntime();
 const E = context.GameEngine, X = context.GameExpansion;
 assert(E && X, 'canonical runtime missing');
 

@@ -1,22 +1,19 @@
 /* Technique prepare/channel/cancel/commit receipt matrix. */
-const fs = require('fs');
-const vm = require('vm');
 const assert = require('assert');
-const root = __dirname + '/..';
-const context = { console, Math, Date, structuredClone: global.structuredClone };
-context.window = context;
-vm.createContext(context);
-for (const file of ['data/data.js', 'data/fate_data.js', 'data/expansion_data.js', 'data/fate_relationships.js', 'data/cong_phap.js', 'data/path_fate_relations.js', 'js/i18n.js', 'js/engine.js', 'js/expansion.js']) {
-  vm.runInContext(fs.readFileSync(root + '/' + file, 'utf8'), context, { filename: file });
-}
+const { loadRuntime } = require('./lib/load_runtime');
+const { context } = loadRuntime();
 const E = context.GameEngine, X = context.GameExpansion;
+const stableJson = (value) => JSON.stringify(value, (_, item) => {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return item;
+  return Object.keys(item).sort().reduce((sorted, key) => { sorted[key] = item[key]; return sorted; }, {});
+});
 assert(E.validateTechniqueCrossSystemCatalog().ok, 'technique cross-system catalog validator failed');
 const state = E.createState('technique-channel-matrix');
 state.player.qi = 9999; state.player.maxQi = 9999; state.player.stamina = 9999; state.player.maxStamina = 9999;
 state.player.realmId = context.GameData.REALMS[Math.min(4, context.GameData.REALMS.length - 1)].id;
 E.updateDerived(state);
 const catalog = E.techniqueCatalog();
-const technique = Object.values(catalog).find((entry) => entry.category !== 'tam_phap' && !entry.requiredFaction && !entry.requiredPath && Number(entry.minRealmLevel || 1) <= 5);
+const technique = Object.values(catalog).find((entry) => entry.category !== 'tam_phap' && !entry.requiredFaction && !entry.requiredPath && Number(entry.minRealmLevel || 1) <= 5 && (entry.preparation?.enabled || entry.prepareCost || entry.cost?.prepare));
 assert(technique, 'channel-capable technique fixture missing');
 if (!state.player.techniques?.[technique.id]) assert(E.learnTechnique(state, technique.id), 'technique learn fixture failed');
 const preview = E.techniquePreview(state, technique.id, { stance: 'steady', targetId: 'matrix-target' });
@@ -28,6 +25,8 @@ const channel = E.advanceTechniqueChannel(state, technique.id, 0.5);
 assert(channel.success && channel.channelProgress > 0 && !channel.ready, 'partial channel state missing');
 const cancelled = E.cancelTechniquePreparation(state, technique.id, 'matrix-cancel');
 assert(cancelled.success && state.player.techniques[technique.id].combatState.prepared === false, 'cancel did not clear prepared state');
+const cancelledReplay = E.prepareTechnique(state, technique.id, 'matrix-prepare-1');
+assert(cancelledReplay.duplicate && cancelledReplay.success === false && cancelledReplay.receipt.status === 'cancelled', 'cancelled prepare receipt was not terminal/idempotent');
 const second = E.prepareTechnique(state, technique.id, 'matrix-prepare-2', { stance: 'burst', targetId: 'matrix-target' });
 assert(second.success, 'second prepare failed');
 const ready = E.advanceTechniqueChannel(state, technique.id, 1);
@@ -48,6 +47,16 @@ assert(E.validateTechniqueRuntimeState(trialState).ok, 'technique trial archive 
 state.player.techniques.matrix_unknown = { masteryStage: 0 };
 assert(!E.validateTechniqueCrossSystemState(state).ok, 'cross-system validator accepted an unknown technique');
 delete state.player.techniques.matrix_unknown;
+
+// Instant techniques must not be coerced into a fake preparation phase.
+const instantState = E.createState('technique-instant-guard');
+const instantId = 'kiem_khi_so_cap';
+if (!instantState.player.techniques?.[instantId]) assert(E.learnTechnique(instantState, instantId), 'instant technique learn fixture failed');
+const instantPrepare = E.prepareTechnique(instantState, instantId, 'instant-prepare-1');
+assert(!instantPrepare.success && /instant action/.test(instantPrepare.reason), 'instant technique accepted an invalid Prepare phase');
+const instantUseBefore = stableJson(instantState.player);
+const invalidStanceUse = E.useTechnique(instantState, instantId, { stance: 'invalid', actionId: 'instant-invalid-stance', confirmed: true });
+assert(!invalidStanceUse.success && stableJson(instantState.player) === instantUseBefore, 'rejected use mutated player state');
 
 // N17: passive/zero-cooldown techniques must not leave a phantom cooldown
 // record that blocks later canonical reads or bloats serialized saves.
@@ -76,6 +85,23 @@ assert(commandChannel.success && commandChannel.ready, 'technique_channel comman
 const commandCommit = E.useTechnique(commandState, technique.id, { requirePrepared: true, preparedActionId: commandPrepare.actionId });
 assert(commandCommit.success && !commandState.player.techniques[technique.id].combatState.prepared, 'technique command bridge did not commit ready channel');
 
+const customCommandState = E.createState('technique-command-custom-action');
+customCommandState.player.qi = 9999; customCommandState.player.maxQi = 9999; customCommandState.player.stamina = 9999; customCommandState.player.maxStamina = 9999;
+customCommandState.player.realmId = state.player.realmId; E.updateDerived(customCommandState);
+if (!customCommandState.player.techniques?.[technique.id]) assert(E.learnTechnique(customCommandState, technique.id), 'custom command technique learn fixture failed');
+const customPrepare = X.runExpansionCommand(customCommandState, 'technique_prepare', technique.id, 'steady', { confirmed: true, actionId: 'custom-prepare-action' });
+assert(customPrepare.success && customPrepare.actionId === 'custom-prepare-action' && customCommandState.player.techniquePrepareReceipts['custom-prepare-action'], 'command bridge dropped caller Prepare actionId');
+
+const mismatchState = E.createState('technique-prepare-mismatch');
+mismatchState.player.qi = 9999; mismatchState.player.maxQi = 9999; mismatchState.player.stamina = 9999; mismatchState.player.maxStamina = 9999;
+mismatchState.player.realmId = state.player.realmId; E.updateDerived(mismatchState);
+if (!mismatchState.player.techniques?.[technique.id]) assert(E.learnTechnique(mismatchState, technique.id), 'mismatch technique learn fixture failed');
+assert(E.prepareTechnique(mismatchState, technique.id, 'mismatch-prepare', { stance: 'steady', targetId: 'mismatch-target' }).success, 'mismatch prepare failed');
+assert(E.advanceTechniqueChannel(mismatchState, technique.id, 1).ready, 'mismatch channel failed');
+const mismatchBefore = stableJson(mismatchState.player);
+const mismatchCommit = E.useTechnique(mismatchState, technique.id, { requirePrepared: true, preparedActionId: 'mismatch-prepare', stance: 'burst', targetId: 'mismatch-target', confirmed: true });
+assert(!mismatchCommit.success && stableJson(mismatchState.player) === mismatchBefore, 'prepared stance mismatch committed or mutated state');
+
 const deniedState = E.createState('technique-resource-boundary');
 deniedState.player.realmId = state.player.realmId;
 if (!deniedState.player.techniques?.[technique.id]) assert(E.learnTechnique(deniedState, technique.id), 'resource boundary learn fixture failed');
@@ -83,5 +109,5 @@ deniedState.player.qi = 0; deniedState.player.stamina = 0;
 const deniedBefore = JSON.stringify(deniedState.player.techniques[technique.id]);
 const deniedPreview = X.runExpansionCommand(deniedState, 'technique_prepare', technique.id, 'steady');
 assert(!deniedPreview.success && !deniedPreview.requiresConfirmation, 'resource boundary must reject before confirmation');
-assert.strictEqual(JSON.stringify(deniedState.player.techniques[technique.id]), deniedBefore, 'resource rejection mutated technique state');
+assert.strictEqual(stableJson(deniedState.player.techniques[technique.id]), stableJson(JSON.parse(deniedBefore)), 'resource rejection mutated technique state');
 console.log('OK: technique channel matrix (preview, prepare receipt, duplicate guard, partial/full channel, cancel, commit)');

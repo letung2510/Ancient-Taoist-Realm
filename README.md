@@ -1,6 +1,6 @@
 # CỔ DỊ ĐIỂN  RPG tu vi quỷ dị
 
-Web game text RPG dùng JavaScript thuần. Luật chuẩn của hệ thống được tổ chức tại [kho requirement](requirement/README.md) và các tài liệu canonical trong `requirement/SYSTEM_LOGIC_CATALOG`.
+Web game text RPG dùng JavaScript thuần. Luật chuẩn của hệ thống được tổ chức tại [kho requirement](requirement/README.md), chia theo feature trong `requirement/features/<feature>/`.
 
 ## Luật runtime đã chốt
 
@@ -14,10 +14,8 @@ Web game text RPG dùng JavaScript thuần. Luật chuẩn của hệ thống đ
 
 ## Cấu trúc thư mục
 
-- `HE_THONG_NEN_TANG_NHAN_VAT_TU_VI_CONG_PHAP.md`: đặc tả nền tảng nhân vật, tu vi và Công Pháp có thẩm quyền cao nhất.
-- `requirement/character_creation_system.md`: hợp đồng module tạo nhân vật.
-- `requirement/CONG_PHAP_SYSTEM.md`: hợp đồng module Công pháp.
-- `requirement/Xianxin_map.md`: bối cảnh bản đồ/thế giới; luật cảnh giới dẫn chiếu về bản FINAL.
+- `requirement/README.md`: bảng "cần gì đọc ở đâu"; `requirement/STATUS.md`: trạng thái hiện hành.
+- `requirement/features/<feature>/`: mỗi feature một thư mục (README chỉ mục + file theo chức năng), ví dụ `character/`, `fate/`, `path/`, `technique/`, `map/`.
 - `data/`: nguồn JSON và dữ liệu runtime cho trình duyệt.
 - `js/engine.js`: state machine, chiến đấu, tu luyện, Mệnh, Con Đường, Tà Thần và save/load.
 - `js/ui.js`, `js/main.js`: giao diện và điều phối ứng dụng.
@@ -30,8 +28,7 @@ Mở `index.html` bằng trình duyệt. Game không yêu cầu build frontend.
 ## Sinh lại dữ liệu và kiểm thử
 
 ```bash
-node tools/generate_guild_data.js
-node tools/generate_world_data.js
+node tools/build_data.js
 node tools/verify_game.js
 ```
 
@@ -45,10 +42,10 @@ node tools/verify_game.js --update-samples
 
 ## Nguồn dữ liệu chính
 
-- `data/canh_gioi_tien_hiep.json`: đúng 14 cảnh giới phẳng và alias để migrate ID cũ.
-- `data/path_fate_relations.json`: liên kết MệnhCon Đường, danh xưng 14 cấp và ngoại lệ Ngoại Đạo Giả.
-- `data/fate-pool.json`: pool Mệnh Số.
-- `data/tu_tien_factions.json`: vùng, tuyến đường, thế lực và tổ chức.
+- `data/src/realm/canh_gioi_tien_hiep.json`: đúng 14 cảnh giới phẳng và alias để migrate ID cũ.
+- `data/src/path/path_fate_relations.json`: liên kết MệnhCon Đường, danh xưng 14 cấp và ngoại lệ Ngoại Đạo Giả.
+- `data/fate_data.js`: bridge runtime của pool Mệnh Số.
+- `data/src/world/tu_tien_factions.json`: vùng, tuyến đường, thế lực và tổ chức.
 - `data/cong_phap.js`: catalog Công pháp bất biến; tiến độ từng Công pháp được lưu trong nhân vật.
 
 Các file `.js` bridge trong `data/` phục vụ trình duyệt; không phải bản sao thừa của nguồn JSON.

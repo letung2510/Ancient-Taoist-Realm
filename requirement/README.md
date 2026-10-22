@@ -1,46 +1,47 @@
-# Requirement Repository
+# Kho requirement — Cổ Dị Điển
 
-## Canonical logic files
+Requirement chia **theo feature → theo chức năng**. Quy ước cấu trúc, mẫu file và rule ID: [CONVENTIONS.md](CONVENTIONS.md).
 
-Each feature has one canonical requirement-logic file under `SYSTEM_LOGIC_CATALOG/features/`. The feature map is maintained in [`00_README_AND_CROSS_SYSTEM_MAP.md`](SYSTEM_LOGIC_CATALOG/00_README_AND_CROSS_SYSTEM_MAP.md).
+## Cần gì, đọc ở đâu
 
-Examples:
+| Câu hỏi | Đọc | Không suy ra từ |
+|---|---|---|
+| Một feature làm gì, gồm chức năng nào, runtime ở đâu | `features/<feature>/README.md` | audit, prompt |
+| Rule chi tiết của một chức năng | `features/<feature>/<chuc-nang>.md` | code comment |
+| Rule ID nằm ở file nào | grep `requirement/features` theo ID | đọc nguyên file |
+| Từ khóa nằm ở mục nào, dòng nào | [INDEX.md](INDEX.md) (sinh tự động) | đọc nguyên file |
+| Hiện tại code lệch/thiếu gì, quyết định mới nhất | [STATUS.md](STATUS.md) | bảng lịch sử trong `audit/` |
+| Quan hệ giữa các feature | [overview/cross-system-map.md](overview/cross-system-map.md) | |
+| Symbol runtime của từng hệ | [overview/runtime-symbol-index.md](overview/runtime-symbol-index.md) | |
+| Nguyên tắc thiết kế chung | [overview/principles-and-decisions.md](overview/principles-and-decisions.md) | |
+| Lịch sử audit/review | `audit/` (chỉ đọc) | — không phải nguồn logic |
+| Prompt AI tái sử dụng | `prompts/` | — không phải requirement |
 
-- [`DI_THE_CANONICAL.md`](SYSTEM_LOGIC_CATALOG/features/03-progression/DI_THE_CANONICAL.md) - Di The
-- [`FATE_CANONICAL.md`](SYSTEM_LOGIC_CATALOG/features/01-fate/FATE_CANONICAL.md) - Menh So/Fate
-- [`MAP_CANONICAL.md`](SYSTEM_LOGIC_CATALOG/features/04-world/MAP_CANONICAL.md) - map
-- [`TECHNIQUE_CANONICAL.md`](SYSTEM_LOGIC_CATALOG/features/06-content/TECHNIQUE_CANONICAL.md) - Cong Phap/technique
-- [`UI_ACTION_LOG_CANONICAL.md`](SYSTEM_LOGIC_CATALOG/features/07-ui/UI_ACTION_LOG_CANONICAL.md) - UI, action, game log
+## Feature
 
-## Single audit file
+| Nhóm | Feature |
+|---|---|
+| Nền tảng nhân vật | [character](features/character/README.md) · [fate](features/fate/README.md) · [realm-progression](features/realm-progression/README.md) · [path](features/path/README.md) · [di-the](features/di-the/README.md) · [profession](features/profession/README.md) |
+| Thế giới | [map](features/map/README.md) · [weather](features/weather/README.md) · [world-simulation](features/world-simulation/README.md) |
+| Tương tác | [npc](features/npc/README.md) · [relationship](features/relationship/README.md) · [companion](features/companion/README.md) |
+| Nội dung | [technique](features/technique/README.md) · [discovery](features/discovery/README.md) · [reward](features/reward/README.md) |
+| Nền tảng | [ui-action-log](features/ui-action-log/README.md) · [data-runtime](features/data-runtime/README.md) · [cross-system](features/cross-system/README.md) |
 
-`CODE_REQUIREMENT_AUDIT_MASTER.md` is the only active audit file. Audit/review/status/QA updates, validators, patches, and schemas belong there. `AUDIT_CANONICAL.md` is a historical name/reference only if it appears in archived material; it is not an additional active audit. Requirement logic belongs in the canonical feature file and must not be duplicated in the audit file.
+## Quy tắc quản trị
 
-## Project-wide governing rules
+- Mỗi requirement có **đúng một chỗ**: file chức năng của feature sở hữu nó. Chỗ khác chỉ link.
+- Xung đột: quyết định có ngày mới nhất trong bảng "Quyết định đã chốt" của README feature thắng. Rule bị thay thế bị xóa khỏi file chức năng.
+- Trạng thái hiện hành (code lệch/thiếu, gate, việc tiếp theo) chỉ ghi ở `STATUS.md`. `audit/` là lịch sử, không cập nhật thêm.
+- Đổi hành vi runtime ⇒ cập nhật rule và cột Runtime mapping của file chức năng trong cùng lượt; cập nhật `STATUS.md` nếu đóng/mở gap.
+- Requirement mới: phân loại theo feature/chức năng → thêm rule có ID vào đúng file → không để logic nằm trong prompt/addendum/audit.
+- UTF-8 không BOM, giữ tiếng Việt có dấu; ký tự thay thế/mojibake chặn hoàn thành.
 
-The following rules are permanent requirements for the entire project and apply to all future requirement creation, review, audit, and consolidation:
+## Kiểm tra sau khi sửa
 
-- All requirement files must be written and saved as UTF-8. ANSI/Windows-1252 and implicit PowerShell encodings are forbidden.
-- Any update must preserve Vietnamese Unicode text and must pass the UTF-8 validation gate before completion.
-- Mojibake markers, replacement characters, or stray C1 control characters are encoding errors and must block the update.
-- Requirement logic is updated only in the canonical file of its feature.
-- Validator, patch, schema, audit, review, status, and QA evidence is updated only in `CODE_REQUIREMENT_AUDIT_MASTER.md`.
-- Historical files under `archive-requirements/` are read-only reference material and are not a source for new updates.
+```bash
+node tools/build_requirement_index.js        # sinh lại INDEX.md
+cd requirement && node validate_requirement_docs.js   # link, code fence, encoding
+node tools/verify_33_item_coverage.js        # feature ↔ runtime ↔ regression
+```
 
-## Mandatory consolidation workflow for new Markdown
-
-Every new Markdown requirement must be processed in this exact order:
-
-1. Read the complete source file as UTF-8 and classify each requirement by feature.
-2. Compare each requirement against the current game runtime and the feature canonical file.
-3. Merge the requirement logic into the canonical file of that feature. Never leave new requirement logic only in a prompt, addendum, or audit file.
-4. If runtime logic already exists, record the match and do not create duplicate code. If it does not exist, implement it in the existing runtime module for that feature.
-5. Run the UTF-8 gate, Markdown syntax/link gate, and runtime syntax/tests. A replacement character, mojibake marker, C1 control character, broken link, or failed syntax check blocks completion.
-6. Record only evidence, status, validator output, and unresolved product decisions in `AUDIT_CANONICAL.md`.
-7. After canonical merge and validation succeed, delete the processed root-level source Markdown. Do not delete historical material under `archive-requirements/` unless explicitly requested.
-
-The completion invariant is: every accepted requirement exists exactly once in its feature canonical file, every implementation exists exactly once in the runtime, and every review result exists only in the single audit file.
-
-## History
-
-Previous source documents are preserved in `archive-requirements/`. The archive is historical only and is not a source for new logic.
+`tools/run_regression_suite.js` chạy cả ba và báo lỗi nếu `INDEX.md` lỗi thời.

@@ -13,6 +13,8 @@ for(const file of files){
   const fences=(text.match(/^\s*```/gm)||[]).length;
   if(fences%2) oddFences.push(`${rel}: ${fences} fences`);
   if(/SYSTEM_LOGIC_CATALOG_2026-09-16/.test(text)||/[\uFFFD]/.test(text)||mojibake.test(text)) encoding.push(rel);
+  // audit/ and prompts/ are historical records; they may name files removed by later restructures.
+  if(/^(audit|prompts)[\\/]/.test(rel)) continue;
   const re=/\[[^\]]*\]\(([^)]+)\)/g; let m;
   while((m=re.exec(text))){
     let target=m[1].trim().replace(/^<|>$/g,'');

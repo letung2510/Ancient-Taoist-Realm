@@ -16,7 +16,6 @@ function scan(target, results) {
   }
 }
 function scanFile(file, results) {
-  if (path.basename(file) === "UI_ACTION_LOG_CANONICAL.md") return;
   const text = fs.readFileSync(file, "utf8");
   const replacement = (text.match(/\uFFFD/g) || []).length;
   const mojibake = (text.match(badPattern) || []).length;

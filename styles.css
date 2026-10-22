@@ -72,11 +72,22 @@ html, body {
 .topbar-actions .btn { padding:6px 10px; font-size:12px; }
 .guild-roadmap { margin:10px 0; padding:12px; border:1px solid rgba(194,153,74,.35); background:rgba(194,153,74,.08); border-radius:8px; }
 .guild-roadmap p { margin:6px 0 0; color:var(--muted); }
+.guild-effect-summary { display:grid; gap:4px; margin:10px 0; padding:10px 12px; border:1px solid rgba(126,194,168,.28); background:rgba(126,194,168,.07); border-radius:8px; }
+.guild-effect-summary b { color:var(--jade); }
+.guild-effect-summary span { color:var(--ink-dim); font-size:12px; }
 
 .brand { font-family: var(--display); font-size: 18px; font-weight: 700; letter-spacing: .06em; color: var(--jade); }
 .brand-sub { font-size: 11px; color: var(--ink-dim); letter-spacing: .03em; margin-left: 8px; }
 .save-indicator { font-size: 12px; color: var(--ink-dim); font-family: var(--mono); }
 .game-clock { color: var(--gold); font: 11px var(--mono); white-space: nowrap; }
+.game-weather { color: var(--jade); font: 11px var(--mono); white-space: nowrap; padding-left:8px; border-left:1px solid rgba(194,153,74,.35); }
+.technique-cost-line, .technique-cooldown { display:block; margin-top:6px; color:var(--ink-dim); }
+.technique-cooldown.is-cooling { color:var(--ember); }
+.action-movement-group { display:flex; align-items:center; gap:5px; flex:0 0 auto; padding:4px 6px 4px 8px; border:1px solid rgba(200,173,111,.38); border-radius:9px; background:linear-gradient(180deg, rgba(33,39,42,.9), rgba(16,23,25,.9)); }
+.action-movement-heading { color:var(--gold); font:700 10px/1 var(--mono); letter-spacing:.08em; text-transform:uppercase; writing-mode:vertical-rl; transform:rotate(180deg); opacity:.9; }
+.action-movement-group .action-chip { min-width:48px; padding:8px 9px; border-color:rgba(200,173,111,.48); }
+.action-movement-group .action-chip::first-letter { color:var(--gold); }
+.help-overlay-text { white-space:pre-wrap; text-align:left; margin:0; color:var(--ink); font:inherit; line-height:1.65; }
 
 .screen { display: none; flex: 1; overflow: hidden; }
 .screen.active { display: flex; }
@@ -322,7 +333,7 @@ html, body {
 .section-title { color: var(--gold); letter-spacing: .04em; margin: 14px 0 6px; font-size: 12px; font-weight: 700; }
 .status-avatar { margin: 0 0 10px; }
 .status-avatar img {
-  width: 100%; max-height: 160px;
+  display: block; width: min(160px, 100%); height: 160px; margin: 0 auto;
   object-fit: cover;
   border-radius: 8px;
   border: 1px solid var(--line);
@@ -758,6 +769,18 @@ html, body {
   .technique-category > header { display: block; }
 }
 
+/* Final art overrides: these intentionally come after the legacy map skin. */
+.local-map-canvas .world-map.local-constellation { background-image: linear-gradient(180deg, rgba(4, 8, 18, .1), rgba(4, 8, 18, .58)), url("assets/ui/maps/local-clear-valley.png"); background-size: cover; background-position: center; }
+.local-map-canvas .world-map.local-constellation.map-weather-rain { background-image: linear-gradient(180deg, rgba(4, 12, 20, .18), rgba(3, 9, 17, .62)), url("assets/ui/maps/local-rain-forest.png"); }
+.local-map-canvas .world-map.local-constellation.map-weather-snow { background-image: linear-gradient(180deg, rgba(5, 12, 27, .12), rgba(4, 9, 22, .55)), url("assets/ui/maps/local-snow-pass.png"); }
+.local-map-canvas .world-map.local-constellation.terrain-desert { background-image: linear-gradient(180deg, rgba(24, 12, 5, .1), rgba(13, 8, 6, .58)), url("assets/ui/maps/local-desert-frontier.png"); }
+.local-map-canvas .world-map.local-constellation .constellation-field,
+.local-map-canvas .world-map.local-constellation.map-weather-rain .constellation-field,
+.local-map-canvas .world-map.local-constellation.map-weather-snow .constellation-field,
+.local-map-canvas .world-map.local-constellation.terrain-desert .constellation-field { background-image: none; }
+.local-map-canvas .constellation-field::before { left: 55%; top: 20%; width: 39%; height: 58%; }
+.local-map-canvas .constellation-field::after { left: 61%; top: 16%; }
+
 /* ---------- Generated map art layer (presentation only) ---------- */
 .world-map {
   background-color: #07101c;
@@ -777,6 +800,26 @@ html, body {
 .local-constellation.map-weather-mist .constellation-field::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 50%, rgba(214, 228, 241, .2), transparent 55%); }
 .map-modal-illustration { object-position: center; background: #07101c url("assets/ui/maps/celestial-atlas.png") center / cover; }
 .modal-illustration.map-modal-illustration { content: url("assets/ui/maps/celestial-atlas.png"); }
+.modal-illustration.panel-theme-illustration {
+  height: clamp(170px, 28vh, 300px);
+  margin: 0 0 14px;
+  object-position: center 42%;
+  border-color: rgba(223, 171, 71, .58);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .38), inset 0 0 0 1px rgba(118, 224, 208, .16);
+}
+.panel-theme-illustration[src*="quest-scroll"] { object-position: center 58%; }
+.panel-theme-illustration[src*="guild-hall"] { object-position: center 46%; }
+.panel-theme-illustration[src*="companion-beast"] { object-position: center 42%; }
+.panel-theme-illustration[src*="world-weather"] { object-position: center 44%; }
+.panel-theme-illustration[src*="cauldron-forge"] { object-position: center 52%; }
+.panel-theme-illustration[src*="market-auction"] { object-position: center 52%; }
+.modal-illustration.origin-illustration,
+.modal-illustration.combat-illustration {
+  height: clamp(150px, 24vh, 260px);
+  margin: 0 0 14px;
+}
+.modal-illustration.origin-illustration { object-position: center 54%; }
+.modal-illustration.combat-illustration { object-position: center 48%; }
 .pending-discovery-actions, .world-event-choices { position: relative; overflow: hidden; isolation: isolate; }
 .pending-discovery-actions::before, .world-event-choices::before { content: ""; display: block; min-height: 92px; margin: -4px -4px 10px; border: 1px solid rgba(217,185,106,.24); border-radius: 8px; background: linear-gradient(180deg, rgba(7,12,26,.18), rgba(7,12,26,.72)), url("assets/ui/maps/discovery-codex.png") center 42% / cover; opacity: .78; }
 .world-event-choices::before { background-image: linear-gradient(180deg, rgba(7,12,26,.14), rgba(7,12,26,.72)), url("assets/ui/maps/travel-waystation.png"); }
@@ -931,6 +974,11 @@ body::before {
 }
 .item-row, .quest-row, .rel-row { padding: 10px 8px; }
 .item-row:hover, .quest-row:hover, .rel-row:hover { background: rgba(118, 224, 208, .055); }
+.relations-overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; margin: 0 0 12px; padding: 10px 12px; border: 1px solid rgba(205, 164, 83, .34); border-radius: 8px; background: linear-gradient(135deg, rgba(18, 42, 44, .7), rgba(15, 20, 31, .78)); }
+.relations-overview b { color: var(--gold); grid-column: 1 / -1; }
+.relations-overview span, .relations-overview small { color: var(--ink-dim); }
+.relations-overview small { grid-column: 1 / -1; margin-top: 3px; }
+@media (max-width: 640px) { .relations-overview { grid-template-columns: 1fr; } }
 
 .story-panel { padding: 16px clamp(16px, 2.4vw, 30px); border-bottom-color: var(--line); }
 .story-location { color: var(--gold); border-bottom-color: var(--line); font: 700 11px/1.4 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
@@ -1092,6 +1140,22 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px 
 .local-map-teleport > div { display:flex; flex-wrap:wrap; gap:7px; padding-top:10px; }
 .local-map-teleport-destination { padding:6px 9px; border:1px solid rgba(205,164,83,.45); background:rgba(35,38,29,.8); color:#e9d8a9; cursor:pointer; }
 .local-map-teleport-destination:hover { border-color:#ffe09a; }
+.local-map-climate { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin:12px 0 4px; padding:8px; border:1px solid rgba(131,170,166,.28); background:rgba(5,18,21,.72); }
+.local-map-climate > div { display:grid; grid-template-columns:22px 1fr; column-gap:5px; align-items:center; min-width:0; padding:5px 4px; border-right:1px solid rgba(205,164,83,.16); }
+.local-map-climate > div:nth-child(2n) { border-right:0; }
+.local-map-climate b { min-width:0; overflow:hidden; color:#e8d9b9; font:700 11px/1.2 var(--display,Georgia,serif); text-overflow:ellipsis; white-space:nowrap; }
+.local-map-climate small { grid-column:2; color:#8fa8a4; font-size:9px; line-height:1.15; }
+.local-map-climate-icon { grid-row:1 / span 2; display:grid; place-items:center; width:20px; height:20px; border:1px solid rgba(205,164,83,.48); border-radius:50%; color:#f1c86f; font-size:15px; }
+.local-map-climate-icon.weather-mua, .local-map-climate-icon.weather-loi_vu { color:#8bd8ee; border-color:#5798ae; }
+.local-map-climate-icon.weather-tuyet, .local-map-climate-icon.weather-suong { color:#dceeff; border-color:#8ba6c2; }
+.local-map-direction-list { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.local-map-direction { min-height:76px; align-items:flex-start; padding:9px 7px; border:1px solid rgba(205,164,83,.18); border-radius:5px; background:rgba(7,18,21,.46); }
+.local-map-direction > span:last-child { min-width:0; flex:1; }
+.local-map-direction b em { display:block; min-height:2.25em; overflow:hidden; line-height:1.15; white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
+.local-map-direction small { min-height:2.5em; }
+.local-map-direction-dot { flex:0 0 22px; text-align:center; }
+.local-map-route-link { min-height:38px; padding:8px 10px; border:1px solid rgba(132,210,208,.4); border-radius:5px; background:rgba(24,74,76,.2); text-decoration:none; }
+.local-map-route-link:hover, .local-map-route-link:focus-visible { color:#d9ffff; border-color:#84d2d0; background:rgba(42,116,117,.28); }
 @media (max-width: 820px) {
   .local-map-layout { grid-template-columns:1fr; }
   .local-map-sidepanel { min-height:0; }
@@ -1377,9 +1441,41 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px 
 .action-panel-title::after { content:"Chọn hành động · kết quả hiện ngay trong nhật ký"; color: var(--ink-dim); font: 10px var(--ui); letter-spacing:0; text-transform:none; }
 .action-chip.action-category-movement { border-color: rgba(200,173,111,.52); color: #e8d09a; }
 .action-chip.action-category-movement:hover { background: rgba(200,173,111,.13); }
+.technique-stance-picker-inline { flex: 0 0 100%; order: 20; padding: 10px 12px; border: 1px solid rgba(200,173,111,.48); border-radius: 9px; background: linear-gradient(180deg, rgba(30,35,41,.98), rgba(13,20,23,.98)); box-shadow: 0 8px 22px rgba(0,0,0,.22); }
+.technique-stance-picker-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:8px; color:var(--gold); }
+.technique-stance-picker-head small { color:var(--ink-dim); font:11px var(--ui); }
+.technique-stance-options { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:7px; }
+.technique-stance-option, .technique-prepare-option { display:flex; flex-direction:column; gap:3px; min-height:64px; padding:8px 9px; border:1px solid rgba(138,164,211,.3); border-radius:7px; background:rgba(8,15,16,.78); color:var(--ink); text-align:left; cursor:pointer; }
+.technique-stance-option:hover, .technique-prepare-option:hover { border-color:var(--gold); background:rgba(200,173,111,.12); }
+.technique-stance-option:disabled { opacity:.5; cursor:not-allowed; }
+.technique-stance-option b, .technique-prepare-option b { color:var(--gold); font:700 12px var(--display); }
+.technique-stance-option small, .technique-prepare-option small { color:var(--ink-dim); font-size:10px; line-height:1.25; }
+.technique-stance-option em { color:var(--jade); font:10px var(--mono); font-style:normal; }
 @media (max-width: 760px) {
   .local-direction-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .local-journey-head { display:block; }
   .local-journey-status { display:inline-block; margin-top:8px; }
   .action-panel-title::after { display:none; }
+  .technique-stance-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .technique-stance-picker-head { display:block; }
 }
+
+/* Final art overrides after the legacy local-map skin. */
+.local-map-canvas .world-map.local-constellation { background-image: linear-gradient(180deg, rgba(4, 8, 18, .1), rgba(4, 8, 18, .58)), url("assets/ui/maps/local-clear-valley.png"); background-size: cover; background-position: center; }
+.local-map-canvas .world-map.local-constellation.map-weather-rain { background-image: linear-gradient(180deg, rgba(4, 12, 20, .18), rgba(3, 9, 17, .62)), url("assets/ui/maps/local-rain-forest.png"); }
+.local-map-canvas .world-map.local-constellation.map-weather-snow { background-image: linear-gradient(180deg, rgba(5, 12, 27, .12), rgba(4, 9, 22, .55)), url("assets/ui/maps/local-snow-pass.png"); }
+.local-map-canvas .world-map.local-constellation.terrain-desert { background-image: linear-gradient(180deg, rgba(24, 12, 5, .1), rgba(13, 8, 6, .58)), url("assets/ui/maps/local-desert-frontier.png"); }
+.local-map-canvas .world-map.local-constellation .constellation-field,
+.local-map-canvas .world-map.local-constellation.map-weather-rain .constellation-field,
+.local-map-canvas .world-map.local-constellation.map-weather-snow .constellation-field,
+.local-map-canvas .world-map.local-constellation.terrain-desert .constellation-field { background-image: none !important; }
+.local-map-canvas .constellation-field::before { left: 55%; top: 20%; width: 39%; height: 58%; }
+.local-map-canvas .constellation-field::after { left: 61%; top: 16%; }
+
+/* Cấm Thuật: bảng xác nhận cái giá trước khi thi triển */
+.technique-danger-sheet { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--danger); border-radius: 8px; background: rgba(224,106,106,.08); }
+.technique-danger-sheet header { display: grid; gap: 2px; color: var(--danger); }
+.technique-danger-costs { display: grid; gap: 4px; margin: 0; }
+.technique-danger-costs div { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px dashed rgba(224,106,106,.25); padding: 2px 0; }
+.technique-danger-costs dt { color: inherit; opacity: .85; }
+.technique-danger-costs dd { margin: 0; font-weight: 600; }

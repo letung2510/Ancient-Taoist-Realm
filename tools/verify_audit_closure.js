@@ -1,12 +1,7 @@
 "use strict";
 const assert = require("assert");
-const fs = require("fs");
-const path = require("path");
-const vm = require("vm");
-const ROOT = path.join(__dirname, "..");
-const sandbox = { window: {} };
-vm.createContext(sandbox);
-["gemini-code-1788430656294.js", "data/world_data.js", "data/fate_data.js", "data/fate_relationships.js", "data/cong_phap.js", "data/npc_monsters.js", "data/path_fate_relations.js", "data/profession_items.js", "data/expansion_data.js", "data/data.js", "js/i18n.js", "js/engine.js", "js/expansion.js"].forEach((file) => vm.runInContext(fs.readFileSync(path.join(ROOT, file), "utf8"), sandbox, { filename: file }));
+const { loadRuntime } = require("./lib/load_runtime");
+const { sandbox } = loadRuntime({ sandboxStyle: "window" });
 const E = sandbox.window.GameEngine;
 const X = sandbox.window.GameExpansion;
 const makeState = () => E.createState({ character: E.createCharacter({ name: "Audit Closure QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
@@ -53,12 +48,17 @@ function testTechniqueCrossSystemContracts() {
 
 function testTechniquePrepareChannel() {
   const state = makeState();
-  const techniqueId = Object.keys(E.techniqueCatalog()).find((id) => !["tam_phap", "dan_phu_phap"].includes(E.techniqueCatalog()[id].category));
+  state.player.qi = 9999; state.player.maxQi = 9999; state.player.stamina = 9999; state.player.maxStamina = 9999;
+  state.player.realmId = "khai_lo";
+  const techniqueId = Object.keys(E.techniqueCatalog()).find((id) => {
+    const technique = E.techniqueCatalog()[id];
+    return !["tam_phap", "dan_phu_phap"].includes(technique.category) && (technique.preparation?.enabled || technique.prepareCost || technique.cost?.prepare);
+  });
   assert(techniqueId);
   state.player.techniques[techniqueId] = { masteryStage: 0, masteryExp: 0, usageCount: 0 };
   const beforeQi = state.player.qi;
   const prepared = E.prepareTechnique(state, techniqueId, "qa-prepare-1");
-  assert(prepared.success);
+  assert(prepared.success, JSON.stringify(prepared));
   assert.strictEqual(state.player.qi, beforeQi - prepared.prepareCost.manaCost);
   assert(E.prepareTechnique(state, techniqueId, "qa-prepare-1").duplicate);
   assert(E.advanceTechniqueChannel(state, techniqueId, 0.5).success);

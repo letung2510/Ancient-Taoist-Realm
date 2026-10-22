@@ -7,17 +7,17 @@ const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
-const ROOT = path.join(__dirname, "..");
+const { ROOT, selectScripts } = require("./lib/load_runtime");
 const sandbox = { window: {} };
 vm.createContext(sandbox);
-["gemini-code-1788430656294.js", "data/world_data.js", "data/fate_data.js", "data/fate_relationships.js", "data/cong_phap.js", "data/npc_monsters.js", "data/path_fate_relations.js", "data/profession_items.js", "data/expansion_data.js", "data/data.js", "js/i18n.js", "js/engine.js", "js/expansion.js"].forEach((file) => vm.runInContext(fs.readFileSync(path.join(ROOT, file), "utf8"), sandbox, { filename: file }));
+selectScripts("js/expansion.js").forEach((file) => vm.runInContext(fs.readFileSync(path.join(ROOT, file), "utf8"), sandbox, { filename: file }));
 const E = sandbox.window.GameEngine;
 const X = sandbox.window.GameExpansion;
 const makeState = () => E.createState({ character: E.createCharacter({ name: "Canonical QA", archetypeId: "kiem_tong", fates: E.drawInitialFates() }) });
 
 function testCanonicalSurface() {
   ["travelTaskSnapshot", "startTravel", "advanceTravelTask", "resolveMapTransaction", "mapIncidentPreview", "mapOwner", "mapZoneStatus", "selectCompanionTarget", "recordCompanionDamage", "trackNpcFootprint", "resolveNpcSettlements", "prepareTechnique", "advanceTechniqueChannel", "cancelTechniquePreparation", "buildTechniqueContext", "transitionGuildMembership", "mailboxSnapshot"].forEach((name) => assert.strictEqual(typeof (E[name] || X[name]), "function", "missing canonical API: " + name));
-  ["FATE_CANONICAL.md", "CHARACTER_CANONICAL.md", "CON_DUONG_CANONICAL.md", "MAP_CANONICAL.md", "NPC_CANONICAL.md", "COMPANION_CANONICAL.md", "TECHNIQUE_CANONICAL.md", "UI_ACTION_LOG_CANONICAL.md", "DATA_RUNTIME_CANONICAL.md"].forEach((file) => assert(fs.existsSync(path.join(ROOT, "requirement", "SYSTEM_LOGIC_CATALOG", "features", file === "FATE_CANONICAL.md" ? "01-fate" : file === "CHARACTER_CANONICAL.md" ? "02-character" : ["CON_DUONG_CANONICAL.md", "TECHNIQUE_CANONICAL.md"].includes(file) ? (file === "CON_DUONG_CANONICAL.md" ? "03-progression" : "06-content") : file === "MAP_CANONICAL.md" ? "04-world" : ["NPC_CANONICAL.md", "COMPANION_CANONICAL.md"].includes(file) ? "05-interaction" : file === "UI_ACTION_LOG_CANONICAL.md" ? "07-ui" : "08-platform", file)), file));
+  ["fate", "character", "path", "map", "npc", "companion", "technique", "ui-action-log", "data-runtime"].forEach((feature) => assert(fs.existsSync(path.join(ROOT, "requirement", "features", feature, "README.md")), "missing requirement feature: " + feature));
 }
 
 function testSaveRoundTripAndCatalogImmutability() {
